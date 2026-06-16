@@ -1,3 +1,5 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-export { HomeScreen as default } from 'app/features/home/screen'
+export default function Home() {
+  redirect('/dashboard')
+}

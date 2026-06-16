@@ -1,0 +1,37 @@
+import {
+  Activity,
+  Camera,
+  CalendarCheck,
+  CalendarClock,
+  ClipboardList,
+  Dumbbell,
+  LayoutDashboard,
+  LibraryBig,
+  Trophy,
+  Users,
+  Video,
+  Watch,
+  type LucideIcon,
+} from 'lucide-react'
+
+export type NavItem = {
+  label: string
+  href: string
+  icon: LucideIcon
+  soon?: boolean
+}
+
+export const navItems: NavItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Clients', href: '/clients', icon: Users },
+  { label: 'Exercise Library', href: '/exercises', icon: LibraryBig, soon: true },
+  { label: 'Workouts', href: '/workouts', icon: Dumbbell, soon: true },
+  { label: 'Programs', href: '/programs', icon: ClipboardList, soon: true },
+  { label: 'Check-ins', href: '/check-ins', icon: CalendarCheck, soon: true },
+  { label: 'Progress Photos', href: '/progress-photos', icon: Camera, soon: true },
+  { label: 'Load Management', href: '/load', icon: Activity, soon: true },
+  { label: 'Attendance', href: '/attendance', icon: CalendarClock, soon: true },
+  { label: 'Form Review', href: '/form-review', icon: Video, soon: true },
+  { label: 'Leaderboards', href: '/leaderboards', icon: Trophy, soon: true },
+  { label: 'Wearables', href: '/wearables', icon: Watch, soon: true },
+]
