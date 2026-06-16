@@ -1,5 +1,13 @@
+import { Inter } from 'next/font/google'
+
 import { Toaster } from '@/components/ui/sonner'
+import { cn } from '@/lib/utils'
 import './globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 export const metadata = {
   title: 'Coaching App',
@@ -13,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={cn(inter.className, 'antialiased')}>
         {children}
         <Toaster />
       </body>

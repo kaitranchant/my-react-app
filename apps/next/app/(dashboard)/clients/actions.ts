@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import {
   clientFormSchema,
+  clientNotesSchema,
   clientStatuses,
   type ClientFormValues,
 } from '@/lib/validations/client'
@@ -116,5 +117,31 @@ export async function deleteClientRecord(id: string): Promise<ActionResult> {
   }
 
   revalidateClients()
+  return { success: true }
+}
+
+export async function updateClientNotes(
+  id: string,
+  notes: string
+): Promise<ActionResult> {
+  const parsed = clientNotesSchema.safeParse(notes)
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid notes.',
+    }
+  }
+
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from('clients')
+    .update({ notes: parsed.data ? parsed.data : null })
+    .eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath(`/clients/${id}`)
   return { success: true }
 }

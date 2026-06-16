@@ -42,7 +42,7 @@ export function AuthForm({
   const isSignup = mode === 'signup'
 
   return (
-    <Card>
+    <Card className="border-border/70 shadow-md">
       <CardHeader>
         <CardTitle className="text-xl">
           {isSignup ? 'Create your account' : 'Welcome back'}
@@ -89,14 +89,20 @@ export function AuthForm({
           </div>
 
           {state.error && (
-            <p className="text-destructive text-sm" role="alert">
+            <div
+              className="bg-destructive/5 text-destructive rounded-lg border border-destructive/15 px-3 py-2.5 text-sm leading-relaxed"
+              role="alert"
+            >
               {state.error}
-            </p>
+            </div>
           )}
           {state.message && (
-            <p className="text-sm text-emerald-600" role="status">
+            <div
+              className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-sm leading-relaxed text-emerald-700"
+              role="status"
+            >
               {state.message}
-            </p>
+            </div>
           )}
         </CardContent>
         <CardFooter className="mt-6 flex-col gap-4">

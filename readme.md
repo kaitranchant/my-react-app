@@ -1,95 +1,93 @@
-# Blank Solito Example Monorepo 🕴
+# Coaching App
 
-```sh
-npx create-solito-app@latest my-solito-app
-```
+A coaching and athlete management platform for personal trainers and coaches. Phase 1 focuses on authenticated client roster management via a Next.js web app backed by Supabase.
 
-👾 [View the website](https://example.solito.dev)
+## What works today
 
-## ⚡️ Instantly clone & deploy
+- Email/password authentication (sign up, sign in, sign out)
+- Dashboard with client count stats
+- Client management: list, search, filter by status, create, edit, archive, delete
+- Inline notes editing on client detail pages
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnandorojo%2Fsolito%2Ftree%2Fmaster%2Fexample-monorepos%2Fblank&env=ENABLE_ROOT_PATH_BUILD_CACHE&root-directory=apps/next&envDescription=Set%20this%20environment%20variable%20to%201%20for%20Turborepo%20to%20cache%20your%20node_modules.&envLink=https%3A%2F%2Ftwitter.com%2Fjaredpalmer%2Fstatus%2F1488954563533189124&project-name=solito-app&repo-name=solito-app&demo-title=Solito%20App%20%E2%9A%A1%EF%B8%8F&demo-description=React%20Native%20%2B%20Next.js%20starter%20with%20Solito.%20Made%20by%20Fernando%20Rojo.&demo-url=https%3A%2F%2Fsolito.dev%2Fstarter&demo-image=https%3A%2F%2Fsolito.dev%2Fimg%2Fog.png&build-command=cd+..%2F..%3Bnpx+turbo+run+build+--filter%3Dnext-app)
+## What's coming
 
-## 🔦 About
+Workouts, programs, check-ins, progress photos, and other features appear in the sidebar navigation but are not yet implemented.
 
-This monorepo is a blank(ish) starter for an Expo + Next.js app.
+## Prerequisites
 
-While it's pretty barebones, it does a lot of the annoying config for you. The folder structure is opinionated, based on my long experience building for this stack.
+- Node.js 18+
+- Yarn 4 (included via Corepack)
+- A [Supabase](https://supabase.com) project, or the [Supabase CLI](https://supabase.com/docs/guides/cli) for local development
 
-## 📦 Included packages
+## Quick start
 
-- `solito` for cross-platform navigation
-- `moti` for animations
-- Expo SDK 53
-- Next.js 15
-- React Navigation 7
-- React 19 (read more below)
-- React Compiler
+1. Install dependencies:
 
-For more, see the [compatibility docs](https://solito.dev/compatibility).
+   ```sh
+   yarn
+   ```
 
-## 🗂 Folder layout
+2. Configure environment variables:
 
-- `apps` entry points for each app
+   ```sh
+   cp apps/next/.env.example apps/next/.env.local
+   ```
 
-  - `expo`
-  - `next`
+   Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase project (Project Settings → API).
 
-- `packages` shared packages across apps
-  - `app` you'll be importing most files from `app/`
-    - `features` (don't use a `screens` folder. organize by feature.)
-    - `provider` (all the providers that wrap the app, and some no-ops for Web.)
-    - `navigation` Next.js has a `pages/` folder. React Native doesn't. This folder contains navigation-related code for RN. You may use it for any navigation code, such as custom links.
+   **Note:** Env vars belong in `apps/next/.env.local`, not the repo root.
 
-You can add other folders inside of `packages/` if you know what you're doing and have a good reason to.
+3. Apply the database schema:
 
-## 🏁 Start the app
+   **Hosted Supabase:**
 
-- Install dependencies: `yarn`
+   ```sh
+   supabase link
+   supabase db push
+   ```
 
-- Next.js local dev: `yarn web`
-  - Runs `yarn next`
-- Expo local dev:
-  - First, build a dev client onto your device or simulator
-    - `cd apps/expo`
-    - Then, either `expo run:ios`, or `eas build`
-  - After building the dev client, from the root of the monorepo...
-    - `yarn native` (This runs `expo start --dev-client`)
+   **Local Supabase:**
 
-## 🆕 Add new dependencies
+   ```sh
+   supabase start
+   supabase db reset
+   ```
 
-### Pure JS dependencies
+4. Start the web app:
 
-If you're installing a JavaScript-only dependency that will be used across platforms, install it in `packages/app`:
+   ```sh
+   yarn web
+   ```
 
-```sh
-cd packages/app
-yarn add date-fns
-cd ../..
-yarn
-```
+   Open [http://localhost:3000](http://localhost:3000).
 
-### Native dependencies
+5. Verify Supabase connectivity:
 
-If you're installing a library with any native code, you must install it in `apps/expo`:
+   ```sh
+   yarn workspace next-app check:supabase
+   ```
 
-```sh
-cd apps/expo
-yarn add react-native-reanimated
+## Monorepo layout
 
-cd ../..
-yarn
-```
+| Path | Purpose |
+|------|---------|
+| `apps/next` | Next.js 16 web app (primary product) |
+| `apps/expo` | Expo mobile app (future) |
+| `packages/app` | Shared types and cross-platform logic |
+| `supabase/` | Database migrations and local config |
 
-You can also install the native library inside of `packages/app` if you want to get autoimport for that package inside of the `app` folder. However, you need to be careful and install the _exact_ same version in both packages. If the versions mismatch at all, you'll potentially get terrible bugs. This is a classic monorepo issue. I use `lerna-update-wizard` to help with this (you don't need to use Lerna to use that lib).
+## Scripts
 
-## 🎙 About the creator
+| Command | Description |
+|---------|-------------|
+| `yarn web` | Start Next.js dev server |
+| `yarn native` | Start Expo dev client |
+| `yarn workspace next-app build` | Production build |
+| `yarn workspace next-app check:supabase` | Test Supabase connection |
 
-Follow Fernando Rojo on Twitter: [@FernandoTheRojo](https://twitter.com/fernandotherojo)
+## Tech stack
 
-## 🧐 Why use Expo + Next.js?
-
-See my talk about this topic at Next.js Conf 2021:
-
-<a href="https://www.youtube.com/watch?v=0lnbdRweJtA"><img width="1332" alt="image" src="https://user-images.githubusercontent.com/13172299/157299915-b633e083-f271-48c6-a262-7b7eef765be5.png">
-</a>
+- Next.js 16 (App Router), React 19, Tailwind CSS
+- Supabase (PostgreSQL, auth, RLS)
+- Yarn workspaces + Turborepo
+- Solito monorepo scaffold (Expo + Next.js)

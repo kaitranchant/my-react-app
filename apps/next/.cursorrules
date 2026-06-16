@@ -1,0 +1,43 @@
+# Coaching App — Cursor Rules
+
+## Project overview
+This is a coaching and athlete management platform for coaches and personal trainers.
+It allows coaches to manage clients, plan workouts, track progress, and manage team calendars.
+
+## Tech stack
+- Monorepo using Yarn workspaces and Turborepo
+- apps/next — Next.js 16 web app (App Router)
+- apps/expo — Expo (React Native) mobile app for iOS and Android
+- packages/app — shared screens, navigation, and business logic
+- packages/ui — shared UI components (planned; web UI currently lives in apps/next/components/)
+- Supabase for database, authentication, and storage (PostgreSQL)
+- NativeWind / Tailwind CSS for styling
+- TypeScript throughout
+
+## Project structure rules
+- Shared screens and logic go in packages/app/features
+- Shared components go in packages/ui (when created); web-only UI in apps/next/components/
+- Web-only pages go in apps/next/app
+- Mobile-only screens go in apps/expo
+- Supabase SSR clients live in apps/next/lib/supabase/ (server.ts, middleware.ts)
+- Environment variables are prefixed with NEXT_PUBLIC_
+
+## Code style
+- Always use TypeScript, never plain JavaScript
+- Use async/await, never .then() chains
+- Use named exports, not default exports for components
+- Use Tailwind/NativeWind for all styling, no inline styles
+- Keep components small and single-purpose
+
+## Database
+- Database is PostgreSQL via Supabase
+- All tables have created_at and updated_at timestamps
+- Use row-level security (RLS) on all tables
+- Key tables: coaches, clients, teams, workout_plans, scheduled_sessions, workout_logs
+
+## When generating code
+- Always consider both web (Next.js) and mobile (React Native) when building shared components
+- Use Solito for navigation between web and mobile
+- Prefer server components in Next.js unless interactivity is needed
+- Always handle loading and error states
+- Always validate user input

@@ -19,6 +19,11 @@ export const clientFormSchema = z.object({
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>
 
+export const clientNotesSchema = z
+  .string()
+  .trim()
+  .max(2000, 'Notes are too long')
+
 export const clientFormDefaults: ClientFormValues = {
   fullName: '',
   email: '',

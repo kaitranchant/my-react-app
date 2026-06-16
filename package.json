@@ -1,5 +1,5 @@
 {
-  "name": "solito-blank",
+  "name": "coaching-app",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -13,7 +13,7 @@
   },
   "scripts": {
     "native": "cd apps/expo && yarn start",
-    "web": "cd apps/next && yarn next"
+    "web": "yarn workspace next-app dev"
   },
   "packageManager": "yarn@4.7.0",
   "eslintConfig": {

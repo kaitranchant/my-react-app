@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { PageHeader } from '@/components/dashboard/page-header'
+import { cn } from '@/lib/utils'
 
 export const metadata = {
   title: 'Dashboard — Coaching App',
@@ -20,6 +22,7 @@ type Stat = {
   value: number
   icon: typeof Users
   hint: string
+  iconClass: string
 }
 
 export default async function DashboardPage() {
@@ -36,54 +39,63 @@ export default async function DashboardPage() {
       value: total,
       icon: Users,
       hint: 'All clients on your roster',
+      iconClass: 'bg-primary/10 text-primary',
     },
     {
       label: 'Active',
       value: active,
       icon: Activity,
       hint: 'Currently training with you',
+      iconClass: 'bg-emerald-500/10 text-emerald-700',
     },
     {
       label: 'Paused',
       value: paused,
       icon: PauseCircle,
       hint: 'Temporarily on hold',
+      iconClass: 'bg-amber-500/10 text-amber-700',
     },
   ]
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            Your coaching business at a glance.
-          </p>
-        </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <PageHeader
+        title="Dashboard"
+        description="Your coaching business at a glance."
+      >
         <Button asChild>
           <Link href="/clients">
             <UserPlus className="size-4" />
             Manage clients
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.label}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-muted-foreground text-sm font-medium">
-                  {stat.label}
-                </CardTitle>
-                <Icon className="text-muted-foreground size-4" />
+            <Card key={stat.label} className="gap-0 py-0">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 px-5 pt-5 pb-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-muted-foreground text-sm font-medium">
+                    {stat.label}
+                  </CardTitle>
+                  <div className="text-3xl font-semibold tracking-tight">
+                    {stat.value}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    'flex size-10 items-center justify-center rounded-xl',
+                    stat.iconClass
+                  )}
+                >
+                  <Icon className="size-[18px]" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-semibold">{stat.value}</div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {stat.hint}
-                </p>
+              <CardContent className="text-muted-foreground px-5 pb-5 text-xs">
+                {stat.hint}
               </CardContent>
             </Card>
           )
@@ -94,16 +106,16 @@ export default async function DashboardPage() {
         <CardHeader>
           <CardTitle>Getting started</CardTitle>
           <CardDescription>
-            This is your foundation. More tools are on the way.
+            Your foundation is ready. More tools are on the way.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-muted-foreground text-sm">
+        <CardContent className="text-muted-foreground text-sm leading-relaxed">
           {total === 0 ? (
             <p>
               You have no clients yet.{' '}
               <Link
                 href="/clients"
-                className="text-foreground font-medium underline-offset-4 hover:underline"
+                className="text-primary font-medium underline-offset-4 hover:underline"
               >
                 Add your first client
               </Link>{' '}

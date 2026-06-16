@@ -3,6 +3,7 @@
 import { Mail, Phone, Target } from 'lucide-react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
 import {
   Card,
   CardContent,
@@ -36,9 +37,11 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="text-muted-foreground mt-0.5 size-4" />
-      <div>
-        <p className="text-muted-foreground text-xs">{label}</p>
+      <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+        <Icon className="size-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
         <p className="text-sm">{value?.trim() ? value : '—'}</p>
       </div>
     </div>
@@ -48,7 +51,7 @@ function InfoRow({
 export function ClientDetailTabs({ client }: { client: Client }) {
   return (
     <Tabs defaultValue="overview">
-      <TabsList>
+      <TabsList className="h-10">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="workouts">Workouts</TabsTrigger>
         <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
@@ -86,22 +89,10 @@ export function ClientDetailTabs({ client }: { client: Client }) {
       </TabsContent>
 
       <TabsContent value="notes" className="mt-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-wrap">
-              {client.notes?.trim() ? (
-                client.notes
-              ) : (
-                <span className="text-muted-foreground">
-                  No notes yet. Use “Edit” to add context about this client.
-                </span>
-              )}
-            </p>
-          </CardContent>
-        </Card>
+        <ClientNotesEditor
+          clientId={client.id}
+          initialNotes={client.notes}
+        />
       </TabsContent>
     </Tabs>
   )

@@ -9,6 +9,16 @@ import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { StatusBadge } from '@/components/clients/status-badge'
 import type { Client } from 'app/types/database'
 
+function initials(name: string) {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
 export default async function ClientDetailPage({
   params,
 }: {
@@ -30,26 +40,31 @@ export default async function ClientDetailPage({
   const client = data as Client
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <Link
         href="/clients"
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm"
+        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" />
         Back to clients
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {client.full_name}
-            </h1>
-            <StatusBadge status={client.status} />
+        <div className="flex items-start gap-4">
+          <div className="bg-primary/10 text-primary flex size-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold">
+            {initials(client.full_name)}
           </div>
-          {client.email && (
-            <p className="text-muted-foreground text-sm">{client.email}</p>
-          )}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {client.full_name}
+              </h1>
+              <StatusBadge status={client.status} />
+            </div>
+            {client.email && (
+              <p className="text-muted-foreground text-sm">{client.email}</p>
+            )}
+          </div>
         </div>
         <ClientFormDialog
           client={client}
