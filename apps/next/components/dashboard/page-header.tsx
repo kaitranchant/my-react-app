@@ -19,7 +19,7 @@ export function PageHeader({
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight uppercase">{title}</h1>
         {description && (
           <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
             {description}

@@ -32,7 +32,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-background/80 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-10 flex h-16 items-center gap-4 border-b px-4 backdrop-blur sm:px-6">
+        <header className="bg-background sticky top-0 z-10 flex h-16 items-center gap-4 border-b px-4 sm:px-6">
           <div className="md:hidden">
             <BrandLogo />
           </div>

@@ -44,6 +44,23 @@ function missingEnvError(): AuthState | null {
   return null
 }
 
+async function postAuthRedirectPath(
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return '/login'
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  return profile?.role === 'client' ? '/portal' : '/dashboard'
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
@@ -70,7 +87,8 @@ export async function login(
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  const supabase = await createClient()
+  redirect(await postAuthRedirectPath(supabase))
 }
 
 export async function signup(
@@ -80,9 +98,14 @@ export async function signup(
   const fullName = String(formData.get('fullName') ?? '').trim()
   const email = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
+  const inviteToken = String(formData.get('inviteToken') ?? '').trim()
 
   if (!email || !password) {
     return { error: 'Email and password are required.' }
+  }
+
+  if (inviteToken && !fullName) {
+    return { error: 'Full name is required.' }
   }
 
   if (password.length < 8) {
@@ -92,6 +115,8 @@ export async function signup(
   const envError = missingEnvError()
   if (envError) return envError
 
+  const isClientSignup = Boolean(inviteToken)
+
   try {
     const origin = (await headers()).get('origin') ?? ''
     const supabase = await createClient()
@@ -99,7 +124,11 @@ export async function signup(
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          role: isClientSignup ? 'client' : 'coach',
+          invite_token: inviteToken || undefined,
+        },
         emailRedirectTo: `${origin}/auth/callback`,
       },
     })
@@ -111,7 +140,9 @@ export async function signup(
     // When email confirmation is enabled, no session is returned yet.
     if (!data.session) {
       return {
-        message: 'Check your email to confirm your account, then sign in.',
+        message: isClientSignup
+          ? 'Check your email to confirm your account, then sign in to view your training.'
+          : 'Check your email to confirm your account, then sign in.',
       }
     }
   } catch (error) {
@@ -119,7 +150,8 @@ export async function signup(
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  const supabase = await createClient()
+  redirect(isClientSignup ? '/portal' : await postAuthRedirectPath(supabase))
 }
 
 export async function signOut() {

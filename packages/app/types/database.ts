@@ -1,4 +1,6 @@
 export type ClientStatus = 'active' | 'paused' | 'archived'
+export type UserRole = 'coach' | 'client'
+export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
 
 export type Json =
   | string
@@ -17,6 +19,7 @@ export type Database = {
           full_name: string | null
           business_name: string | null
           avatar_url: string | null
+          role: UserRole
           created_at: string
           updated_at: string
         }
@@ -25,6 +28,7 @@ export type Database = {
           full_name?: string | null
           business_name?: string | null
           avatar_url?: string | null
+          role?: UserRole
           created_at?: string
           updated_at?: string
         }
@@ -33,6 +37,7 @@ export type Database = {
           full_name?: string | null
           business_name?: string | null
           avatar_url?: string | null
+          role?: UserRole
           created_at?: string
           updated_at?: string
         }
@@ -42,36 +47,51 @@ export type Database = {
         Row: {
           id: string
           coach_id: string
+          user_id: string | null
           full_name: string
           email: string | null
           phone: string | null
           status: ClientStatus
+          invite_status: ClientInviteStatus
+          invite_token: string | null
+          invite_expires_at: string | null
           goal: string | null
           notes: string | null
+          avatar_url: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           coach_id: string
+          user_id?: string | null
           full_name: string
           email?: string | null
           phone?: string | null
           status?: ClientStatus
+          invite_status?: ClientInviteStatus
+          invite_token?: string | null
+          invite_expires_at?: string | null
           goal?: string | null
           notes?: string | null
+          avatar_url?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           coach_id?: string
+          user_id?: string | null
           full_name?: string
           email?: string | null
           phone?: string | null
           status?: ClientStatus
+          invite_status?: ClientInviteStatus
+          invite_token?: string | null
+          invite_expires_at?: string | null
           goal?: string | null
           notes?: string | null
+          avatar_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -90,10 +110,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_client_invite_preview: {
+        Args: { p_token: string }
+        Returns: {
+          client_name: string
+          coach_name: string
+          email: string
+        }[]
+      }
+      link_client_invite: {
+        Args: { p_token: string; p_user_id: string; p_email: string }
+        Returns: string
+      }
     }
     Enums: {
       client_status: ClientStatus
+      user_role: UserRole
+      client_invite_status: ClientInviteStatus
     }
     CompositeTypes: {
       [_ in never]: never

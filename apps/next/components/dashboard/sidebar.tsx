@@ -26,16 +26,16 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        'relative flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium transition-colors',
         active
-          ? 'bg-primary/8 text-foreground'
+          ? 'bg-accent font-semibold text-foreground'
           : 'text-muted-foreground hover:bg-accent hover:text-foreground'
       )}
     >
       {active && (
-        <span className="bg-primary absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full" />
+        <span className="bg-brand absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2" />
       )}
-      <Icon className={cn('size-4', active && 'text-primary')} />
+      <Icon className={cn('size-4', active && 'text-foreground')} />
       {label}
     </Link>
   )
@@ -52,7 +52,7 @@ export function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-6 overflow-y-auto p-4">
         <div className="space-y-1">
-          <p className="text-muted-foreground mb-2 px-3 text-[11px] font-medium tracking-wider uppercase">
+          <p className="text-muted-foreground mb-2 px-3 text-[10px] font-semibold tracking-[0.12em] uppercase">
             Main
           </p>
           {coreItems.map((item) => {
@@ -71,7 +71,7 @@ export function Sidebar() {
         </div>
 
         <div className="space-y-1">
-          <p className="text-muted-foreground mb-2 px-3 text-[11px] font-medium tracking-wider uppercase">
+          <p className="text-muted-foreground mb-2 px-3 text-[10px] font-semibold tracking-[0.12em] uppercase">
             Coming soon
           </p>
           {soonItems.map((item) => {
@@ -79,7 +79,7 @@ export function Sidebar() {
             return (
               <span
                 key={item.href}
-                className="text-muted-foreground/60 flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm"
+                className="text-muted-foreground/50 flex cursor-not-allowed items-center gap-3 rounded-sm px-3 py-2.5 text-sm"
                 aria-disabled
               >
                 <Icon className="size-4" />

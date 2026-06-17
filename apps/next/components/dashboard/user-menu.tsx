@@ -2,7 +2,7 @@
 
 import { ChevronDown, LogOut } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -24,12 +24,23 @@ function initials(name: string) {
     .toUpperCase()
 }
 
-export function UserMenu({ name, email }: { name: string; email: string }) {
+export function UserMenu({
+  name,
+  email,
+  avatarUrl,
+}: {
+  name: string
+  email: string
+  avatarUrl?: string | null
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-10 gap-2 px-2">
-          <Avatar>
+          <Avatar className="size-8">
+            {avatarUrl && (
+              <AvatarImage src={avatarUrl} alt={name} className="object-cover" />
+            )}
             <AvatarFallback>{initials(name)}</AvatarFallback>
           </Avatar>
           <span className="hidden text-sm font-medium sm:inline">{name}</span>

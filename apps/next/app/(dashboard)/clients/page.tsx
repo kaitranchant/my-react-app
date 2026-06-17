@@ -20,6 +20,8 @@ import {
 import { ClientsToolbar } from '@/components/clients/clients-toolbar'
 import { ClientsPagination } from '@/components/clients/clients-pagination'
 import { ClientRowActions } from '@/components/clients/client-row-actions'
+import { ClientAvatar } from '@/components/clients/client-avatar'
+import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
@@ -103,7 +105,7 @@ export default async function ClientsPage({
             </p>
           ) : clients.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-              <div className="bg-primary/8 text-primary flex size-14 items-center justify-center rounded-2xl">
+              <div className="bg-foreground text-background flex size-14 items-center justify-center rounded-sm">
                 <Users className="size-7" />
               </div>
               <div className="space-y-1">
@@ -122,6 +124,7 @@ export default async function ClientsPage({
                   <TableHead className="pl-5">Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead className="w-12 pr-5" />
                 </TableRow>
@@ -132,8 +135,13 @@ export default async function ClientsPage({
                     <TableCell className="pl-5 font-medium">
                       <Link
                         href={`/clients/${client.id}`}
-                        className="text-foreground hover:text-primary transition-colors"
+                        className="text-foreground hover:text-brand flex items-center gap-3 font-medium transition-colors"
                       >
+                        <ClientAvatar
+                          name={client.full_name}
+                          avatarUrl={client.avatar_url}
+                          size="sm"
+                        />
                         {client.full_name}
                       </Link>
                     </TableCell>
@@ -142,6 +150,9 @@ export default async function ClientsPage({
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={client.status} />
+                    </TableCell>
+                    <TableCell>
+                      <ClientInviteStatusBadge status={client.invite_status} />
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[16rem] truncate">
                       {client.goal ?? '—'}

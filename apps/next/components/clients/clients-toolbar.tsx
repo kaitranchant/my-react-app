@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ClientFormDialog } from '@/components/clients/client-form-dialog'
+import { AddClientDialog } from '@/components/clients/add-client-dialog'
 
 export function ClientsToolbar() {
   const router = useRouter()
@@ -75,7 +75,7 @@ export function ClientsToolbar() {
         </Select>
       </div>
 
-      <ClientFormDialog
+      <AddClientDialog
         trigger={
           <Button>
             <Plus className="size-4" />

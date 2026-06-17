@@ -1,1 +1,2 @@
 export const CLIENTS_PAGE_SIZE = 25
+export const CLIENT_INVITE_EXPIRY_DAYS = 7

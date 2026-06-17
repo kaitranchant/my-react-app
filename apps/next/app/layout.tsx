@@ -1,11 +1,13 @@
-import { Inter } from 'next/font/google'
+import { Barlow } from 'next/font/google'
 
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
-const inter = Inter({
+const barlow = Barlow({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-barlow',
   display: 'swap',
 })
 
@@ -21,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={cn(inter.className, 'antialiased')}>
+      <body className={cn(barlow.className, barlow.variable, 'antialiased')}>
         {children}
         <Toaster />
       </body>

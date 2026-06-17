@@ -7,19 +7,19 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_minmax(0,28rem)] xl:grid-cols-2">
-      <div className="auth-panel-bg relative hidden flex-col justify-between overflow-hidden p-10 lg:flex">
+      <div className="auth-panel-bg relative hidden flex-col justify-between overflow-hidden border-r p-10 lg:flex">
         <BrandLogo />
-        <div className="max-w-md space-y-4">
-          <h2 className="text-3xl font-semibold tracking-tight text-balance">
+        <div className="max-w-md space-y-5">
+          <h2 className="text-4xl font-bold tracking-tight text-balance uppercase leading-[1.05]">
             Run your coaching business from one place.
           </h2>
-          <p className="text-muted-foreground text-[15px] leading-relaxed">
+          <p className="text-muted-foreground text-base leading-relaxed">
             Manage clients, track progress, and build programs — built for
             personal trainers and coaches who want clarity without clutter.
           </p>
         </div>
-        <p className="text-muted-foreground text-xs">
-          Secure sign-in powered by Supabase
+        <p className="text-muted-foreground text-xs tracking-wide uppercase">
+          Secure sign-in
         </p>
       </div>
 

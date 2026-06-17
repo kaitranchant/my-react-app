@@ -39,21 +39,21 @@ export default async function DashboardPage() {
       value: total,
       icon: Users,
       hint: 'All clients on your roster',
-      iconClass: 'bg-primary/10 text-primary',
+      iconClass: 'bg-foreground/5 text-foreground',
     },
     {
       label: 'Active',
       value: active,
       icon: Activity,
       hint: 'Currently training with you',
-      iconClass: 'bg-emerald-500/10 text-emerald-700',
+      iconClass: 'bg-brand/10 text-brand',
     },
     {
       label: 'Paused',
       value: paused,
       icon: PauseCircle,
       hint: 'Temporarily on hold',
-      iconClass: 'bg-amber-500/10 text-amber-700',
+      iconClass: 'bg-muted text-muted-foreground',
     },
   ]
 
@@ -81,13 +81,13 @@ export default async function DashboardPage() {
                   <CardTitle className="text-muted-foreground text-sm font-medium">
                     {stat.label}
                   </CardTitle>
-                  <div className="text-3xl font-semibold tracking-tight">
+                  <div className="text-4xl font-bold tracking-tight">
                     {stat.value}
                   </div>
                 </div>
                 <div
                   className={cn(
-                    'flex size-10 items-center justify-center rounded-xl',
+                    'flex size-10 items-center justify-center rounded-sm',
                     stat.iconClass
                   )}
                 >
@@ -115,7 +115,7 @@ export default async function DashboardPage() {
               You have no clients yet.{' '}
               <Link
                 href="/clients"
-                className="text-primary font-medium underline-offset-4 hover:underline"
+                className="text-brand font-semibold underline-offset-4 hover:underline"
               >
                 Add your first client
               </Link>{' '}

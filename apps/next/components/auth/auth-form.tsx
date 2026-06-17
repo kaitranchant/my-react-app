@@ -22,6 +22,13 @@ type AuthAction = (
   formData: FormData
 ) => Promise<AuthState>
 
+export type InvitePreview = {
+  clientName: string
+  coachName: string
+  email: string
+  inviteToken: string
+}
+
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus()
   return (
@@ -34,26 +41,42 @@ function SubmitButton({ label }: { label: string }) {
 export function AuthForm({
   mode,
   action,
+  invitePreview,
 }: {
   mode: 'login' | 'signup'
   action: AuthAction
+  invitePreview?: InvitePreview | null
 }) {
   const [state, formAction] = useActionState<AuthState, FormData>(action, {})
   const isSignup = mode === 'signup'
+  const isClientInvite = Boolean(isSignup && invitePreview)
 
   return (
-    <Card className="border-border/70 shadow-md">
+    <Card className="border shadow-none">
       <CardHeader>
-        <CardTitle className="text-xl">
-          {isSignup ? 'Create your account' : 'Welcome back'}
+        <CardTitle className="text-xl font-bold uppercase tracking-tight">
+          {isClientInvite
+            ? 'Join your coach'
+            : isSignup
+              ? 'Create your account'
+              : 'Welcome back'}
         </CardTitle>
         <CardDescription>
-          {isSignup
-            ? 'Start managing your clients and programs.'
-            : 'Sign in to your coaching dashboard.'}
+          {isClientInvite && invitePreview
+            ? `${invitePreview.coachName} invited you to track workouts and progress.`
+            : isSignup
+              ? 'Start managing your clients and programs.'
+              : 'Sign in to your coaching dashboard.'}
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
+        {isClientInvite && invitePreview && (
+          <input
+            type="hidden"
+            name="inviteToken"
+            value={invitePreview.inviteToken}
+          />
+        )}
         <CardContent className="grid gap-4">
           {isSignup && (
             <div className="grid gap-2">
@@ -61,8 +84,10 @@ export function AuthForm({
               <Input
                 id="fullName"
                 name="fullName"
-                placeholder="Alex Coach"
+                placeholder="Jordan Athlete"
                 autoComplete="name"
+                defaultValue={invitePreview?.clientName ?? ''}
+                required={isClientInvite}
               />
             </div>
           )}
@@ -75,6 +100,8 @@ export function AuthForm({
               placeholder="you@example.com"
               autoComplete="email"
               required
+              defaultValue={invitePreview?.email ?? ''}
+              readOnly={isClientInvite}
             />
           </div>
           <div className="grid gap-2">
@@ -98,7 +125,7 @@ export function AuthForm({
           )}
           {state.message && (
             <div
-              className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-sm leading-relaxed text-emerald-700"
+              className="rounded-sm border border-foreground/10 bg-muted px-3 py-2.5 text-sm leading-relaxed"
               role="status"
             >
               {state.message}
@@ -106,30 +133,40 @@ export function AuthForm({
           )}
         </CardContent>
         <CardFooter className="mt-6 flex-col gap-4">
-          <SubmitButton label={isSignup ? 'Create account' : 'Sign in'} />
-          <p className="text-muted-foreground text-center text-sm">
-            {isSignup ? (
-              <>
-                Already have an account?{' '}
-                <Link
-                  href="/login"
-                  className="text-foreground font-medium underline-offset-4 hover:underline"
-                >
-                  Sign in
-                </Link>
-              </>
-            ) : (
-              <>
-                Need an account?{' '}
-                <Link
-                  href="/signup"
-                  className="text-foreground font-medium underline-offset-4 hover:underline"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </p>
+          <SubmitButton
+            label={
+              isClientInvite
+                ? 'Create account & join'
+                : isSignup
+                  ? 'Create account'
+                  : 'Sign in'
+            }
+          />
+          {!isClientInvite && (
+            <p className="text-muted-foreground text-center text-sm">
+              {isSignup ? (
+                <>
+                  Already have an account?{' '}
+                  <Link
+                    href="/login"
+                    className="text-foreground font-medium underline-offset-4 hover:underline"
+                  >
+                    Sign in
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Need an account?{' '}
+                  <Link
+                    href="/signup"
+                    className="text-foreground font-medium underline-offset-4 hover:underline"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
         </CardFooter>
       </form>
     </Card>

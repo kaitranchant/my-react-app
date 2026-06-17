@@ -32,3 +32,21 @@ export const clientFormDefaults: ClientFormValues = {
   goal: '',
   notes: '',
 }
+
+export const inviteClientSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Name is too long'),
+  email: z.string().trim().email('Enter a valid email'),
+  goal: z.string().trim().max(500, 'Goal is too long').optional(),
+})
+
+export type InviteClientValues = z.infer<typeof inviteClientSchema>
+
+export const inviteClientDefaults: InviteClientValues = {
+  fullName: '',
+  email: '',
+  goal: '',
+}

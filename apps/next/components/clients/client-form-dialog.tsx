@@ -42,6 +42,7 @@ import {
   createClientRecord,
   updateClientRecord,
 } from '@/app/(dashboard)/clients/actions'
+import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import type { Client } from 'app/types/database'
 
 type ClientFormDialogProps = {
@@ -129,6 +130,14 @@ export function ClientFormDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+            {isEdit && client && (
+              <ClientAvatarUpload
+                clientId={client.id}
+                name={form.watch('fullName') || client.full_name}
+                avatarUrl={client.avatar_url}
+                size="sm"
+              />
+            )}
             <FormField
               control={form.control}
               name="fullName"

@@ -3,11 +3,11 @@ import type { ClientStatus } from 'app/types/database'
 
 const config: Record<
   ClientStatus,
-  { label: string; variant: 'success' | 'warning' | 'secondary' }
+  { label: string; variant: 'default' | 'secondary' | 'outline' }
 > = {
-  active: { label: 'Active', variant: 'success' },
-  paused: { label: 'Paused', variant: 'warning' },
-  archived: { label: 'Archived', variant: 'secondary' },
+  active: { label: 'Active', variant: 'default' },
+  paused: { label: 'Paused', variant: 'secondary' },
+  archived: { label: 'Archived', variant: 'outline' },
 }
 
 export function StatusBadge({ status }: { status: ClientStatus }) {

@@ -46,9 +46,42 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname === '/login' || pathname === '/signup')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = profile?.role === 'client' ? '/portal' : '/dashboard'
     return NextResponse.redirect(url)
+  }
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const role = profile?.role ?? 'coach'
+    const isCoachArea =
+      pathname === '/' ||
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/clients')
+    const isPortal = pathname.startsWith('/portal')
+
+    if (role === 'client' && isCoachArea) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/portal'
+      return NextResponse.redirect(url)
+    }
+
+    if (role === 'coach' && isPortal) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
