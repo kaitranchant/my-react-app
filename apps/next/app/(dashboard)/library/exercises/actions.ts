@@ -38,13 +38,17 @@ function toExerciseRow(values: ExerciseFormValues) {
   }
 }
 
-function revalidateExercises() {
+function revalidateExercises(clientId?: string) {
   revalidatePath('/library/exercises')
   revalidatePath('/library')
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`)
+  }
 }
 
 export async function createExerciseRecord(
-  values: ExerciseFormValues
+  values: ExerciseFormValues,
+  options?: { clientId?: string }
 ): Promise<CreateExerciseResult> {
   const parsed = exerciseFormSchema.safeParse(values)
   if (!parsed.success) {
@@ -62,7 +66,7 @@ export async function createExerciseRecord(
     return { success: false, error: error?.message ?? 'Could not create exercise.' }
   }
 
-  revalidateExercises()
+  revalidateExercises(options?.clientId)
   return { success: true, exerciseId: data.id }
 }
 

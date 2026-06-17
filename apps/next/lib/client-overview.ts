@@ -62,7 +62,8 @@ export function statusLabel(status: ClientStatus): {
 
 export function getPreSessionInsight(
   client: Client,
-  hasProgram = false
+  hasProgram = false,
+  hasScheduledWorkouts = false
 ): {
   badge: string
   variant: 'success' | 'warning' | 'secondary' | 'outline'
@@ -98,18 +99,27 @@ export function getPreSessionInsight(
         'Client cannot log workouts until you send an account invite.',
     }
   }
-  if (!hasProgram) {
+  if (!hasProgram && !hasScheduledWorkouts) {
     return {
-      badge: 'No program',
+      badge: 'No plan',
       variant: 'warning',
-      message: 'Account linked — assign a program before the next session.',
+      message:
+        'No program or calendar workouts yet — schedule sessions on the Calendar tab.',
+    }
+  }
+  if (!hasScheduledWorkouts) {
+    return {
+      badge: 'No sessions',
+      variant: 'warning',
+      message:
+        'Program assigned but no workouts on the calendar yet — add sessions for this week.',
     }
   }
   return {
     badge: 'Ready to train',
     variant: 'success',
     message:
-      'Program assigned — add progress photos when that feature launches.',
+      'Workouts scheduled on the calendar — review the week before your next session.',
   }
 }
 

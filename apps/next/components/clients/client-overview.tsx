@@ -13,12 +13,16 @@ import {
   formatClientSince,
   formatRelativeUpdated,
   getPreSessionInsight,
-  getWeekDays,
   inviteStatusLabel,
   statusLabel,
 } from '@/lib/client-overview'
+import { getWeekDayLabels } from '@/lib/calendar'
 import { cn } from '@/lib/utils'
-import type { Client, ClientProgramAssignment } from 'app/types/database'
+import type {
+  CalendarDaySummary,
+  Client,
+  ClientProgramAssignment,
+} from 'app/types/database'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -109,22 +113,33 @@ function ChecklistRow({
 type ClientOverviewProps = {
   client: Client
   activeAssignment?: ClientProgramAssignment | null
+  weekSessions?: CalendarDaySummary[]
   onOpenNotes?: () => void
+  onOpenCalendar?: () => void
 }
 
 export function ClientOverview({
   client,
   activeAssignment = null,
+  weekSessions = [],
   onOpenNotes,
+  onOpenCalendar,
 }: ClientOverviewProps) {
   const since = formatClientSince(client.created_at)
   const account = inviteStatusLabel(client.invite_status)
   const roster = statusLabel(client.status)
-  const weekDays = getWeekDays()
+  const weekDays = getWeekDayLabels()
+  const sessionsByDate = new Map(
+    weekSessions.map((session) => [session.scheduled_date, session])
+  )
+  const upcomingSession = weekSessions.find(
+    (session) => session.scheduled_date >= weekDays.find((day) => day.isToday)!.dateKey
+  )
   const hasGoal = Boolean(client.goal?.trim())
   const hasNotes = Boolean(client.notes?.trim())
   const hasProgram = Boolean(activeAssignment)
-  const insight = getPreSessionInsight(client, hasProgram)
+  const hasScheduledWorkouts = weekSessions.length > 0
+  const insight = getPreSessionInsight(client, hasProgram, hasScheduledWorkouts)
 
   return (
     <div className="space-y-4">
@@ -154,7 +169,11 @@ export function ClientOverview({
             <DetailRow label="Current program" value={
               activeAssignment?.program.name ?? 'Not assigned yet'
             } emphasize={Boolean(activeAssignment)} />
-            <DetailRow label="Next session" value="No sessions scheduled" />
+            <DetailRow label="Next session" value={
+              upcomingSession
+                ? `${upcomingSession.name} · ${upcomingSession.scheduled_date.replace(/-/g, '/')}`
+                : 'No sessions scheduled'
+            } />
           </CardContent>
         </Card>
 
@@ -201,9 +220,12 @@ export function ClientOverview({
                 }
               />
               <ChecklistRow
-                done={false}
-                label="Progress photos — coming with progress photos tab"
-                muted
+                done={hasScheduledWorkouts}
+                label={
+                  hasScheduledWorkouts
+                    ? `${weekSessions.length} workout${weekSessions.length === 1 ? '' : 's'} scheduled this week`
+                    : 'Schedule workouts on the Calendar tab'
+                }
               />
             </div>
             <p className="text-muted-foreground text-xs">
@@ -214,37 +236,62 @@ export function ClientOverview({
       </div>
 
       <Card className="gap-0 py-0">
-        <CardHeader className="px-5 pt-5 pb-0">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
           <SectionLabel>This week</SectionLabel>
+          {onOpenCalendar && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-8 gap-1 px-2 text-xs"
+              onClick={onOpenCalendar}
+            >
+              Open calendar
+              <ArrowRight className="size-3.5" />
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="px-5 pb-5">
           <div className="grid grid-cols-7 gap-2 sm:gap-3">
-            {weekDays.map(({ label, isToday }) => (
-              <div key={label} className="flex flex-col items-center gap-2">
-                <div
-                  className={cn(
-                    'flex size-10 items-center justify-center rounded-sm border sm:size-11',
-                    isToday
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-muted/40 text-muted-foreground'
-                  )}
-                  aria-hidden
-                >
-                  <Minus className="size-4" strokeWidth={2.5} />
+            {weekDays.map(({ label, dateKey, isToday }) => {
+              const session = sessionsByDate.get(dateKey)
+              return (
+                <div key={dateKey} className="flex flex-col items-center gap-2">
+                  <div
+                    className={cn(
+                      'flex size-10 flex-col items-center justify-center rounded-sm border sm:size-11',
+                      isToday
+                        ? 'border-foreground bg-foreground text-background'
+                        : session
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+                          : 'border-border bg-muted/40 text-muted-foreground'
+                    )}
+                    aria-hidden
+                  >
+                    {session ? (
+                      <span className="text-[10px] font-bold uppercase">
+                        {session.name.slice(0, 3)}
+                      </span>
+                    ) : (
+                      <Minus className="size-4" strokeWidth={2.5} />
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      'text-xs font-medium',
+                      isToday ? 'text-foreground' : 'text-muted-foreground'
+                    )}
+                  >
+                    {label}
+                  </span>
                 </div>
-                <span
-                  className={cn(
-                    'text-xs font-medium',
-                    isToday ? 'text-foreground' : 'text-muted-foreground'
-                  )}
-                >
-                  {label}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <p className="text-muted-foreground mt-4 text-xs">
-            Session tracking appears here once workouts are assigned.
+            {hasScheduledWorkouts
+              ? 'Scheduled workouts appear on the calendar tab.'
+              : 'No workouts scheduled this week — use the Calendar tab to plan sessions.'}
           </p>
         </CardContent>
       </Card>

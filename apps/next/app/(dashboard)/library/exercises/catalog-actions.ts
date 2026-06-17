@@ -32,9 +32,12 @@ async function requireUser() {
   return { supabase, user }
 }
 
-function revalidateExercises() {
+function revalidateExercises(clientId?: string) {
   revalidatePath('/library/exercises')
   revalidatePath('/library')
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`)
+  }
 }
 
 function toErrorMessage(error: unknown) {
@@ -170,6 +173,71 @@ export async function importExerciseFromCatalog(
     }
 
     revalidateExercises()
+    return { success: true, exerciseId: data.id }
+  } catch (error) {
+    return { success: false, error: toErrorMessage(error) }
+  }
+}
+
+export async function ensureCatalogExercise(
+  externalId: string,
+  clientId?: string
+): Promise<ImportExerciseResult> {
+  if (!externalId.trim()) {
+    return { success: false, error: 'Invalid exercise.' }
+  }
+
+  if (!isExerciseDbConfigured()) {
+    return {
+      success: false,
+      error:
+        'ExerciseDB is not configured. Add EXERCISEDB_RAPIDAPI_KEY to apps/next/.env.local.',
+    }
+  }
+
+  const { supabase, user } = await requireUser()
+
+  const { data: existing } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('coach_id', user.id)
+    .eq('external_id', externalId)
+    .maybeSingle()
+
+  if (existing) {
+    return { success: true, exerciseId: existing.id }
+  }
+
+  try {
+    const remote = await fetchExerciseDbById(externalId)
+    const row = mapExerciseDbToRow(remote)
+
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert({ ...row, coach_id: user.id })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      if (error?.code === '23505') {
+        const { data: raced } = await supabase
+          .from('exercises')
+          .select('id')
+          .eq('coach_id', user.id)
+          .eq('external_id', externalId)
+          .maybeSingle()
+
+        if (raced) {
+          return { success: true, exerciseId: raced.id }
+        }
+      }
+      return {
+        success: false,
+        error: error?.message ?? 'Could not import exercise.',
+      }
+    }
+
+    revalidateExercises(clientId)
     return { success: true, exerciseId: data.id }
   } catch (error) {
     return { success: false, error: toErrorMessage(error) }

@@ -3,13 +3,22 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
+import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountCard } from '@/components/clients/client-account-card'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { StatusBadge } from '@/components/clients/status-badge'
-import type { Client, ClientProgramAssignment, Program } from 'app/types/database'
+import type {
+  CalendarDaySummary,
+  Client,
+  ClientProgramAssignment,
+  ClientScheduledWorkoutWithExercises,
+  Exercise,
+  Program,
+  Workout,
+} from 'app/types/database'
 
 export default async function ClientDetailPage({
   params,
@@ -18,11 +27,24 @@ export default async function ClientDetailPage({
 }) {
   const { clientId } = await params
   const supabase = await createClient()
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const selectedDate = toDateKey(today)
+  const { start: monthStart, end: monthEnd } = getMonthDateRange(year, month)
+  const weekDateKeys = getWeekDayLabels().map((day) => day.dateKey)
+  const weekStart = weekDateKeys[0]
+  const weekEnd = weekDateKeys[weekDateKeys.length - 1]
 
   const [
     { data },
     { data: assignmentData },
     { data: programsData },
+    monthResult,
+    weekResult,
+    selectedResult,
+    exercisesResult,
+    workoutsResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
@@ -34,6 +56,44 @@ export default async function ClientDetailPage({
     supabase
       .from('programs')
       .select('id, name, status')
+      .order('name', { ascending: true }),
+    supabase
+      .from('client_scheduled_workouts')
+      .select('id, scheduled_date, name, status')
+      .eq('client_id', clientId)
+      .gte('scheduled_date', monthStart)
+      .lte('scheduled_date', monthEnd)
+      .order('scheduled_date', { ascending: true }),
+    supabase
+      .from('client_scheduled_workouts')
+      .select('id, scheduled_date, name, status')
+      .eq('client_id', clientId)
+      .gte('scheduled_date', weekStart)
+      .lte('scheduled_date', weekEnd)
+      .order('scheduled_date', { ascending: true }),
+    supabase
+      .from('client_scheduled_workouts')
+      .select(
+        `
+        *,
+        exercises:scheduled_workout_exercises(
+          *,
+          exercise:exercises(id, name, muscle_group, equipment)
+        )
+      `
+      )
+      .eq('client_id', clientId)
+      .eq('scheduled_date', selectedDate)
+      .maybeSingle(),
+    supabase
+      .from('exercises')
+      .select('id, name, muscle_group, external_id')
+      .eq('status', 'active')
+      .order('name', { ascending: true }),
+    supabase
+      .from('workouts')
+      .select('id, name, status')
+      .neq('status', 'archived')
       .order('name', { ascending: true }),
   ])
 
@@ -47,6 +107,30 @@ export default async function ClientDetailPage({
     : null
   const availablePrograms = (programsData ?? []) as Pick<
     Program,
+    'id' | 'name' | 'status'
+  >[]
+
+  const calendarSchemaError = monthResult.error?.message ?? null
+  const monthDays = (monthResult.data ?? []) as CalendarDaySummary[]
+  const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
+
+  let selectedWorkout: ClientScheduledWorkoutWithExercises | null = null
+  if (selectedResult.data) {
+    const exercises = (selectedResult.data.exercises ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+    selectedWorkout = {
+      ...selectedResult.data,
+      exercises,
+    } as ClientScheduledWorkoutWithExercises
+  }
+
+  const exercises = (exercisesResult.data ?? []) as Pick<
+    Exercise,
+    'id' | 'name' | 'muscle_group' | 'external_id'
+  >[]
+  const libraryWorkouts = (workoutsResult.data ?? []) as Pick<
+    Workout,
     'id' | 'name' | 'status'
   >[]
 
@@ -97,6 +181,17 @@ export default async function ClientDetailPage({
         client={client}
         activeAssignment={activeAssignment}
         availablePrograms={availablePrograms}
+        weekSessions={weekSessions}
+        calendar={{
+          schemaError: calendarSchemaError,
+          year,
+          month,
+          selectedDate,
+          days: monthDays,
+          selectedWorkout,
+          exercises,
+          libraryWorkouts,
+        }}
       />
     </div>
   )
