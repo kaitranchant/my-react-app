@@ -1,4 +1,17 @@
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+/** Mon–Sun labels mapped to JavaScript `Date.getDay()` values (0 = Sun … 6 = Sat). */
+export const WEEKDAY_OPTIONS = [
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+  { label: 'Sun', value: 0 },
+] as const
+
+export const ALL_WEEKDAY_VALUES = WEEKDAY_OPTIONS.map((day) => day.value)
 const MONTH_LABELS = [
   'January',
   'February',
@@ -105,6 +118,42 @@ export function getCurrentWeekDateKeys(): string[] {
     date.setDate(today.getDate() + mondayOffset + index)
     return toDateKey(date)
   })
+}
+
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const date = parseDateKey(dateKey)
+  date.setDate(date.getDate() + days)
+  return toDateKey(date)
+}
+
+export function getMatchingDatesInRange(
+  startDateKey: string,
+  endDateKey: string,
+  weekdays: number[],
+  options?: { excludeDates?: string[] }
+): string[] {
+  const start = parseDateKey(startDateKey)
+  const end = parseDateKey(endDateKey)
+  if (start > end) {
+    return []
+  }
+
+  const weekdaySet = new Set(weekdays)
+  const excludeSet = new Set(options?.excludeDates ?? [])
+  const dates: string[] = []
+  const current = new Date(start)
+
+  while (current <= end) {
+    if (weekdaySet.has(current.getDay())) {
+      const key = toDateKey(current)
+      if (!excludeSet.has(key)) {
+        dates.push(key)
+      }
+    }
+    current.setDate(current.getDate() + 1)
+  }
+
+  return dates
 }
 
 export function getWeekDayLabels(): { label: string; dateKey: string; isToday: boolean }[] {

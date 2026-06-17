@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner'
 
 import {
-  copyScheduledWorkoutToDate,
+  copyScheduledWorkoutToDateRange,
   createScheduledWorkout,
   deleteScheduledWorkout,
   getCalendarMonthData,
@@ -45,7 +45,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { toDateKey } from '@/lib/calendar'
+import {
+  addDaysToDateKey,
+  ALL_WEEKDAY_VALUES,
+  getMatchingDatesInRange,
+  toDateKey,
+  WEEKDAY_OPTIONS,
+} from '@/lib/calendar'
 import {
   scheduledWorkoutFormSchema,
   type ScheduledWorkoutFormValues,
@@ -91,7 +97,38 @@ export function ClientCalendarPanel({
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [copyOpen, setCopyOpen] = React.useState(false)
-  const [copyTargetDate, setCopyTargetDate] = React.useState('')
+  const [copyStartDate, setCopyStartDate] = React.useState('')
+  const [copyEndDate, setCopyEndDate] = React.useState('')
+  const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
+    ...ALL_WEEKDAY_VALUES,
+  ])
+
+  const copyTargetCount = React.useMemo(() => {
+    if (!copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
+      return 0
+    }
+
+    return getMatchingDatesInRange(copyStartDate, copyEndDate, copyWeekdays, {
+      excludeDates: workout ? [workout.scheduled_date] : [],
+    }).length
+  }, [copyStartDate, copyEndDate, copyWeekdays, workout])
+
+  function openCopyDialog() {
+    const today = toDateKey(new Date())
+    setCopyStartDate(today)
+    setCopyEndDate(addDaysToDateKey(today, 28))
+    setCopyWeekdays([...ALL_WEEKDAY_VALUES])
+    setCopyOpen(true)
+  }
+
+  function toggleCopyWeekday(weekday: number) {
+    setCopyWeekdays((current) => {
+      if (current.includes(weekday)) {
+        return current.filter((value) => value !== weekday)
+      }
+      return [...current, weekday].sort((a, b) => a - b)
+    })
+  }
 
   const form = useForm<ScheduledWorkoutFormValues>({
     resolver: zodResolver(scheduledWorkoutFormSchema),
@@ -209,21 +246,39 @@ export function ClientCalendarPanel({
   }
 
   async function handleCopyDay() {
-    if (!workout || !copyTargetDate) return
+    if (!workout || !copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
+      return
+    }
+
+    if (copyStartDate > copyEndDate) {
+      toast.error('Start date must be on or before end date.')
+      return
+    }
 
     setPending(true)
-    const result = await copyScheduledWorkoutToDate(
+    const result = await copyScheduledWorkoutToDateRange(
       clientId,
       workout.id,
-      copyTargetDate
+      copyStartDate,
+      copyEndDate,
+      copyWeekdays
     )
     setPending(false)
 
     if (result.success) {
-      toast.success('Workout copied.')
+      const skippedMessage =
+        result.skippedCount > 0
+          ? ` Skipped ${result.skippedCount} day${
+              result.skippedCount === 1 ? '' : 's'
+            } that already had workouts.`
+          : ''
+      toast.success(
+        `Workout copied to ${result.copiedCount} day${
+          result.copiedCount === 1 ? '' : 's'
+        }.${skippedMessage}`
+      )
       setCopyOpen(false)
-      setSelectedDate(copyTargetDate)
-      await refreshCalendar(year, month, copyTargetDate)
+      await refreshCalendar()
       return
     }
 
@@ -264,10 +319,7 @@ export function ClientCalendarPanel({
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
-                    onClick={() => {
-                      setCopyTargetDate(toDateKey(new Date()))
-                      setCopyOpen(true)
-                    }}
+                    onClick={openCopyDialog}
                   >
                     Copy to another day
                   </Button>
@@ -350,10 +402,7 @@ export function ClientCalendarPanel({
                 workout={workout}
                 exercises={exercises}
                 onChanged={() => refreshCalendar()}
-                onCopy={() => {
-                  setCopyTargetDate(toDateKey(new Date()))
-                  setCopyOpen(true)
-                }}
+                onCopy={openCopyDialog}
               />
             </>
           ) : (
@@ -419,30 +468,88 @@ export function ClientCalendarPanel({
       </div>
 
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Copy workout to date</DialogTitle>
+            <DialogTitle>Copy workout to dates</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="copy-target-date" className="text-sm font-medium">
-                Target date
-              </label>
-              <Input
-                id="copy-target-date"
-                type="date"
-                value={copyTargetDate}
-                onChange={(event) => setCopyTargetDate(event.target.value)}
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="copy-start-date" className="text-sm font-medium">
+                  Start date
+                </label>
+                <Input
+                  id="copy-start-date"
+                  type="date"
+                  value={copyStartDate}
+                  onChange={(event) => setCopyStartDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="copy-end-date" className="text-sm font-medium">
+                  End date
+                </label>
+                <Input
+                  id="copy-end-date"
+                  type="date"
+                  value={copyEndDate}
+                  min={copyStartDate || undefined}
+                  onChange={(event) => setCopyEndDate(event.target.value)}
+                />
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Days of the week</p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {WEEKDAY_OPTIONS.map(({ label, value }) => {
+                  const checked = copyWeekdays.includes(value)
+                  return (
+                    <label
+                      key={value}
+                      className={`flex cursor-pointer items-center justify-center rounded-md border px-2 py-2 text-sm font-medium transition-colors ${
+                        checked
+                          ? 'border-brand bg-brand/10 text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() => toggleCopyWeekday(value)}
+                      />
+                      {label}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {copyTargetCount > 0 && (
+              <p className="text-muted-foreground text-sm">
+                Up to {copyTargetCount} matching day
+                {copyTargetCount === 1 ? '' : 's'} in this range. Days that
+                already have workouts will be skipped.
+              </p>
+            )}
+
             <Button
               type="button"
               className="w-full"
-              disabled={pending || !copyTargetDate}
+              disabled={
+                pending ||
+                !copyStartDate ||
+                !copyEndDate ||
+                copyWeekdays.length === 0 ||
+                copyTargetCount === 0
+              }
               onClick={handleCopyDay}
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Copy workout
+              {copyTargetCount > 0
+                ? `Copy to ${copyTargetCount} day${copyTargetCount === 1 ? '' : 's'}`
+                : 'Copy workout'}
             </Button>
           </div>
         </DialogContent>

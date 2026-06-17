@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { getMonthDateRange } from '@/lib/calendar'
+import { getMatchingDatesInRange, getMonthDateRange } from '@/lib/calendar'
 import { createClient } from '@/lib/supabase/server'
 import {
+  copyWorkoutRangeSchema,
   dateKeySchema,
   prescriptionValuesToDbRow,
   scheduledExerciseFormSchema,
@@ -24,6 +25,10 @@ export type ActionResult = { success: true } | { success: false; error: string }
 
 export type CreateScheduledWorkoutResult =
   | { success: true; workoutId: string }
+  | { success: false; error: string }
+
+export type CopyScheduledWorkoutRangeResult =
+  | { success: true; copiedCount: number; skippedCount: number }
   | { success: false; error: string }
 
 export type CalendarMonthData = {
@@ -617,4 +622,144 @@ export async function copyScheduledWorkoutToDate(
 
   revalidateClientCalendar(clientId)
   return { success: true, workoutId: created.id }
+}
+
+const MAX_COPY_RANGE_DAYS = 366
+
+export async function copyScheduledWorkoutToDateRange(
+  clientId: string,
+  sourceWorkoutId: string,
+  startDate: string,
+  endDate: string,
+  weekdays: number[]
+): Promise<CopyScheduledWorkoutRangeResult> {
+  const parsed = copyWorkoutRangeSchema.safeParse({
+    startDate,
+    endDate,
+    weekdays,
+  })
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid copy settings.',
+    }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user } = ctx
+
+  const source = await fetchWorkoutWithExercises(supabase, sourceWorkoutId)
+  if (!source || source.client_id !== clientId) {
+    return { success: false, error: 'Source workout not found.' }
+  }
+
+  const candidateDates = getMatchingDatesInRange(
+    parsed.data.startDate,
+    parsed.data.endDate,
+    parsed.data.weekdays,
+    { excludeDates: [source.scheduled_date] }
+  )
+
+  if (candidateDates.length === 0) {
+    return {
+      success: false,
+      error: 'No matching dates in this range. Adjust the dates or days of the week.',
+    }
+  }
+
+  if (candidateDates.length > MAX_COPY_RANGE_DAYS) {
+    return {
+      success: false,
+      error: `Choose a range of ${MAX_COPY_RANGE_DAYS} days or fewer.`,
+    }
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from('client_scheduled_workouts')
+    .select('scheduled_date')
+    .eq('client_id', clientId)
+    .gte('scheduled_date', parsed.data.startDate)
+    .lte('scheduled_date', parsed.data.endDate)
+
+  if (existingError) {
+    return { success: false, error: existingError.message }
+  }
+
+  const occupiedDates = new Set(
+    (existingRows ?? []).map((row) => row.scheduled_date as string)
+  )
+  const targetDates = candidateDates.filter((date) => !occupiedDates.has(date))
+  const skippedCount = candidateDates.length - targetDates.length
+
+  if (targetDates.length === 0) {
+    return {
+      success: false,
+      error: 'Every matching date already has a workout scheduled.',
+    }
+  }
+
+  const { data: createdWorkouts, error: createError } = await supabase
+    .from('client_scheduled_workouts')
+    .insert(
+      targetDates.map((scheduledDate) => ({
+        coach_id: user.id,
+        client_id: clientId,
+        scheduled_date: scheduledDate,
+        name: source.name,
+        notes: source.notes,
+        library_workout_id: source.library_workout_id,
+      }))
+    )
+    .select('id')
+
+  if (createError || !createdWorkouts) {
+    return { success: false, error: createError?.message ?? 'Could not copy workout.' }
+  }
+
+  if (source.exercises.length > 0) {
+    const exerciseRows = createdWorkouts.flatMap((created) =>
+      source.exercises.map((row) => ({
+        scheduled_workout_id: created.id,
+        exercise_id: row.exercise_id,
+        sort_order: row.sort_order,
+        sets: row.sets,
+        reps: row.reps,
+        prescription: row.prescription,
+        superset_group: row.superset_group,
+        exercise_block: row.exercise_block,
+        workout_notes: row.workout_notes,
+        rep_mode: row.rep_mode,
+        each_side: row.each_side,
+        tempo: row.tempo,
+        rest_seconds: row.rest_seconds,
+        tracking_options: row.tracking_options,
+      }))
+    )
+
+    const { error: exercisesError } = await supabase
+      .from('scheduled_workout_exercises')
+      .insert(exerciseRows)
+
+    if (exercisesError) {
+      await supabase
+        .from('client_scheduled_workouts')
+        .delete()
+        .in(
+          'id',
+          createdWorkouts.map((row) => row.id)
+        )
+      return { success: false, error: exercisesError.message }
+    }
+  }
+
+  revalidateClientCalendar(clientId)
+  return {
+    success: true,
+    copiedCount: targetDates.length,
+    skippedCount,
+  }
 }

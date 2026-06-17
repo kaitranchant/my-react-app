@@ -71,6 +71,19 @@ export const dateKeySchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date.')
 
+export const copyWorkoutRangeSchema = z
+  .object({
+    startDate: dateKeySchema,
+    endDate: dateKeySchema,
+    weekdays: z
+      .array(z.number().int().min(0).max(6))
+      .min(1, 'Select at least one day of the week.'),
+  })
+  .refine((value) => value.startDate <= value.endDate, {
+    message: 'Start date must be on or before end date.',
+    path: ['endDate'],
+  })
+
 export const defaultPrescriptionValues: ScheduledExercisePrescriptionValues = {
   sets: '3',
   reps: '',
