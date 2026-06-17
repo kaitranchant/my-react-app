@@ -35,18 +35,35 @@ async function persistAvatar(
     return { success: false, error: 'You must be signed in.' }
   }
 
-  const { data: client, error: fetchError } = await supabase
-    .from('clients')
-    .select('id, coach_id, user_id')
-    .eq('id', clientId)
-    .maybeSingle()
+  let clientQuery = supabase.from('clients').select('*').eq('id', clientId)
 
-  if (fetchError || !client) {
+  if (options.asClient) {
+    clientQuery = clientQuery.eq('user_id', user.id)
+  } else {
+    clientQuery = clientQuery.eq('coach_id', user.id)
+  }
+
+  const { data: client, error: fetchError } = await clientQuery.maybeSingle()
+
+  if (fetchError) {
+    const message = fetchError.message.toLowerCase()
+    if (message.includes('user_id') || message.includes('avatar_url')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: fetchError.message }
+  }
+
+  if (!client) {
     return { success: false, error: 'Client not found.' }
   }
 
   const isCoach = client.coach_id === user.id
-  const isLinkedClient = client.user_id === user.id
+  const isLinkedClient =
+    client.user_id != null && client.user_id === user.id
 
   if (options.asClient && !isLinkedClient) {
     return { success: false, error: 'You cannot update this photo.' }
@@ -68,6 +85,14 @@ async function persistAvatar(
     })
 
   if (uploadError) {
+    const message = uploadError.message.toLowerCase()
+    if (message.includes('bucket')) {
+      return {
+        success: false,
+        error:
+          'Avatar storage is not set up. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
     return { success: false, error: uploadError.message }
   }
 
@@ -83,6 +108,14 @@ async function persistAvatar(
     .eq('id', clientId)
 
   if (updateError) {
+    const message = updateError.message.toLowerCase()
+    if (message.includes('avatar_url')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
     return { success: false, error: updateError.message }
   }
 
@@ -135,7 +168,19 @@ export async function uploadMyClientAvatar(
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (error || !client) {
+  if (error) {
+    const message = error.message.toLowerCase()
+    if (message.includes('user_id')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: error.message }
+  }
+
+  if (!client) {
     return { success: false, error: 'Client profile not found.' }
   }
 

@@ -94,8 +94,11 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
     if (!pendingAvatar) return
     const formData = new FormData()
     formData.set('file', pendingAvatar)
-    await uploadPendingClientAvatar(clientId, formData)
+    const result = await uploadPendingClientAvatar(clientId, formData)
     setPendingAvatar(null)
+    if (!result.success) {
+      toast.error(result.error)
+    }
   }
 
   async function onInviteSubmit(values: InviteClientValues) {

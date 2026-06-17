@@ -1,17 +1,22 @@
 'use client'
 
-import { Mail, Phone, Target } from 'lucide-react'
+import * as React from 'react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
+import { ClientOverview } from '@/components/clients/client-overview'
+import { ClientProgramsPanel } from '@/components/programs/client-programs-panel'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { Client } from 'app/types/database'
+import type {
+  Client,
+  ClientProgramAssignment,
+  Program,
+} from 'app/types/database'
 
 function ComingSoon({ feature }: { feature: string }) {
   return (
@@ -26,66 +31,46 @@ function ComingSoon({ feature }: { feature: string }) {
   )
 }
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Mail
-  label: string
-  value: string | null
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
-        <p className="text-sm">{value?.trim() ? value : '—'}</p>
-      </div>
-    </div>
-  )
+type ClientDetailTabsProps = {
+  client: Client
+  activeAssignment: ClientProgramAssignment | null
+  availablePrograms: Pick<Program, 'id' | 'name' | 'status'>[]
 }
 
-export function ClientDetailTabs({ client }: { client: Client }) {
+export function ClientDetailTabs({
+  client,
+  activeAssignment,
+  availablePrograms,
+}: ClientDetailTabsProps) {
+  const [tab, setTab] = React.useState('overview')
+
   return (
-    <Tabs defaultValue="overview">
+    <Tabs value={tab} onValueChange={setTab}>
       <TabsList className="h-10">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="workouts">Workouts</TabsTrigger>
-        <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
+        <TabsTrigger value="programs">Programs</TabsTrigger>
+        <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
         <TabsTrigger value="notes">Notes</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview" className="mt-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <InfoRow icon={Mail} label="Email" value={client.email} />
-              <InfoRow icon={Phone} label="Phone" value={client.phone} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Goal</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InfoRow icon={Target} label="Primary goal" value={client.goal} />
-            </CardContent>
-          </Card>
-        </div>
+        <ClientOverview
+          client={client}
+          activeAssignment={activeAssignment}
+          onOpenNotes={() => setTab('notes')}
+        />
       </TabsContent>
 
-      <TabsContent value="workouts" className="mt-4">
-        <ComingSoon feature="Workouts" />
+      <TabsContent value="programs" className="mt-4">
+        <ClientProgramsPanel
+          clientId={client.id}
+          activeAssignment={activeAssignment}
+          availablePrograms={availablePrograms}
+        />
       </TabsContent>
 
-      <TabsContent value="check-ins" className="mt-4">
-        <ComingSoon feature="Check-ins" />
+      <TabsContent value="progress-photos" className="mt-4">
+        <ComingSoon feature="Progress photos" />
       </TabsContent>
 
       <TabsContent value="notes" className="mt-4">

@@ -15,6 +15,6 @@ export function ClientInviteStatusBadge({
 }: {
   status: ClientInviteStatus
 }) {
-  const { label, variant } = config[status]
+  const { label, variant } = config[status] ?? config.not_invited
   return <Badge variant={variant}>{label}</Badge>
 }

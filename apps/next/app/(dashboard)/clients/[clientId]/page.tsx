@@ -9,7 +9,7 @@ import { ClientAccountCard } from '@/components/clients/client-account-card'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { StatusBadge } from '@/components/clients/status-badge'
-import type { Client } from 'app/types/database'
+import type { Client, ClientProgramAssignment, Program } from 'app/types/database'
 
 export default async function ClientDetailPage({
   params,
@@ -19,17 +19,36 @@ export default async function ClientDetailPage({
   const { clientId } = await params
   const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('id', clientId)
-    .maybeSingle()
+  const [
+    { data },
+    { data: assignmentData },
+    { data: programsData },
+  ] = await Promise.all([
+    supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
+    supabase
+      .from('program_assignments')
+      .select('*, program:programs(id, name, description, status)')
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    supabase
+      .from('programs')
+      .select('id, name, status')
+      .order('name', { ascending: true }),
+  ])
 
   if (!data) {
     notFound()
   }
 
   const client = data as Client
+  const activeAssignment = assignmentData
+    ? (assignmentData as ClientProgramAssignment)
+    : null
+  const availablePrograms = (programsData ?? []) as Pick<
+    Program,
+    'id' | 'name' | 'status'
+  >[]
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -74,7 +93,11 @@ export default async function ClientDetailPage({
 
       <ClientAccountCard client={client} />
 
-      <ClientDetailTabs client={client} />
+      <ClientDetailTabs
+        client={client}
+        activeAssignment={activeAssignment}
+        availablePrograms={availablePrograms}
+      />
     </div>
   )
 }

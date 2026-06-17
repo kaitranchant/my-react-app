@@ -32,9 +32,32 @@ export default async function PortalPage() {
 
   const { data: clientRecord } = await supabase
     .from('clients')
-    .select('full_name, avatar_url')
+    .select('id, full_name, avatar_url')
     .eq('user_id', user.id)
     .maybeSingle()
+
+  let activeProgram: {
+    name: string
+    description: string | null
+    start_date: string | null
+  } | null = null
+
+  if (clientRecord?.id) {
+    const { data: assignment } = await supabase
+      .from('program_assignments')
+      .select('start_date, program:programs(name, description)')
+      .eq('client_id', clientRecord.id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (assignment?.program && !Array.isArray(assignment.program)) {
+      activeProgram = {
+        name: assignment.program.name,
+        description: assignment.program.description,
+        start_date: assignment.start_date,
+      }
+    }
+  }
 
   const name =
     clientRecord?.full_name?.trim() ||
@@ -73,11 +96,36 @@ export default async function PortalPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Workouts</CardTitle>
+            <CardTitle className="text-base">Your program</CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-sm leading-relaxed">
-            No workouts assigned yet. When your coach builds your program,
-            you&apos;ll track sessions and progress from this page.
+          <CardContent className="space-y-3 text-sm leading-relaxed">
+            {activeProgram ? (
+              <>
+                <p className="font-medium">{activeProgram.name}</p>
+                {activeProgram.description && (
+                  <p className="text-muted-foreground whitespace-pre-wrap">
+                    {activeProgram.description}
+                  </p>
+                )}
+                {activeProgram.start_date && (
+                  <p className="text-muted-foreground text-xs">
+                    Started{' '}
+                    {new Date(`${activeProgram.start_date}T12:00:00`).toLocaleDateString(
+                      undefined,
+                      { month: 'short', day: 'numeric', year: 'numeric' }
+                    )}
+                  </p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  Workout sessions will appear here as your coach builds them out.
+                </p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">
+                No program assigned yet. When your coach assigns your program,
+                you&apos;ll track sessions and progress from this page.
+              </p>
+            )}
           </CardContent>
         </Card>
       </main>

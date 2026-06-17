@@ -13,7 +13,10 @@
   },
   "scripts": {
     "native": "cd apps/expo && yarn start",
-    "web": "yarn workspace next-app dev"
+    "web": "yarn workspace next-app dev",
+    "db:link": "npx supabase link",
+    "db:push": "npx supabase db push",
+    "db:check": "yarn workspace next-app check:schema"
   },
   "packageManager": "yarn@4.7.0",
   "eslintConfig": {
