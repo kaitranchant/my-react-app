@@ -118,7 +118,7 @@ export function ExerciseFormDialog({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="uppercase tracking-tight">
+          <DialogTitle className="font-semibold tracking-tight">
             {isEdit ? 'Edit exercise' : 'New exercise'}
           </DialogTitle>
           <DialogDescription>

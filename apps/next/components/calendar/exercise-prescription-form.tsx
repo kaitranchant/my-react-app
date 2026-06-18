@@ -215,7 +215,7 @@ export function ExercisePrescriptionForm({
         control={form.control}
         name="eachSide"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-start gap-3 rounded-sm border p-3">
+          <FormItem className="flex flex-row items-start gap-3 rounded-lg border p-3">
             <FormControl>
               <input
                 id={`${idPrefix}-each-side`}
@@ -235,7 +235,7 @@ export function ExercisePrescriptionForm({
         )}
       />
 
-      <div className="space-y-4 rounded-sm border p-4">
+      <div className="space-y-4 rounded-lg border p-4">
         <div>
           <p className="text-sm font-medium">Workout structure</p>
           <p className="text-muted-foreground text-xs">
@@ -361,7 +361,7 @@ export function ExercisePrescriptionForm({
         )}
       />
 
-      <div className="space-y-3 rounded-sm border p-4">
+      <div className="space-y-3 rounded-lg border p-4">
         <div>
           <p className="text-sm font-medium">Logging & tracking</p>
           <p className="text-muted-foreground text-xs">
@@ -377,7 +377,7 @@ export function ExercisePrescriptionForm({
               render={({ field }) => (
                 <FormItem
                   className={cn(
-                    'flex flex-row items-start gap-3 rounded-sm border p-3',
+                    'flex flex-row items-start gap-3 rounded-lg border p-3',
                     field.value && 'border-brand/40 bg-brand/5'
                   )}
                 >

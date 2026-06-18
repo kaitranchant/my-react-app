@@ -124,7 +124,7 @@ export function ClientFormDialog({
           <DialogDescription>
             {isEdit
               ? 'Update this client’s details.'
-              : 'Add a new client to your roster.'}
+              : 'Add a new client to your practice.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +145,7 @@ export function ClientFormDialog({
                 <FormItem>
                   <FormLabel>Full name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Jordan Athlete" {...field} />
+                    <Input placeholder="Jordan Smith" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

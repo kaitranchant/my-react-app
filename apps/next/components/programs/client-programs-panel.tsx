@@ -142,15 +142,15 @@ export function ClientProgramsPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed px-6 py-16 text-center">
-          <div className="bg-foreground text-background flex size-14 items-center justify-center rounded-sm">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
+          <div className="empty-state-icon">
             <ClipboardList className="size-7" />
           </div>
           <div className="space-y-1">
             <p className="font-medium">No program assigned</p>
             <p className="text-muted-foreground max-w-sm text-sm">
               Assign a program template so this client knows what they&apos;re
-              training toward.
+              working toward.
             </p>
           </div>
         </div>

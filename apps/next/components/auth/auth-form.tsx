@@ -52,9 +52,9 @@ export function AuthForm({
   const isClientInvite = Boolean(isSignup && invitePreview)
 
   return (
-    <Card className="border shadow-none">
+    <Card className="shadow-card">
       <CardHeader>
-        <CardTitle className="text-xl font-bold uppercase tracking-tight">
+        <CardTitle className="text-xl font-semibold tracking-tight">
           {isClientInvite
             ? 'Join your coach'
             : isSignup
@@ -84,7 +84,7 @@ export function AuthForm({
               <Input
                 id="fullName"
                 name="fullName"
-                placeholder="Jordan Athlete"
+                placeholder="Jordan Smith"
                 autoComplete="name"
                 defaultValue={invitePreview?.clientName ?? ''}
                 required={isClientInvite}
@@ -125,7 +125,7 @@ export function AuthForm({
           )}
           {state.message && (
             <div
-              className="rounded-sm border border-foreground/10 bg-muted px-3 py-2.5 text-sm leading-relaxed"
+              className="rounded-lg border border-foreground/10 bg-muted px-3 py-2.5 text-sm leading-relaxed"
               role="status"
             >
               {state.message}

@@ -123,7 +123,7 @@ export function ClientAvatarUpload({
           {displayUrl && (
             <AvatarImage src={displayUrl} alt={name} className="object-cover" />
           )}
-          <AvatarFallback className="bg-foreground text-background font-semibold">
+          <AvatarFallback className="bg-brand text-brand-foreground font-semibold">
             {initialsFromName(name || '?')}
           </AvatarFallback>
         </Avatar>
@@ -164,7 +164,7 @@ export function ClientAvatar({
       {avatarUrl && (
         <AvatarImage src={avatarUrl} alt={name} className="object-cover" />
       )}
-      <AvatarFallback className="bg-foreground text-background font-semibold">
+      <AvatarFallback className="bg-brand text-brand-foreground font-semibold">
         {initialsFromName(name || '?')}
       </AvatarFallback>
     </Avatar>

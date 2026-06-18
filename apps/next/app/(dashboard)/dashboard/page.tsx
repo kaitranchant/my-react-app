@@ -1,134 +1,181 @@
-import Link from 'next/link'
-import { Activity, PauseCircle, UserPlus, Users } from 'lucide-react'
-
-import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { PageHeader } from '@/components/dashboard/page-header'
-import { cn } from '@/lib/utils'
-
-export const metadata = {
-  title: 'Dashboard — Coaching App',
-}
-
-type Stat = {
-  label: string
-  value: number
-  icon: typeof Users
-  hint: string
-  iconClass: string
-}
-
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: clients } = await supabase.from('clients').select('status')
-
-  const total = clients?.length ?? 0
-  const active = clients?.filter((c) => c.status === 'active').length ?? 0
-  const paused = clients?.filter((c) => c.status === 'paused').length ?? 0
-
-  const stats: Stat[] = [
-    {
-      label: 'Total clients',
-      value: total,
-      icon: Users,
-      hint: 'All clients on your roster',
-      iconClass: 'bg-foreground/5 text-foreground',
-    },
-    {
-      label: 'Active',
-      value: active,
-      icon: Activity,
-      hint: 'Currently training with you',
-      iconClass: 'bg-brand/10 text-brand',
-    },
-    {
-      label: 'Paused',
-      value: paused,
-      icon: PauseCircle,
-      hint: 'Temporarily on hold',
-      iconClass: 'bg-muted text-muted-foreground',
-    },
-  ]
-
-  return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      <PageHeader
-        title="Dashboard"
-        description="Your coaching business at a glance."
-      >
-        <Button asChild>
-          <Link href="/clients">
-            <UserPlus className="size-4" />
-            Manage clients
-          </Link>
-        </Button>
-      </PageHeader>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <Card key={stat.label} className="gap-0 py-0">
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 px-5 pt-5 pb-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-muted-foreground text-sm font-medium">
-                    {stat.label}
-                  </CardTitle>
-                  <div className="text-4xl font-bold tracking-tight">
-                    {stat.value}
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    'flex size-10 items-center justify-center rounded-sm',
-                    stat.iconClass
-                  )}
-                >
-                  <Icon className="size-[18px]" />
-                </div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground px-5 pb-5 text-xs">
-                {stat.hint}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Getting started</CardTitle>
-          <CardDescription>
-            Your foundation is ready. More tools are on the way.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-muted-foreground text-sm leading-relaxed">
-          {total === 0 ? (
-            <p>
-              You have no clients yet.{' '}
-              <Link
-                href="/clients"
-                className="text-brand font-semibold underline-offset-4 hover:underline"
-              >
-                Add your first client
-              </Link>{' '}
-              to get rolling.
-            </p>
-          ) : (
-            <p>
-              You are managing {total} client{total === 1 ? '' : 's'}. Workouts,
-              check-ins, progress photos and more are coming soon.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+import { createClient } from '@/lib/supabase/server'
+import { toDateKey } from '@/lib/calendar'
+import {
+  buildActionItems,
+  buildActivityFeed,
+  calcWorkoutCompletionRate,
+  getGreeting,
+  getWeekRange,
+  type TodaySession,
+} from '@/lib/dashboard'
+import { ActionItems } from '@/components/dashboard/action-items'
+import { ActivityFeed } from '@/components/dashboard/activity-feed'
+import { DashboardStats } from '@/components/dashboard/dashboard-stats'
+import { QuickActions } from '@/components/dashboard/quick-actions'
+import { TodaysSchedule } from '@/components/dashboard/todays-schedule'
+import type { Client } from 'app/types/database'
+
+export const metadata = {
+  title: 'Dashboard — Coaching App',
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const today = toDateKey(new Date())
+  const { start: weekStart, end: weekEnd } = getWeekRange()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [{ data: profile }, { data: clients }, { data: todayWorkouts }, { data: weekWorkouts }, { data: recentWorkouts }] =
+    await Promise.all([
+      supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user!.id)
+        .single(),
+      supabase
+        .from('clients')
+        .select('id, full_name, status, invite_status')
+        .order('full_name'),
+      supabase
+        .from('client_scheduled_workouts')
+        .select(
+          'id, name, status, scheduled_date, started_at, client_id, clients(full_name)'
+        )
+        .eq('scheduled_date', today)
+        .order('started_at', { ascending: true, nullsFirst: true })
+        .order('name'),
+      supabase
+        .from('client_scheduled_workouts')
+        .select('status, client_id')
+        .gte('scheduled_date', weekStart)
+        .lte('scheduled_date', weekEnd),
+      supabase
+        .from('client_scheduled_workouts')
+        .select(
+          'id, name, status, completed_at, started_at, updated_at, client_id, clients(full_name)'
+        )
+        .in('status', ['completed', 'in_progress', 'skipped'])
+        .order('updated_at', { ascending: false })
+        .limit(12),
+    ])
+
+  const coachName =
+    profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Coach'
+  const firstName = coachName.split(' ')[0]
+
+  const allClients = (clients ?? []) as Pick<
+    Client,
+    'id' | 'full_name' | 'status' | 'invite_status'
+  >[]
+  const activeClients = allClients.filter((c) => c.status === 'active')
+  const pausedClients = allClients.filter((c) => c.status === 'paused').length
+  const pendingInvites = allClients.filter(
+    (c) => c.invite_status === 'pending'
+  ).length
+
+  const sessions: TodaySession[] = (todayWorkouts ?? []).map((w) => {
+    const client = w.clients as { full_name: string } | null
+    return {
+      id: w.id,
+      name: w.name,
+      status: w.status,
+      scheduled_date: w.scheduled_date,
+      started_at: w.started_at,
+      client_id: w.client_id,
+      clientName: client?.full_name ?? 'Unknown client',
+    }
+  })
+
+  const weekWorkoutList = weekWorkouts ?? []
+  const completionRate = calcWorkoutCompletionRate(weekWorkoutList)
+  const skippedThisWeek = weekWorkoutList.filter(
+    (w) => w.status === 'skipped'
+  ).length
+
+  const activeClientIdsWithWorkout = new Set(
+    weekWorkoutList
+      .filter((w) => w.status === 'completed' || w.status === 'in_progress')
+      .map((w) => w.client_id)
+  )
+  const clientsWithoutWorkoutThisWeek = activeClients.filter(
+    (c) => !activeClientIdsWithWorkout.has(c.id)
+  ).length
+
+  const actionItems = buildActionItems({
+    clients: allClients as Client[],
+    pendingInvites,
+    clientsWithoutWorkoutThisWeek,
+    skippedThisWeek,
+  })
+
+  const activityItems = buildActivityFeed(
+    (recentWorkouts ?? []).map((w) => {
+      const client = w.clients as { full_name: string } | null
+      return {
+        id: w.id,
+        name: w.name,
+        status: w.status,
+        completed_at: w.completed_at,
+        started_at: w.started_at,
+        updated_at: w.updated_at,
+        client_id: w.client_id,
+        clientName: client?.full_name ?? 'Unknown client',
+      }
+    })
+  ).slice(0, 8)
+
+  const sessionCount = sessions.length
+  const greeting = getGreeting()
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  const summary =
+    sessionCount > 0
+      ? `${sessionCount} session${sessionCount === 1 ? '' : 's'} on your calendar today.`
+      : activeClients.length > 0
+        ? 'Your calendar is clear today — a great time to plan ahead for your clients.'
+        : 'Welcome! Add your first client to start building their program.'
+
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
+        <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
+        <div className="relative space-y-5">
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm font-medium">
+              {todayLabel}
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {greeting}, {firstName}
+            </h1>
+            <p className="text-muted-foreground max-w-lg text-sm leading-relaxed">
+              {summary}
+            </p>
+          </div>
+          <QuickActions clients={activeClients} />
+        </div>
+      </section>
+
+      <DashboardStats
+        activeClients={activeClients.length}
+        totalClients={allClients.length}
+        pausedClients={pausedClients}
+        completionRate={completionRate}
+        weekWorkoutCount={weekWorkoutList.length}
+      />
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <TodaysSchedule sessions={sessions} />
+        <ActionItems items={actionItems} />
+      </div>
+
+      <ActivityFeed items={activityItems} />
+    </div>
+  )
+}

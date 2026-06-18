@@ -10,15 +10,15 @@ export default function AuthLayout({
       <div className="auth-panel-bg relative hidden flex-col justify-between overflow-hidden border-r p-10 lg:flex">
         <BrandLogo />
         <div className="max-w-md space-y-5">
-          <h2 className="text-4xl font-bold tracking-tight text-balance uppercase leading-[1.05]">
+          <h2 className="text-4xl font-semibold tracking-tight text-balance leading-[1.1]">
             Run your coaching business from one place.
           </h2>
           <p className="text-muted-foreground text-base leading-relaxed">
-            Manage clients, track progress, and build programs — built for
-            personal trainers and coaches who want clarity without clutter.
+            Manage clients, build programs, and track progress — built for
+            coaches, trainers, and therapists who want clarity without clutter.
           </p>
         </div>
-        <p className="text-muted-foreground text-xs tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           Secure sign-in
         </p>
       </div>

@@ -83,7 +83,7 @@ export default async function LibraryProgramsPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-muted-foreground text-sm">
-          Multi-week training plans — assign programs to clients.
+          Multi-week programs — assign structured plans to clients.
         </p>
         <AddProgramButton />
       </div>
@@ -98,11 +98,11 @@ export default async function LibraryProgramsPage({
             <Link
               key={filter.label}
               href={href}
-              className={
-                active
-                  ? 'bg-foreground text-background inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wide'
-                  : 'text-muted-foreground hover:text-foreground border inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors'
-              }
+                  className={
+                    active
+                      ? 'filter-pill filter-pill-active'
+                      : 'filter-pill filter-pill-inactive'
+                  }
             >
               {filter.label}
             </Link>
@@ -125,7 +125,7 @@ export default async function LibraryProgramsPage({
             />
           ) : programs.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-              <div className="bg-foreground text-background flex size-14 items-center justify-center rounded-sm">
+              <div className="empty-state-icon">
                 <ClipboardList className="size-7" />
               </div>
               <div className="space-y-1">

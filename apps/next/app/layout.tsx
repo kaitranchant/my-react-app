@@ -1,19 +1,20 @@
-import { Barlow } from 'next/font/google'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
-const barlow = Barlow({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-barlow',
+  variable: '--font-jakarta',
   display: 'swap',
 })
 
 export const metadata = {
   title: 'Coaching App',
-  description: 'Client and athlete management for coaches and personal trainers',
+  description:
+    'Professional coaching platform for trainers, therapists, and wellness coaches',
 }
 
 export default function RootLayout({
@@ -23,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={cn(barlow.className, barlow.variable, 'antialiased')}>
+      <body className={cn(jakarta.className, jakarta.variable, 'antialiased')}>
         {children}
         <Toaster />
       </body>

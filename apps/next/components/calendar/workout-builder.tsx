@@ -258,10 +258,10 @@ export function WorkoutBuilder({
   const panelHeader = (
     <div className="border-brand bg-brand/5 flex flex-wrap items-center justify-between gap-3 border-l-4 px-4 py-3">
       <div>
-        <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           {formatDayHeader(selectedDate)}
         </p>
-        <h3 className="text-lg font-bold tracking-tight">{workout.name}</h3>
+        <h3 className="text-lg font-semibold tracking-tight">{workout.name}</h3>
         <p className="text-muted-foreground text-xs">
           {workout.exercises.length} exercise
           {workout.exercises.length === 1 ? '' : 's'}
@@ -333,7 +333,7 @@ export function WorkoutBuilder({
                   </div>
                 )}
                 <div>
-                  <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+                  <p className="text-muted-foreground text-xs font-medium">
                     Adding exercise
                   </p>
                   <p className="font-semibold">{activeExerciseName}</p>
@@ -387,7 +387,7 @@ export function WorkoutBuilder({
                 </div>
               )}
               <div>
-                <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+                <p className="text-muted-foreground text-xs font-medium">
                   Editing exercise
                 </p>
                 <p className="font-semibold">{selectedRow.exercise.name}</p>
@@ -449,7 +449,7 @@ export function WorkoutBuilder({
       {/* Desktop: 3-panel layout */}
       <div className="hidden h-full min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)]">
         <div className="flex min-h-0 flex-col border-r">
-          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
+          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Exercise library
           </p>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
@@ -458,14 +458,14 @@ export function WorkoutBuilder({
         </div>
 
         <div className="flex min-h-0 flex-col border-r">
-          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
+          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Prescription
           </p>
           {prescriptionPanel}
         </div>
 
         <div className="flex min-h-0 flex-col">
-          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
+          <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Workout order
           </p>
           {arrangementPanel}

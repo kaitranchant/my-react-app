@@ -85,11 +85,11 @@ export default async function LibraryWorkoutsPage({
             <Link
               key={filter.label}
               href={href}
-              className={
-                active
-                  ? 'bg-foreground text-background inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wide'
-                  : 'text-muted-foreground hover:text-foreground border inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors'
-              }
+                  className={
+                    active
+                      ? 'filter-pill filter-pill-active'
+                      : 'filter-pill filter-pill-inactive'
+                  }
             >
               {filter.label}
             </Link>
@@ -108,7 +108,7 @@ export default async function LibraryWorkoutsPage({
             <LibraryLoadError resource="workouts" error={error} />
           ) : workouts.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-              <div className="bg-foreground text-background flex size-14 items-center justify-center rounded-sm">
+              <div className="empty-state-icon">
                 <Dumbbell className="size-7" />
               </div>
               <div className="space-y-1">

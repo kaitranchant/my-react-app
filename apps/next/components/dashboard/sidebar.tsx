@@ -26,16 +26,13 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        'relative flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium transition-colors',
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
         active
-          ? 'bg-accent font-semibold text-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          ? 'bg-brand/10 text-brand font-semibold'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
     >
-      {active && (
-        <span className="bg-brand absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2" />
-      )}
-      <Icon className={cn('size-4', active && 'text-foreground')} />
+      <Icon className={cn('size-[18px]', active && 'text-brand')} />
       {label}
     </Link>
   )
@@ -45,16 +42,13 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-r md:flex">
-      <div className="flex h-16 items-center border-b px-5">
+    <aside className="bg-sidebar text-sidebar-foreground hidden w-[260px] shrink-0 flex-col border-r md:flex">
+      <div className="flex h-16 items-center px-5">
         <BrandLogo />
       </div>
 
-      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto p-4">
-        <div className="space-y-1">
-          <p className="text-muted-foreground mb-2 px-3 text-[10px] font-semibold tracking-[0.12em] uppercase">
-            Main
-          </p>
+      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pb-6">
+        <div className="space-y-0.5">
           {coreItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -70,8 +64,8 @@ export function Sidebar() {
           })}
         </div>
 
-        <div className="space-y-1">
-          <p className="text-muted-foreground mb-2 px-3 text-[10px] font-semibold tracking-[0.12em] uppercase">
+        <div className="space-y-0.5">
+          <p className="text-muted-foreground mb-2 px-3 text-xs font-medium">
             Coming soon
           </p>
           {soonItems.map((item) => {
@@ -79,14 +73,14 @@ export function Sidebar() {
             return (
               <span
                 key={item.href}
-                className="text-muted-foreground/50 flex cursor-not-allowed items-center gap-3 rounded-sm px-3 py-2.5 text-sm"
+                className="text-muted-foreground/40 flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm"
                 aria-disabled
               >
-                <Icon className="size-4" />
+                <Icon className="size-[18px]" />
                 <span className="flex-1">{item.label}</span>
                 <Badge
                   variant="outline"
-                  className="text-muted-foreground border-border/80 text-[10px] font-normal"
+                  className="text-muted-foreground/60 border-border/60 text-[10px] font-normal"
                 >
                   Soon
                 </Badge>

@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 
 import {
+  copyScheduledWorkoutToDate,
   copyScheduledWorkoutToDateRange,
   createScheduledWorkout,
   deleteScheduledWorkout,
@@ -46,6 +47,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
 import {
   addDaysToDateKey,
   ALL_WEEKDAY_VALUES,
@@ -100,9 +107,14 @@ export function ClientCalendarPanel({
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [builderOpen, setBuilderOpen] = React.useState(false)
+  const [openBuilderForDate, setOpenBuilderForDate] = React.useState<
+    string | null
+  >(null)
   const [logOpen, setLogOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [copyOpen, setCopyOpen] = React.useState(false)
+  const [copyMode, setCopyMode] = React.useState<'single' | 'range'>('single')
+  const [copySingleDate, setCopySingleDate] = React.useState('')
   const [copyStartDate, setCopyStartDate] = React.useState('')
   const [copyEndDate, setCopyEndDate] = React.useState('')
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
@@ -116,6 +128,13 @@ export function ClientCalendarPanel({
       notes: '',
     },
   })
+
+  React.useEffect(() => {
+    if (openBuilderForDate && workout?.scheduled_date === openBuilderForDate) {
+      setOpenBuilderForDate(null)
+      setBuilderOpen(true)
+    }
+  }, [openBuilderForDate, workout])
 
   const copyTargetCount = React.useMemo(() => {
     if (!copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
@@ -163,14 +182,37 @@ export function ClientCalendarPanel({
 
   async function handleSelectDate(dateKey: string) {
     setSelectedDate(dateKey)
-    const nextWorkout = await refreshCalendar(year, month, dateKey)
+    await refreshCalendar(year, month, dateKey)
+  }
 
-    if (nextWorkout) {
+  async function handleDayDoubleClick(dateKey: string) {
+    setSelectedDate(dateKey)
+
+    const dayHasWorkout = scheduledDays.some(
+      (day) => day.scheduled_date === dateKey
+    )
+
+    if (!dayHasWorkout) {
+      openCreateDialog(dateKey)
+      return
+    }
+
+    if (workout?.scheduled_date === dateKey) {
       setBuilderOpen(true)
+      return
+    }
+
+    setOpenBuilderForDate(dateKey)
+    const loaded = await refreshCalendar(year, month, dateKey)
+    if (!loaded) {
+      setOpenBuilderForDate(null)
     }
   }
 
-  function openCreateDialog() {
+  function openCreateDialog(forDate?: string) {
+    if (forDate) {
+      setSelectedDate(forDate)
+    }
     createForm.reset({
       name: `${clientName.split(' ')[0]} Workout`,
       notes: '',
@@ -180,6 +222,8 @@ export function ClientCalendarPanel({
 
   function openCopyDialog() {
     const today = toDateKey(new Date())
+    setCopyMode('single')
+    setCopySingleDate(addDaysToDateKey(selectedDate, 1))
     setCopyStartDate(today)
     setCopyEndDate(addDaysToDateKey(today, 28))
     setCopyWeekdays([...ALL_WEEKDAY_VALUES])
@@ -252,6 +296,32 @@ export function ClientCalendarPanel({
     toast.error(result.error)
   }
 
+  async function handleCopySingleDay() {
+    if (!workout || !copySingleDate) return
+
+    if (copySingleDate === workout.scheduled_date) {
+      toast.error('Pick a different day than the source workout.')
+      return
+    }
+
+    setPending(true)
+    const result = await copyScheduledWorkoutToDate(
+      clientId,
+      workout.id,
+      copySingleDate
+    )
+    setPending(false)
+
+    if (result.success) {
+      toast.success(`Workout copied to ${formatDayHeader(copySingleDate)}.`)
+      setCopyOpen(false)
+      await refreshCalendar()
+      return
+    }
+
+    toast.error(result.error)
+  }
+
   async function handleCopyDay() {
     if (!workout || !copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
       return
@@ -303,20 +373,9 @@ export function ClientCalendarPanel({
 
   return (
     <div className="space-y-4">
-      <CalendarMonthGrid
-        variant="full"
-        year={year}
-        month={month}
-        selectedDate={selectedDate}
-        scheduledDays={scheduledDays}
-        loading={loading}
-        onMonthChange={handleMonthChange}
-        onSelectDate={handleSelectDate}
-      />
-
       <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
         <div className="min-w-0">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+          <p className="text-muted-foreground text-xs font-medium">
             Selected day
           </p>
           <p className="font-semibold">{formatDayHeader(selectedDate)}</p>
@@ -394,6 +453,18 @@ export function ClientCalendarPanel({
           )}
         </div>
       </div>
+
+      <CalendarMonthGrid
+        variant="full"
+        year={year}
+        month={month}
+        selectedDate={selectedDate}
+        scheduledDays={scheduledDays}
+        loading={loading}
+        onMonthChange={handleMonthChange}
+        onSelectDate={handleSelectDate}
+        onDayDoubleClick={handleDayDoubleClick}
+      />
 
       {workout && (
         <>
@@ -491,7 +562,68 @@ export function ClientCalendarPanel({
           <DialogHeader>
             <DialogTitle>Copy workout to dates</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <Tabs
+            value={copyMode}
+            onValueChange={(value) =>
+              setCopyMode(value as 'single' | 'range')
+            }
+            className="gap-4"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="single">Single day</TabsTrigger>
+              <TabsTrigger value="range">Date range</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="single" className="mt-0 space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="copy-single-date" className="text-sm font-medium">
+                  Copy to
+                </label>
+                <Input
+                  id="copy-single-date"
+                  type="date"
+                  value={copySingleDate}
+                  onChange={(event) => setCopySingleDate(event.target.value)}
+                />
+              </div>
+
+              {copySingleDate && workout && copySingleDate === workout.scheduled_date && (
+                <p className="text-destructive text-sm">
+                  Choose a day other than {formatDayHeader(workout.scheduled_date)}.
+                </p>
+              )}
+
+              {copySingleDate &&
+                workout &&
+                copySingleDate !== workout.scheduled_date && (
+                  <p className="text-muted-foreground text-sm">
+                    Copy this workout to{' '}
+                    <span className="text-foreground font-medium">
+                      {formatDayHeader(copySingleDate)}
+                    </span>
+                    . If that day already has a workout, the copy will be
+                    blocked.
+                  </p>
+                )}
+
+              <Button
+                type="button"
+                className="w-full"
+                disabled={
+                  pending ||
+                  !copySingleDate ||
+                  (workout != null && copySingleDate === workout.scheduled_date)
+                }
+                onClick={handleCopySingleDay}
+              >
+                {pending && <Loader2 className="size-4 animate-spin" />}
+                {copySingleDate
+                  ? `Copy to ${formatDayHeader(copySingleDate)}`
+                  : 'Copy workout'}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="range" className="mt-0 space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <label htmlFor="copy-start-date" className="text-sm font-medium">
@@ -570,7 +702,8 @@ export function ClientCalendarPanel({
                 ? `Copy to ${copyTargetCount} day${copyTargetCount === 1 ? '' : 's'}`
                 : 'Copy workout'}
             </Button>
-          </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>

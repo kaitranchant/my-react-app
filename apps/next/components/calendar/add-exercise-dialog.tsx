@@ -249,7 +249,7 @@ export function ExerciseCatalogPicker({
       >
         <div
           className={cn(
-            'rounded-sm border',
+            'rounded-lg border',
             variant === 'list' && 'max-h-[min(340px,45vh)] overflow-y-auto'
           )}
         >
@@ -333,7 +333,7 @@ export function ExerciseCatalogPicker({
                         selected && 'bg-brand/10 ring-brand ring-1 ring-inset'
                       )}
                     >
-                      <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-sm">
+                      <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-lg">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={exerciseDbImageUrl(exercise.id)}
@@ -643,7 +643,7 @@ export function AddExerciseDialog({
                   </Button>
                 </div>
               ) : (
-                <div className="max-h-[min(340px,45vh)] overflow-y-auto rounded-sm border">
+                <div className="max-h-[min(340px,45vh)] overflow-y-auto rounded-lg border">
                   <ul className="divide-y">
                     {activeExercises.map((exercise) => {
                       const selected = libraryExerciseId === exercise.id

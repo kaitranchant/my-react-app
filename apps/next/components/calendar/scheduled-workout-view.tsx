@@ -194,10 +194,10 @@ export function ScheduledWorkoutView({
     <div className="flex flex-col">
       <div className="border-brand bg-brand/5 flex flex-wrap items-center justify-between gap-3 border-l-4 px-5 py-4">
         <div>
-          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+          <p className="text-muted-foreground text-xs font-medium">
             {formatDayHeader(selectedDate)}
           </p>
-          <h3 className="text-xl font-bold tracking-tight">{workout.name}</h3>
+          <h3 className="text-xl font-semibold tracking-tight">{workout.name}</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {onCopy && (

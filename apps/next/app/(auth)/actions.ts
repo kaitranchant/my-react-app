@@ -141,7 +141,7 @@ export async function signup(
     if (!data.session) {
       return {
         message: isClientSignup
-          ? 'Check your email to confirm your account, then sign in to view your training.'
+          ? 'Check your email to confirm your account, then sign in to view your program.'
           : 'Check your email to confirm your account, then sign in.',
       }
     }

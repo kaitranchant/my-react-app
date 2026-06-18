@@ -272,7 +272,7 @@ function SortableSection({
           ) : (
             <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
           )}
-          <span className="truncate text-[11px] font-semibold tracking-wider uppercase">
+          <span className="truncate text-xs font-medium">
             {segment.label}
           </span>
           <span className="text-muted-foreground ml-auto shrink-0 text-[11px]">

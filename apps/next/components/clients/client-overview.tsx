@@ -26,7 +26,7 @@ import type {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+    <p className="section-label">
       {children}
     </p>
   )
@@ -45,7 +45,7 @@ function StatCard({
     <Card className="gap-0 py-0">
       <CardContent className="space-y-1 px-5 py-5">
         <p className="text-muted-foreground text-sm font-medium">{label}</p>
-        <p className="text-3xl font-bold tracking-tight">{value}</p>
+        <p className="text-3xl font-semibold tracking-tight">{value}</p>
         <p className="text-muted-foreground text-xs">{hint}</p>
       </CardContent>
     </Card>
@@ -149,7 +149,7 @@ export function ClientOverview({
           value={account.primary}
           hint={account.secondary}
         />
-        <StatCard label="Roster status" value={roster.primary} hint={roster.secondary} />
+        <StatCard label="Client status" value={roster.primary} hint={roster.secondary} />
         <StatCard label="Client since" value={since.primary} hint={since.secondary} />
       </div>
 
@@ -259,9 +259,9 @@ export function ClientOverview({
                 <div key={dateKey} className="flex flex-col items-center gap-2">
                   <div
                     className={cn(
-                      'flex size-10 flex-col items-center justify-center rounded-sm border sm:size-11',
+                      'flex size-10 flex-col items-center justify-center rounded-lg border sm:size-11',
                       isToday
-                        ? 'border-foreground bg-foreground text-background'
+                        ? 'border-brand bg-brand text-brand-foreground'
                         : session
                           ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
                           : 'border-border bg-muted/40 text-muted-foreground'
@@ -269,7 +269,7 @@ export function ClientOverview({
                     aria-hidden
                   >
                     {session ? (
-                      <span className="text-[10px] font-bold uppercase">
+                      <span className="text-[10px] font-semibold">
                         {session.name.slice(0, 3)}
                       </span>
                     ) : (

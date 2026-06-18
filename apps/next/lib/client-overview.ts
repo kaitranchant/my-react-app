@@ -52,11 +52,11 @@ export function statusLabel(status: ClientStatus): {
 } {
   switch (status) {
     case 'active':
-      return { primary: 'Active', secondary: 'Currently on your roster' }
+      return { primary: 'Active', secondary: 'Currently in your care' }
     case 'paused':
-      return { primary: 'Paused', secondary: 'Training temporarily on hold' }
+      return { primary: 'Paused', secondary: 'Sessions temporarily on hold' }
     case 'archived':
-      return { primary: 'Archived', secondary: 'No longer actively training' }
+      return { primary: 'Archived', secondary: 'No longer an active client' }
   }
 }
 

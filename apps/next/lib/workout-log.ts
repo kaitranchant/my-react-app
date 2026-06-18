@@ -27,6 +27,7 @@ export type WorkoutLogSetDraft = {
   barSpeed: string
   peakPower: string
   completed: boolean
+  predicted: boolean
   notes: string
 }
 
@@ -57,6 +58,58 @@ export function parseTargetForSet(
   if (parts.length === 0) return null
   if (parts.length === 1) return parts[0]
   return parts[setNumber - 1] ?? parts[parts.length - 1]
+}
+
+/** Pull a numeric value suitable for an input from a prescription label like "10" or "10-12". */
+export function parsePrescriptionNumber(
+  target: string | null | undefined
+): string | null {
+  if (!target?.trim()) return null
+
+  const match = target.trim().match(/^(\d+(?:\.\d+)?)/)
+  return match ? match[1] : null
+}
+
+export function getSuggestedLogValuesForSet(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  setNumber: number,
+  previousSets: Record<number, PreviousSetLog> = {}
+): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'> {
+  const fields = getLogFieldsForExercise(exercise)
+  const targetLabel = parseTargetForSet(exercise.reps, setNumber)
+  const previous = previousSets[setNumber]
+
+  let weight = ''
+  let reps = ''
+  let durationSeconds = ''
+
+  if (fields.showReps) {
+    const prescribed = parsePrescriptionNumber(targetLabel)
+    if (prescribed) {
+      reps = prescribed
+    } else if (previous?.reps != null) {
+      reps = String(previous.reps)
+    }
+  }
+
+  if (fields.showDuration) {
+    const prescribed = parsePrescriptionNumber(targetLabel)
+    if (prescribed) {
+      durationSeconds = prescribed
+    }
+  }
+
+  if (fields.showWeight && previous?.weight != null) {
+    weight = String(previous.weight)
+  }
+
+  return { weight, reps, durationSeconds }
+}
+
+function hasSuggestedLogValues(
+  values: Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>
+): boolean {
+  return Boolean(values.weight || values.reps || values.durationSeconds)
 }
 
 export function getWorkoutStatusLabel(status: ScheduledWorkoutStatus): string {
@@ -138,7 +191,8 @@ export function groupExercisesBySection(
 
 export function buildSetDrafts(
   exercise: ScheduledWorkoutExerciseWithDetails,
-  existingSets: WorkoutLogSet[]
+  existingSets: WorkoutLogSet[],
+  previousSets: Record<number, PreviousSetLog> = {}
 ): WorkoutLogSetDraft[] {
   const setCount = parseSetCount(exercise.sets)
   const bySetNumber = new Map(
@@ -148,29 +202,46 @@ export function buildSetDrafts(
   return Array.from({ length: setCount }, (_, index) => {
     const setNumber = index + 1
     const existing = bySetNumber.get(setNumber)
+    const targetLabel = parseTargetForSet(exercise.reps, setNumber)
+
+    if (existing) {
+      return {
+        setNumber,
+        targetLabel,
+        weight: existing.weight != null ? String(existing.weight) : '',
+        reps: existing.reps != null ? String(existing.reps) : '',
+        durationSeconds:
+          existing.duration_seconds != null
+            ? String(existing.duration_seconds)
+            : '',
+        barSpeed: existing.bar_speed != null ? String(existing.bar_speed) : '',
+        peakPower:
+          existing.peak_power != null ? String(existing.peak_power) : '',
+        completed: existing.completed ?? false,
+        predicted: false,
+        notes: existing.notes ?? '',
+      }
+    }
+
+    const suggested = getSuggestedLogValuesForSet(
+      exercise,
+      setNumber,
+      previousSets
+    )
 
     return {
       setNumber,
-      targetLabel: parseTargetForSet(exercise.reps, setNumber),
-      weight: existing?.weight != null ? String(existing.weight) : '',
-      reps: existing?.reps != null ? String(existing.reps) : '',
-      durationSeconds:
-        existing?.duration_seconds != null
-          ? String(existing.duration_seconds)
-          : '',
-      barSpeed: existing?.bar_speed != null ? String(existing.bar_speed) : '',
-      peakPower:
-        existing?.peak_power != null ? String(existing.peak_power) : '',
-      completed: existing?.completed ?? false,
-      notes: existing?.notes ?? '',
+      targetLabel,
+      weight: suggested.weight,
+      reps: suggested.reps,
+      durationSeconds: suggested.durationSeconds,
+      barSpeed: '',
+      peakPower: '',
+      completed: false,
+      predicted: hasSuggestedLogValues(suggested),
+      notes: '',
     }
-  }).map((draft) =>
-    applySetPatchWithCompletion(
-      draft,
-      {},
-      getLogFieldsForExercise(exercise)
-    )
-  )
+  })
 }
 
 export function getLogFieldsForExercise(
@@ -261,12 +332,16 @@ export function getBestE1rmFromDrafts(
 export function deriveSetCompleted(
   set: Pick<
     WorkoutLogSetDraft,
-    'weight' | 'reps' | 'durationSeconds' | 'completed'
+    'weight' | 'reps' | 'durationSeconds' | 'completed' | 'predicted'
   >,
   fields: ReturnType<typeof getLogFieldsForExercise>
 ): boolean {
   if (fields.completionOnly) {
     return set.completed
+  }
+
+  if (set.predicted) {
+    return false
   }
 
   if (fields.showWeight && fields.showReps) {
@@ -282,6 +357,126 @@ export function deriveSetCompleted(
   }
 
   return false
+}
+
+function isSetLogEmpty(
+  set: WorkoutLogSetDraft,
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): boolean {
+  if (fields.showWeight && fields.showReps) {
+    return set.weight.trim() === '' && set.reps.trim() === ''
+  }
+
+  if (!fields.showWeight && fields.showReps) {
+    return set.reps.trim() === ''
+  }
+
+  if (fields.showDuration) {
+    return set.durationSeconds.trim() === ''
+  }
+
+  return true
+}
+
+function canReceivePrediction(
+  set: WorkoutLogSetDraft,
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): boolean {
+  if (set.completed) return false
+  if (set.predicted) return true
+  return isSetLogEmpty(set, fields)
+}
+
+function getPropagationValues(
+  source: WorkoutLogSetDraft,
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): Partial<WorkoutLogSetDraft> | null {
+  if (fields.showWeight && fields.showReps) {
+    if (source.weight.trim() === '' || source.reps.trim() === '') {
+      return null
+    }
+    return { weight: source.weight, reps: source.reps }
+  }
+
+  if (!fields.showWeight && fields.showReps) {
+    if (source.reps.trim() === '') return null
+    return { reps: source.reps }
+  }
+
+  if (fields.showDuration) {
+    if (source.durationSeconds.trim() === '') return null
+    return { durationSeconds: source.durationSeconds }
+  }
+
+  return null
+}
+
+function propagateValuesToFollowingSets(
+  sets: WorkoutLogSetDraft[],
+  sourceSetNumber: number,
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): WorkoutLogSetDraft[] {
+  const source = sets.find((set) => set.setNumber === sourceSetNumber)
+  if (!source) return sets
+
+  const values = getPropagationValues(source, fields)
+  if (!values) return sets
+
+  return sets.map((set) => {
+    if (set.setNumber <= sourceSetNumber || !canReceivePrediction(set, fields)) {
+      return set
+    }
+
+    return {
+      ...set,
+      ...values,
+      predicted: true,
+      completed: false,
+    }
+  })
+}
+
+export function applyExerciseSetChanges(
+  sets: WorkoutLogSetDraft[],
+  setNumber: number,
+  patch: Partial<WorkoutLogSetDraft>,
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): WorkoutLogSetDraft[] {
+  if (patch.completed === true && Object.keys(patch).length === 1) {
+    return sets.map((set) => {
+      if (set.setNumber !== setNumber) return set
+
+      const hasValues =
+        (fields.showWeight && fields.showReps &&
+          set.weight.trim() !== '' &&
+          set.reps.trim() !== '') ||
+        (!fields.showWeight && fields.showReps && set.reps.trim() !== '') ||
+        (fields.showDuration && set.durationSeconds.trim() !== '')
+
+      if (!hasValues) return set
+
+      return { ...set, completed: true, predicted: false }
+    })
+  }
+
+  let nextSets = sets.map((set) => {
+    if (set.setNumber !== setNumber) return set
+
+    return applySetPatchWithCompletion(
+      { ...set, predicted: false },
+      patch,
+      fields
+    )
+  })
+
+  const touchesLogValues =
+    'weight' in patch || 'reps' in patch || 'durationSeconds' in patch
+
+  if (touchesLogValues) {
+    nextSets = propagateValuesToFollowingSets(nextSets, setNumber, fields)
+  }
+
+  return nextSets
 }
 
 export function getBestE1rmFromPrevious(

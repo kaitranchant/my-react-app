@@ -35,10 +35,8 @@ export function ExerciseViewTabs() {
             key={view.value}
             href={hrefFor(view.value)}
             className={cn(
-              'inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors',
-              active
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground border'
+              'filter-pill',
+              active ? 'filter-pill-active' : 'filter-pill-inactive'
             )}
           >
             {view.label}

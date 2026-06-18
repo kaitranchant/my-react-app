@@ -87,7 +87,7 @@ export function WorkoutBuilderModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1400px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
-        <div className="shrink-0 border-b px-5 py-4">
+        <div className="shrink-0 border-b px-5 py-4 pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
           <DialogDescription className="sr-only">
             Workout builder for {formatDayHeader(selectedDate)}
@@ -100,7 +100,7 @@ export function WorkoutBuilderModal({
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+                  <p className="text-muted-foreground text-xs font-medium">
                     {formatDayHeader(selectedDate)}
                   </p>
                   <FormField

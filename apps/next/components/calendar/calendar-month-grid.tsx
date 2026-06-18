@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { ChevronLeft, ChevronRight, Dumbbell, Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -16,8 +17,125 @@ type CalendarMonthGridProps = {
   scheduledDays: CalendarDaySummary[]
   onMonthChange: (year: number, month: number) => void
   onSelectDate: (dateKey: string) => void
+  onDayDoubleClick?: (dateKey: string) => void
   variant?: 'compact' | 'full'
   loading?: boolean
+}
+
+const DOUBLE_CLICK_DELAY_MS = 200
+
+type CalendarDayCellProps = {
+  dateKey: string
+  day: number
+  isSelected: boolean
+  isToday: boolean
+  scheduled?: CalendarDaySummary
+  onSelectDate: (dateKey: string) => void
+  onDayDoubleClick?: (dateKey: string) => void
+}
+
+function CalendarDayCell({
+  dateKey,
+  day,
+  isSelected,
+  isToday,
+  scheduled,
+  onSelectDate,
+  onDayDoubleClick,
+}: CalendarDayCellProps) {
+  const clickTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  function handleClick() {
+    if (!onDayDoubleClick) {
+      onSelectDate(dateKey)
+      return
+    }
+
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current)
+      clickTimeoutRef.current = null
+      onDayDoubleClick(dateKey)
+      return
+    }
+
+    clickTimeoutRef.current = setTimeout(() => {
+      clickTimeoutRef.current = null
+      onSelectDate(dateKey)
+    }, DOUBLE_CLICK_DELAY_MS)
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelectDate(dateKey)
+        }
+      }}
+      title={
+        onDayDoubleClick
+          ? scheduled
+            ? 'Double-click to edit workout'
+            : 'Double-click to schedule workout'
+          : undefined
+      }
+      className={cn(
+        'group relative flex min-h-[120px] cursor-pointer flex-col border-r border-b p-2 text-left transition-colors last:border-r-0',
+        isSelected
+          ? 'bg-brand/5 ring-brand ring-2 ring-inset'
+          : 'hover:bg-muted/30',
+        isToday && !isSelected && 'bg-muted/20'
+      )}
+    >
+      <span
+        className={cn(
+          'inline-flex size-7 items-center justify-center rounded-full text-sm font-medium',
+          isSelected && 'bg-brand text-brand-foreground font-semibold',
+          isToday && !isSelected && 'ring-foreground/30 ring-1'
+        )}
+      >
+        {day}
+      </span>
+
+      {scheduled ? (
+        <div
+          className={cn(
+            'mt-2 flex flex-1 flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
+            getScheduledDayStyles(scheduled, isSelected)
+          )}
+        >
+          <p className="line-clamp-2 text-xs leading-snug font-semibold">
+            {scheduled.name}
+          </p>
+          <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
+            <Dumbbell className="size-2.5 shrink-0" />
+            {getWorkoutDisplayStatus(
+              scheduled.status,
+              workoutHasProgress(scheduled, [])
+            ).label}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-auto flex justify-center pb-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="text-muted-foreground flex items-center gap-0.5 text-[10px]">
+            <Plus className="size-3" />
+            Schedule
+          </span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 const WEEKDAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -83,6 +201,7 @@ export function CalendarMonthGrid({
   scheduledDays,
   onMonthChange,
   onSelectDate,
+  onDayDoubleClick,
   variant = 'compact',
   loading = false,
 }: CalendarMonthGridProps) {
@@ -142,19 +261,14 @@ export function CalendarMonthGrid({
             {headers.map((label) => (
               <div
                 key={label}
-                className="text-muted-foreground border-r px-2 py-2.5 text-center text-xs font-semibold tracking-wide uppercase last:border-r-0"
+                className="text-muted-foreground border-r px-2 py-2.5 text-center text-xs font-medium last:border-r-0"
               >
                 {label}
               </div>
             ))}
           </div>
 
-          <div
-            className={cn(
-              'grid grid-cols-7',
-              loading && 'pointer-events-none opacity-60'
-            )}
-          >
+          <div className={cn('grid grid-cols-7', loading && 'opacity-60')}>
             {cells.map((cell, index) => {
               if (!cell.dateKey || cell.day === null) {
                 return (
@@ -169,55 +283,16 @@ export function CalendarMonthGrid({
               const isSelected = cell.dateKey === selectedDate
 
               return (
-                <button
+                <CalendarDayCell
                   key={cell.dateKey}
-                  type="button"
-                  onClick={() => onSelectDate(cell.dateKey!)}
-                  className={cn(
-                    'group relative flex min-h-[120px] flex-col border-r border-b p-2 text-left transition-colors last:border-r-0',
-                    isSelected
-                      ? 'bg-brand/5 ring-brand ring-2 ring-inset'
-                      : 'hover:bg-muted/30',
-                    cell.isToday && !isSelected && 'bg-muted/20'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'inline-flex size-7 items-center justify-center rounded-full text-sm font-medium',
-                      isSelected && 'bg-brand text-brand-foreground font-semibold',
-                      cell.isToday && !isSelected && 'ring-foreground/30 ring-1'
-                    )}
-                  >
-                    {cell.day}
-                  </span>
-
-                  {scheduled ? (
-                    <div
-                      className={cn(
-                        'mt-2 flex flex-1 flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
-                        getScheduledDayStyles(scheduled, isSelected)
-                      )}
-                    >
-                      <p className="line-clamp-2 text-xs leading-snug font-semibold">
-                        {scheduled.name}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
-                        <Dumbbell className="size-2.5 shrink-0" />
-                        {getWorkoutDisplayStatus(
-                          scheduled.status,
-                          workoutHasProgress(scheduled, [])
-                        ).label}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-auto flex justify-center pb-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <span className="text-muted-foreground flex items-center gap-0.5 text-[10px]">
-                        <Plus className="size-3" />
-                        Schedule
-                      </span>
-                    </div>
-                  )}
-                </button>
+                  dateKey={cell.dateKey}
+                  day={cell.day}
+                  isSelected={isSelected}
+                  isToday={cell.isToday}
+                  scheduled={scheduled}
+                  onSelectDate={onSelectDate}
+                  onDayDoubleClick={onDayDoubleClick}
+                />
               )
             })}
           </div>
@@ -262,7 +337,7 @@ export function CalendarMonthGrid({
                 }
                 onClick={() => onSelectDate(cell.dateKey!)}
                 className={cn(
-                  'relative flex h-9 flex-col items-center justify-center rounded-sm text-sm transition-colors',
+                  'relative flex h-9 flex-col items-center justify-center rounded-md text-sm transition-colors',
                   isSelected
                     ? 'bg-brand text-brand-foreground font-semibold'
                     : cell.isToday

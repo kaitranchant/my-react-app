@@ -25,9 +25,9 @@ export function LibraryTabs() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'border-b-2 pb-3 text-sm font-semibold uppercase tracking-wide transition-colors',
+                'border-b-2 pb-3 text-sm font-medium transition-colors',
                 active
-                  ? 'border-foreground text-foreground'
+                  ? 'border-brand text-brand'
                   : 'text-muted-foreground hover:text-foreground border-transparent'
               )}
             >

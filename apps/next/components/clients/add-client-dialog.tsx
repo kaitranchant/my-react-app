@@ -130,7 +130,7 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="uppercase tracking-tight">Add client</DialogTitle>
+          <DialogTitle className="font-semibold tracking-tight">Add client</DialogTitle>
           <DialogDescription>
             Invite a client to create their own account, or add their details
             manually and invite them later.
@@ -159,7 +159,7 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
             </p>
 
             {lastInviteUrl ? (
-              <div className="space-y-3 rounded-sm border p-4">
+              <div className="space-y-3 rounded-lg border p-4">
                 <p className="text-sm font-medium">Invite link ready</p>
                 <p className="text-muted-foreground break-all text-xs">
                   {lastInviteUrl}
@@ -214,7 +214,7 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                       <FormItem>
                         <FormLabel>Full name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Jordan Athlete" {...field} />
+                          <Input placeholder="Jordan Smith" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -297,7 +297,7 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                     <FormItem>
                       <FormLabel>Full name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Jordan Athlete" {...field} />
+                        <Input placeholder="Jordan Smith" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

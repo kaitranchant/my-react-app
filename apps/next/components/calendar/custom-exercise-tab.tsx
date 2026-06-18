@@ -114,7 +114,7 @@ export function CustomExerciseTab({ form }: CustomExerciseTabProps) {
         control={form.control}
         name="saveToLibrary"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-start gap-3 rounded-sm border p-3">
+          <FormItem className="flex flex-row items-start gap-3 rounded-lg border p-3">
             <FormControl>
               <input
                 type="checkbox"

@@ -87,7 +87,7 @@ export default async function ClientsPage({
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <PageHeader
         title="Clients"
-        description="Manage your roster of athletes and clients."
+        description="Manage your clients, their programs, and progress in one place."
       />
 
       <ClientsToolbar />
@@ -105,7 +105,7 @@ export default async function ClientsPage({
             </p>
           ) : clients.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-              <div className="bg-foreground text-background flex size-14 items-center justify-center rounded-sm">
+              <div className="empty-state-icon">
                 <Users className="size-7" />
               </div>
               <div className="space-y-1">

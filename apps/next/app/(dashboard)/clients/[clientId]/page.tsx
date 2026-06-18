@@ -144,36 +144,39 @@ export default async function ClientDetailPage({
         Back to clients
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <ClientAvatarUpload
-            clientId={client.id}
-            name={client.full_name}
-            avatarUrl={client.avatar_url}
-            size="lg"
-          />
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight uppercase">
-                {client.full_name}
-              </h1>
-              <StatusBadge status={client.status} />
+      <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
+        <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <ClientAvatarUpload
+              clientId={client.id}
+              name={client.full_name}
+              avatarUrl={client.avatar_url}
+              size="lg"
+            />
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {client.full_name}
+                </h1>
+                <StatusBadge status={client.status} />
+              </div>
+              {client.email && (
+                <p className="text-muted-foreground text-sm">{client.email}</p>
+              )}
             </div>
-            {client.email && (
-              <p className="text-muted-foreground text-sm">{client.email}</p>
-            )}
           </div>
+          <ClientFormDialog
+            client={client}
+            trigger={
+              <Button variant="outline">
+                <Pencil className="size-4" />
+                Edit
+              </Button>
+            }
+          />
         </div>
-        <ClientFormDialog
-          client={client}
-          trigger={
-            <Button variant="outline">
-              <Pencil className="size-4" />
-              Edit
-            </Button>
-          }
-        />
-      </div>
+      </section>
 
       <ClientAccountCard client={client} />
 

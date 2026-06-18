@@ -198,7 +198,7 @@ export function ExerciseCatalogBrowser({
                 apps/next/.env.local
               </code>
               :
-              <pre className="bg-muted text-foreground mt-2 overflow-x-auto rounded-sm p-3 text-xs">
+              <pre className="bg-muted text-foreground mt-2 overflow-x-auto rounded-lg p-3 text-xs">
                 EXERCISEDB_RAPIDAPI_KEY=your_key_here
               </pre>
             </li>
@@ -307,7 +307,7 @@ export function ExerciseCatalogBrowser({
                     className="flex flex-wrap items-start justify-between gap-4 px-5 py-4"
                   >
                     <div className="flex min-w-0 flex-1 gap-4">
-                      <div className="bg-muted size-16 shrink-0 overflow-hidden rounded-sm">
+                      <div className="bg-muted size-16 shrink-0 overflow-hidden rounded-lg">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={exerciseDbImageUrl(exercise.id)}

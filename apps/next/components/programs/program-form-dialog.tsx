@@ -114,7 +114,7 @@ export function ProgramFormDialog({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="uppercase tracking-tight">
+          <DialogTitle className="font-semibold tracking-tight">
             {isEdit ? 'Edit program' : 'New program'}
           </DialogTitle>
           <DialogDescription>

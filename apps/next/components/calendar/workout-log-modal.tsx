@@ -34,11 +34,10 @@ import { Input } from '@/components/ui/input'
 import { formatDayHeader } from '@/lib/calendar'
 import { formatExercisePrescriptionSummary } from '@/lib/scheduled-exercise'
 import {
-  applySetPatchWithCompletion,
+  applyExerciseSetChanges,
   buildSetDrafts,
   countCompletedSets,
   countTotalSetsForWorkout,
-  deriveSetCompleted,
   formatPreviousPerformance,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
@@ -79,7 +78,8 @@ type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
 
 function buildExerciseState(
   exercises: ScheduledWorkoutExerciseWithDetails[],
-  logSets: WorkoutLogSet[]
+  logSets: WorkoutLogSet[],
+  previousSetsByExerciseId: Record<string, ExercisePreviousSets> = {}
 ): ExerciseLogState {
   const setsByExercise = new Map<string, WorkoutLogSet[]>()
 
@@ -93,7 +93,8 @@ function buildExerciseState(
   for (const exercise of exercises) {
     state[exercise.id] = buildSetDrafts(
       exercise,
-      setsByExercise.get(exercise.id) ?? []
+      setsByExercise.get(exercise.id) ?? [],
+      previousSetsByExerciseId[exercise.exercise_id] ?? {}
     )
   }
   return state
@@ -142,6 +143,7 @@ type WorkoutLogExerciseProps = {
     setNumber: number,
     patch: Partial<WorkoutLogSetDraft>
   ) => void
+  onSetConfirm: (setNumber: number) => void
 }
 
 function WorkoutLogExercise({
@@ -151,6 +153,7 @@ function WorkoutLogExercise({
   previousSessionDate,
   readOnly,
   onSetChange,
+  onSetConfirm,
 }: WorkoutLogExerciseProps) {
   const fields = getLogFieldsForExercise(exercise)
   const summary = formatExercisePrescriptionSummary(exercise)
@@ -218,7 +221,7 @@ function WorkoutLogExercise({
               <div className="min-w-[320px] space-y-1">
                 <div
                   className={cn(
-                    'text-muted-foreground grid gap-2 px-1 text-[10px] font-semibold tracking-wide uppercase',
+                    'text-muted-foreground grid gap-2 px-1 text-xs font-medium',
                     fields.showWeight && fields.showReps
                       ? 'grid-cols-[2.5rem_5rem_1fr_1fr_2rem]'
                       : fields.showReps
@@ -246,7 +249,10 @@ function WorkoutLogExercise({
                           : fields.showReps
                             ? 'grid-cols-[2.5rem_5rem_1fr_2rem]'
                             : 'grid-cols-[2.5rem_5rem_1fr_2rem]',
-                        set.completed && 'border-emerald-500/30 bg-emerald-500/5'
+                        set.completed && 'border-emerald-500/30 bg-emerald-500/5',
+                        set.predicted &&
+                          !set.completed &&
+                          'border-brand/30 bg-brand/5'
                       )}
                     >
                       <span className="text-muted-foreground pl-1 text-xs font-semibold">
@@ -323,9 +329,31 @@ function WorkoutLogExercise({
                             <Check className="size-3.5" strokeWidth={3} />
                           </span>
                         ) : (
-                          <span
-                            className="border-muted-foreground/30 size-6 rounded-full border"
-                            aria-hidden
+                          <button
+                            type="button"
+                            disabled={
+                              readOnly ||
+                              !(
+                                (fields.showWeight &&
+                                  fields.showReps &&
+                                  set.weight.trim() !== '' &&
+                                  set.reps.trim() !== '') ||
+                                (!fields.showWeight &&
+                                  fields.showReps &&
+                                  set.reps.trim() !== '') ||
+                                (fields.showDuration &&
+                                  set.durationSeconds.trim() !== '')
+                              )
+                            }
+                            onClick={() => onSetConfirm(set.setNumber)}
+                            className={cn(
+                              'flex size-6 items-center justify-center rounded-full border transition-colors',
+                              set.predicted
+                                ? 'border-brand/50 hover:bg-brand/10'
+                                : 'border-muted-foreground/30 hover:bg-muted/50',
+                              'disabled:pointer-events-none disabled:opacity-40'
+                            )}
+                            aria-label={`Confirm set ${set.setNumber}`}
                           />
                         )}
                       </div>
@@ -429,7 +457,11 @@ export function WorkoutLogModal({
 
     setData(result.data)
     setExerciseState(
-      buildExerciseState(result.data.exercises, result.data.logSets)
+      buildExerciseState(
+        result.data.exercises,
+        result.data.logSets,
+        result.data.previousSetsByExerciseId
+      )
     )
   }, [clientId, workoutId])
 
@@ -464,12 +496,20 @@ export function WorkoutLogModal({
     const fields = getLogFieldsForExercise(exercise)
     setExerciseState((current) => ({
       ...current,
-      [exercise.id]: (current[exercise.id] ?? []).map((set) =>
-        set.setNumber === setNumber
-          ? applySetPatchWithCompletion(set, patch, fields)
-          : set
+      [exercise.id]: applyExerciseSetChanges(
+        current[exercise.id] ?? [],
+        setNumber,
+        patch,
+        fields
       ),
     }))
+  }
+
+  function handleSetConfirm(
+    exercise: ScheduledWorkoutExerciseWithDetails,
+    setNumber: number
+  ) {
+    handleSetChange(exercise, setNumber, { completed: true })
   }
 
   async function handleStartWorkout() {
@@ -515,7 +555,7 @@ export function WorkoutLogModal({
           durationSeconds: parseOptionalInt(set.durationSeconds),
           barSpeed: parseOptionalNumber(set.barSpeed),
           peakPower: parseOptionalNumber(set.peakPower),
-          completed: deriveSetCompleted(set, fields),
+          completed: set.completed,
           notes: set.notes.trim() ? set.notes.trim() : null,
         }))
       }
@@ -643,18 +683,18 @@ export function WorkoutLogModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
-        <div className="shrink-0 border-b px-5 py-4">
+        <div className="shrink-0 border-b px-5 py-4 pr-14">
           <DialogTitle className="sr-only">Log workout</DialogTitle>
           <DialogDescription className="sr-only">
             Log sets for {formatDayHeader(selectedDate)}
           </DialogDescription>
 
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-3">
             <div className="min-w-0 space-y-1">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+              <p className="text-muted-foreground text-xs font-medium">
                 {formatDayHeader(selectedDate)}
               </p>
-              <h2 className="text-xl font-bold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 {data?.name ?? 'Workout'}
               </h2>
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -798,7 +838,7 @@ export function WorkoutLogModal({
             <div>
               {sections.length > 1 && activeSection && (
                 <div className="border-b py-3">
-                  <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+                  <p className="text-muted-foreground text-xs font-medium">
                     Section
                   </p>
                   <p className="font-semibold">{activeSection.label}</p>
@@ -827,6 +867,9 @@ export function WorkoutLogModal({
                   readOnly={readOnly}
                   onSetChange={(setNumber, patch) =>
                     handleSetChange(exercise, setNumber, patch)
+                  }
+                  onSetConfirm={(setNumber) =>
+                    handleSetConfirm(exercise, setNumber)
                   }
                 />
               ))}
