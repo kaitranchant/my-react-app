@@ -83,7 +83,7 @@ export default async function LibraryProgramsPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-muted-foreground text-sm">
-          Multi-week programs — assign structured plans to clients.
+          Multi-week programs — build a calendar, then assign to clients.
         </p>
         <AddProgramButton />
       </div>
@@ -158,7 +158,12 @@ export default async function LibraryProgramsPage({
                   <TableRow key={program.id} className="group">
                     <TableCell className="pl-5">
                       <div className="space-y-0.5">
-                        <p className="font-medium">{program.name}</p>
+                        <Link
+                          href={`/library/programs/${program.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {program.name}
+                        </Link>
                         {program.description && (
                           <p className="text-muted-foreground max-w-md truncate text-xs">
                             {program.description}

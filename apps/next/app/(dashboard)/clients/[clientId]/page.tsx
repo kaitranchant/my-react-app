@@ -1,13 +1,16 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Suspense } from 'react'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
+import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
-import { ClientAccountCard } from '@/components/clients/client-account-card'
-import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import { ClientAccountBanner } from '@/components/clients/client-account-banner'
+import { ClientQuickActions } from '@/components/clients/client-quick-actions'
+import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { StatusBadge } from '@/components/clients/status-badge'
 import type {
@@ -22,10 +25,13 @@ import type {
 
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ clientId: string }>
+  searchParams: Promise<{ tab?: string; action?: string; date?: string }>
 }) {
   const { clientId } = await params
+  const { tab: initialTab } = await searchParams
   const supabase = await createClient()
   const today = new Date()
   const year = today.getFullYear()
@@ -35,6 +41,9 @@ export default async function ClientDetailPage({
   const weekDateKeys = getWeekDayLabels().map((day) => day.dateKey)
   const weekStart = weekDateKeys[0]
   const weekEnd = weekDateKeys[weekDateKeys.length - 1]
+  const streakStart = toDateKey(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 90)
+  )
 
   const [
     { data },
@@ -45,6 +54,8 @@ export default async function ClientDetailPage({
     selectedResult,
     exercisesResult,
     workoutsResult,
+    recentWorkoutsResult,
+    streakWorkoutsResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
@@ -95,6 +106,22 @@ export default async function ClientDetailPage({
       .select('id, name, status')
       .neq('status', 'archived')
       .order('name', { ascending: true }),
+    supabase
+      .from('client_scheduled_workouts')
+      .select(
+        'id, name, status, scheduled_date, started_at, completed_at, updated_at'
+      )
+      .eq('client_id', clientId)
+      .in('status', ['completed', 'in_progress', 'skipped'])
+      .order('updated_at', { ascending: false })
+      .limit(12),
+    supabase
+      .from('client_scheduled_workouts')
+      .select('status, scheduled_date, completed_at')
+      .eq('client_id', clientId)
+      .eq('status', 'completed')
+      .gte('scheduled_date', streakStart)
+      .order('scheduled_date', { ascending: false }),
   ])
 
   if (!data) {
@@ -133,6 +160,10 @@ export default async function ClientDetailPage({
     Workout,
     'id' | 'name' | 'status'
   >[]
+  const recentWorkouts = (recentWorkoutsResult.data ??
+    []) as ClientWorkoutActivity[]
+  const streakWorkouts = (streakWorkoutsResult.data ??
+    []) as ClientWorkoutActivity[]
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -148,8 +179,7 @@ export default async function ClientDetailPage({
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <ClientAvatarUpload
-              clientId={client.id}
+            <ClientAvatar
               name={client.full_name}
               avatarUrl={client.avatar_url}
               size="lg"
@@ -166,36 +196,44 @@ export default async function ClientDetailPage({
               )}
             </div>
           </div>
-          <ClientFormDialog
-            client={client}
-            trigger={
-              <Button variant="outline">
-                <Pencil className="size-4" />
-                Edit
-              </Button>
-            }
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ClientQuickActions clientId={client.id} />
+            <ClientFormDialog
+              client={client}
+              trigger={
+                <Button variant="outline">
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
+              }
+            />
+          </div>
         </div>
       </section>
 
-      <ClientAccountCard client={client} />
+      <ClientAccountBanner client={client} />
 
-      <ClientDetailTabs
-        client={client}
-        activeAssignment={activeAssignment}
-        availablePrograms={availablePrograms}
-        weekSessions={weekSessions}
-        calendar={{
-          schemaError: calendarSchemaError,
-          year,
-          month,
-          selectedDate,
-          days: monthDays,
-          selectedWorkout,
-          exercises,
-          libraryWorkouts,
-        }}
-      />
+      <Suspense fallback={null}>
+        <ClientDetailTabs
+          client={client}
+          activeAssignment={activeAssignment}
+          availablePrograms={availablePrograms}
+          weekSessions={weekSessions}
+          recentWorkouts={recentWorkouts}
+          streakWorkouts={streakWorkouts}
+          initialTab={initialTab}
+          calendar={{
+            schemaError: calendarSchemaError,
+            year,
+            month,
+            selectedDate,
+            days: monthDays,
+            selectedWorkout,
+            exercises,
+            libraryWorkouts,
+          }}
+        />
+      </Suspense>
     </div>
   )
 }

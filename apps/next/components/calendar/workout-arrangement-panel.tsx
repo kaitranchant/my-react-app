@@ -26,20 +26,20 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  removeScheduledExercise,
-  reorderScheduledExercises,
-} from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { Button } from '@/components/ui/button'
 import { getExerciseBlockLabel } from '@/lib/exercise-groups'
 import { formatExercisePrescriptionSummary } from '@/lib/scheduled-exercise'
+import type {
+  EditableWorkoutWithExercises,
+  WorkoutBuilderExerciseActions,
+} from '@/lib/workout-builder-types'
 import { cn } from '@/lib/utils'
 import type {
-  ClientScheduledWorkoutWithExercises,
   ScheduledExerciseBlock,
+  ScheduledWorkoutExerciseWithDetails,
 } from 'app/types/database'
 
-type ExerciseRow = ClientScheduledWorkoutWithExercises['exercises'][number]
+type ExerciseRow = ScheduledWorkoutExerciseWithDetails
 
 type WorkoutSegment = {
   blockKey: string
@@ -57,8 +57,11 @@ const SUPERSET_COLORS: Record<string, string> = {
 }
 
 type WorkoutArrangementPanelProps = {
-  clientId: string
-  workout: ClientScheduledWorkoutWithExercises
+  workout: EditableWorkoutWithExercises
+  exerciseActions: Pick<
+    WorkoutBuilderExerciseActions,
+    'removeExercise' | 'reorderExercises'
+  >
   selectedRowId: string | null
   onSelectRow: (rowId: string | null) => void
   onChanged: () => void
@@ -306,8 +309,8 @@ function SortableSection({
 }
 
 export function WorkoutArrangementPanel({
-  clientId,
   workout,
+  exerciseActions,
   selectedRowId,
   onSelectRow,
   onChanged,
@@ -384,8 +387,7 @@ export function WorkoutArrangementPanel({
     setLocalSegments(nextSegments)
     setReordering(true)
 
-    const result = await reorderScheduledExercises(
-      clientId,
+    const result = await exerciseActions.reorderExercises(
       workout.id,
       nextIds
     )
@@ -403,7 +405,7 @@ export function WorkoutArrangementPanel({
 
   async function handleRemove(rowId: string) {
     setPendingId(rowId)
-    const result = await removeScheduledExercise(clientId, rowId)
+    const result = await exerciseActions.removeExercise(rowId)
     setPendingId(null)
 
     if (result.success) {

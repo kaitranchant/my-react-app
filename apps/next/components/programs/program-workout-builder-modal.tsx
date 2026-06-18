@@ -3,17 +3,20 @@
 import * as React from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Loader2 } from 'lucide-react'
+import { Loader2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
-  addScheduledExercise,
-  removeScheduledExercise,
-  reorderScheduledExercises,
-  updateScheduledExercise,
-  updateScheduledWorkout,
-} from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
+  addProgramScheduledExercise,
+  getProgramWorkoutWithExercises,
+  isProgramExercisesSchemaReady,
+  removeProgramScheduledExercise,
+  reorderProgramScheduledExercises,
+  updateProgramScheduledExercise,
+  updateProgramScheduledWorkout,
+} from '@/app/(dashboard)/library/programs/[programId]/calendar/actions'
 import { WorkoutBuilder } from '@/components/calendar/workout-builder'
+import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,39 +34,48 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDayHeader } from '@/lib/calendar'
+import { formatProgramDayLabel } from '@/lib/program-calendar'
 import type { WorkoutBuilderExerciseActions } from '@/lib/workout-builder-types'
 import {
   scheduledWorkoutFormSchema,
   type ScheduledWorkoutFormValues,
 } from '@/lib/validations/calendar'
-import type {
-  ClientScheduledWorkoutWithExercises,
-  Exercise,
-} from 'app/types/database'
+import type { Exercise, ProgramScheduledWorkoutWithExercises } from 'app/types/database'
 
-type WorkoutBuilderModalProps = {
+type ProgramWorkoutBuilderModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  clientId: string
-  selectedDate: string
-  workout: ClientScheduledWorkoutWithExercises
+  programId: string
+  dayOffset: number
+  workout: ProgramScheduledWorkoutWithExercises
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
   onChanged: () => void
   onCopy?: () => void
 }
 
-export function WorkoutBuilderModal({
+export function ProgramWorkoutBuilderModal({
   open,
   onOpenChange,
-  clientId,
-  selectedDate,
-  workout,
+  programId,
+  dayOffset,
+  workout: initialWorkout,
   exercises,
   onChanged,
   onCopy,
-}: WorkoutBuilderModalProps) {
+}: ProgramWorkoutBuilderModalProps) {
   const [pending, setPending] = React.useState(false)
+  const [exercisesSchemaReady, setExercisesSchemaReady] = React.useState(true)
+  const [workout, setWorkout] =
+    React.useState<ProgramScheduledWorkoutWithExercises>(initialWorkout)
+
+  React.useEffect(() => {
+    setWorkout(initialWorkout)
+  }, [initialWorkout])
+
+  React.useEffect(() => {
+    if (!open) return
+    void isProgramExercisesSchemaReady().then(setExercisesSchemaReady)
+  }, [open])
 
   const form = useForm<ScheduledWorkoutFormValues>({
     resolver: zodResolver(scheduledWorkoutFormSchema),
@@ -76,28 +88,41 @@ export function WorkoutBuilderModal({
   const exerciseActions = React.useMemo<WorkoutBuilderExerciseActions>(
     () => ({
       addExercise: (workoutId, values) =>
-        addScheduledExercise(clientId, workoutId, values),
+        addProgramScheduledExercise(programId, workoutId, values),
       updateExercise: (exerciseRowId, values) =>
-        updateScheduledExercise(clientId, exerciseRowId, values),
+        updateProgramScheduledExercise(programId, exerciseRowId, values),
       removeExercise: (exerciseRowId) =>
-        removeScheduledExercise(clientId, exerciseRowId),
+        removeProgramScheduledExercise(programId, exerciseRowId),
       reorderExercises: (workoutId, orderedRowIds) =>
-        reorderScheduledExercises(clientId, workoutId, orderedRowIds),
+        reorderProgramScheduledExercises(programId, workoutId, orderedRowIds),
     }),
-    [clientId]
+    [programId]
   )
+
+  async function refreshWorkout() {
+    const result = await getProgramWorkoutWithExercises(programId, workout.id)
+    if (result.success) {
+      setWorkout(result.workout)
+    }
+    await onChanged()
+  }
 
   async function handleSave(
     values: ScheduledWorkoutFormValues,
     closeAfter = false
   ) {
     setPending(true)
-    const result = await updateScheduledWorkout(clientId, workout.id, values)
+    const result = await updateProgramScheduledWorkout(
+      programId,
+      workout.id,
+      values,
+      workout.library_workout_id
+    )
     setPending(false)
 
     if (result.success) {
       toast.success(closeAfter ? 'Workout saved.' : 'Workout updated.')
-      await onChanged()
+      await refreshWorkout()
       if (closeAfter) onOpenChange(false)
       return
     }
@@ -111,7 +136,7 @@ export function WorkoutBuilderModal({
         <div className="shrink-0 border-b px-5 py-4 pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
           <DialogDescription className="sr-only">
-            Workout builder for {formatDayHeader(selectedDate)}
+            Workout builder for {formatProgramDayLabel(dayOffset)}
           </DialogDescription>
 
           <Form {...form}>
@@ -122,7 +147,7 @@ export function WorkoutBuilderModal({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-muted-foreground text-xs font-medium">
-                    {formatDayHeader(selectedDate)}
+                    {formatProgramDayLabel(dayOffset)}
                   </p>
                   <FormField
                     control={form.control}
@@ -151,7 +176,7 @@ export function WorkoutBuilderModal({
                       onClick={onCopy}
                     >
                       <Copy className="size-4" />
-                      Copy day
+                      Copy
                     </Button>
                   )}
                   <Button
@@ -200,15 +225,23 @@ export function WorkoutBuilderModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <WorkoutBuilder
-            headerLabel={formatDayHeader(selectedDate)}
-            workout={workout}
-            exercises={exercises}
-            exerciseActions={exerciseActions}
-            catalogClientId={clientId}
-            onChanged={onChanged}
-            embedded
-          />
+          {exercisesSchemaReady ? (
+            <WorkoutBuilder
+              headerLabel={formatProgramDayLabel(dayOffset)}
+              workout={workout}
+              exercises={exercises}
+              exerciseActions={exerciseActions}
+              onChanged={refreshWorkout}
+              embedded
+            />
+          ) : (
+            <div className="overflow-y-auto p-5">
+              <SchemaSetupNotice
+                tables={['program_scheduled_workout_exercises']}
+                sqlFile="apply-program-workout-exercises.sql"
+              />
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

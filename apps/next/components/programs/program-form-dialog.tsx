@@ -103,6 +103,10 @@ export function ProgramFormDialog({
     if (result.success) {
       toast.success(isEdit ? 'Program updated' : 'Program created')
       setOpen(false)
+      if (!isEdit && 'programId' in result) {
+        router.push(`/library/programs/${result.programId}`)
+        return
+      }
       router.refresh()
     } else {
       toast.error(result.error)

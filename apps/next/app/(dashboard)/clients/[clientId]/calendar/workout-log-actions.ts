@@ -63,7 +63,7 @@ async function fetchWorkoutWithExercises(
       *,
       exercises:scheduled_workout_exercises(
         *,
-        exercise:exercises(id, name, muscle_group, equipment)
+        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, instructions)
       )
     `
     )
@@ -151,7 +151,11 @@ async function fetchPreviousSetsForExercises(
 
   for (const row of rows) {
     const exerciseId = row.scheduled_workout_exercises.exercise_id
-    const sessionDate = row.client_scheduled_workouts.scheduled_date
+    const sessionDate = String(
+      row.client_scheduled_workouts.scheduled_date ?? ''
+    ).slice(0, 10)
+    if (!sessionDate) continue
+
     const currentLatest = latestDateByExercise.get(exerciseId)
 
     if (!currentLatest || sessionDate > currentLatest) {
@@ -161,7 +165,11 @@ async function fetchPreviousSetsForExercises(
 
   for (const row of rows) {
     const exerciseId = row.scheduled_workout_exercises.exercise_id
-    const sessionDate = row.client_scheduled_workouts.scheduled_date
+    const sessionDate = String(
+      row.client_scheduled_workouts.scheduled_date ?? ''
+    ).slice(0, 10)
+    if (!sessionDate) continue
+
     const latestDate = latestDateByExercise.get(exerciseId)
 
     if (!latestDate || sessionDate !== latestDate) {
@@ -302,7 +310,8 @@ export async function stopWorkoutLog(
 export async function saveWorkoutLogSets(
   clientId: string,
   workoutId: string,
-  sets: WorkoutLogSetValues[]
+  sets: WorkoutLogSetValues[],
+  options?: { revalidate?: boolean }
 ): Promise<ActionResult> {
   const parsed = saveWorkoutLogSetsSchema.safeParse({ workoutId, sets })
   if (!parsed.success) {
@@ -350,7 +359,43 @@ export async function saveWorkoutLogSets(
     }
   }
 
-  revalidateClientCalendar(clientId)
+  const setsByExercise = new Map<string, number[]>()
+  for (const set of parsed.data.sets) {
+    const existing = setsByExercise.get(set.scheduledExerciseId) ?? []
+    existing.push(set.setNumber)
+    setsByExercise.set(set.scheduledExerciseId, existing)
+  }
+
+  for (const exercise of workout.exercises) {
+    const keptSetNumbers = setsByExercise.get(exercise.id) ?? []
+
+    if (keptSetNumbers.length === 0) {
+      const { error } = await supabase
+        .from('workout_log_sets')
+        .delete()
+        .eq('scheduled_exercise_id', exercise.id)
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+      continue
+    }
+
+    const maxSetNumber = Math.max(...keptSetNumbers)
+    const { error } = await supabase
+      .from('workout_log_sets')
+      .delete()
+      .eq('scheduled_exercise_id', exercise.id)
+      .gt('set_number', maxSetNumber)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  if (options?.revalidate !== false) {
+    revalidateClientCalendar(clientId)
+  }
   return { success: true }
 }
 

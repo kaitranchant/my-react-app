@@ -8,6 +8,10 @@ import {
   clientAvatarStoragePath,
   withAvatarCacheBuster,
 } from '@/lib/avatar'
+import {
+  clientAvatarPresetUrl,
+  isClientAvatarPresetId,
+} from '@/lib/client-avatar-presets'
 
 export type AvatarUploadResult =
   | { success: true; avatarUrl: string }
@@ -197,4 +201,77 @@ export async function uploadPendingClientAvatar(
   }
 
   return uploadClientAvatar(clientId, formData)
+}
+
+export async function setClientAvatarPreset(
+  clientId: string,
+  presetId: string | null
+): Promise<AvatarUploadResult> {
+  if (presetId !== null && !isClientAvatarPresetId(presetId)) {
+    return { success: false, error: 'Invalid avatar icon.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { data: client, error: fetchError } = await supabase
+    .from('clients')
+    .select('id, coach_id, user_id')
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (fetchError) {
+    const message = fetchError.message.toLowerCase()
+    if (message.includes('avatar_url')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: fetchError.message }
+  }
+
+  if (!client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const avatarUrl = presetId ? clientAvatarPresetUrl(presetId) : null
+
+  const { error: updateError } = await supabase
+    .from('clients')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', clientId)
+
+  if (updateError) {
+    const message = updateError.message.toLowerCase()
+    if (message.includes('avatar_url')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: updateError.message }
+  }
+
+  if (client.user_id) {
+    await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', client.user_id)
+  }
+
+  revalidatePath('/clients')
+  revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/portal')
+
+  return { success: true, avatarUrl: avatarUrl ?? '' }
 }

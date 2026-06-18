@@ -1,17 +1,21 @@
 # Coaching App
 
-A coaching and athlete management platform for personal trainers and coaches. Phase 1 focuses on authenticated client roster management via a Next.js web app backed by Supabase.
+A coaching and athlete management platform for personal trainers and coaches. Next.js web app backed by Supabase.
 
 ## What works today
 
-- Email/password authentication (sign up, sign in, sign out)
-- Dashboard with client count stats
-- Client management: list, search, filter by status, create, edit, archive, delete
-- Inline notes editing on client detail pages
+- Email/password authentication (sign up, sign in, sign out) with coach and client roles
+- Coach dashboard with stats, today's schedule, action items, and activity feed
+- Client management: list, search, filter, create, edit, archive, delete, notes, avatars, and invite flow
+- Training library: custom exercises, ExerciseDB catalog import, workout templates, and programs
+- Program builder: multi-week day-offset calendar with exercise prescriptions per workout
+- Program assignment: assign programs to clients and materialize workouts onto their calendar
+- Client calendar: schedule workouts, copy across dates, rich exercise builder, and workout logging
+- Client portal: basic shell for athletes (program summary; session logging coming next)
 
 ## What's coming
 
-Workouts, programs, check-ins, progress photos, and other features appear in the sidebar navigation but are not yet implemented.
+Check-ins, progress photos, load management, attendance, form review, leaderboards, wearables, client messages, and full client portal sessions appear in the UI but are not yet implemented.
 
 ## Prerequisites
 
@@ -46,6 +50,8 @@ Workouts, programs, check-ins, progress photos, and other features appear in the
    supabase db push
    ```
 
+   Or run feature-specific scripts in Supabase Dashboard → SQL (e.g. `supabase/apply-program-calendar.sql`).
+
    **Local Supabase:**
 
    ```sh
@@ -53,7 +59,13 @@ Workouts, programs, check-ins, progress photos, and other features appear in the
    supabase db reset
    ```
 
-4. Start the web app:
+4. Verify schema:
+
+   ```sh
+   yarn db:check
+   ```
+
+5. Start the web app:
 
    ```sh
    yarn web
@@ -61,7 +73,7 @@ Workouts, programs, check-ins, progress photos, and other features appear in the
 
    Open [http://localhost:3000](http://localhost:3000).
 
-5. Verify Supabase connectivity:
+6. Verify Supabase connectivity:
 
    ```sh
    yarn workspace next-app check:supabase
@@ -82,6 +94,8 @@ Workouts, programs, check-ins, progress photos, and other features appear in the
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
+| `yarn db:check` | Verify hosted Supabase schema |
+| `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |
 

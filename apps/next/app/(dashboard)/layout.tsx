@@ -29,10 +29,10 @@ export default async function DashboardLayout({
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-background/80 sticky top-0 z-10 flex h-16 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
           <div className="md:hidden">
             <BrandLogo />
           </div>
@@ -40,7 +40,9 @@ export default async function DashboardLayout({
             <UserMenu name={name} email={user.email ?? ''} />
           </div>
         </header>
-        <main className="app-shell-bg flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   )

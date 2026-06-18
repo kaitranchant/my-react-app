@@ -11,8 +11,9 @@ import {
   inviteClientRecord,
   createClientRecord,
 } from '@/app/(dashboard)/clients/actions'
-import { uploadPendingClientAvatar } from '@/app/(dashboard)/clients/avatar-actions'
+import { uploadPendingClientAvatar, setClientAvatarPreset } from '@/app/(dashboard)/clients/avatar-actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import type { ClientAvatarPresetId } from '@/lib/client-avatar-presets'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -64,6 +65,8 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
   const [mode, setMode] = React.useState<'invite' | 'manual'>('invite')
   const [lastInviteUrl, setLastInviteUrl] = React.useState<string | null>(null)
   const [pendingAvatar, setPendingAvatar] = React.useState<File | null>(null)
+  const [pendingPresetId, setPendingPresetId] =
+    React.useState<ClientAvatarPresetId | null>(null)
 
   const inviteForm = useForm<InviteClientValues>({
     resolver: zodResolver(inviteClientSchema),
@@ -79,6 +82,7 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
     if (open) {
       setLastInviteUrl(null)
       setPendingAvatar(null)
+      setPendingPresetId(null)
       inviteForm.reset(inviteClientDefaults)
       manualForm.reset(clientFormDefaults)
       setMode('invite')
@@ -91,6 +95,15 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
   const displayName = mode === 'invite' ? inviteName : manualName
 
   async function savePendingAvatar(clientId: string) {
+    if (pendingPresetId) {
+      const result = await setClientAvatarPreset(clientId, pendingPresetId)
+      setPendingPresetId(null)
+      if (!result.success) {
+        toast.error(result.error)
+      }
+      return
+    }
+
     if (!pendingAvatar) return
     const formData = new FormData()
     formData.set('file', pendingAvatar)
@@ -205,6 +218,8 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                   <ClientAvatarUpload
                     name={displayName || 'Client'}
                     onPendingFile={setPendingAvatar}
+                    onPendingPreset={setPendingPresetId}
+                    selectedPresetId={pendingPresetId}
                     size="sm"
                   />
                   <FormField
@@ -288,6 +303,8 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                 <ClientAvatarUpload
                   name={displayName || 'Client'}
                   onPendingFile={setPendingAvatar}
+                  onPendingPreset={setPendingPresetId}
+                  selectedPresetId={pendingPresetId}
                   size="sm"
                 />
                 <FormField

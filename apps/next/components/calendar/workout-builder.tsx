@@ -4,13 +4,9 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Dumbbell, Loader2, Plus } from 'lucide-react'
+import { Copy, Dumbbell, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  addScheduledExercise,
-  updateScheduledExercise,
-} from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
 import { ensureCatalogExercise } from '@/app/(dashboard)/library/exercises/catalog-actions'
 import {
@@ -27,7 +23,6 @@ import { WorkoutArrangementPanel } from '@/components/calendar/workout-arrangeme
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { formatDayHeader } from '@/lib/calendar'
 import { exerciseDbImageUrl } from '@/lib/exercisedb'
 import {
   defaultPrescriptionValues,
@@ -37,17 +32,19 @@ import {
   type ScheduledExercisePrescriptionValues,
 } from '@/lib/validations/calendar'
 import type {
-  ClientScheduledWorkoutWithExercises,
-  Exercise,
-} from 'app/types/database'
+  EditableWorkoutWithExercises,
+  WorkoutBuilderExerciseActions,
+} from '@/lib/workout-builder-types'
+import type { Exercise } from 'app/types/database'
 
 type BuilderMode = 'idle' | 'add' | 'edit'
 
 type WorkoutBuilderProps = {
-  clientId: string
-  selectedDate: string
-  workout: ClientScheduledWorkoutWithExercises
+  headerLabel: string
+  workout: EditableWorkoutWithExercises
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
+  exerciseActions: WorkoutBuilderExerciseActions
+  catalogClientId?: string
   onChanged: () => void
   onCopy?: () => void
   /** When true, hides the top header (used inside WorkoutBuilderModal). */
@@ -62,10 +59,11 @@ function selectionLabel(selection: LibrarySelection | null): string | null {
 }
 
 export function WorkoutBuilder({
-  clientId,
-  selectedDate,
+  headerLabel,
   workout,
   exercises,
+  exerciseActions,
+  catalogClientId,
   onChanged,
   onCopy,
   embedded = false,
@@ -140,7 +138,7 @@ export function WorkoutBuilder({
     if (librarySelection?.source === 'catalog') {
       const ensured = await ensureCatalogExercise(
         librarySelection.exercise.externalId,
-        clientId
+        catalogClientId
       )
       if (!ensured.success) {
         toast.error(ensured.error)
@@ -168,7 +166,7 @@ export function WorkoutBuilder({
           equipment: parsedCustom.data.equipment ?? '',
           status: parsedCustom.data.saveToLibrary ? 'active' : 'archived',
         },
-        { clientId }
+        catalogClientId ? { clientId: catalogClientId } : undefined
       )
 
       if (!created.success) {
@@ -202,7 +200,7 @@ export function WorkoutBuilder({
       return
     }
 
-    const result = await addScheduledExercise(clientId, workout.id, {
+    const result = await exerciseActions.addExercise(workout.id, {
       exerciseId,
       ...values,
     })
@@ -224,7 +222,7 @@ export function WorkoutBuilder({
     if (!selectedRowId) return
 
     setPending(true)
-    const result = await updateScheduledExercise(clientId, selectedRowId, values)
+    const result = await exerciseActions.updateExercise(selectedRowId, values)
     setPending(false)
 
     if (result.success) {
@@ -259,7 +257,7 @@ export function WorkoutBuilder({
     <div className="border-brand bg-brand/5 flex flex-wrap items-center justify-between gap-3 border-l-4 px-4 py-3">
       <div>
         <p className="text-muted-foreground text-xs font-medium">
-          {formatDayHeader(selectedDate)}
+          {headerLabel}
         </p>
         <h3 className="text-lg font-semibold tracking-tight">{workout.name}</h3>
         <p className="text-muted-foreground text-xs">
@@ -274,10 +272,6 @@ export function WorkoutBuilder({
             Copy day
           </Button>
         )}
-        <Button type="button" size="sm" onClick={startAddMode}>
-          <Plus className="size-4" />
-          Add exercise
-        </Button>
       </div>
     </div>
   )
@@ -425,8 +419,8 @@ export function WorkoutBuilder({
 
   const arrangementPanel = (
     <WorkoutArrangementPanel
-      clientId={clientId}
       workout={workout}
+      exerciseActions={exerciseActions}
       selectedRowId={selectedRowId}
       onSelectRow={handleSelectRow}
       onChanged={onChanged}
@@ -435,16 +429,7 @@ export function WorkoutBuilder({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {!embedded ? (
-        panelHeader
-      ) : (
-        <div className="flex shrink-0 items-center justify-end border-b px-4 py-2">
-          <Button type="button" size="sm" onClick={startAddMode}>
-            <Plus className="size-4" />
-            Add exercise
-          </Button>
-        </div>
-      )}
+      {!embedded ? panelHeader : null}
 
       {/* Desktop: 3-panel layout */}
       <div className="hidden h-full min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)]">

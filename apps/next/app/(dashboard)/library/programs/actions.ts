@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { toDateKey } from '@/lib/calendar'
 import { createClient } from '@/lib/supabase/server'
 import {
   assignProgramSchema,
@@ -10,9 +11,14 @@ import {
   type AssignProgramValues,
   type ProgramFormValues,
 } from '@/lib/validations/program'
+import { materializeProgramToClientCalendar, dematerializeProgramFromClientCalendar } from '@/app/(dashboard)/library/programs/[programId]/calendar/actions'
 import type { ProgramStatus } from 'app/types/database'
 
 export type ActionResult = { success: true } | { success: false; error: string }
+
+export type AssignProgramResult =
+  | { success: true; scheduledCount: number; skippedCount: number }
+  | { success: false; error: string }
 
 export type CreateProgramResult =
   | { success: true; programId: string }
@@ -126,10 +132,14 @@ export async function deleteProgramRecord(id: string): Promise<ActionResult> {
   return { success: true }
 }
 
+export type UnassignProgramResult =
+  | { success: true; removedCount: number }
+  | { success: false; error: string }
+
 export async function assignProgramToClient(
   clientId: string,
   values: AssignProgramValues
-): Promise<ActionResult> {
+): Promise<AssignProgramResult> {
   const parsed = assignProgramSchema.safeParse(values)
   if (!parsed.success) {
     return { success: false, error: 'Please select a program.' }
@@ -163,6 +173,31 @@ export async function assignProgramToClient(
     return { success: false, error: 'Archived programs cannot be assigned.' }
   }
 
+  const { data: previousAssignment } = await supabase
+    .from('program_assignments')
+    .select('program_id, start_date')
+    .eq('client_id', clientId)
+    .eq('coach_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (previousAssignment?.start_date) {
+    try {
+      await dematerializeProgramFromClientCalendar(
+        supabase,
+        clientId,
+        previousAssignment.program_id,
+        previousAssignment.start_date
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not remove previous program workouts.'
+      return { success: false, error: message }
+    }
+  }
+
   const { error: cancelError } = await supabase
     .from('program_assignments')
     .update({ status: 'cancelled' })
@@ -176,7 +211,7 @@ export async function assignProgramToClient(
 
   const startDate = parsed.data.startDate?.trim()
     ? parsed.data.startDate.trim()
-    : null
+    : toDateKey(new Date())
 
   const { error: assignError } = await supabase
     .from('program_assignments')
@@ -192,15 +227,73 @@ export async function assignProgramToClient(
     return { success: false, error: assignError.message }
   }
 
+  let scheduledCount = 0
+  let skippedCount = 0
+
+  try {
+    const materialized = await materializeProgramToClientCalendar(
+      supabase,
+      user.id,
+      clientId,
+      parsed.data.programId,
+      startDate
+    )
+    scheduledCount = materialized.scheduledCount
+    skippedCount = materialized.skippedCount
+  } catch (error) {
+    await supabase
+      .from('program_assignments')
+      .update({ status: 'cancelled' })
+      .eq('client_id', clientId)
+      .eq('coach_id', user.id)
+      .eq('status', 'active')
+
+    const message =
+      error instanceof Error ? error.message : 'Could not schedule program workouts.'
+    return { success: false, error: message }
+  }
+
   revalidatePrograms(clientId)
   revalidatePath('/portal')
-  return { success: true }
+  return { success: true, scheduledCount, skippedCount }
 }
 
 export async function unassignProgramFromClient(
   clientId: string
-): Promise<ActionResult> {
+): Promise<UnassignProgramResult> {
   const { supabase, user } = await requireUser()
+
+  const { data: assignment, error: assignmentError } = await supabase
+    .from('program_assignments')
+    .select('program_id, start_date')
+    .eq('client_id', clientId)
+    .eq('coach_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (assignmentError) {
+    return { success: false, error: assignmentError.message }
+  }
+
+  let removedCount = 0
+
+  if (assignment?.start_date) {
+    try {
+      const dematerialized = await dematerializeProgramFromClientCalendar(
+        supabase,
+        clientId,
+        assignment.program_id,
+        assignment.start_date
+      )
+      removedCount = dematerialized.removedCount
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not remove program workouts from calendar.'
+      return { success: false, error: message }
+    }
+  }
 
   const { error } = await supabase
     .from('program_assignments')
@@ -215,5 +308,5 @@ export async function unassignProgramFromClient(
 
   revalidatePrograms(clientId)
   revalidatePath('/portal')
-  return { success: true }
+  return { success: true, removedCount }
 }

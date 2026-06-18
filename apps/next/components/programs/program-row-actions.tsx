@@ -2,7 +2,8 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { Archive, ArchiveRestore, CalendarDays, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -74,6 +75,12 @@ export function ProgramRowActions({ program }: { program: Program }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/library/programs/${program.id}`}>
+              <CalendarDays className="size-4" />
+              Edit calendar
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setEditOpen(true)}>
             <Pencil className="size-4" />
             Edit

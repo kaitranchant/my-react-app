@@ -138,6 +138,28 @@ await check('workout_log_sets table', async () => {
   }
 })
 
+await check('program_scheduled_workouts table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/program_scheduled_workouts?select=id&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('program_scheduled_workout_exercises table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/program_scheduled_workout_exercises?select=id&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -155,9 +177,10 @@ if (failed) {
   console.error('       supabase/apply-programs.sql  (programs tab)')
   console.error('       supabase/apply-library.sql   (exercises + workouts tabs)')
   console.error('       supabase/apply-workout-logging.sql (workout logging)')
+  console.error('       supabase/apply-program-calendar.sql (program calendar)')
   console.error('     Or run the full supabase/apply-remote.sql')
   console.error('  2. CLI: npx supabase login && yarn db:link && yarn db:push')
   process.exit(1)
 }
 
-console.log('\nSchema looks good — library and avatars should work.')
+console.log('\nSchema looks good — library, program calendar, and avatars should work.')

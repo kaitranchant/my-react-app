@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 import { getMatchingDatesInRange, getMonthDateRange } from '@/lib/calendar'
 import {
@@ -124,7 +125,7 @@ async function fetchWorkoutWithExercises(
       *,
       exercises:scheduled_workout_exercises(
         *,
-        exercise:exercises(id, name, muscle_group, equipment)
+        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, instructions)
       )
     `
     )
@@ -475,6 +476,81 @@ export async function updateScheduledExercise(
     if (!orderResult.success) {
       return orderResult
     }
+  }
+
+  revalidateClientCalendar(clientId)
+  return { success: true }
+}
+
+export async function replaceScheduledExercise(
+  clientId: string,
+  exerciseRowId: string,
+  newExerciseId: string
+): Promise<ActionResult> {
+  const exerciseIdParsed = z.string().uuid().safeParse(newExerciseId)
+  if (!exerciseIdParsed.success) {
+    return { success: false, error: 'Select a valid exercise.' }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user } = ctx
+
+  const { data: row, error: rowError } = await supabase
+    .from('scheduled_workout_exercises')
+    .select('id, scheduled_workout_id, exercise_id')
+    .eq('id', exerciseRowId)
+    .maybeSingle()
+
+  if (rowError || !row) {
+    return { success: false, error: 'Exercise row not found.' }
+  }
+
+  if (row.exercise_id === exerciseIdParsed.data) {
+    return { success: true }
+  }
+
+  const { data: workout } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id')
+    .eq('id', row.scheduled_workout_id)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (!workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  const { data: exercise, error: exerciseError } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('id', exerciseIdParsed.data)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (exerciseError || !exercise) {
+    return { success: false, error: 'Exercise not found.' }
+  }
+
+  const { error: clearLogError } = await supabase
+    .from('workout_log_sets')
+    .delete()
+    .eq('scheduled_exercise_id', exerciseRowId)
+
+  if (clearLogError) {
+    return { success: false, error: clearLogError.message }
+  }
+
+  const { error } = await supabase
+    .from('scheduled_workout_exercises')
+    .update({ exercise_id: exerciseIdParsed.data })
+    .eq('id', exerciseRowId)
+
+  if (error) {
+    return { success: false, error: error.message }
   }
 
   revalidateClientCalendar(clientId)

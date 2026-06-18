@@ -56,8 +56,10 @@ import {
 import {
   addDaysToDateKey,
   ALL_WEEKDAY_VALUES,
+  coerceDateKey,
   formatDayHeader,
   getMatchingDatesInRange,
+  parseDateKey,
   toDateKey,
   WEEKDAY_OPTIONS,
 } from '@/lib/calendar'
@@ -73,6 +75,8 @@ import type {
   Workout,
 } from 'app/types/database'
 
+type CalendarQuickAction = 'log' | 'schedule'
+
 type ClientCalendarPanelProps = {
   clientId: string
   clientName: string
@@ -84,6 +88,9 @@ type ClientCalendarPanelProps = {
   initialSelectedDate: string
   initialDays: CalendarDaySummary[]
   initialWorkout: ClientScheduledWorkoutWithExercises | null
+  initialAction?: CalendarQuickAction | null
+  initialActionDate?: string | null
+  onActionConsumed?: () => void
 }
 
 export function ClientCalendarPanel({
@@ -97,6 +104,9 @@ export function ClientCalendarPanel({
   initialSelectedDate,
   initialDays,
   initialWorkout,
+  initialAction = null,
+  initialActionDate = null,
+  onActionConsumed,
 }: ClientCalendarPanelProps) {
   const [year, setYear] = React.useState(initialYear)
   const [month, setMonth] = React.useState(initialMonth)
@@ -112,6 +122,7 @@ export function ClientCalendarPanel({
   >(null)
   const [logOpen, setLogOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [createDialogDate, setCreateDialogDate] = React.useState(initialSelectedDate)
   const [copyOpen, setCopyOpen] = React.useState(false)
   const [copyMode, setCopyMode] = React.useState<'single' | 'range'>('single')
   const [copySingleDate, setCopySingleDate] = React.useState('')
@@ -120,6 +131,7 @@ export function ClientCalendarPanel({
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
     ...ALL_WEEKDAY_VALUES,
   ])
+  const handledActionRef = React.useRef<string | null>(null)
 
   const createForm = useForm<ScheduledWorkoutFormValues>({
     resolver: zodResolver(scheduledWorkoutFormSchema),
@@ -210,8 +222,10 @@ export function ClientCalendarPanel({
   }
 
   function openCreateDialog(forDate?: string) {
+    const dateKey = coerceDateKey(forDate) ?? selectedDate
+    setCreateDialogDate(dateKey)
     if (forDate) {
-      setSelectedDate(forDate)
+      setSelectedDate(dateKey)
     }
     createForm.reset({
       name: `${clientName.split(' ')[0]} Workout`,
@@ -219,6 +233,69 @@ export function ClientCalendarPanel({
     })
     setCreateOpen(true)
   }
+
+  React.useEffect(() => {
+    if (!initialAction) {
+      handledActionRef.current = null
+      return
+    }
+
+    const actionKey = `${initialAction}:${initialActionDate ?? ''}`
+    if (handledActionRef.current === actionKey) return
+    handledActionRef.current = actionKey
+
+    let cancelled = false
+
+    async function runQuickAction() {
+      const dateKey =
+        coerceDateKey(initialActionDate) ?? toDateKey(new Date())
+      const targetDate = parseDateKey(dateKey)
+
+      if (Number.isNaN(targetDate.getTime())) {
+        onActionConsumed?.()
+        return
+      }
+
+      const targetYear = targetDate.getFullYear()
+      const targetMonth = targetDate.getMonth()
+
+      setSelectedDate(dateKey)
+      if (targetYear !== year || targetMonth !== month) {
+        setYear(targetYear)
+        setMonth(targetMonth)
+      }
+
+      const loadedWorkout = await refreshCalendar(
+        targetYear,
+        targetMonth,
+        dateKey
+      )
+
+      if (cancelled) return
+
+      if (initialAction === 'log') {
+        if (loadedWorkout) {
+          setLogOpen(true)
+        } else {
+          toast.error(
+            `No workout scheduled for ${formatDayHeader(dateKey)}.`
+          )
+          openCreateDialog(dateKey)
+        }
+      } else if (initialAction === 'schedule') {
+        openCreateDialog(dateKey)
+      }
+
+      onActionConsumed?.()
+    }
+
+    void runQuickAction()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per URL action
+  }, [initialAction, initialActionDate])
 
   function openCopyDialog() {
     const today = toDateKey(new Date())
@@ -258,10 +335,16 @@ export function ClientCalendarPanel({
       }
     }
 
+    const scheduleDate = coerceDateKey(createDialogDate)
+    if (!scheduleDate) {
+      toast.error('Pick a valid date.')
+      return
+    }
+
     setPending(true)
     const result = await createScheduledWorkout(
       clientId,
-      selectedDate,
+      scheduleDate,
       parsed.data,
       libraryWorkoutId ?? null
     )
@@ -270,7 +353,15 @@ export function ClientCalendarPanel({
     if (result.success) {
       toast.success('Workout scheduled.')
       setCreateOpen(false)
-      await refreshCalendar()
+      setSelectedDate(scheduleDate)
+      const targetDate = parseDateKey(scheduleDate)
+      const targetYear = targetDate.getFullYear()
+      const targetMonth = targetDate.getMonth()
+      if (targetYear !== year || targetMonth !== month) {
+        setYear(targetYear)
+        setMonth(targetMonth)
+      }
+      await refreshCalendar(targetYear, targetMonth, scheduleDate)
       setBuilderOpen(true)
       return
     }
@@ -446,7 +537,7 @@ export function ClientCalendarPanel({
               </Button>
             </>
           ) : (
-            <Button type="button" size="sm" onClick={openCreateDialog}>
+            <Button type="button" size="sm" onClick={() => openCreateDialog()}>
               <Plus className="size-4" />
               Schedule workout
             </Button>
@@ -485,6 +576,7 @@ export function ClientCalendarPanel({
             selectedDate={selectedDate}
             workoutId={workout.id}
             initialStatus={workout.status}
+            exercises={exercises}
             onChanged={() => refreshCalendar()}
           />
         </>
@@ -498,10 +590,7 @@ export function ClientCalendarPanel({
           <div className="mb-4 flex items-center gap-2">
             <CalendarDays className="text-brand size-5 shrink-0" />
             <p className="text-muted-foreground text-sm">
-              Create {clientName}&apos;s session for{' '}
-              <span className="text-foreground font-medium">
-                {formatDayHeader(selectedDate)}
-              </span>
+              Create {clientName}&apos;s session for the date below.
             </p>
           </div>
 
@@ -512,6 +601,18 @@ export function ClientCalendarPanel({
               )}
               className="space-y-4"
             >
+              <div className="space-y-2">
+                <label htmlFor="schedule-date" className="text-sm font-medium">
+                  Date
+                </label>
+                <Input
+                  id="schedule-date"
+                  type="date"
+                  value={createDialogDate}
+                  onChange={(event) => setCreateDialogDate(event.target.value)}
+                />
+              </div>
+
               <FormField
                 control={createForm.control}
                 name="name"

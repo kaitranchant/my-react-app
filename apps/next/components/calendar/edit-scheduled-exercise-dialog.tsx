@@ -28,14 +28,22 @@ type EditScheduledExerciseDialogProps = {
   clientId: string
   row: ScheduledWorkoutExerciseWithDetails
   onChanged: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  hideTrigger?: boolean
 }
 
 export function EditScheduledExerciseDialog({
   clientId,
   row,
   onChanged,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: EditScheduledExerciseDialogProps) {
-  const [open, setOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = controlledOnOpenChange ?? setInternalOpen
   const [pending, setPending] = React.useState(false)
 
   const form = useForm<ScheduledExercisePrescriptionValues>({
@@ -60,12 +68,14 @@ export function EditScheduledExerciseDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="gap-1.5">
-          <Pencil className="size-4" />
-          Edit
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="gap-1.5">
+            <Pencil className="size-4" />
+            Edit
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{row.exercise.name}</DialogTitle>

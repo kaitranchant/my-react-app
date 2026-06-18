@@ -112,7 +112,7 @@ export function getPreSessionInsight(
       badge: 'No sessions',
       variant: 'warning',
       message:
-        'Program assigned but no workouts on the calendar yet — add sessions for this week.',
+        'Program assigned but no workouts on the calendar yet — add workouts to the program calendar or schedule sessions manually.',
     }
   }
   return {

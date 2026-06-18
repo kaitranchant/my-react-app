@@ -78,7 +78,21 @@ export function ClientProgramsPanel({
     const result = await assignProgramToClient(clientId, values)
     setPending(false)
     if (result.success) {
-      toast.success('Program assigned')
+      if (result.scheduledCount > 0) {
+        const skippedMessage =
+          result.skippedCount > 0
+            ? ` ${result.skippedCount} day${
+                result.skippedCount === 1 ? '' : 's'
+              } skipped (already had workouts).`
+            : ''
+        toast.success(
+          `Program assigned — ${result.scheduledCount} workout${
+            result.scheduledCount === 1 ? '' : 's'
+          } added to calendar.${skippedMessage}`
+        )
+      } else {
+        toast.success('Program assigned')
+      }
       form.reset({ programId: '', startDate: '' })
       router.refresh()
     } else {
@@ -87,12 +101,20 @@ export function ClientProgramsPanel({
   }
 
   async function onUnassign() {
-    if (!window.confirm('Remove the current program assignment?')) return
+    if (!window.confirm(
+      'Remove this program assignment? Workouts added from the program will be removed from the calendar.'
+    )) return
     setPending(true)
     const result = await unassignProgramFromClient(clientId)
     setPending(false)
     if (result.success) {
-      toast.success('Program removed')
+      const removedMessage =
+        result.removedCount > 0
+          ? ` ${result.removedCount} program workout${
+              result.removedCount === 1 ? '' : 's'
+            } removed from calendar.`
+          : ''
+      toast.success(`Program removed.${removedMessage}`)
       router.refresh()
     } else {
       toast.error(result.error)
@@ -149,8 +171,8 @@ export function ClientProgramsPanel({
           <div className="space-y-1">
             <p className="font-medium">No program assigned</p>
             <p className="text-muted-foreground max-w-sm text-sm">
-              Assign a program template so this client knows what they&apos;re
-              working toward.
+              Assign a program to fill this client&apos;s calendar with its
+              scheduled workouts.
             </p>
           </div>
         </div>

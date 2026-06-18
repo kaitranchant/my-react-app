@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
@@ -13,6 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import type { ClientWorkoutActivity } from '@/lib/client-metrics'
+import { coerceDateKey } from '@/lib/calendar'
 import type {
   CalendarDaySummary,
   Client,
@@ -22,6 +25,17 @@ import type {
   Program,
   Workout,
 } from 'app/types/database'
+
+const VALID_TABS = [
+  'overview',
+  'calendar',
+  'programs',
+  'progress-photos',
+  'messages',
+  'notes',
+] as const
+
+type TabValue = (typeof VALID_TABS)[number]
 
 function ComingSoon({ feature }: { feature: string }) {
   return (
@@ -35,6 +49,9 @@ function ComingSoon({ feature }: { feature: string }) {
     </Card>
   )
 }
+
+const VALID_CALENDAR_ACTIONS = ['log', 'schedule'] as const
+type CalendarAction = (typeof VALID_CALENDAR_ACTIONS)[number]
 
 type ClientDetailTabsProps = {
   client: Client
@@ -51,6 +68,9 @@ type ClientDetailTabsProps = {
     libraryWorkouts: Pick<Workout, 'id' | 'name' | 'status'>[]
   }
   weekSessions: CalendarDaySummary[]
+  recentWorkouts: ClientWorkoutActivity[]
+  streakWorkouts: ClientWorkoutActivity[]
+  initialTab?: string
 }
 
 export function ClientDetailTabs({
@@ -59,16 +79,62 @@ export function ClientDetailTabs({
   availablePrograms,
   calendar,
   weekSessions,
+  recentWorkouts,
+  streakWorkouts,
+  initialTab,
 }: ClientDetailTabsProps) {
-  const [tab, setTab] = React.useState('overview')
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const defaultTab: TabValue = VALID_TABS.includes(initialTab as TabValue)
+    ? (initialTab as TabValue)
+    : 'overview'
+  const [tab, setTab] = React.useState<TabValue>(defaultTab)
+
+  const rawAction = searchParams.get('action')
+  const calendarAction = VALID_CALENDAR_ACTIONS.includes(
+    rawAction as CalendarAction
+  )
+    ? (rawAction as CalendarAction)
+    : null
+  const calendarActionDate = coerceDateKey(searchParams.get('date'))
+
+  function consumeCalendarAction() {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('action')
+    params.delete('date')
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
+
+  React.useEffect(() => {
+    const urlTab = searchParams.get('tab')
+    if (urlTab && VALID_TABS.includes(urlTab as TabValue)) {
+      setTab(urlTab as TabValue)
+    }
+  }, [searchParams])
+
+  function handleTabChange(value: string) {
+    const next = value as TabValue
+    setTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'overview') {
+      params.delete('tab')
+    } else {
+      params.set('tab', next)
+    }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
 
   return (
-    <Tabs value={tab} onValueChange={setTab}>
+    <Tabs value={tab} onValueChange={handleTabChange}>
       <TabsList className="h-10">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="calendar">Calendar</TabsTrigger>
         <TabsTrigger value="programs">Programs</TabsTrigger>
         <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
+        <TabsTrigger value="messages">Messages</TabsTrigger>
         <TabsTrigger value="notes">Notes</TabsTrigger>
       </TabsList>
 
@@ -77,8 +143,10 @@ export function ClientDetailTabs({
           client={client}
           activeAssignment={activeAssignment}
           weekSessions={weekSessions}
-          onOpenNotes={() => setTab('notes')}
-          onOpenCalendar={() => setTab('calendar')}
+          recentWorkouts={recentWorkouts}
+          streakWorkouts={streakWorkouts}
+          onOpenNotes={() => handleTabChange('notes')}
+          onOpenCalendar={() => handleTabChange('calendar')}
         />
       </TabsContent>
 
@@ -94,6 +162,9 @@ export function ClientDetailTabs({
           initialSelectedDate={calendar.selectedDate}
           initialDays={calendar.days}
           initialWorkout={calendar.selectedWorkout}
+          initialAction={calendarAction}
+          initialActionDate={calendarActionDate}
+          onActionConsumed={consumeCalendarAction}
         />
       </TabsContent>
 
@@ -109,11 +180,12 @@ export function ClientDetailTabs({
         <ComingSoon feature="Progress photos" />
       </TabsContent>
 
+      <TabsContent value="messages" className="mt-4">
+        <ComingSoon feature="Messages" />
+      </TabsContent>
+
       <TabsContent value="notes" className="mt-4">
-        <ClientNotesEditor
-          clientId={client.id}
-          initialNotes={client.notes}
-        />
+        <ClientNotesEditor clientId={client.id} initialNotes={client.notes} />
       </TabsContent>
     </Tabs>
   )

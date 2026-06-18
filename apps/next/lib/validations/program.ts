@@ -26,3 +26,31 @@ export const assignProgramSchema = z.object({
 })
 
 export type AssignProgramValues = z.infer<typeof assignProgramSchema>
+
+export const assignProgramToClientFormSchema = z.object({
+  clientId: z.string().uuid('Select a client'),
+  startDate: z.string().optional(),
+})
+
+export type AssignProgramToClientFormValues = z.infer<
+  typeof assignProgramToClientFormSchema
+>
+
+export const programDayOffsetSchema = z
+  .number()
+  .int()
+  .min(0, 'Day must be at least 1.')
+  .max(364, 'Day cannot exceed 365.')
+
+export const copyProgramWorkoutRangeSchema = z
+  .object({
+    startDayOffset: programDayOffsetSchema,
+    endDayOffset: programDayOffsetSchema,
+    weekdays: z
+      .array(z.number().int().min(0).max(6))
+      .min(1, 'Select at least one day of the week.'),
+  })
+  .refine((value) => value.startDayOffset <= value.endDayOffset, {
+    message: 'Start day must be on or before end day.',
+    path: ['endDayOffset'],
+  })

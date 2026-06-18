@@ -32,6 +32,8 @@ export type WorkoutLogSetDraft = {
 }
 
 const DEFAULT_SET_COUNT = 3
+export const MAX_LOG_SETS = 20
+export const MIN_LOG_SETS = 1
 
 export function parseSetCount(sets: string | null | undefined): number {
   if (!sets?.trim()) return DEFAULT_SET_COUNT
@@ -50,7 +52,20 @@ export function parseTargetForSet(
 ): string | null {
   if (!reps?.trim()) return null
 
-  const parts = reps
+  const trimmed = reps.trim()
+
+  const spaceParts = trimmed
+    .split(/\s+/)
+    .filter((part) => /\d/.test(part))
+  if (
+    spaceParts.length > 1 &&
+    !trimmed.includes(',') &&
+    !trimmed.includes('/')
+  ) {
+    return spaceParts[setNumber - 1] ?? spaceParts[spaceParts.length - 1]
+  }
+
+  const parts = trimmed
     .split(/[,/]/)
     .map((part) => part.trim())
     .filter(Boolean)
@@ -58,6 +73,22 @@ export function parseTargetForSet(
   if (parts.length === 0) return null
   if (parts.length === 1) return parts[0]
   return parts[setNumber - 1] ?? parts[parts.length - 1]
+}
+
+export function getExerciseRepMode(
+  exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'rep_mode'>
+): 'reps' | 'time' {
+  return exercise.rep_mode === 'time' ? 'time' : 'reps'
+}
+
+export function getTargetLabelForSet(
+  exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'reps' | 'prescription'>,
+  setNumber: number
+): string | null {
+  const fromReps = parseTargetForSet(exercise.reps, setNumber)
+  if (fromReps) return fromReps
+
+  return parseTargetForSet(exercise.prescription, setNumber)
 }
 
 /** Pull a numeric value suitable for an input from a prescription label like "10" or "10-12". */
@@ -76,7 +107,7 @@ export function getSuggestedLogValuesForSet(
   previousSets: Record<number, PreviousSetLog> = {}
 ): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'> {
   const fields = getLogFieldsForExercise(exercise)
-  const targetLabel = parseTargetForSet(exercise.reps, setNumber)
+  const targetLabel = getTargetLabelForSet(exercise, setNumber)
   const previous = previousSets[setNumber]
 
   let weight = ''
@@ -189,46 +220,32 @@ export function groupExercisesBySection(
   return sections
 }
 
-export function buildSetDrafts(
+export function getEffectiveSetCount(
   exercise: ScheduledWorkoutExerciseWithDetails,
-  existingSets: WorkoutLogSet[],
-  previousSets: Record<number, PreviousSetLog> = {}
-): WorkoutLogSetDraft[] {
-  const setCount = parseSetCount(exercise.sets)
-  const bySetNumber = new Map(
-    existingSets.map((row) => [row.set_number, row])
+  existingSets: WorkoutLogSet[] = []
+): number {
+  const prescribed = parseSetCount(exercise.sets)
+  const loggedMax = existingSets.reduce(
+    (max, row) => Math.max(max, row.set_number),
+    0
+  )
+  return Math.min(Math.max(prescribed, loggedMax), MAX_LOG_SETS)
+}
+
+function buildSetDraft(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  setNumber: number,
+  existing: WorkoutLogSet | undefined,
+  previousSets: Record<number, PreviousSetLog>
+): WorkoutLogSetDraft {
+  const targetLabel = getTargetLabelForSet(exercise, setNumber)
+  const suggested = getSuggestedLogValuesForSet(
+    exercise,
+    setNumber,
+    previousSets
   )
 
-  return Array.from({ length: setCount }, (_, index) => {
-    const setNumber = index + 1
-    const existing = bySetNumber.get(setNumber)
-    const targetLabel = parseTargetForSet(exercise.reps, setNumber)
-
-    if (existing) {
-      return {
-        setNumber,
-        targetLabel,
-        weight: existing.weight != null ? String(existing.weight) : '',
-        reps: existing.reps != null ? String(existing.reps) : '',
-        durationSeconds:
-          existing.duration_seconds != null
-            ? String(existing.duration_seconds)
-            : '',
-        barSpeed: existing.bar_speed != null ? String(existing.bar_speed) : '',
-        peakPower:
-          existing.peak_power != null ? String(existing.peak_power) : '',
-        completed: existing.completed ?? false,
-        predicted: false,
-        notes: existing.notes ?? '',
-      }
-    }
-
-    const suggested = getSuggestedLogValuesForSet(
-      exercise,
-      setNumber,
-      previousSets
-    )
-
+  if (!existing) {
     return {
       setNumber,
       targetLabel,
@@ -241,6 +258,52 @@ export function buildSetDrafts(
       predicted: hasSuggestedLogValues(suggested),
       notes: '',
     }
+  }
+
+  const weight =
+    existing.weight != null ? String(existing.weight) : suggested.weight
+  const reps = existing.reps != null ? String(existing.reps) : suggested.reps
+  const durationSeconds =
+    existing.duration_seconds != null
+      ? String(existing.duration_seconds)
+      : suggested.durationSeconds
+  const usedSuggestion =
+    (existing.weight == null && suggested.weight !== '') ||
+    (existing.reps == null && suggested.reps !== '') ||
+    (existing.duration_seconds == null && suggested.durationSeconds !== '')
+
+  return {
+    setNumber,
+    targetLabel,
+    weight,
+    reps,
+    durationSeconds,
+    barSpeed: existing.bar_speed != null ? String(existing.bar_speed) : '',
+    peakPower: existing.peak_power != null ? String(existing.peak_power) : '',
+    completed: existing.completed ?? false,
+    predicted: usedSuggestion && !(existing.completed ?? false),
+    notes: existing.notes ?? '',
+  }
+}
+
+export function buildSetDrafts(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  existingSets: WorkoutLogSet[],
+  previousSets: Record<number, PreviousSetLog> = {}
+): WorkoutLogSetDraft[] {
+  const setCount = getEffectiveSetCount(exercise, existingSets)
+  const bySetNumber = new Map(
+    existingSets.map((row) => [row.set_number, row])
+  )
+
+  return Array.from({ length: setCount }, (_, index) => {
+    const setNumber = index + 1
+    return buildSetDraft(
+      exercise,
+      setNumber,
+      bySetNumber.get(setNumber),
+      previousSets
+    )
   })
 }
 
@@ -248,11 +311,12 @@ export function getLogFieldsForExercise(
   exercise: ScheduledWorkoutExerciseWithDetails
 ) {
   const options = parseTrackingOptions(exercise.tracking_options)
+  const repMode = getExerciseRepMode(exercise)
 
   return {
     showWeight: !options.completionLift && !options.bodyweight,
-    showReps: !options.completionLift && exercise.rep_mode === 'reps',
-    showDuration: !options.completionLift && exercise.rep_mode === 'time',
+    showReps: !options.completionLift && repMode === 'reps',
+    showDuration: !options.completionLift && repMode === 'time',
     showBarSpeed: options.trackBarSpeed,
     showPeakPower: options.trackPeakPower,
     completionOnly: options.completionLift,
@@ -270,6 +334,93 @@ export function countTotalSetsForWorkout(
     (total, exercise) => total + parseSetCount(exercise.sets),
     0
   )
+}
+
+export function countTotalSetsFromDrafts(
+  exerciseState: Record<string, WorkoutLogSetDraft[]>
+): number {
+  return Object.values(exerciseState).reduce(
+    (total, sets) => total + sets.length,
+    0
+  )
+}
+
+export function appendSetDraft(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  sets: WorkoutLogSetDraft[],
+  previousSets: Record<number, PreviousSetLog> = {}
+): WorkoutLogSetDraft[] | null {
+  if (sets.length >= MAX_LOG_SETS) return null
+
+  const nextSetNumber =
+    sets.length > 0 ? Math.max(...sets.map((set) => set.setNumber)) + 1 : 1
+
+  const suggested = getSuggestedLogValuesForSet(
+    exercise,
+    nextSetNumber,
+    previousSets
+  )
+  const fields = getLogFieldsForExercise(exercise)
+  const lastSet = sets[sets.length - 1]
+
+  let weight = suggested.weight
+  let reps = suggested.reps
+  let durationSeconds = suggested.durationSeconds
+  let predicted = hasSuggestedLogValues(suggested)
+
+  if (lastSet) {
+    if (fields.showWeight && fields.showReps) {
+      if (lastSet.weight.trim() !== '' && lastSet.reps.trim() !== '') {
+        weight = lastSet.weight
+        reps = lastSet.reps
+        predicted = true
+      }
+    } else if (!fields.showWeight && fields.showReps && lastSet.reps.trim() !== '') {
+      reps = lastSet.reps
+      predicted = true
+    } else if (
+      fields.showDuration &&
+      lastSet.durationSeconds.trim() !== ''
+    ) {
+      durationSeconds = lastSet.durationSeconds
+      predicted = true
+    }
+  }
+
+  return [
+    ...sets,
+    {
+      setNumber: nextSetNumber,
+      targetLabel: getTargetLabelForSet(exercise, nextSetNumber),
+      weight,
+      reps,
+      durationSeconds,
+      barSpeed: '',
+      peakPower: '',
+      completed: false,
+      predicted,
+      notes: '',
+    },
+  ]
+}
+
+export function removeSetDraft(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  sets: WorkoutLogSetDraft[],
+  setNumber: number
+): WorkoutLogSetDraft[] | null {
+  if (sets.length <= MIN_LOG_SETS) return null
+
+  return sets
+    .filter((set) => set.setNumber !== setNumber)
+    .map((set, index) => {
+      const nextSetNumber = index + 1
+      return {
+        ...set,
+        setNumber: nextSetNumber,
+        targetLabel: getTargetLabelForSet(exercise, nextSetNumber),
+      }
+    })
 }
 
 export function parseOptionalNumber(value: string): number | null {
@@ -442,9 +593,19 @@ export function applyExerciseSetChanges(
   patch: Partial<WorkoutLogSetDraft>,
   fields: ReturnType<typeof getLogFieldsForExercise>
 ): WorkoutLogSetDraft[] {
-  if (patch.completed === true && Object.keys(patch).length === 1) {
+  if ('completed' in patch && Object.keys(patch).length === 1) {
+    const targetCompleted = Boolean(patch.completed)
+
     return sets.map((set) => {
       if (set.setNumber !== setNumber) return set
+
+      if (!targetCompleted) {
+        return { ...set, completed: false, predicted: false }
+      }
+
+      if (fields.completionOnly) {
+        return { ...set, completed: true, predicted: false }
+      }
 
       const hasValues =
         (fields.showWeight && fields.showReps &&

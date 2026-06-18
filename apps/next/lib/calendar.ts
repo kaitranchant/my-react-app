@@ -34,13 +34,50 @@ export function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-export function parseDateKey(value: string): Date {
-  const [year, month, day] = value.split('-').map(Number)
+export function coerceDateKey(value: unknown): string | null {
+  if (value == null) return null
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null
+    return toDateKey(value)
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed
+    }
+
+    const isoPrefix = trimmed.match(/^(\d{4}-\d{2}-\d{2})/)
+    if (isoPrefix) {
+      return isoPrefix[1]
+    }
+  }
+
+  return null
+}
+
+export function parseDateKey(value: string | Date): Date {
+  const key = coerceDateKey(value)
+  if (!key) {
+    return new Date(Number.NaN)
+  }
+
+  const [year, month, day] = key.split('-').map(Number)
   return new Date(year, month - 1, day)
 }
 
-export function formatDayHeader(dateKey: string): string {
-  const date = parseDateKey(dateKey)
+export function formatDayHeader(
+  dateKey: string | Date | null | undefined
+): string {
+  const key = coerceDateKey(dateKey)
+  if (!key) return '—'
+
+  const date = parseDateKey(key)
+  if (Number.isNaN(date.getTime())) return '—'
+
   const day = date.getDate()
   const weekday = WEEKDAY_LABELS[date.getDay()]
   return `${day} ${weekday}`
@@ -120,8 +157,11 @@ export function getCurrentWeekDateKeys(): string[] {
   })
 }
 
-export function addDaysToDateKey(dateKey: string, days: number): string {
-  const date = parseDateKey(dateKey)
+export function addDaysToDateKey(dateKey: string | Date, days: number): string {
+  const key = coerceDateKey(dateKey)
+  if (!key) return toDateKey(new Date())
+
+  const date = parseDateKey(key)
   date.setDate(date.getDate() + days)
   return toDateKey(date)
 }
