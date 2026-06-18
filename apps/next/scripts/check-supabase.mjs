@@ -9,16 +9,20 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 function loadEnvLocal() {
-  const envPath = resolve(__dirname, '.env.local')
-  if (!existsSync(envPath)) return
-  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const eq = trimmed.indexOf('=')
-    if (eq === -1) continue
-    const key = trimmed.slice(0, eq)
-    const value = trimmed.slice(eq + 1)
-    if (!process.env[key]) process.env[key] = value
+  for (const envPath of [
+    resolve(__dirname, '../.env.local'),
+    resolve(__dirname, '../../../.env.local'),
+  ]) {
+    if (!existsSync(envPath)) continue
+    for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq === -1) continue
+      const key = trimmed.slice(0, eq)
+      const value = trimmed.slice(eq + 1)
+      if (!process.env[key]) process.env[key] = value
+    }
   }
 }
 
@@ -28,7 +32,7 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!url || !key) {
-  console.error('Missing env vars in apps/next/.env.local')
+  console.error('Missing env vars in apps/next/.env.local or repo root .env.local')
   console.error('  NEXT_PUBLIC_SUPABASE_URL')
   console.error('  NEXT_PUBLIC_SUPABASE_ANON_KEY')
   console.error('\nCopy apps/next/.env.example → .env.local and fill in values from Supabase Dashboard → Project Settings → API.')

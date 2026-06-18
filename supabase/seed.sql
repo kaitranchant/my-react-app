@@ -1,1 +1,3 @@
--- optional dev seed data
+-- E2E test fixtures are seeded via the service-role script (not SQL):
+--   yarn workspace next-app seed:e2e
+-- Requires SUPABASE_SERVICE_ROLE_KEY in apps/next/.env.local.

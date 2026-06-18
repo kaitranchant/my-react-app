@@ -72,6 +72,11 @@ apps/expo/android
 .turbo
 build/**
 
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
 .pnp.*
 .yarn/*
 !.yarn/patches

@@ -117,6 +117,50 @@ await check('workouts table', async () => {
   }
 })
 
+await check('client_scheduled_workouts table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/client_scheduled_workouts?select=id&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('scheduled_workout_exercises table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/scheduled_workout_exercises?select=id&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('scheduled_workout_exercises.tracking_options column', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/scheduled_workout_exercises?select=tracking_options&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('program_assignments table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/program_assignments?select=id&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 await check('client_scheduled_workouts.started_at column', async () => {
   const res = await fetch(
     `${url}/rest/v1/client_scheduled_workouts?select=started_at&limit=1`,
@@ -173,15 +217,21 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Supabase Dashboard → SQL → run:')
-  console.error('       supabase/apply-programs.sql  (programs tab)')
-  console.error('       supabase/apply-library.sql   (exercises + workouts tabs)')
-  console.error('       supabase/apply-workout-logging.sql (workout logging)')
-  console.error('       supabase/apply-program-calendar.sql (program calendar)')
-  console.error('       supabase/apply-client-portal.sql (client portal logging)')
-  console.error('     Or run the full supabase/apply-remote.sql')
-  console.error('  2. CLI: npx supabase login && yarn db:link && yarn db:push')
+  console.error('  1. Preferred — Supabase CLI:')
+  console.error('       npx supabase login && yarn db:link && yarn db:push')
+  console.error('  2. Supabase Dashboard → SQL → run scripts in order (migrations 0008–0014):')
+  console.error('       supabase/apply-client-calendar.sql')
+  console.error('       supabase/apply-exercise-details.sql')
+  console.error('       supabase/apply-exercise-block.sql')
+  console.error('       supabase/apply-workout-logging.sql')
+  console.error('       supabase/apply-program-calendar.sql')
+  console.error('       supabase/apply-program-workout-exercises.sql')
+  console.error('       supabase/apply-client-portal.sql   (required for client portal logging)')
+  console.error('     Earlier migrations (0002–0007): apply-programs.sql, apply-library.sql, etc.')
+  console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
   process.exit(1)
 }
 
-console.log('\nSchema looks good — library, program calendar, and avatars should work.')
+console.log('\nSchema looks good — calendar, logging, program builder, and portal tables are present.')
+console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
+console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

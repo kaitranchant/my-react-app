@@ -1,8 +1,13 @@
--- Apply pending schema for hosted Supabase (migrations 0002–0004).
--- Safe to re-run: uses IF NOT EXISTS / ON CONFLICT where possible.
+-- DEPRECATED — this file only covers migrations 0002–0007 (partial schema).
+-- Do NOT use for new setups. Prefer:
+--   CLI:  npx supabase login && yarn db:link && yarn db:push
+--   Or run individual scripts listed in readme.md (0008–0014):
+--     apply-client-calendar.sql, apply-exercise-details.sql, apply-exercise-block.sql,
+--     apply-workout-logging.sql, apply-program-calendar.sql,
+--     apply-program-workout-exercises.sql, apply-client-portal.sql
+-- Verify with: yarn db:check
 --
--- Dashboard: Project → SQL → New query → paste this file → Run
--- Or CLI:  npx supabase login && npx supabase link && npx supabase db push
+-- Legacy partial apply (0002–0007). Safe to re-run: uses IF NOT EXISTS where possible.
 
 -- 0002_client_accounts.sql
 -- Client accounts: link clients to auth users via coach invites

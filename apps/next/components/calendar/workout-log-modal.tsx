@@ -87,9 +87,8 @@ import {
 import type { ExercisePreviousSets } from 'app/types/database'
 import { cn } from '@/lib/utils'
 import {
+  getWorkoutLogSchemaSetup,
   isWorkoutLogSchemaError,
-  WORKOUT_LOG_SCHEMA_TABLES,
-  WORKOUT_LOG_SQL_FILE,
 } from '@/lib/workout-log-schema'
 import type {
   Exercise,
@@ -1298,8 +1297,7 @@ export function WorkoutLogModal({
           {schemaError ? (
             <div className="py-6">
               <SchemaSetupNotice
-                tables={WORKOUT_LOG_SCHEMA_TABLES}
-                sqlFile={WORKOUT_LOG_SQL_FILE}
+                {...getWorkoutLogSchemaSetup(schemaError, isClientPortal)}
               />
             </div>
           ) : loading ? (

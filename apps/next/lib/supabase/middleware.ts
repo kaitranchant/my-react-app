@@ -68,7 +68,9 @@ export async function updateSession(request: NextRequest) {
     const isCoachArea =
       pathname === '/' ||
       pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/clients')
+      pathname.startsWith('/clients') ||
+      pathname.startsWith('/library') ||
+      pathname.startsWith('/programs')
     const isPortal = pathname.startsWith('/portal')
 
     if (role === 'client' && isCoachArea) {

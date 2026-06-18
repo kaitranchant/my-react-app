@@ -1,9 +1,11 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
+import { login, signup, type AuthState } from '@/app/(auth)/actions'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -15,12 +17,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { AuthState } from '@/app/(auth)/actions'
-
-type AuthAction = (
-  prevState: AuthState,
-  formData: FormData
-) => Promise<AuthState>
 
 export type InvitePreview = {
   clientName: string
@@ -40,16 +36,23 @@ function SubmitButton({ label }: { label: string }) {
 
 export function AuthForm({
   mode,
-  action,
   invitePreview,
 }: {
   mode: 'login' | 'signup'
-  action: AuthAction
   invitePreview?: InvitePreview | null
 }) {
+  const router = useRouter()
+  const action = mode === 'login' ? login : signup
   const [state, formAction] = useActionState<AuthState, FormData>(action, {})
   const isSignup = mode === 'signup'
   const isClientInvite = Boolean(isSignup && invitePreview)
+
+  useEffect(() => {
+    if (state.redirectTo) {
+      router.push(state.redirectTo)
+      router.refresh()
+    }
+  }, [router, state.redirectTo])
 
   return (
     <Card className="shadow-card">

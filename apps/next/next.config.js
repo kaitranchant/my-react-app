@@ -3,6 +3,12 @@ const { loadEnvConfig } = require('@next/env')
 
 loadEnvConfig(path.join(__dirname))
 
+const { validateEnv } = require('./lib/env.mjs')
+
+if (process.env.NODE_ENV !== 'test') {
+  validateEnv()
+}
+
 /**
  * @type {import('next').NextConfig}
  */

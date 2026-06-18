@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 export type AuthState = {
   error?: string
   message?: string
+  redirectTo?: string
 }
 
 function formatAuthError(message: string): string {
@@ -88,7 +89,7 @@ export async function login(
 
   revalidatePath('/', 'layout')
   const supabase = await createClient()
-  redirect(await postAuthRedirectPath(supabase))
+  return { redirectTo: await postAuthRedirectPath(supabase) }
 }
 
 export async function signup(
@@ -134,7 +135,14 @@ export async function signup(
     })
 
     if (error) {
-      return { error: formatAuthError(error.message) }
+      const message = formatAuthError(error.message)
+      if (message.toLowerCase().includes('database error saving new user')) {
+        return {
+          error:
+            'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.',
+        }
+      }
+      return { error: message }
     }
 
     // When email confirmation is enabled, no session is returned yet.
@@ -151,7 +159,11 @@ export async function signup(
 
   revalidatePath('/', 'layout')
   const supabase = await createClient()
-  redirect(isClientSignup ? '/portal' : await postAuthRedirectPath(supabase))
+  return {
+    redirectTo: isClientSignup
+      ? '/portal'
+      : await postAuthRedirectPath(supabase),
+  }
 }
 
 export async function signOut() {
