@@ -59,14 +59,14 @@ export default async function ClientDetailPage({
       .order('name', { ascending: true }),
     supabase
       .from('client_scheduled_workouts')
-      .select('id, scheduled_date, name, status')
+      .select('id, scheduled_date, name, status, started_at')
       .eq('client_id', clientId)
       .gte('scheduled_date', monthStart)
       .lte('scheduled_date', monthEnd)
       .order('scheduled_date', { ascending: true }),
     supabase
       .from('client_scheduled_workouts')
-      .select('id, scheduled_date, name, status')
+      .select('id, scheduled_date, name, status, started_at')
       .eq('client_id', clientId)
       .gte('scheduled_date', weekStart)
       .lte('scheduled_date', weekEnd)

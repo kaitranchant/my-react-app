@@ -3,6 +3,10 @@
 import { revalidatePath } from 'next/cache'
 
 import { getMatchingDatesInRange, getMonthDateRange } from '@/lib/calendar'
+import {
+  buildOrderedIdsAfterInsert,
+  type OrderedExerciseRow,
+} from '@/lib/workout-exercise-order'
 import { createClient } from '@/lib/supabase/server'
 import {
   copyWorkoutRangeSchema,
@@ -18,6 +22,7 @@ import {
 import type {
   CalendarDaySummary,
   ClientScheduledWorkoutWithExercises,
+  ScheduledExerciseBlock,
   ScheduledWorkoutStatus,
 } from 'app/types/database'
 
@@ -66,6 +71,46 @@ async function requireClient(clientId: string) {
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
   revalidatePath('/portal')
+}
+
+async function fetchWorkoutExerciseRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workoutId: string
+): Promise<OrderedExerciseRow[]> {
+  const { data, error } = await supabase
+    .from('scheduled_workout_exercises')
+    .select('id, sort_order, exercise_block')
+    .eq('scheduled_workout_id', workoutId)
+    .order('sort_order', { ascending: true })
+
+  if (error || !data) {
+    return []
+  }
+
+  return data.map((row) => ({
+    id: row.id,
+    sort_order: row.sort_order,
+    exercise_block: row.exercise_block as ScheduledExerciseBlock | null,
+  }))
+}
+
+async function applyExerciseSortOrders(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orderedIds: string[]
+): Promise<ActionResult> {
+  for (let index = 0; index < orderedIds.length; index++) {
+    const id = orderedIds[index]
+    const { error } = await supabase
+      .from('scheduled_workout_exercises')
+      .update({ sort_order: index })
+      .eq('id', id)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  return { success: true }
 }
 
 async function fetchWorkoutWithExercises(
@@ -126,7 +171,7 @@ export async function getCalendarMonthData(
     await Promise.all([
       supabase
         .from('client_scheduled_workouts')
-        .select('id, scheduled_date, name, status')
+        .select('id, scheduled_date, name, status, started_at')
         .eq('client_id', clientId)
         .gte('scheduled_date', start)
         .lte('scheduled_date', end)
@@ -331,25 +376,33 @@ export async function addScheduledExercise(
     return { success: false, error: 'Exercise not found.' }
   }
 
-  const { data: lastExercise } = await supabase
+  const existingRows = await fetchWorkoutExerciseRows(supabase, workoutId)
+  const dbRow = prescriptionValuesToDbRow(parsed.data)
+  const newBlock = dbRow.exercise_block
+
+  const { data: inserted, error: insertError } = await supabase
     .from('scheduled_workout_exercises')
-    .select('sort_order')
-    .eq('scheduled_workout_id', workoutId)
-    .order('sort_order', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .insert({
+      scheduled_workout_id: workoutId,
+      exercise_id: parsed.data.exerciseId,
+      sort_order: existingRows.length,
+      ...dbRow,
+    })
+    .select('id')
+    .single()
 
-  const sortOrder = (lastExercise?.sort_order ?? -1) + 1
+  if (insertError || !inserted) {
+    return { success: false, error: insertError?.message ?? 'Could not add exercise.' }
+  }
 
-  const { error } = await supabase.from('scheduled_workout_exercises').insert({
-    scheduled_workout_id: workoutId,
-    exercise_id: parsed.data.exerciseId,
-    sort_order: sortOrder,
-    ...prescriptionValuesToDbRow(parsed.data),
-  })
-
-  if (error) {
-    return { success: false, error: error.message }
+  const orderedIds = buildOrderedIdsAfterInsert(
+    existingRows,
+    inserted.id,
+    newBlock
+  )
+  const orderResult = await applyExerciseSortOrders(supabase, orderedIds)
+  if (!orderResult.success) {
+    return orderResult
   }
 
   revalidateClientCalendar(clientId)
@@ -375,7 +428,7 @@ export async function updateScheduledExercise(
 
   const { data: row, error: rowError } = await supabase
     .from('scheduled_workout_exercises')
-    .select('id, scheduled_workout_id')
+    .select('id, scheduled_workout_id, exercise_block')
     .eq('id', exerciseRowId)
     .maybeSingle()
 
@@ -394,13 +447,34 @@ export async function updateScheduledExercise(
     return { success: false, error: 'Workout not found.' }
   }
 
+  const dbRow = prescriptionValuesToDbRow(parsed.data)
+  const newBlock = dbRow.exercise_block
+  const blockChanged = row.exercise_block !== newBlock
+
   const { error } = await supabase
     .from('scheduled_workout_exercises')
-    .update(prescriptionValuesToDbRow(parsed.data))
+    .update(dbRow)
     .eq('id', exerciseRowId)
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  if (blockChanged) {
+    const existingRows = await fetchWorkoutExerciseRows(
+      supabase,
+      row.scheduled_workout_id
+    )
+    const orderedIds = buildOrderedIdsAfterInsert(
+      existingRows,
+      exerciseRowId,
+      newBlock,
+      exerciseRowId
+    )
+    const orderResult = await applyExerciseSortOrders(supabase, orderedIds)
+    if (!orderResult.success) {
+      return orderResult
+    }
   }
 
   revalidateClientCalendar(clientId)
@@ -446,6 +520,56 @@ export async function removeScheduledExercise(
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  revalidateClientCalendar(clientId)
+  return { success: true }
+}
+
+export async function reorderScheduledExercises(
+  clientId: string,
+  workoutId: string,
+  orderedRowIds: string[]
+): Promise<ActionResult> {
+  if (orderedRowIds.length === 0) {
+    return { success: true }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase } = ctx
+
+  const { data: workout } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id')
+    .eq('id', workoutId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (!workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  const existingRows = await fetchWorkoutExerciseRows(supabase, workoutId)
+  if (existingRows.length !== orderedRowIds.length) {
+    return { success: false, error: 'Exercise list is out of date. Refresh and try again.' }
+  }
+
+  const existingIds = new Set(existingRows.map((row) => row.id))
+  const uniqueOrdered = new Set(orderedRowIds)
+  if (
+    uniqueOrdered.size !== orderedRowIds.length ||
+    orderedRowIds.some((id) => !existingIds.has(id))
+  ) {
+    return { success: false, error: 'Invalid exercise order.' }
+  }
+
+  const orderResult = await applyExerciseSortOrders(supabase, orderedRowIds)
+  if (!orderResult.success) {
+    return orderResult
   }
 
   revalidateClientCalendar(clientId)

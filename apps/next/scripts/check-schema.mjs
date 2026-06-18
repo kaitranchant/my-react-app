@@ -117,6 +117,27 @@ await check('workouts table', async () => {
   }
 })
 
+await check('client_scheduled_workouts.started_at column', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/client_scheduled_workouts?select=started_at&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('workout_log_sets table', async () => {
+  const res = await fetch(`${url}/rest/v1/workout_log_sets?select=id&limit=1`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -133,6 +154,7 @@ if (failed) {
   console.error('  1. Supabase Dashboard → SQL → run:')
   console.error('       supabase/apply-programs.sql  (programs tab)')
   console.error('       supabase/apply-library.sql   (exercises + workouts tabs)')
+  console.error('       supabase/apply-workout-logging.sql (workout logging)')
   console.error('     Or run the full supabase/apply-remote.sql')
   console.error('  2. CLI: npx supabase login && yarn db:link && yarn db:push')
   process.exit(1)

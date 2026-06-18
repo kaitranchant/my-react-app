@@ -5,7 +5,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   CalendarDays,
+  ClipboardList,
   Loader2,
+  Pencil,
+  Plus,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,13 +18,12 @@ import {
   createScheduledWorkout,
   deleteScheduledWorkout,
   getCalendarMonthData,
-  updateScheduledWorkout,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
-import { ScheduledWorkoutView } from '@/components/calendar/scheduled-workout-view'
+import { WorkoutBuilderModal } from '@/components/calendar/workout-builder-modal'
+import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -44,14 +46,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import {
   addDaysToDateKey,
   ALL_WEEKDAY_VALUES,
+  formatDayHeader,
   getMatchingDatesInRange,
   toDateKey,
   WEEKDAY_OPTIONS,
 } from '@/lib/calendar'
+import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import {
   scheduledWorkoutFormSchema,
   type ScheduledWorkoutFormValues,
@@ -96,12 +99,23 @@ export function ClientCalendarPanel({
     React.useState<ClientScheduledWorkoutWithExercises | null>(initialWorkout)
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
+  const [builderOpen, setBuilderOpen] = React.useState(false)
+  const [logOpen, setLogOpen] = React.useState(false)
+  const [createOpen, setCreateOpen] = React.useState(false)
   const [copyOpen, setCopyOpen] = React.useState(false)
   const [copyStartDate, setCopyStartDate] = React.useState('')
   const [copyEndDate, setCopyEndDate] = React.useState('')
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
     ...ALL_WEEKDAY_VALUES,
   ])
+
+  const createForm = useForm<ScheduledWorkoutFormValues>({
+    resolver: zodResolver(scheduledWorkoutFormSchema),
+    defaultValues: {
+      name: `${clientName.split(' ')[0]} Workout`,
+      notes: '',
+    },
+  })
 
   const copyTargetCount = React.useMemo(() => {
     if (!copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
@@ -112,31 +126,6 @@ export function ClientCalendarPanel({
       excludeDates: workout ? [workout.scheduled_date] : [],
     }).length
   }, [copyStartDate, copyEndDate, copyWeekdays, workout])
-
-  function openCopyDialog() {
-    const today = toDateKey(new Date())
-    setCopyStartDate(today)
-    setCopyEndDate(addDaysToDateKey(today, 28))
-    setCopyWeekdays([...ALL_WEEKDAY_VALUES])
-    setCopyOpen(true)
-  }
-
-  function toggleCopyWeekday(weekday: number) {
-    setCopyWeekdays((current) => {
-      if (current.includes(weekday)) {
-        return current.filter((value) => value !== weekday)
-      }
-      return [...current, weekday].sort((a, b) => a - b)
-    })
-  }
-
-  const form = useForm<ScheduledWorkoutFormValues>({
-    resolver: zodResolver(scheduledWorkoutFormSchema),
-    values: {
-      name: workout?.name ?? `${clientName.split(' ')[0]} Workout`,
-      notes: workout?.notes ?? '',
-    },
-  })
 
   const loadableWorkouts = libraryWorkouts.filter(
     (item) => item.status !== 'archived'
@@ -158,11 +147,12 @@ export function ClientCalendarPanel({
 
     if (!result.success) {
       toast.error(result.error)
-      return
+      return null
     }
 
     setScheduledDays(result.data.days)
     setWorkout(result.data.selectedWorkout)
+    return result.data.selectedWorkout
   }
 
   async function handleMonthChange(nextYear: number, nextMonth: number) {
@@ -173,11 +163,42 @@ export function ClientCalendarPanel({
 
   async function handleSelectDate(dateKey: string) {
     setSelectedDate(dateKey)
-    await refreshCalendar(year, month, dateKey)
+    const nextWorkout = await refreshCalendar(year, month, dateKey)
+
+    if (nextWorkout) {
+      setBuilderOpen(true)
+    }
   }
 
-  async function handleCreateWorkout(libraryWorkoutId?: string) {
-    const values = form.getValues()
+  function openCreateDialog() {
+    createForm.reset({
+      name: `${clientName.split(' ')[0]} Workout`,
+      notes: '',
+    })
+    setCreateOpen(true)
+  }
+
+  function openCopyDialog() {
+    const today = toDateKey(new Date())
+    setCopyStartDate(today)
+    setCopyEndDate(addDaysToDateKey(today, 28))
+    setCopyWeekdays([...ALL_WEEKDAY_VALUES])
+    setCopyOpen(true)
+  }
+
+  function toggleCopyWeekday(weekday: number) {
+    setCopyWeekdays((current) => {
+      if (current.includes(weekday)) {
+        return current.filter((value) => value !== weekday)
+      }
+      return [...current, weekday].sort((a, b) => a - b)
+    })
+  }
+
+  async function handleCreateWorkout(
+    values: ScheduledWorkoutFormValues,
+    libraryWorkoutId?: string
+  ) {
     const parsed = scheduledWorkoutFormSchema.safeParse(values)
     if (!parsed.success) {
       toast.error('Enter a workout name.')
@@ -204,23 +225,9 @@ export function ClientCalendarPanel({
 
     if (result.success) {
       toast.success('Workout scheduled.')
+      setCreateOpen(false)
       await refreshCalendar()
-      return
-    }
-
-    toast.error(result.error)
-  }
-
-  async function handleSaveWorkout(values: ScheduledWorkoutFormValues) {
-    if (!workout) return
-
-    setPending(true)
-    const result = await updateScheduledWorkout(clientId, workout.id, values)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout updated.')
-      await refreshCalendar()
+      setBuilderOpen(true)
       return
     }
 
@@ -237,7 +244,7 @@ export function ClientCalendarPanel({
 
     if (result.success) {
       toast.success('Workout removed.')
-      form.reset({ name: `${clientName.split(' ')[0]} Workout`, notes: '' })
+      setBuilderOpen(false)
       await refreshCalendar()
       return
     }
@@ -296,176 +303,188 @@ export function ClientCalendarPanel({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <CalendarMonthGrid
-            year={year}
-            month={month}
-            selectedDate={selectedDate}
-            scheduledDays={scheduledDays}
-            onMonthChange={handleMonthChange}
-            onSelectDate={handleSelectDate}
-          />
+      <CalendarMonthGrid
+        variant="full"
+        year={year}
+        month={month}
+        selectedDate={selectedDate}
+        scheduledDays={scheduledDays}
+        loading={loading}
+        onMonthChange={handleMonthChange}
+        onSelectDate={handleSelectDate}
+      />
 
-          <Card className="gap-0 py-0">
-            <CardContent className="space-y-3 px-4 py-4">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
-                Calendar actions
-              </p>
-              {workout ? (
-                <div className="space-y-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={openCopyDialog}
-                  >
-                    Copy to another day
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive w-full justify-start"
-                    disabled={pending}
-                    onClick={handleDeleteWorkout}
-                  >
-                    <Trash2 className="size-4" />
-                    Clear this day
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-xs">
-                  Select a day and create a workout to unlock copy and clear actions.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+      <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">
+            Selected day
+          </p>
+          <p className="font-semibold">{formatDayHeader(selectedDate)}</p>
+          {workout ? (
+            <p className="text-muted-foreground truncate text-sm">
+              {workout.name}
+              {workout.exercises.length > 0 &&
+                ` · ${workout.exercises.length} exercise${
+                  workout.exercises.length === 1 ? '' : 's'
+                }`}
+              {' · '}
+              {getWorkoutDisplayStatus(
+                workout.status,
+                workoutHasProgress(workout, [])
+              ).label}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-sm">No workout scheduled</p>
+          )}
         </div>
 
-        <Card className="gap-0 overflow-hidden py-0">
-          {loading ? (
-            <div className="text-muted-foreground flex items-center justify-center gap-2 py-24 text-sm">
-              <Loader2 className="size-4 animate-spin" />
-              Loading calendar…
-            </div>
-          ) : workout ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {workout ? (
             <>
-              <div className="border-b px-5 py-4">
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(handleSaveWorkout)}
-                    className="space-y-3"
-                  >
-                    <div className="flex flex-wrap items-end gap-3">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem className="min-w-[200px] flex-1">
-                            <FormLabel>Workout name</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit" size="sm" disabled={pending}>
-                        Save
-                      </Button>
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Coach notes</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              rows={2}
-                              placeholder="Optional session notes for this day"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </form>
-                </Form>
-              </div>
-              <ScheduledWorkoutView
-                clientId={clientId}
-                selectedDate={selectedDate}
-                workout={workout}
-                exercises={exercises}
-                onChanged={() => refreshCalendar()}
-                onCopy={openCopyDialog}
-              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setLogOpen(true)}
+              >
+                <ClipboardList className="size-4" />
+                {workout.status === 'completed'
+                  ? 'View log'
+                  : workout.status === 'skipped'
+                    ? 'Undo skip'
+                    : workout.status === 'in_progress'
+                      ? 'Continue log'
+                      : workout.started_at
+                        ? 'Resume workout'
+                        : 'Log workout'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setBuilderOpen(true)}
+              >
+                <Pencil className="size-4" />
+                Edit workout
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openCopyDialog}
+              >
+                Copy to dates
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                disabled={pending}
+                onClick={handleDeleteWorkout}
+              >
+                <Trash2 className="size-4" />
+                Clear day
+              </Button>
             </>
           ) : (
-            <div className="p-5">
-              <div className="mb-6 flex items-center gap-2">
-                <CalendarDays className="text-brand size-5" />
-                <div>
-                  <p className="font-semibold">Schedule a workout</p>
-                  <p className="text-muted-foreground text-sm">
-                    Build {clientName}&apos;s session for{' '}
-                    {selectedDate.replace(/-/g, '/')}
-                  </p>
-                </div>
-              </div>
-
-              <Form {...form}>
-                <form className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Workout name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Push day, Legs, etc." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {loadableWorkouts.length > 0 && (
-                    <FormItem>
-                      <FormLabel>Load from library</FormLabel>
-                      <Select onValueChange={(value) => handleCreateWorkout(value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Optional — pick a template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {loadableWorkouts.map((item) => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-
-                  <Button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => handleCreateWorkout()}
-                  >
-                    {pending && <Loader2 className="size-4 animate-spin" />}
-                    Create workout for this day
-                  </Button>
-                </form>
-              </Form>
-            </div>
+            <Button type="button" size="sm" onClick={openCreateDialog}>
+              <Plus className="size-4" />
+              Schedule workout
+            </Button>
           )}
-        </Card>
+        </div>
       </div>
+
+      {workout && (
+        <>
+          <WorkoutBuilderModal
+            open={builderOpen}
+            onOpenChange={setBuilderOpen}
+            clientId={clientId}
+            selectedDate={selectedDate}
+            workout={workout}
+            exercises={exercises}
+            onChanged={() => refreshCalendar()}
+            onCopy={openCopyDialog}
+          />
+          <WorkoutLogModal
+            open={logOpen}
+            onOpenChange={setLogOpen}
+            clientId={clientId}
+            selectedDate={selectedDate}
+            workoutId={workout.id}
+            initialStatus={workout.status}
+            onChanged={() => refreshCalendar()}
+          />
+        </>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule a workout</DialogTitle>
+          </DialogHeader>
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarDays className="text-brand size-5 shrink-0" />
+            <p className="text-muted-foreground text-sm">
+              Create {clientName}&apos;s session for{' '}
+              <span className="text-foreground font-medium">
+                {formatDayHeader(selectedDate)}
+              </span>
+            </p>
+          </div>
+
+          <Form {...createForm}>
+            <form
+              onSubmit={createForm.handleSubmit((values) =>
+                handleCreateWorkout(values)
+              )}
+              className="space-y-4"
+            >
+              <FormField
+                control={createForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Workout name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Push day, Legs, etc." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {loadableWorkouts.length > 0 && (
+                <FormItem>
+                  <FormLabel>Load from library</FormLabel>
+                  <Select
+                    onValueChange={(value) =>
+                      handleCreateWorkout(createForm.getValues(), value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optional — pick a template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadableWorkouts.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+
+              <Button type="submit" className="w-full" disabled={pending}>
+                {pending && <Loader2 className="size-4 animate-spin" />}
+                Create & open builder
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
         <DialogContent className="sm:max-w-md">

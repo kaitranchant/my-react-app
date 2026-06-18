@@ -65,6 +65,7 @@ type ExerciseCatalogPickerProps = {
   selectedExternalId?: string | null
   onSelect: (exercise: CatalogExerciseSelection) => void
   className?: string
+  variant?: 'list' | 'grid'
 }
 
 export function ExerciseCatalogPicker({
@@ -72,6 +73,7 @@ export function ExerciseCatalogPicker({
   selectedExternalId = null,
   onSelect,
   className,
+  variant = 'list',
 }: ExerciseCatalogPickerProps) {
   const importedSet = React.useMemo(
     () => new Set(importedExternalIds),
@@ -176,8 +178,8 @@ export function ExerciseCatalogPicker({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <form onSubmit={handleSearch} className="space-y-3">
+    <div className={cn(variant === 'grid' ? 'flex min-h-0 flex-col' : 'space-y-3', className)}>
+      <form onSubmit={handleSearch} className="shrink-0 space-y-3">
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
@@ -187,7 +189,12 @@ export function ExerciseCatalogPicker({
             className="pl-9"
           />
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div
+          className={cn(
+            'grid gap-2',
+            variant === 'grid' ? 'grid-cols-1' : 'sm:grid-cols-3'
+          )}
+        >
           <Select value={bodyPart} onValueChange={setBodyPart}>
             <SelectTrigger className="h-9">
               <SelectValue placeholder="Body part" />
@@ -233,95 +240,161 @@ export function ExerciseCatalogPicker({
         </Button>
       </form>
 
-      <div className="max-h-[min(340px,45vh)] overflow-y-auto rounded-sm border">
-        {loadingResults ? (
-          <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
-            <Loader2 className="size-4 animate-spin" />
-            Loading…
-          </div>
-        ) : results.length === 0 ? (
-          <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-            No exercises found. Try a different search.
-          </p>
-        ) : (
-          <ul className="divide-y">
-            {results.map((exercise) => {
-              const selected = selectedExternalId === exercise.id
-              const inLibrary = importedSet.has(exercise.id)
-              return (
-                <li key={exercise.id}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onSelect({
-                        externalId: exercise.id,
-                        name: exercise.name,
-                        target: exercise.target,
-                        bodyPart: exercise.bodyPart,
-                        equipment: exercise.equipment,
-                      })
-                    }
-                    className={cn(
-                      'hover:bg-muted/50 flex w-full items-start gap-3 px-3 py-3 text-left transition-colors',
-                      selected && 'bg-brand/10 ring-brand ring-1 ring-inset'
-                    )}
-                  >
-                    <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={exerciseDbImageUrl(exercise.id)}
-                        alt=""
-                        className="size-12 object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{exercise.name}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {exercise.target} · {exercise.bodyPart} ·{' '}
-                        {exercise.equipment}
-                      </p>
-                      {inLibrary && (
-                        <p className="text-muted-foreground mt-1 text-[11px]">
-                          Already in your library
-                        </p>
+      <div
+        className={cn(
+          variant === 'grid'
+            ? 'min-h-0 flex-1 space-y-3 overflow-y-auto'
+            : 'space-y-3'
+        )}
+      >
+        <div
+          className={cn(
+            'rounded-sm border',
+            variant === 'list' && 'max-h-[min(340px,45vh)] overflow-y-auto'
+          )}
+        >
+          {loadingResults ? (
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Loading…
+            </div>
+          ) : results.length === 0 ? (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+              No exercises found. Try a different search.
+            </p>
+          ) : variant === 'grid' ? (
+            <ul className="grid grid-cols-2 gap-2 p-2">
+              {results.map((exercise) => {
+                const selected = selectedExternalId === exercise.id
+                const inLibrary = importedSet.has(exercise.id)
+                return (
+                  <li key={exercise.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSelect({
+                          externalId: exercise.id,
+                          name: exercise.name,
+                          target: exercise.target,
+                          bodyPart: exercise.bodyPart,
+                          equipment: exercise.equipment,
+                        })
+                      }
+                      className={cn(
+                        'hover:bg-muted/50 flex w-full flex-col overflow-hidden rounded-md border text-left transition-colors',
+                        selected && 'border-brand bg-brand/10 ring-brand ring-1'
                       )}
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                    >
+                      <div className="bg-muted aspect-[4/3] w-full overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={exerciseDbImageUrl(exercise.id)}
+                          alt=""
+                          className="size-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="space-y-0.5 p-2">
+                        <p className="line-clamp-2 text-xs font-medium leading-snug">
+                          {exercise.name}
+                        </p>
+                        <p className="text-muted-foreground line-clamp-1 text-[10px]">
+                          {exercise.target}
+                        </p>
+                        {inLibrary && (
+                          <p className="text-muted-foreground text-[10px]">In library</p>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <ul className="divide-y">
+              {results.map((exercise) => {
+                const selected = selectedExternalId === exercise.id
+                const inLibrary = importedSet.has(exercise.id)
+                return (
+                  <li key={exercise.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSelect({
+                          externalId: exercise.id,
+                          name: exercise.name,
+                          target: exercise.target,
+                          bodyPart: exercise.bodyPart,
+                          equipment: exercise.equipment,
+                        })
+                      }
+                      className={cn(
+                        'hover:bg-muted/50 flex w-full items-start gap-3 px-3 py-3 text-left transition-colors',
+                        selected && 'bg-brand/10 ring-brand ring-1 ring-inset'
+                      )}
+                    >
+                      <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={exerciseDbImageUrl(exercise.id)}
+                          alt=""
+                          className="size-12 object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{exercise.name}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {exercise.target} · {exercise.bodyPart} ·{' '}
+                          {exercise.equipment}
+                        </p>
+                        {inLibrary && (
+                          <p className="text-muted-foreground mt-1 text-[11px]">
+                            Already in your library
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        {!loadingResults && (offset > 0 || hasMore) && (
+          <div
+            className={cn(
+              'flex items-center justify-between gap-2',
+              variant === 'grid' && 'bg-background sticky bottom-0 pb-1'
+            )}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={offset === 0 || loadingResults}
+              onClick={() =>
+                runSearch(Math.max(0, offset - EXERCISEDB_CATALOG_PAGE_SIZE))
+              }
+            >
+              Previous
+            </Button>
+            <span className="text-muted-foreground text-xs">
+              {offset + 1}–{offset + results.length}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasMore || loadingResults}
+              onClick={() => runSearch(offset + EXERCISEDB_CATALOG_PAGE_SIZE)}
+            >
+              Next
+            </Button>
+          </div>
         )}
       </div>
-
-      {!loadingResults && (offset > 0 || hasMore) && (
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={offset === 0 || loadingResults}
-            onClick={() =>
-              runSearch(Math.max(0, offset - EXERCISEDB_CATALOG_PAGE_SIZE))
-            }
-          >
-            Previous
-          </Button>
-          <span className="text-muted-foreground text-xs">
-            {offset + 1}–{offset + results.length}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!hasMore || loadingResults}
-            onClick={() => runSearch(offset + EXERCISEDB_CATALOG_PAGE_SIZE)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

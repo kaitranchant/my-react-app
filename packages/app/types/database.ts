@@ -6,7 +6,11 @@ export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
 export type ExerciseStatus = 'active' | 'archived'
 export type ExerciseSource = 'custom' | 'exercisedb'
 export type WorkoutStatus = 'draft' | 'active' | 'archived'
-export type ScheduledWorkoutStatus = 'scheduled' | 'completed' | 'skipped'
+export type ScheduledWorkoutStatus =
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'skipped'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
 
 export type ScheduledExerciseBlock =
@@ -335,6 +339,8 @@ export type Database = {
           notes: string | null
           library_workout_id: string | null
           status: ScheduledWorkoutStatus
+          started_at: string | null
+          completed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -347,6 +353,8 @@ export type Database = {
           notes?: string | null
           library_workout_id?: string | null
           status?: ScheduledWorkoutStatus
+          started_at?: string | null
+          completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -359,6 +367,8 @@ export type Database = {
           notes?: string | null
           library_workout_id?: string | null
           status?: ScheduledWorkoutStatus
+          started_at?: string | null
+          completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -461,6 +471,69 @@ export type Database = {
           },
         ]
       }
+      workout_log_sets: {
+        Row: {
+          id: string
+          scheduled_workout_id: string
+          scheduled_exercise_id: string
+          set_number: number
+          weight: number | null
+          reps: number | null
+          duration_seconds: number | null
+          bar_speed: number | null
+          peak_power: number | null
+          completed: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          scheduled_workout_id: string
+          scheduled_exercise_id: string
+          set_number: number
+          weight?: number | null
+          reps?: number | null
+          duration_seconds?: number | null
+          bar_speed?: number | null
+          peak_power?: number | null
+          completed?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          scheduled_workout_id?: string
+          scheduled_exercise_id?: string
+          set_number?: number
+          weight?: number | null
+          reps?: number | null
+          duration_seconds?: number | null
+          bar_speed?: number | null
+          peak_power?: number | null
+          completed?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'workout_log_sets_scheduled_workout_id_fkey'
+            columns: ['scheduled_workout_id']
+            isOneToOne: false
+            referencedRelation: 'client_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'workout_log_sets_scheduled_exercise_id_fkey'
+            columns: ['scheduled_exercise_id']
+            isOneToOne: false
+            referencedRelation: 'scheduled_workout_exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -549,5 +622,24 @@ export type ClientScheduledWorkoutWithExercises = ClientScheduledWorkout & {
 
 export type CalendarDaySummary = Pick<
   ClientScheduledWorkout,
-  'id' | 'scheduled_date' | 'name' | 'status'
+  'id' | 'scheduled_date' | 'name' | 'status' | 'started_at'
 >
+
+export type WorkoutLogSet = Database['public']['Tables']['workout_log_sets']['Row']
+export type WorkoutLogSetInsert =
+  Database['public']['Tables']['workout_log_sets']['Insert']
+export type WorkoutLogSetUpdate =
+  Database['public']['Tables']['workout_log_sets']['Update']
+
+export type PreviousSetLog = {
+  weight: number
+  reps: number
+}
+
+export type ExercisePreviousSets = Record<number, PreviousSetLog>
+
+export type WorkoutLogData = ClientScheduledWorkoutWithExercises & {
+  logSets: WorkoutLogSet[]
+  previousSetsByExerciseId: Record<string, ExercisePreviousSets>
+  previousSessionDateByExerciseId: Record<string, string | null>
+}
