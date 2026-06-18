@@ -178,6 +178,7 @@ if (failed) {
   console.error('       supabase/apply-library.sql   (exercises + workouts tabs)')
   console.error('       supabase/apply-workout-logging.sql (workout logging)')
   console.error('       supabase/apply-program-calendar.sql (program calendar)')
+  console.error('       supabase/apply-client-portal.sql (client portal logging)')
   console.error('     Or run the full supabase/apply-remote.sql')
   console.error('  2. CLI: npx supabase login && yarn db:link && yarn db:push')
   process.exit(1)

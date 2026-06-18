@@ -26,6 +26,15 @@ import {
   startWorkoutLog,
   stopWorkoutLog,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
+import {
+  completePortalWorkoutLog,
+  getPortalWorkoutLogData,
+  reopenPortalWorkoutLog,
+  savePortalWorkoutLogSets,
+  skipPortalWorkoutLog,
+  startPortalWorkoutLog,
+  stopPortalWorkoutLog,
+} from '@/app/portal/workout-log-actions'
 import { AddExerciseDialog } from '@/components/calendar/add-exercise-dialog'
 import { EditScheduledExerciseDialog } from '@/components/calendar/edit-scheduled-exercise-dialog'
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
@@ -99,6 +108,7 @@ type WorkoutLogModalProps = {
   initialStatus: ScheduledWorkoutStatus
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
   onChanged: () => void
+  variant?: 'coach' | 'client'
 }
 
 type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
@@ -217,6 +227,7 @@ type WorkoutLogExerciseProps = {
   onEdit: () => void
   onReplace: () => void
   onDelete: () => void
+  allowPrescriptionEdits?: boolean
 }
 
 function WorkoutLogExercise({
@@ -232,6 +243,7 @@ function WorkoutLogExercise({
   onEdit,
   onReplace,
   onDelete,
+  allowPrescriptionEdits = true,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -320,7 +332,7 @@ function WorkoutLogExercise({
               <p className="font-semibold">{exercise.exercise.name}</p>
               <p className="text-muted-foreground text-sm">{summary}</p>
             </div>
-            {!readOnly && (
+            {!readOnly && (allowPrescriptionEdits || showMedia) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -339,16 +351,20 @@ function WorkoutLogExercise({
                       View form
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onSelect={onEdit}>
-                    Edit prescription
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={onReplace}>
-                    Replace exercise
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                    Remove exercise
-                  </DropdownMenuItem>
+                  {allowPrescriptionEdits && (
+                    <>
+                      <DropdownMenuItem onSelect={onEdit}>
+                        Edit prescription
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={onReplace}>
+                        Replace exercise
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                        Remove exercise
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -654,7 +670,10 @@ export function WorkoutLogModal({
   initialStatus,
   exercises,
   onChanged,
+  variant = 'coach',
 }: WorkoutLogModalProps) {
+  const isClientPortal = variant === 'client'
+  const allowPrescriptionEdits = !isClientPortal
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [schemaError, setSchemaError] = React.useState<string | null>(null)
@@ -683,7 +702,9 @@ export function WorkoutLogModal({
   const loadData = React.useCallback(async () => {
     setLoading(true)
     setSchemaError(null)
-    const result = await getWorkoutLogData(clientId, workoutId)
+    const result = isClientPortal
+      ? await getPortalWorkoutLogData(workoutId)
+      : await getWorkoutLogData(clientId, workoutId)
     setLoading(false)
 
     if (!result.success) {
@@ -704,7 +725,7 @@ export function WorkoutLogModal({
         result.data.previousSetsByExerciseId
       )
     )
-  }, [clientId, workoutId])
+  }, [clientId, isClientPortal, workoutId])
 
   const buildSetsPayload = React.useCallback(
     (state: ExerciseLogState, exercises: ScheduledWorkoutExerciseWithDetails[]) =>
@@ -739,12 +760,18 @@ export function WorkoutLogModal({
 
       if (options?.blockUi) setPending(true)
 
-      const result = await saveWorkoutLogSets(
-        clientId,
-        workoutId,
-        buildSetsPayload(state, data.exercises),
-        { revalidate: options?.revalidate ?? true }
-      )
+      const result = isClientPortal
+        ? await savePortalWorkoutLogSets(
+            workoutId,
+            buildSetsPayload(state, data.exercises),
+            { revalidate: options?.revalidate ?? true }
+          )
+        : await saveWorkoutLogSets(
+            clientId,
+            workoutId,
+            buildSetsPayload(state, data.exercises),
+            { revalidate: options?.revalidate ?? true }
+          )
 
       if (options?.blockUi) setPending(false)
 
@@ -771,7 +798,7 @@ export function WorkoutLogModal({
 
       return false
     },
-    [buildSetsPayload, clientId, data, loadData, workoutId]
+    [buildSetsPayload, clientId, data, isClientPortal, loadData, workoutId]
   )
 
   const persistSetsRef = React.useRef(persistSets)
@@ -1004,7 +1031,9 @@ export function WorkoutLogModal({
 
   async function handleStartWorkout() {
     setPending(true)
-    const result = await startWorkoutLog(clientId, workoutId)
+    const result = isClientPortal
+      ? await startPortalWorkoutLog(workoutId)
+      : await startWorkoutLog(clientId, workoutId)
     setPending(false)
 
     if (result.success) {
@@ -1041,7 +1070,9 @@ export function WorkoutLogModal({
     if (!saved) return
 
     setPending(true)
-    const result = await completeWorkoutLog(clientId, workoutId)
+    const result = isClientPortal
+      ? await completePortalWorkoutLog(workoutId)
+      : await completeWorkoutLog(clientId, workoutId)
     setPending(false)
 
     if (result.success) {
@@ -1058,7 +1089,9 @@ export function WorkoutLogModal({
     if (!window.confirm('Mark this workout as skipped?')) return
 
     setPending(true)
-    const result = await skipWorkoutLog(clientId, workoutId)
+    const result = isClientPortal
+      ? await skipPortalWorkoutLog(workoutId)
+      : await skipWorkoutLog(clientId, workoutId)
     setPending(false)
 
     if (result.success) {
@@ -1075,7 +1108,9 @@ export function WorkoutLogModal({
     const wasSkipped = (data?.status ?? initialStatus) === 'skipped'
 
     setPending(true)
-    const result = await reopenWorkoutLog(clientId, workoutId)
+    const result = isClientPortal
+      ? await reopenPortalWorkoutLog(workoutId)
+      : await reopenWorkoutLog(clientId, workoutId)
     setPending(false)
 
     if (result.success) {
@@ -1115,7 +1150,9 @@ export function WorkoutLogModal({
     }
 
     setPending(true)
-    const result = await stopWorkoutLog(clientId, workoutId)
+    const result = isClientPortal
+      ? await stopPortalWorkoutLog(workoutId)
+      : await stopWorkoutLog(clientId, workoutId)
     setPending(false)
 
     if (result.success) {
@@ -1193,14 +1230,16 @@ export function WorkoutLogModal({
                   Stop workout
                 </Button>
               )}
+              {!readOnly && allowPrescriptionEdits && (
+                <AddExerciseDialog
+                  clientId={clientId}
+                  workoutId={workoutId}
+                  exercises={exercises}
+                  onAdded={handleExerciseStructureChanged}
+                />
+              )}
               {!readOnly && (
                 <>
-                  <AddExerciseDialog
-                    clientId={clientId}
-                    workoutId={workoutId}
-                    exercises={exercises}
-                    onAdded={handleExerciseStructureChanged}
-                  />
                   <Button
                     type="button"
                     size="sm"
@@ -1282,9 +1321,11 @@ export function WorkoutLogModal({
           ) : data.exercises.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground text-sm">
-                Add exercises to this workout before logging.
+                {allowPrescriptionEdits
+                  ? 'Add exercises to this workout before logging.'
+                  : 'Your coach has not added exercises to this session yet.'}
               </p>
-              {!readOnly && (
+              {!readOnly && allowPrescriptionEdits && (
                 <div className="mt-4 flex justify-center">
                   <AddExerciseDialog
                     clientId={clientId}
@@ -1337,13 +1378,14 @@ export function WorkoutLogModal({
                   onEdit={() => setEditingExercise(exercise)}
                   onReplace={() => setReplacingExercise(exercise)}
                   onDelete={() => void handleRemoveExercise(exercise)}
+                  allowPrescriptionEdits={allowPrescriptionEdits}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {editingExercise && (
+        {allowPrescriptionEdits && editingExercise && (
           <EditScheduledExerciseDialog
             clientId={clientId}
             row={editingExercise}
@@ -1359,7 +1401,7 @@ export function WorkoutLogModal({
           />
         )}
 
-        {replacingExercise && (
+        {allowPrescriptionEdits && replacingExercise && (
           <ReplaceExerciseDialog
             open
             onOpenChange={(next) => {

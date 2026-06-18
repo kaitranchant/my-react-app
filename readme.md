@@ -11,7 +11,7 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Program builder: multi-week day-offset calendar with exercise prescriptions per workout
 - Program assignment: assign programs to clients and materialize workouts onto their calendar
 - Client calendar: schedule workouts, copy across dates, rich exercise builder, and workout logging
-- Client portal: basic shell for athletes (program summary; session logging coming next)
+- Client portal: month calendar, view scheduled sessions, and self-service workout logging
 
 ## What's coming
 
@@ -50,7 +50,7 @@ Check-ins, progress photos, load management, attendance, form review, leaderboar
    supabase db push
    ```
 
-   Or run feature-specific scripts in Supabase Dashboard → SQL (e.g. `supabase/apply-program-calendar.sql`).
+   Or run feature-specific scripts in Supabase Dashboard → SQL (e.g. `supabase/apply-program-calendar.sql`, `supabase/apply-client-portal.sql`).
 
    **Local Supabase:**
 
