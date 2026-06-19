@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
 import { ClipboardList, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -132,6 +133,14 @@ export function ClientProgramsPanel({
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2">
                 <ProgramStatusBadge status={activeAssignment.program.status} />
+                {activeAssignment.team && (
+                  <Link
+                    href={`/teams/${activeAssignment.team.id}`}
+                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+                  >
+                    via {activeAssignment.team.name}
+                  </Link>
+                )}
                 {activeAssignment.start_date && (
                   <span className="text-muted-foreground text-xs">
                     Started {formatStartDate(activeAssignment.start_date)}

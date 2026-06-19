@@ -10,7 +10,7 @@ import { ProgramStatusBadge } from '@/components/programs/program-status-badge'
 import { LibraryLoadError } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import { getWeekDayOffsets } from '@/lib/program-calendar'
-import type { Client, Exercise, Program, ProgramDaySummary, Workout } from 'app/types/database'
+import type { Client, Exercise, Program, ProgramDaySummary, Team, Workout } from 'app/types/database'
 
 export async function generateMetadata({
   params,
@@ -104,10 +104,16 @@ export default async function ProgramDetailPage({
     .neq('status', 'archived')
     .order('full_name', { ascending: true })
 
+  const { data: teamRows } = await supabase
+    .from('teams')
+    .select('id, name')
+    .order('name', { ascending: true })
+
   const clients = (clientRows ?? []) as Pick<
     Client,
     'id' | 'full_name' | 'status'
   >[]
+  const teams = (teamRows ?? []) as Pick<Team, 'id' | 'name'>[]
 
   return (
     <div className="flex flex-col gap-6">
@@ -143,6 +149,7 @@ export default async function ProgramDetailPage({
             programName={program.name}
             programStatus={program.status}
             clients={clients}
+            teams={teams}
           />
           <ProgramFormDialog
             program={program}

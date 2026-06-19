@@ -138,7 +138,8 @@ export type UnassignProgramResult =
 
 export async function assignProgramToClient(
   clientId: string,
-  values: AssignProgramValues
+  values: AssignProgramValues,
+  teamId?: string
 ): Promise<AssignProgramResult> {
   const parsed = assignProgramSchema.safeParse(values)
   if (!parsed.success) {
@@ -219,6 +220,7 @@ export async function assignProgramToClient(
       coach_id: user.id,
       client_id: clientId,
       program_id: parsed.data.programId,
+      team_id: teamId ?? null,
       status: 'active',
       start_date: startDate,
     })

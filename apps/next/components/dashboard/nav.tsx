@@ -3,6 +3,7 @@ import {
   Camera,
   CalendarCheck,
   CalendarClock,
+  Flag,
   LayoutDashboard,
   LibraryBig,
   Trophy,
@@ -22,6 +23,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Clients', href: '/clients', icon: Users },
+  { label: 'Teams', href: '/teams', icon: Flag },
   { label: 'Library', href: '/library', icon: LibraryBig },
   { label: 'Check-ins', href: '/check-ins', icon: CalendarCheck },
   { label: 'Load Management', href: '/load', icon: Activity },

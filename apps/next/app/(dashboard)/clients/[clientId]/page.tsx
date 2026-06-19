@@ -14,6 +14,7 @@ import { ClientAccountBanner } from '@/components/clients/client-account-banner'
 import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
+import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import { StatusBadge } from '@/components/clients/status-badge'
 import type {
   CalendarDaySummary,
@@ -22,6 +23,7 @@ import type {
   ClientCheckIn,
   ClientInbodyScan,
   ClientScheduledWorkoutWithExercises,
+  ClientTeamMembership,
   Exercise,
   Program,
   Workout,
@@ -63,11 +65,12 @@ export default async function ClientDetailPage({
     checkInsResult,
     progressPhotosResult,
     inbodyScansResult,
+    teamMembershipsResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
       .from('program_assignments')
-      .select('*, program:programs(id, name, description, status)')
+      .select('*, program:programs(id, name, description, status), team:teams(id, name)')
       .eq('client_id', clientId)
       .eq('status', 'active')
       .maybeSingle(),
@@ -148,6 +151,10 @@ export default async function ClientDetailPage({
       .eq('client_id', clientId)
       .order('scan_date', { ascending: false })
       .limit(50),
+    supabase
+      .from('team_members')
+      .select('team:teams(id, name)')
+      .eq('client_id', clientId),
   ])
 
   if (!data) {
@@ -196,6 +203,11 @@ export default async function ClientDetailPage({
     progressPhotosResult.data ?? []
   )
   const inbodyScans = (inbodyScansResult.data ?? []) as ClientInbodyScan[]
+  const teamMemberships = ((teamMembershipsResult.data ?? []) as {
+    team: { id: string; name: string } | null
+  }[])
+    .filter((row) => row.team)
+    .map((row) => ({ team: row.team! })) as ClientTeamMembership[]
   const photosByCheckInId = progressPhotos.reduce<
     Record<string, typeof progressPhotos>
   >((accumulator, photo) => {
@@ -237,6 +249,7 @@ export default async function ClientDetailPage({
               {client.email && (
                 <p className="text-muted-foreground text-sm">{client.email}</p>
               )}
+              <ClientTeamBadges memberships={teamMemberships} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">

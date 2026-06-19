@@ -3,6 +3,14 @@ export type UserRole = 'coach' | 'client'
 export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
 export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
+export type TeamEventType =
+  | 'practice'
+  | 'check_in'
+  | 'mock_meet'
+  | 'competition'
+  | 'other'
+export type TeamEventRsvpStatus = 'going' | 'maybe' | 'declined' | 'no_response'
+export type TeamEventAttendanceStatus = 'present' | 'absent' | 'excused'
 export type ExerciseStatus = 'active' | 'archived'
 export type ExerciseSource = 'custom' | 'exercisedb'
 export type WorkoutStatus = 'draft' | 'active' | 'archived'
@@ -180,12 +188,239 @@ export type Database = {
           },
         ]
       }
+      teams: {
+        Row: {
+          id: string
+          coach_id: string
+          name: string
+          description: string | null
+          active_program_id: string | null
+          program_start_date: string | null
+          next_competition_name: string | null
+          next_competition_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          name: string
+          description?: string | null
+          active_program_id?: string | null
+          program_start_date?: string | null
+          next_competition_name?: string | null
+          next_competition_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          name?: string
+          description?: string | null
+          active_program_id?: string | null
+          program_start_date?: string | null
+          next_competition_name?: string | null
+          next_competition_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'teams_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'teams_active_program_id_fkey'
+            columns: ['active_program_id']
+            isOneToOne: false
+            referencedRelation: 'programs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          team_id: string
+          client_id: string
+          weight_class: string | null
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          client_id: string
+          weight_class?: string | null
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          client_id?: string
+          weight_class?: string | null
+          joined_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_members_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_members_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_announcements: {
+        Row: {
+          id: string
+          team_id: string
+          coach_id: string
+          content: string
+          pinned: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          coach_id: string
+          content: string
+          pinned?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          coach_id?: string
+          content?: string
+          pinned?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_announcements_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_events: {
+        Row: {
+          id: string
+          team_id: string
+          coach_id: string
+          title: string
+          event_type: TeamEventType
+          event_date: string
+          start_time: string | null
+          location: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          coach_id: string
+          title: string
+          event_type?: TeamEventType
+          event_date: string
+          start_time?: string | null
+          location?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          coach_id?: string
+          title?: string
+          event_type?: TeamEventType
+          event_date?: string
+          start_time?: string | null
+          location?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_events_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_event_member_status: {
+        Row: {
+          id: string
+          event_id: string
+          client_id: string
+          rsvp_status: TeamEventRsvpStatus
+          attendance_status: TeamEventAttendanceStatus | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          client_id: string
+          rsvp_status?: TeamEventRsvpStatus
+          attendance_status?: TeamEventAttendanceStatus | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          client_id?: string
+          rsvp_status?: TeamEventRsvpStatus
+          attendance_status?: TeamEventAttendanceStatus | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_event_member_status_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'team_events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_event_member_status_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       program_assignments: {
         Row: {
           id: string
           coach_id: string
           client_id: string
           program_id: string
+          team_id: string | null
           status: ProgramAssignmentStatus
           start_date: string | null
           created_at: string
@@ -196,6 +431,7 @@ export type Database = {
           coach_id: string
           client_id: string
           program_id: string
+          team_id?: string | null
           status?: ProgramAssignmentStatus
           start_date?: string | null
           created_at?: string
@@ -206,6 +442,7 @@ export type Database = {
           coach_id?: string
           client_id?: string
           program_id?: string
+          team_id?: string | null
           status?: ProgramAssignmentStatus
           start_date?: string | null
           created_at?: string
@@ -231,6 +468,13 @@ export type Database = {
             columns: ['program_id']
             isOneToOne: false
             referencedRelation: 'programs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'program_assignments_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
             referencedColumns: ['id']
           },
         ]
@@ -1010,6 +1254,9 @@ export type Database = {
       client_invite_status: ClientInviteStatus
       program_status: ProgramStatus
       program_assignment_status: ProgramAssignmentStatus
+      team_event_type: TeamEventType
+      team_event_rsvp_status: TeamEventRsvpStatus
+      team_event_attendance_status: TeamEventAttendanceStatus
       exercise_status: ExerciseStatus
       exercise_source: ExerciseSource
       workout_status: WorkoutStatus
@@ -1041,8 +1288,81 @@ export type ProgramWithAssignmentCount = Program & {
   assignment_count: number
 }
 
+export type Team = Database['public']['Tables']['teams']['Row']
+export type TeamInsert = Database['public']['Tables']['teams']['Insert']
+export type TeamUpdate = Database['public']['Tables']['teams']['Update']
+export type TeamMember = Database['public']['Tables']['team_members']['Row']
+export type TeamMemberInsert = Database['public']['Tables']['team_members']['Insert']
+
+export type TeamWithProgram = Team & {
+  program: Pick<Program, 'id' | 'name' | 'status'> | null
+  member_count: number
+}
+
+export type TeamMemberWithClient = TeamMember & {
+  client: Pick<Client, 'id' | 'full_name' | 'status' | 'avatar_url' | 'email'>
+}
+
+export type TeamAnnouncement =
+  Database['public']['Tables']['team_announcements']['Row']
+export type TeamEvent = Database['public']['Tables']['team_events']['Row']
+export type TeamEventMemberStatus =
+  Database['public']['Tables']['team_event_member_status']['Row']
+
+export type TeamEventWithMemberStatus = TeamEvent & {
+  memberStatuses: (TeamEventMemberStatus & {
+    client: Pick<Client, 'id' | 'full_name' | 'avatar_url'>
+  })[]
+}
+
+export type TeamMemberPerformance = {
+  clientId: string
+  clientName: string
+  completionRate: number | null
+  acwrLabel: string
+  lastActiveLabel: string
+  onTrack: boolean
+}
+
+export type TeamActivityItem = {
+  id: string
+  type: 'workout' | 'check_in' | 'pr'
+  clientId: string
+  clientName: string
+  label: string
+  timestamp: string
+}
+
+export type TeamProgramProgress = {
+  currentWeek: number
+  totalWeeks: number
+  workoutsThisWeek: number
+  workoutsRemainingThisWeek: number
+}
+
+export type TeamProgramHistoryEntry = {
+  programId: string
+  programName: string
+  startDate: string | null
+  status: 'active' | 'completed' | 'cancelled'
+  endedAt: string | null
+}
+
+export type TeamPerformanceSummary = {
+  avgCompletionRate: number | null
+  onTrackCount: number
+  behindCount: number
+  avgAcwrLabel: string
+  members: TeamMemberPerformance[]
+}
+
+export type ClientTeamMembership = {
+  team: Pick<Team, 'id' | 'name'>
+}
+
 export type ClientProgramAssignment = ProgramAssignment & {
   program: Pick<Program, 'id' | 'name' | 'description' | 'status'>
+  team?: Pick<Team, 'id' | 'name'> | null
 }
 
 export type ProgramScheduledWorkout =

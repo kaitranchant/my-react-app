@@ -22,11 +22,12 @@ import { ClientsPagination } from '@/components/clients/clients-pagination'
 import { ClientRowActions } from '@/components/clients/client-row-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
+import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
 import { clientStatuses } from '@/lib/validations/client'
-import type { Client, ClientStatus } from 'app/types/database'
+import type { Client, ClientStatus, ClientTeamMembership } from 'app/types/database'
 
 export const metadata = {
   title: 'Clients — Coaching App',
@@ -83,6 +84,24 @@ export default async function ClientsPage({
   const page = Math.min(requestedPage, totalPages)
   const clients = (data ?? []) as Client[]
 
+  const teamsByClientId = new Map<string, ClientTeamMembership[]>()
+
+  if (clients.length > 0) {
+    const clientIds = clients.map((client) => client.id)
+    const { data: memberRows } = await supabase
+      .from('team_members')
+      .select('client_id, team:teams(id, name)')
+      .in('client_id', clientIds)
+
+    for (const row of memberRows ?? []) {
+      const team = row.team as { id: string; name: string } | null
+      if (!team) continue
+      const existing = teamsByClientId.get(row.client_id) ?? []
+      existing.push({ team })
+      teamsByClientId.set(row.client_id, existing)
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <PageHeader
@@ -125,6 +144,7 @@ export default async function ClientsPage({
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Account</TableHead>
+                  <TableHead>Teams</TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead className="w-12 pr-5" />
                 </TableRow>
@@ -153,6 +173,15 @@ export default async function ClientsPage({
                     </TableCell>
                     <TableCell>
                       <ClientInviteStatusBadge status={client.invite_status} />
+                    </TableCell>
+                    <TableCell>
+                      {(teamsByClientId.get(client.id) ?? []).length > 0 ? (
+                        <ClientTeamBadges
+                          memberships={teamsByClientId.get(client.id) ?? []}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[16rem] truncate">
                       {client.goal ?? '—'}

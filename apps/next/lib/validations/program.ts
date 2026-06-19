@@ -36,6 +36,15 @@ export type AssignProgramToClientFormValues = z.infer<
   typeof assignProgramToClientFormSchema
 >
 
+export const assignProgramToTeamFormSchema = z.object({
+  teamId: z.string().uuid('Select a team'),
+  startDate: z.string().optional(),
+})
+
+export type AssignProgramToTeamFormValues = z.infer<
+  typeof assignProgramToTeamFormSchema
+>
+
 export const programDayOffsetSchema = z
   .number()
   .int()
