@@ -8,12 +8,15 @@ import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
 import { ClientOverview } from '@/components/clients/client-overview'
 import { ClientCalendarPanel } from '@/components/calendar/client-calendar-panel'
 import { ClientProgramsPanel } from '@/components/programs/client-programs-panel'
+import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-panel'
+import { ClientProgressPhotosPanel } from '@/components/progress-photos/client-progress-photos-panel'
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { coerceDateKey } from '@/lib/calendar'
 import type {
@@ -21,6 +24,8 @@ import type {
   Client,
   ClientProgramAssignment,
   ClientScheduledWorkoutWithExercises,
+  ClientCheckIn,
+  ClientProgressPhotoWithUrl,
   Exercise,
   Program,
   Workout,
@@ -30,6 +35,7 @@ const VALID_TABS = [
   'overview',
   'calendar',
   'programs',
+  'check-ins',
   'progress-photos',
   'messages',
   'notes',
@@ -70,6 +76,17 @@ type ClientDetailTabsProps = {
   weekSessions: CalendarDaySummary[]
   recentWorkouts: ClientWorkoutActivity[]
   streakWorkouts: ClientWorkoutActivity[]
+  checkIns?: ClientCheckIn[]
+  progressPhotos?: ClientProgressPhotoWithUrl[]
+  photoCounts?: Record<string, number>
+  photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
+  loadMetrics?: {
+    thisWeekVolume: number
+    volumeDeltaLabel: string
+    acwrLabel: string
+    acwrVariant: 'success' | 'warning' | 'secondary'
+  }
+  recentPrs?: RecentPrHighlight[]
   initialTab?: string
 }
 
@@ -81,6 +98,12 @@ export function ClientDetailTabs({
   weekSessions,
   recentWorkouts,
   streakWorkouts,
+  checkIns = [],
+  progressPhotos = [],
+  photoCounts = {},
+  photosByCheckInId = {},
+  loadMetrics,
+  recentPrs = [],
   initialTab,
 }: ClientDetailTabsProps) {
   const router = useRouter()
@@ -133,6 +156,7 @@ export function ClientDetailTabs({
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="calendar">Calendar</TabsTrigger>
         <TabsTrigger value="programs">Programs</TabsTrigger>
+        <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
         <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
         <TabsTrigger value="messages">Messages</TabsTrigger>
         <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -145,6 +169,8 @@ export function ClientDetailTabs({
           weekSessions={weekSessions}
           recentWorkouts={recentWorkouts}
           streakWorkouts={streakWorkouts}
+          loadMetrics={loadMetrics}
+          recentPrs={recentPrs}
           onOpenNotes={() => handleTabChange('notes')}
           onOpenCalendar={() => handleTabChange('calendar')}
         />
@@ -176,8 +202,21 @@ export function ClientDetailTabs({
         />
       </TabsContent>
 
+      <TabsContent value="check-ins" className="mt-4">
+        <ClientCheckInsPanel
+          client={client}
+          checkIns={checkIns}
+          photoCounts={photoCounts}
+          photosByCheckInId={photosByCheckInId}
+        />
+      </TabsContent>
+
       <TabsContent value="progress-photos" className="mt-4">
-        <ComingSoon feature="Progress photos" />
+        <ClientProgressPhotosPanel
+          clientId={client.id}
+          clientName={client.full_name}
+          photos={progressPhotos}
+        />
       </TabsContent>
 
       <TabsContent value="messages" className="mt-4">

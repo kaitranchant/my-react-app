@@ -3,6 +3,11 @@
 import { revalidatePath } from 'next/cache'
 
 import {
+  evaluateAndPersistWorkoutPrs,
+  fetchPersonalBestsByExerciseIds,
+  type CompleteWorkoutResult,
+} from '@/lib/pr-records'
+import {
   saveWorkoutLogSetsSchema,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
@@ -49,7 +54,7 @@ async function requireClient(clientId: string) {
 
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
 }
 
 async function fetchWorkoutWithExercises(
@@ -224,6 +229,11 @@ export async function getWorkoutLogData(
       workoutId,
       libraryExerciseIds
     )
+  const personalBestsByExerciseId = await fetchPersonalBestsByExerciseIds(
+    supabase,
+    clientId,
+    libraryExerciseIds
+  )
 
   return {
     success: true,
@@ -232,6 +242,7 @@ export async function getWorkoutLogData(
       logSets,
       previousSetsByExerciseId,
       previousSessionDateByExerciseId,
+      personalBestsByExerciseId,
     },
   }
 }
@@ -402,24 +413,25 @@ export async function saveWorkoutLogSets(
 export async function completeWorkoutLog(
   clientId: string,
   workoutId: string
-): Promise<ActionResult> {
+): Promise<CompleteWorkoutResult> {
   const ctx = await requireClient(clientId)
   if (!ctx) {
     return { success: false, error: 'Client not found.' }
   }
 
-  const { supabase } = ctx
+  const { supabase, user } = ctx
   const workout = await fetchWorkoutWithExercises(supabase, workoutId)
   if (!workout || workout.client_id !== clientId) {
     return { success: false, error: 'Workout not found.' }
   }
 
+  const achievedAt = new Date().toISOString()
   const { error } = await supabase
     .from('client_scheduled_workouts')
     .update({
       status: 'completed',
-      completed_at: new Date().toISOString(),
-      started_at: workout.started_at ?? new Date().toISOString(),
+      completed_at: achievedAt,
+      started_at: workout.started_at ?? achievedAt,
     })
     .eq('id', workoutId)
 
@@ -427,8 +439,17 @@ export async function completeWorkoutLog(
     return { success: false, error: error.message }
   }
 
+  const { logSets } = await fetchLogSets(supabase, workoutId)
+  const newPrs = await evaluateAndPersistWorkoutPrs(supabase, {
+    clientId,
+    coachId: user.id,
+    workout,
+    logSets,
+    achievedAt,
+  })
+
   revalidateClientCalendar(clientId)
-  return { success: true }
+  return { success: true, newPrs }
 }
 
 export async function skipWorkoutLog(

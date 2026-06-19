@@ -4,6 +4,11 @@ import { revalidatePath } from 'next/cache'
 
 import { requirePortalClientContext, type PortalClientContext } from '@/lib/portal-client'
 import {
+  evaluateAndPersistWorkoutPrs,
+  fetchPersonalBestsByExerciseIds,
+  type CompleteWorkoutResult,
+} from '@/lib/pr-records'
+import {
   fetchLogSets,
   fetchPreviousSetsForExercises,
   fetchWorkoutWithExercises,
@@ -21,7 +26,8 @@ export type WorkoutLogResult =
   | { success: false; error: string }
 
 function revalidatePortal() {
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/progress')
 }
 
 type PortalWorkoutContext = PortalClientContext & {
@@ -76,6 +82,11 @@ export async function getPortalWorkoutLogData(
       workout.id,
       libraryExerciseIds
     )
+  const personalBestsByExerciseId = await fetchPersonalBestsByExerciseIds(
+    supabase,
+    client.id,
+    libraryExerciseIds
+  )
 
   return {
     success: true,
@@ -84,6 +95,7 @@ export async function getPortalWorkoutLogData(
       logSets,
       previousSetsByExerciseId,
       previousSessionDateByExerciseId,
+      personalBestsByExerciseId,
     },
   }
 }
@@ -238,20 +250,30 @@ export async function savePortalWorkoutLogSets(
 
 export async function completePortalWorkoutLog(
   workoutId: string
-): Promise<ActionResult> {
+): Promise<CompleteWorkoutResult> {
   const ctx = await requirePortalWorkout(workoutId)
   if (isPortalWorkoutError(ctx)) {
     return { success: false, error: ctx.error }
   }
 
-  const { supabase, workout } = ctx
+  const { supabase, client, workout } = ctx
+  const { data: clientRow, error: clientError } = await supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', client.id)
+    .maybeSingle()
 
+  if (clientError || !clientRow?.coach_id) {
+    return { success: false, error: 'Client coach not found.' }
+  }
+
+  const achievedAt = new Date().toISOString()
   const { error } = await supabase
     .from('client_scheduled_workouts')
     .update({
       status: 'completed',
-      completed_at: new Date().toISOString(),
-      started_at: workout.started_at ?? new Date().toISOString(),
+      completed_at: achievedAt,
+      started_at: workout.started_at ?? achievedAt,
     })
     .eq('id', workout.id)
 
@@ -259,8 +281,17 @@ export async function completePortalWorkoutLog(
     return { success: false, error: error.message }
   }
 
+  const { logSets } = await fetchLogSets(supabase, workout.id)
+  const newPrs = await evaluateAndPersistWorkoutPrs(supabase, {
+    clientId: client.id,
+    coachId: clientRow.coach_id,
+    workout,
+    logSets,
+    achievedAt,
+  })
+
   revalidatePortal()
-  return { success: true }
+  return { success: true, newPrs }
 }
 
 export async function skipPortalWorkoutLog(

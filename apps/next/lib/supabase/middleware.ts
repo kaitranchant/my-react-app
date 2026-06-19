@@ -70,7 +70,9 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/clients') ||
       pathname.startsWith('/library') ||
-      pathname.startsWith('/programs')
+      pathname.startsWith('/programs') ||
+      pathname.startsWith('/check-ins') ||
+      pathname.startsWith('/load')
     const isPortal = pathname.startsWith('/portal')
 
     if (role === 'client' && isCoachArea) {

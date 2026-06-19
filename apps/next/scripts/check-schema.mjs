@@ -204,6 +204,53 @@ await check('program_scheduled_workout_exercises table', async () => {
   }
 })
 
+await check('client_check_ins table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/client_check_ins?select=id,check_in_date,submitted_by,calm_level,sleep_quality&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('exercise_pr_records table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/exercise_pr_records?select=id,record_type,e1rm,forced&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('client_progress_photos table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/client_progress_photos?select=id,pose,storage_path&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('progress-photos storage bucket', async () => {
+  const res = await fetch(
+    `${url}/storage/v1/object/progress-photos/.schema-check`,
+    { headers: { apikey: key } }
+  )
+  const body = await res.text()
+  if (body.includes('Bucket not found')) {
+    throw new Error('Bucket not found')
+  }
+  if (!body.includes('Object not found') && !res.ok && res.status !== 400) {
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -227,11 +274,15 @@ if (failed) {
   console.error('       supabase/apply-program-calendar.sql')
   console.error('       supabase/apply-program-workout-exercises.sql')
   console.error('       supabase/apply-client-portal.sql   (required for client portal logging)')
+  console.error('       supabase/apply-client-check-ins.sql')
+  console.error('       supabase/apply-check-in-fields.sql')
+  console.error('       supabase/apply-exercise-prs.sql')
+  console.error('       supabase/apply-client-progress-photos.sql')
   console.error('     Earlier migrations (0002–0007): apply-programs.sql, apply-library.sql, etc.')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
   process.exit(1)
 }
 
-console.log('\nSchema looks good — calendar, logging, program builder, and portal tables are present.')
+console.log('\nSchema looks good — calendar, logging, program builder, portal, and check-ins tables are present.')
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

@@ -13,6 +13,7 @@ import {
   PlayCircle,
   Plus,
   Trash2,
+  Trophy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -58,10 +59,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { formatDayHeader } from '@/lib/calendar'
 import {
+  calcSessionVolumeForExercise,
+  formatPrLabel,
+  formatVolume,
+} from '@/lib/load-analytics'
+import {
   getExerciseMediaUrl,
   hasExerciseMedia,
 } from '@/lib/exercise-media'
-import { formatExercisePrescriptionSummary } from '@/lib/scheduled-exercise'
+import { formatExercisePrescriptionSummary, parseTrackingOptions } from '@/lib/scheduled-exercise'
 import {
   applyExerciseSetChanges,
   appendSetDraft,
@@ -92,6 +98,7 @@ import {
 } from '@/lib/workout-log-schema'
 import type {
   Exercise,
+  ExercisePersonalBest,
   ScheduledWorkoutExerciseWithDetails,
   ScheduledWorkoutStatus,
   WorkoutLogData,
@@ -216,6 +223,7 @@ type WorkoutLogExerciseProps = {
   sets: WorkoutLogSetDraft[]
   previousSets: ExercisePreviousSets
   previousSessionDate: string | null
+  personalBest: ExercisePersonalBest | null
   readOnly: boolean
   onSetChange: (
     setNumber: number,
@@ -235,6 +243,7 @@ function WorkoutLogExercise({
   sets,
   previousSets,
   previousSessionDate,
+  personalBest,
   readOnly,
   onSetChange,
   onAddSet,
@@ -249,15 +258,32 @@ function WorkoutLogExercise({
   const mediaUrl = getExerciseMediaUrl(mediaExercise, '180')
   const showMedia = hasExerciseMedia(mediaExercise)
 
+  const trackingOptions = parseTrackingOptions(exercise.tracking_options)
+  const prTrackingEnabled = !trackingOptions.disablePrTracking
   const fields = getLogFieldsForExercise(exercise)
   const summary = formatExercisePrescriptionSummary(exercise)
-  const currentE1rm = fields.showWeight && fields.showReps
-    ? getBestE1rmFromDrafts(sets)
-    : null
+  const currentE1rm =
+    prTrackingEnabled && fields.showWeight && fields.showReps
+      ? getBestE1rmFromDrafts(sets)
+      : null
   const previousE1rm =
-    fields.showWeight && fields.showReps
+    prTrackingEnabled && fields.showWeight && fields.showReps
       ? getBestE1rmFromPrevious(previousSets)
       : null
+  const allTimeE1rm = personalBest?.e1rm ?? null
+  const isLivePr =
+    currentE1rm != null &&
+    (allTimeE1rm == null || currentE1rm > allTimeE1rm)
+  const sessionVolume = trackingOptions.trackVolume
+    ? calcSessionVolumeForExercise(
+        sets.map((set) => ({
+          weight: parseOptionalNumber(set.weight),
+          reps: parseOptionalInt(set.reps),
+          completed: set.completed,
+        })),
+        trackingOptions
+      )
+    : 0
   const showSetTable =
     fields.completionOnly ||
     fields.showWeight ||
@@ -385,14 +411,19 @@ function WorkoutLogExercise({
                 {exercise.workout_notes.trim()}
               </p>
             )}
-            {(currentE1rm != null || previousE1rm != null) && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {(currentE1rm != null || previousE1rm != null || allTimeE1rm != null) && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 {currentE1rm != null && (
                   <span>
                     Est. 1RM{' '}
                     <span className="text-foreground font-semibold">
                       {currentE1rm} lbs
                     </span>
+                  </span>
+                )}
+                {allTimeE1rm != null && (
+                  <span className="text-muted-foreground">
+                    All-time est. 1RM {allTimeE1rm} lbs
                   </span>
                 )}
                 {previousE1rm != null && (
@@ -402,7 +433,21 @@ function WorkoutLogExercise({
                       ` · ${formatDayHeader(previousSessionDate)}`}
                   </span>
                 )}
+                {isLivePr && (
+                  <Badge className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700">
+                    <Trophy className="size-3" />
+                    PR pace
+                  </Badge>
+                )}
               </div>
+            )}
+            {sessionVolume > 0 && (
+              <p className="text-muted-foreground mt-2 text-sm">
+                Session volume{' '}
+                <span className="text-foreground font-medium">
+                  {formatVolume(sessionVolume)}
+                </span>
+              </p>
             )}
           </div>
 
@@ -1076,6 +1121,16 @@ export function WorkoutLogModal({
 
     if (result.success) {
       toast.success('Workout marked complete.')
+      for (const pr of result.newPrs) {
+        toast.success(
+          `New PR — ${pr.exerciseName} · ${formatPrLabel(
+            pr.recordType,
+            pr.e1rm,
+            pr.weight,
+            pr.reps
+          )}`
+        )
+      }
       await loadData()
       onChanged()
       return
@@ -1364,6 +1419,9 @@ export function WorkoutLogModal({
                   previousSessionDate={
                     data.previousSessionDateByExerciseId[exercise.exercise_id] ??
                     null
+                  }
+                  personalBest={
+                    data.personalBestsByExerciseId[exercise.exercise_id] ?? null
                   }
                   readOnly={readOnly}
                   onSetChange={(setNumber, patch) =>

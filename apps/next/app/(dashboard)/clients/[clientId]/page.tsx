@@ -6,6 +6,8 @@ import { ArrowLeft, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
+import { fetchClientLoadMetrics } from '@/lib/load-queries'
+import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountBanner } from '@/components/clients/client-account-banner'
@@ -17,6 +19,7 @@ import type {
   CalendarDaySummary,
   Client,
   ClientProgramAssignment,
+  ClientCheckIn,
   ClientScheduledWorkoutWithExercises,
   Exercise,
   Program,
@@ -56,6 +59,8 @@ export default async function ClientDetailPage({
     workoutsResult,
     recentWorkoutsResult,
     streakWorkoutsResult,
+    checkInsResult,
+    progressPhotosResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
@@ -122,6 +127,19 @@ export default async function ClientDetailPage({
       .eq('status', 'completed')
       .gte('scheduled_date', streakStart)
       .order('scheduled_date', { ascending: false }),
+    supabase
+      .from('client_check_ins')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('check_in_date', { ascending: false })
+      .limit(50),
+    supabase
+      .from('client_progress_photos')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('photo_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(50),
   ])
 
   if (!data) {
@@ -164,6 +182,22 @@ export default async function ClientDetailPage({
     []) as ClientWorkoutActivity[]
   const streakWorkouts = (streakWorkoutsResult.data ??
     []) as ClientWorkoutActivity[]
+  const checkIns = (checkInsResult.data ?? []) as ClientCheckIn[]
+  const progressPhotos = await attachSignedUrlsToPhotos(
+    supabase,
+    progressPhotosResult.data ?? []
+  )
+  const photosByCheckInId = progressPhotos.reduce<
+    Record<string, typeof progressPhotos>
+  >((accumulator, photo) => {
+    if (!photo.check_in_id) return accumulator
+    const existing = accumulator[photo.check_in_id] ?? []
+    existing.push(photo)
+    accumulator[photo.check_in_id] = existing
+    return accumulator
+  }, {})
+  const photoCounts = countPhotosByCheckInId(progressPhotos)
+  const loadMetrics = await fetchClientLoadMetrics(supabase, clientId)
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -221,6 +255,17 @@ export default async function ClientDetailPage({
           weekSessions={weekSessions}
           recentWorkouts={recentWorkouts}
           streakWorkouts={streakWorkouts}
+          checkIns={checkIns}
+          progressPhotos={progressPhotos}
+          photoCounts={photoCounts}
+          photosByCheckInId={photosByCheckInId}
+          loadMetrics={{
+            thisWeekVolume: loadMetrics.thisWeekVolume,
+            volumeDeltaLabel: loadMetrics.volumeDeltaLabel,
+            acwrLabel: loadMetrics.acwrLabel,
+            acwrVariant: loadMetrics.acwrVariant,
+          }}
+          recentPrs={loadMetrics.recentPrs}
           initialTab={initialTab}
           calendar={{
             schemaError: calendarSchemaError,

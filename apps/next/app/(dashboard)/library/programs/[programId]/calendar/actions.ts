@@ -462,7 +462,7 @@ async function afterProgramCalendarChange(
     revalidatePath(`/clients/${assignment.client_id}`)
   }
 
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
   revalidateProgramCalendar(programId)
 }
 

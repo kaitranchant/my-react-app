@@ -26,11 +26,12 @@ import {
   getDaysSinceLastSession,
   getLastActiveLabel,
   getReadinessLevel,
-  getRecentProgressHighlights,
   hasFlaggedNotes,
   isClientSetupComplete,
   type ClientWorkoutActivity,
 } from '@/lib/client-metrics'
+import { formatVolume } from '@/lib/load-analytics'
+import type { RecentPrHighlight } from '@/lib/pr-records'
 import {
   formatRelativeUpdated,
   getPreSessionInsight,
@@ -153,6 +154,13 @@ type ClientOverviewProps = {
   weekSessions?: CalendarDaySummary[]
   recentWorkouts?: ClientWorkoutActivity[]
   streakWorkouts?: ClientWorkoutActivity[]
+  loadMetrics?: {
+    thisWeekVolume: number
+    volumeDeltaLabel: string
+    acwrLabel: string
+    acwrVariant: 'success' | 'warning' | 'secondary'
+  }
+  recentPrs?: RecentPrHighlight[]
   onOpenNotes?: () => void
   onOpenCalendar?: () => void
 }
@@ -163,6 +171,8 @@ export function ClientOverview({
   weekSessions = [],
   recentWorkouts = [],
   streakWorkouts = [],
+  loadMetrics,
+  recentPrs = [],
   onOpenNotes,
   onOpenCalendar,
 }: ClientOverviewProps) {
@@ -191,7 +201,6 @@ export function ClientOverview({
   const readiness = getReadinessLevel(recentWorkouts)
   const daysSinceSession = getDaysSinceLastSession(recentWorkouts)
   const flaggedNotes = hasFlaggedNotes(client.notes)
-  const progressHighlights = getRecentProgressHighlights(recentWorkouts)
   const activityItems = buildClientActivityItems(recentWorkouts)
 
   const lastWorkout = recentWorkouts
@@ -204,7 +213,7 @@ export function ClientOverview({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Completion rate"
           value={completionRate !== null ? `${completionRate}%` : '—'}
@@ -214,6 +223,25 @@ export function ClientOverview({
               : 'No sessions scheduled this week'
           }
           accent
+        />
+        <StatCard
+          label="This week volume"
+          value={
+            loadMetrics ? formatVolume(loadMetrics.thisWeekVolume) : '—'
+          }
+          hint={loadMetrics?.volumeDeltaLabel ?? 'Log workouts to track load'}
+        />
+        <StatCard
+          label="ACWR"
+          value={loadMetrics?.acwrLabel ?? '—'}
+          hint={
+            loadMetrics?.acwrVariant === 'warning'
+              ? 'Load spike or drop — review programming'
+              : loadMetrics?.acwrVariant === 'success'
+                ? 'Load ratio in optimal range'
+                : 'Needs more training history'
+          }
+          accent={loadMetrics?.acwrVariant === 'success'}
         />
         <StatCard
           label="Current streak"
@@ -389,24 +417,24 @@ export function ClientOverview({
         </Card>
       </div>
 
-      {progressHighlights.length > 0 && (
+      {recentPrs.length > 0 && (
         <Card className="gap-0 py-0">
           <CardHeader className="px-5 pt-5 pb-0">
             <div className="flex items-center gap-2">
               <TrendingUp className="text-brand size-4" />
-              <SectionLabel>Recent progress</SectionLabel>
+              <SectionLabel>Recent PRs</SectionLabel>
             </div>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <ul className="space-y-2">
-              {progressHighlights.map((item) => (
+              {recentPrs.map((item) => (
                 <li
                   key={item.id}
                   className="flex items-center justify-between gap-4 text-sm"
                 >
                   <span className="flex items-center gap-2">
                     <Flame className="text-amber-500 size-4 shrink-0" />
-                    Completed {item.label}
+                    {item.exerciseName} · {item.label}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {item.date}

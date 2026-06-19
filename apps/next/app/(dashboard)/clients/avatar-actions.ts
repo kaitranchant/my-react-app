@@ -132,7 +132,7 @@ async function persistAvatar(
 
   revalidatePath('/clients')
   revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
 
   return { success: true, avatarUrl }
 }
@@ -271,7 +271,7 @@ export async function setClientAvatarPreset(
 
   revalidatePath('/clients')
   revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
 
   return { success: true, avatarUrl: avatarUrl ?? '' }
 }

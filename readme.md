@@ -12,10 +12,13 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Program assignment: assign programs to clients and materialize workouts onto their calendar
 - Client calendar: schedule workouts, copy across dates, rich exercise builder, and workout logging
 - Client portal: month calendar, view scheduled sessions, and self-service workout logging
+- Check-ins: expanded weekly form (weight, sleep duration/quality, calm, energy, motivation, nutrition, soreness, pain flags), client portal submit with recent history, coach review inbox, and manual coach entry
+- Load management and PR analytics: weekly volume and ACWR on client overview, PR detection in workout logging, persisted PR history, and coach `/load` dashboard
+- Progress photos: client upload (front/side/back) attached to check-ins, coach gallery on client detail tab, and roster `/progress-photos` feed
 
 ## What's coming
 
-Check-ins, progress photos, load management, attendance, form review, leaderboards, wearables, client messages, and full client portal sessions appear in the UI but are not yet implemented.
+Attendance, form review, leaderboards, wearables, and client messages appear in the UI but are not yet implemented.
 
 ## Deployment
 
@@ -49,6 +52,10 @@ If not using `yarn db:push`, run these in Supabase Dashboard → SQL:
 | `apply-program-calendar.sql` | Program calendar |
 | `apply-program-workout-exercises.sql` | Program exercise templates |
 | `apply-client-portal.sql` | Client portal write access (required for logging) |
+| `apply-client-check-ins.sql` | Client check-ins and coach review |
+| `apply-check-in-fields.sql` | Expanded check-in metrics (calm, soreness, nutrition, pain) |
+| `apply-exercise-prs.sql` | Exercise PR history and load analytics |
+| `apply-client-progress-photos.sql` | Progress photo uploads and private storage |
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 

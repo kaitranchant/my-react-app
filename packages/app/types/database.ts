@@ -11,6 +11,9 @@ export type ScheduledWorkoutStatus =
   | 'in_progress'
   | 'completed'
   | 'skipped'
+export type CheckInSubmittedBy = 'client' | 'coach'
+export type ProgressPhotoPose = 'front' | 'side' | 'back'
+export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
 
 export type ScheduledExerciseBlock =
@@ -667,6 +670,244 @@ export type Database = {
           },
         ]
       }
+      client_check_ins: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          check_in_date: string
+          weight: number | null
+          sleep_hours: number | null
+          calm_level: number | null
+          sleep_quality: number | null
+          energy_level: number | null
+          motivation_level: number | null
+          nutrition_adherence: number | null
+          soreness_level: number | null
+          soreness_notes: string | null
+          has_pain: boolean
+          pain_notes: string | null
+          client_notes: string | null
+          coach_notes: string | null
+          submitted_by: CheckInSubmittedBy
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          check_in_date: string
+          weight?: number | null
+          sleep_hours?: number | null
+          calm_level?: number | null
+          sleep_quality?: number | null
+          energy_level?: number | null
+          motivation_level?: number | null
+          nutrition_adherence?: number | null
+          soreness_level?: number | null
+          soreness_notes?: string | null
+          has_pain?: boolean
+          pain_notes?: string | null
+          client_notes?: string | null
+          coach_notes?: string | null
+          submitted_by: CheckInSubmittedBy
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          check_in_date?: string
+          weight?: number | null
+          sleep_hours?: number | null
+          calm_level?: number | null
+          sleep_quality?: number | null
+          energy_level?: number | null
+          motivation_level?: number | null
+          nutrition_adherence?: number | null
+          soreness_level?: number | null
+          soreness_notes?: string | null
+          has_pain?: boolean
+          pain_notes?: string | null
+          client_notes?: string | null
+          coach_notes?: string | null
+          submitted_by?: CheckInSubmittedBy
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_check_ins_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_check_ins_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_progress_photos: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          check_in_id: string | null
+          photo_date: string
+          pose: ProgressPhotoPose
+          storage_path: string
+          caption: string | null
+          uploaded_by: CheckInSubmittedBy
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          check_in_id?: string | null
+          photo_date: string
+          pose: ProgressPhotoPose
+          storage_path: string
+          caption?: string | null
+          uploaded_by: CheckInSubmittedBy
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          check_in_id?: string | null
+          photo_date?: string
+          pose?: ProgressPhotoPose
+          storage_path?: string
+          caption?: string | null
+          uploaded_by?: CheckInSubmittedBy
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_progress_photos_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_progress_photos_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_progress_photos_check_in_id_fkey'
+            columns: ['check_in_id']
+            isOneToOne: false
+            referencedRelation: 'client_check_ins'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      exercise_pr_records: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          exercise_id: string
+          record_type: ExercisePrRecordType
+          e1rm: number | null
+          weight: number | null
+          reps: number | null
+          session_volume: number | null
+          scheduled_workout_id: string
+          scheduled_exercise_id: string
+          forced: boolean
+          achieved_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          exercise_id: string
+          record_type: ExercisePrRecordType
+          e1rm?: number | null
+          weight?: number | null
+          reps?: number | null
+          session_volume?: number | null
+          scheduled_workout_id: string
+          scheduled_exercise_id: string
+          forced?: boolean
+          achieved_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          exercise_id?: string
+          record_type?: ExercisePrRecordType
+          e1rm?: number | null
+          weight?: number | null
+          reps?: number | null
+          session_volume?: number | null
+          scheduled_workout_id?: string
+          scheduled_exercise_id?: string
+          forced?: boolean
+          achieved_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_pr_records_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_pr_records_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_pr_records_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_pr_records_scheduled_workout_id_fkey'
+            columns: ['scheduled_workout_id']
+            isOneToOne: false
+            referencedRelation: 'client_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_pr_records_scheduled_exercise_id_fkey'
+            columns: ['scheduled_exercise_id']
+            isOneToOne: false
+            referencedRelation: 'scheduled_workout_exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -695,6 +936,8 @@ export type Database = {
       exercise_source: ExerciseSource
       workout_status: WorkoutStatus
       scheduled_workout_status: ScheduledWorkoutStatus
+      check_in_submitted_by: CheckInSubmittedBy
+      exercise_pr_record_type: ExercisePrRecordType
     }
     CompositeTypes: {
       [_ in never]: never
@@ -799,8 +1042,49 @@ export type PreviousSetLog = {
 
 export type ExercisePreviousSets = Record<number, PreviousSetLog>
 
+export type ExercisePersonalBest = {
+  e1rm: number | null
+  topSetWeight: number | null
+  topSetReps: number | null
+}
+
 export type WorkoutLogData = ClientScheduledWorkoutWithExercises & {
   logSets: WorkoutLogSet[]
   previousSetsByExerciseId: Record<string, ExercisePreviousSets>
   previousSessionDateByExerciseId: Record<string, string | null>
+  personalBestsByExerciseId: Record<string, ExercisePersonalBest>
 }
+
+export type ClientCheckIn =
+  Database['public']['Tables']['client_check_ins']['Row']
+export type ClientCheckInInsert =
+  Database['public']['Tables']['client_check_ins']['Insert']
+export type ClientCheckInUpdate =
+  Database['public']['Tables']['client_check_ins']['Update']
+
+export type ClientCheckInWithClient = ClientCheckIn & {
+  client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'>
+}
+
+export type ClientProgressPhoto =
+  Database['public']['Tables']['client_progress_photos']['Row']
+export type ClientProgressPhotoInsert =
+  Database['public']['Tables']['client_progress_photos']['Insert']
+export type ClientProgressPhotoUpdate =
+  Database['public']['Tables']['client_progress_photos']['Update']
+
+export type ClientProgressPhotoWithUrl = ClientProgressPhoto & {
+  signedUrl: string | null
+}
+
+export type ClientProgressPhotoWithClient = ClientProgressPhoto & {
+  client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
+  signedUrl: string | null
+}
+
+export type ExercisePrRecord =
+  Database['public']['Tables']['exercise_pr_records']['Row']
+export type ExercisePrRecordInsert =
+  Database['public']['Tables']['exercise_pr_records']['Insert']
+export type ExercisePrRecordUpdate =
+  Database['public']['Tables']['exercise_pr_records']['Update']

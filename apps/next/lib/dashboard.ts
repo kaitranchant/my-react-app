@@ -1,5 +1,5 @@
 import { toDateKey } from '@/lib/calendar'
-import type { Client, ClientScheduledWorkout } from 'app/types/database'
+import type { Client, ClientCheckIn, ClientScheduledWorkout } from 'app/types/database'
 
 export type TodaySession = Pick<
   ClientScheduledWorkout,
@@ -12,8 +12,9 @@ export type ActivityItem = {
   id: string
   clientId: string
   clientName: string
-  workoutName: string
-  status: ClientScheduledWorkout['status']
+  kind: 'workout' | 'check_in'
+  workoutName?: string
+  status?: ClientScheduledWorkout['status']
   timestamp: string
 }
 
@@ -58,13 +59,35 @@ export function buildActionItems({
   pendingInvites,
   clientsWithoutWorkoutThisWeek,
   skippedThisWeek,
+  pendingCheckIns = 0,
+  clientsWithoutCheckInThisWeek = 0,
 }: {
   clients: Client[]
   pendingInvites: number
   clientsWithoutWorkoutThisWeek: number
   skippedThisWeek: number
+  pendingCheckIns?: number
+  clientsWithoutCheckInThisWeek?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
+
+  if (pendingCheckIns > 0) {
+    items.push({
+      id: 'pending-check-ins',
+      message: `${pendingCheckIns} client check-in${pendingCheckIns === 1 ? '' : 's'} awaiting review`,
+      href: '/check-ins',
+      priority: 'high',
+    })
+  }
+
+  if (clientsWithoutCheckInThisWeek > 0) {
+    items.push({
+      id: 'no-check-in',
+      message: `${clientsWithoutCheckInThisWeek} active client${clientsWithoutCheckInThisWeek === 1 ? '' : 's'} ha${clientsWithoutCheckInThisWeek === 1 ? 's' : 've'}n't checked in this week`,
+      href: '/check-ins',
+      priority: 'medium',
+    })
+  }
 
   if (clientsWithoutWorkoutThisWeek > 0) {
     items.push({
@@ -130,17 +153,46 @@ export function buildActivityFeed(
       id: w.id,
       clientId: w.client_id,
       clientName: w.clientName,
+      kind: 'workout' as const,
       workoutName: w.name,
       status: w.status,
       timestamp: w.completed_at ?? w.started_at ?? w.updated_at,
     }))
+}
+
+export function buildCheckInActivityFeed(
+  checkIns: (Pick<
+    ClientCheckIn,
+    'id' | 'client_id' | 'updated_at' | 'created_at'
+  > & { clientName: string })[]
+): ActivityItem[] {
+  return checkIns.map((checkIn) => ({
+    id: checkIn.id,
+    clientId: checkIn.client_id,
+    clientName: checkIn.clientName,
+    kind: 'check_in' as const,
+    timestamp: checkIn.updated_at ?? checkIn.created_at,
+  }))
+}
+
+export function mergeActivityFeed(
+  workouts: ActivityItem[],
+  checkIns: ActivityItem[],
+  limit = 8
+): ActivityItem[] {
+  return [...workouts, ...checkIns]
     .sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
+    .slice(0, limit)
 }
 
 export function formatActivityMessage(item: ActivityItem): string {
+  if (item.kind === 'check_in') {
+    return 'submitted a check-in'
+  }
+
   switch (item.status) {
     case 'completed':
       return `completed ${item.workoutName}`
@@ -151,6 +203,13 @@ export function formatActivityMessage(item: ActivityItem): string {
     default:
       return `updated ${item.workoutName}`
   }
+}
+
+export function getActivityHref(item: ActivityItem): string {
+  if (item.kind === 'check_in') {
+    return `/clients/${item.clientId}?tab=check-ins`
+  }
+  return `/clients/${item.clientId}`
 }
 
 export function formatRelativeTime(iso: string): string {

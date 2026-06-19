@@ -254,7 +254,7 @@ export async function assignProgramToClient(
   }
 
   revalidatePrograms(clientId)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
   return { success: true, scheduledCount, skippedCount }
 }
 
@@ -307,6 +307,6 @@ export async function unassignProgramFromClient(
   }
 
   revalidatePrograms(clientId)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
   return { success: true, removedCount }
 }

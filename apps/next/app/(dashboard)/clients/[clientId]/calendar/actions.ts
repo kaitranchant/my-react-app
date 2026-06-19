@@ -71,7 +71,7 @@ async function requireClient(clientId: string) {
 
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/portal')
+  revalidatePath('/portal', 'layout')
 }
 
 async function fetchWorkoutExerciseRows(
