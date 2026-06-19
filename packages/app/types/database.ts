@@ -821,6 +821,84 @@ export type Database = {
           },
         ]
       }
+      client_inbody_scans: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          scan_date: string
+          weight_lbs: number
+          skeletal_muscle_mass_lbs: number
+          percent_body_fat: number
+          total_body_water_lbs: number | null
+          dry_lean_mass_lbs: number | null
+          body_fat_mass_lbs: number | null
+          bmi: number | null
+          lean_body_mass_lbs: number | null
+          basal_metabolic_rate_kcal: number | null
+          skeletal_muscle_index: number | null
+          notes: string | null
+          submitted_by: CheckInSubmittedBy
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          scan_date: string
+          weight_lbs: number
+          skeletal_muscle_mass_lbs: number
+          percent_body_fat: number
+          total_body_water_lbs?: number | null
+          dry_lean_mass_lbs?: number | null
+          body_fat_mass_lbs?: number | null
+          bmi?: number | null
+          lean_body_mass_lbs?: number | null
+          basal_metabolic_rate_kcal?: number | null
+          skeletal_muscle_index?: number | null
+          notes?: string | null
+          submitted_by: CheckInSubmittedBy
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          scan_date?: string
+          weight_lbs?: number
+          skeletal_muscle_mass_lbs?: number
+          percent_body_fat?: number
+          total_body_water_lbs?: number | null
+          dry_lean_mass_lbs?: number | null
+          body_fat_mass_lbs?: number | null
+          bmi?: number | null
+          lean_body_mass_lbs?: number | null
+          basal_metabolic_rate_kcal?: number | null
+          skeletal_muscle_index?: number | null
+          notes?: string | null
+          submitted_by?: CheckInSubmittedBy
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_inbody_scans_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_inbody_scans_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exercise_pr_records: {
         Row: {
           id: string
@@ -1081,6 +1159,13 @@ export type ClientProgressPhotoWithClient = ClientProgressPhoto & {
   client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
   signedUrl: string | null
 }
+
+export type ClientInbodyScan =
+  Database['public']['Tables']['client_inbody_scans']['Row']
+export type ClientInbodyScanInsert =
+  Database['public']['Tables']['client_inbody_scans']['Insert']
+export type ClientInbodyScanUpdate =
+  Database['public']['Tables']['client_inbody_scans']['Update']
 
 export type ExercisePrRecord =
   Database['public']['Tables']['exercise_pr_records']['Row']

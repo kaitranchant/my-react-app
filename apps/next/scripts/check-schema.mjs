@@ -237,6 +237,17 @@ await check('client_progress_photos table', async () => {
   }
 })
 
+await check('client_inbody_scans table', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/client_inbody_scans?select=id,scan_date,weight_lbs,skeletal_muscle_mass_lbs,percent_body_fat&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 await check('progress-photos storage bucket', async () => {
   const res = await fetch(
     `${url}/storage/v1/object/progress-photos/.schema-check`,
@@ -278,6 +289,7 @@ if (failed) {
   console.error('       supabase/apply-check-in-fields.sql')
   console.error('       supabase/apply-exercise-prs.sql')
   console.error('       supabase/apply-client-progress-photos.sql')
+  console.error('       supabase/apply-client-inbody-scans.sql')
   console.error('     Earlier migrations (0002–0007): apply-programs.sql, apply-library.sql, etc.')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
   process.exit(1)

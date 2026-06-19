@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   CalendarDays,
   LayoutDashboard,
+  Scale,
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
@@ -16,5 +17,6 @@ export const portalNavItems: PortalNavItem[] = [
   { label: 'Home', href: '/portal', icon: LayoutDashboard },
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
+  { label: 'InBody', href: '/portal/inbody', icon: Scale },
   { label: 'Progress', href: '/portal/progress', icon: TrendingUp },
 ]

@@ -9,6 +9,7 @@ import { ClientOverview } from '@/components/clients/client-overview'
 import { ClientCalendarPanel } from '@/components/calendar/client-calendar-panel'
 import { ClientProgramsPanel } from '@/components/programs/client-programs-panel'
 import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-panel'
+import { ClientInbodyPanel } from '@/components/inbody/client-inbody-panel'
 import { ClientProgressPhotosPanel } from '@/components/progress-photos/client-progress-photos-panel'
 import {
   Card,
@@ -25,6 +26,7 @@ import type {
   ClientProgramAssignment,
   ClientScheduledWorkoutWithExercises,
   ClientCheckIn,
+  ClientInbodyScan,
   ClientProgressPhotoWithUrl,
   Exercise,
   Program,
@@ -37,6 +39,7 @@ const VALID_TABS = [
   'programs',
   'check-ins',
   'progress-photos',
+  'inbody',
   'messages',
   'notes',
 ] as const
@@ -78,6 +81,7 @@ type ClientDetailTabsProps = {
   streakWorkouts: ClientWorkoutActivity[]
   checkIns?: ClientCheckIn[]
   progressPhotos?: ClientProgressPhotoWithUrl[]
+  inbodyScans?: ClientInbodyScan[]
   photoCounts?: Record<string, number>
   photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
   loadMetrics?: {
@@ -100,6 +104,7 @@ export function ClientDetailTabs({
   streakWorkouts,
   checkIns = [],
   progressPhotos = [],
+  inbodyScans = [],
   photoCounts = {},
   photosByCheckInId = {},
   loadMetrics,
@@ -158,6 +163,7 @@ export function ClientDetailTabs({
         <TabsTrigger value="programs">Programs</TabsTrigger>
         <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
         <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
+        <TabsTrigger value="inbody">InBody results</TabsTrigger>
         <TabsTrigger value="messages">Messages</TabsTrigger>
         <TabsTrigger value="notes">Notes</TabsTrigger>
       </TabsList>
@@ -217,6 +223,10 @@ export function ClientDetailTabs({
           clientName={client.full_name}
           photos={progressPhotos}
         />
+      </TabsContent>
+
+      <TabsContent value="inbody" className="mt-4">
+        <ClientInbodyPanel client={client} scans={inbodyScans} />
       </TabsContent>
 
       <TabsContent value="messages" className="mt-4">

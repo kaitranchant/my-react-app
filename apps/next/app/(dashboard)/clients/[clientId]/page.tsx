@@ -20,6 +20,7 @@ import type {
   Client,
   ClientProgramAssignment,
   ClientCheckIn,
+  ClientInbodyScan,
   ClientScheduledWorkoutWithExercises,
   Exercise,
   Program,
@@ -61,6 +62,7 @@ export default async function ClientDetailPage({
     streakWorkoutsResult,
     checkInsResult,
     progressPhotosResult,
+    inbodyScansResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
@@ -140,6 +142,12 @@ export default async function ClientDetailPage({
       .order('photo_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50),
+    supabase
+      .from('client_inbody_scans')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('scan_date', { ascending: false })
+      .limit(50),
   ])
 
   if (!data) {
@@ -187,6 +195,7 @@ export default async function ClientDetailPage({
     supabase,
     progressPhotosResult.data ?? []
   )
+  const inbodyScans = (inbodyScansResult.data ?? []) as ClientInbodyScan[]
   const photosByCheckInId = progressPhotos.reduce<
     Record<string, typeof progressPhotos>
   >((accumulator, photo) => {
@@ -257,6 +266,7 @@ export default async function ClientDetailPage({
           streakWorkouts={streakWorkouts}
           checkIns={checkIns}
           progressPhotos={progressPhotos}
+          inbodyScans={inbodyScans}
           photoCounts={photoCounts}
           photosByCheckInId={photosByCheckInId}
           loadMetrics={{
