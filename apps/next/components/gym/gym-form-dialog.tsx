@@ -67,22 +67,28 @@ export function GymFormDialog({
   }, [open, gym, form])
 
   async function onSubmit(values: GymFormValues) {
-    const result = isEdit
-      ? await updateGymRecord(gym!.id, values)
-      : await createGymRecord(values)
+    if (isEdit) {
+      const result = await updateGymRecord(gym!.id, values)
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
 
+      toast.success('Gym updated.')
+      setOpen(false)
+      router.refresh()
+      return
+    }
+
+    const result = await createGymRecord(values)
     if (!result.success) {
       toast.error(result.error)
       return
     }
 
-    toast.success(isEdit ? 'Gym updated.' : 'Gym created.')
+    toast.success('Gym created.')
     setOpen(false)
-    if (isEdit) {
-      router.refresh()
-    } else {
-      router.push(`/gym?gym=${result.gymId}`)
-    }
+    router.push(`/gym?gym=${result.gymId}`)
   }
 
   return (
