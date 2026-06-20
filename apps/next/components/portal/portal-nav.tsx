@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Scale,
+  Target,
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ export const portalBaseNavItems: PortalNavItem[] = [
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
   { label: 'Messages', href: '/portal/messages', icon: MessageSquare },
   { label: 'InBody', href: '/portal/inbody', icon: Scale },
+  { label: 'Goals', href: '/portal/goals', icon: Target },
   { label: 'Progress', href: '/portal/progress', icon: TrendingUp },
 ]
 

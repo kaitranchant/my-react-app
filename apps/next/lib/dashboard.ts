@@ -204,7 +204,7 @@ export function formatActivityMessage(item: ActivityItem): string {
 
 export function getActivityHref(item: ActivityItem): string {
   if (item.kind === 'check_in') {
-    return `/clients/${item.clientId}?tab=check-ins`
+    return `/clients/${item.clientId}?tab=progress&section=check-ins`
   }
   return `/clients/${item.clientId}`
 }

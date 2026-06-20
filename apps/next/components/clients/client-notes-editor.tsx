@@ -54,7 +54,7 @@ export function ClientNotesEditor({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Notes</CardTitle>
+        <CardTitle className="text-base">Coach notes</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Textarea

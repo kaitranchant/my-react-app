@@ -161,7 +161,7 @@ function CheckInRow({
               <CardTitle className="text-base">
                 {showClient && checkIn.client ? (
                   <Link
-                    href={`/clients/${checkIn.client.id}?tab=check-ins`}
+                    href={`/clients/${checkIn.client.id}?tab=progress&section=check-ins`}
                     className="hover:text-brand transition-colors"
                   >
                     {checkIn.client.full_name}
@@ -251,7 +251,7 @@ function CheckInRow({
               </Button>
               {clientId && (
                 <Button type="button" variant="outline" size="sm" asChild>
-                  <Link href={`/clients/${clientId}?tab=check-ins`}>View client</Link>
+                  <Link href={`/clients/${clientId}?tab=progress&section=check-ins`}>View client</Link>
                 </Button>
               )}
               <Button

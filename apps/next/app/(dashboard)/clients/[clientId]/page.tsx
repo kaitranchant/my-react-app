@@ -29,6 +29,7 @@ import type {
   ClientProgramAssignment,
   ClientCheckIn,
   ClientInbodyScan,
+  ClientGoal,
   ClientMessage,
   ClientScheduledWorkoutWithExercises,
   ClientTeamMembership,
@@ -42,7 +43,7 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ clientId: string }>
-  searchParams: Promise<{ tab?: string; action?: string; date?: string }>
+  searchParams: Promise<{ tab?: string; section?: string; action?: string; date?: string }>
 }) {
   const { clientId } = await params
   const { tab: initialTab } = await searchParams
@@ -83,6 +84,7 @@ export default async function ClientDetailPage({
     messagesResult,
     progressPhotosResult,
     inbodyScansResult,
+    clientGoalsResult,
     teamMembershipsResult,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
@@ -176,6 +178,11 @@ export default async function ClientDetailPage({
       .order('scan_date', { ascending: false })
       .limit(50),
     supabase
+      .from('client_goals')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('sort_order', { ascending: true }),
+    supabase
       .from('team_members')
       .select('team:teams(id, name)')
       .eq('client_id', clientId),
@@ -251,6 +258,8 @@ export default async function ClientDetailPage({
     progressPhotosResult.data ?? []
   )
   const inbodyScans = (inbodyScansResult.data ?? []) as ClientInbodyScan[]
+  const clientGoals = (clientGoalsResult.data ?? []) as ClientGoal[]
+  const goalsSchemaError = clientGoalsResult.error?.message ?? null
   const teamMemberships = ((teamMembershipsResult.data ?? []) as {
     team: { id: string; name: string } | null
   }[])
@@ -347,6 +356,8 @@ export default async function ClientDetailPage({
           messagesSchemaError={messagesSchemaError}
           progressPhotos={progressPhotos}
           inbodyScans={inbodyScans}
+          clientGoals={clientGoals}
+          goalsSchemaError={goalsSchemaError}
           photoCounts={photoCounts}
           photosByCheckInId={photosByCheckInId}
           loadMetrics={{

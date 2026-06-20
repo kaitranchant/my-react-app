@@ -20,12 +20,12 @@ export function ClientQuickActions({ clientId }: ClientQuickActionsProps) {
     {
       label: 'Log session',
       icon: ClipboardCheck,
-      href: `${base}?tab=calendar&action=log`,
+      href: `${base}?tab=training&action=log`,
     },
     {
       label: 'Schedule workout',
       icon: CalendarPlus,
-      href: `${base}?tab=calendar&action=schedule`,
+      href: `${base}?tab=training&action=schedule`,
     },
     {
       label: 'Message',

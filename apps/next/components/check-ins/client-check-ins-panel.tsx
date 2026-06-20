@@ -24,13 +24,13 @@ export function ClientCheckInsPanel({
   photosByCheckInId = {},
   weightUnit = 'lbs',
 }: ClientCheckInsPanelProps) {
-  const [tab, setTab] = React.useState<'history' | 'log'>('history')
+  const [tab, setTab] = React.useState<'history' | 'log'>('log')
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab(value as 'history' | 'log')}>
       <TabsList>
-        <TabsTrigger value="history">History</TabsTrigger>
         <TabsTrigger value="log">Log check-in</TabsTrigger>
+        <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
 
       <TabsContent value="history" className="mt-4">

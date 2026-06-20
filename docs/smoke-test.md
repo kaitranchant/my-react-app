@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0035**)
+- `yarn db:check` passes (schema through migration **0038**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -125,6 +125,15 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Change **Default check-in frequency** to **Daily** — sign in as client and confirm portal check-in card shows **Due today**
 - [ ] Change frequency to **Bi-weekly** — portal card shows **Due this period** until a check-in is submitted
 
+## 12. Client goals
+
+- [ ] Open a client → **Progress** tab → **Goals**
+- [ ] Click the **Steps** preset → **Add daily target** — goal appears in the list
+- [ ] Add a body composition goal (e.g. lose 20 lbs) — preview card shows below
+- [ ] Sign in as client → **Goals** in portal sidebar (`/portal/goals`)
+- [ ] Confirm daily target and composition goal appear
+- [ ] (Optional) Edit a goal from the coach Goals tab — changes reflect on portal refresh
+
 ---
 
 ## Troubleshooting
@@ -147,6 +156,7 @@ Repeatable manual verification for the coach → client loop and recent features
 | Shared client shows "Primary coach" without a name | Run [`supabase/apply-gym-peer-profiles.sql`](../supabase/apply-gym-peer-profiles.sql) or `yarn db:push` (0033) |
 | Coach preferences fail to save | Run [`supabase/apply-coach-preferences.sql`](../supabase/apply-coach-preferences.sql) or `yarn db:push` (0034) |
 | Notification toggles fail to save | Run [`supabase/apply-notification-preferences.sql`](../supabase/apply-notification-preferences.sql) or `yarn db:push` (0035) |
+| Goals tab or portal goals page fails | Run [`supabase/apply-client-goals.sql`](../supabase/apply-client-goals.sql) or `yarn db:push` (0038) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |

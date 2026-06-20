@@ -10,6 +10,7 @@ import { ClientCalendarPanel } from '@/components/calendar/client-calendar-panel
 import { ClientProgramsPanel } from '@/components/programs/client-programs-panel'
 import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-panel'
 import { ClientInbodyPanel } from '@/components/inbody/client-inbody-panel'
+import { ClientGoalsPanel } from '@/components/goals/client-goals-panel'
 import { ClientProgressPhotosPanel } from '@/components/progress-photos/client-progress-photos-panel'
 import { CoachClientMessagesPanel } from '@/components/messages/coach-client-messages-panel'
 import type { RecentPrHighlight } from '@/lib/pr-records'
@@ -23,6 +24,7 @@ import type {
   ClientScheduledWorkoutWithExercises,
   ClientCheckIn,
   ClientInbodyScan,
+  ClientGoal,
   ClientMessage,
   ClientProgressPhotoWithUrl,
   Exercise,
@@ -30,21 +32,95 @@ import type {
   Workout,
 } from 'app/types/database'
 
-const VALID_TABS = [
-  'overview',
+const MAIN_TABS = ['overview', 'training', 'progress', 'messages'] as const
+type MainTab = (typeof MAIN_TABS)[number]
+
+const TRAINING_SECTIONS = ['calendar', 'programs'] as const
+type TrainingSection = (typeof TRAINING_SECTIONS)[number]
+
+const PROGRESS_SECTIONS = [
+  'goals',
+  'check-ins',
+  'inbody',
+  'progress-photos',
+] as const
+type ProgressSection = (typeof PROGRESS_SECTIONS)[number]
+
+const LEGACY_TABS = [
   'calendar',
   'programs',
   'check-ins',
   'progress-photos',
   'inbody',
-  'messages',
+  'goals',
   'notes',
 ] as const
 
-type TabValue = (typeof VALID_TABS)[number]
-
 const VALID_CALENDAR_ACTIONS = ['log', 'schedule'] as const
 type CalendarAction = (typeof VALID_CALENDAR_ACTIONS)[number]
+
+function resolveMainTab(tab: string | null): MainTab {
+  if (tab && MAIN_TABS.includes(tab as MainTab)) {
+    return tab as MainTab
+  }
+  if (tab === 'calendar' || tab === 'programs') {
+    return 'training'
+  }
+  if (
+    tab === 'check-ins' ||
+    tab === 'progress-photos' ||
+    tab === 'inbody' ||
+    tab === 'goals'
+  ) {
+    return 'progress'
+  }
+  if (tab === 'notes') {
+    return 'overview'
+  }
+  return 'overview'
+}
+
+function resolveTrainingSection(
+  tab: string | null,
+  section: string | null
+): TrainingSection {
+  if (section && TRAINING_SECTIONS.includes(section as TrainingSection)) {
+    return section as TrainingSection
+  }
+  if (tab === 'programs') {
+    return 'programs'
+  }
+  return 'calendar'
+}
+
+function resolveProgressSection(
+  tab: string | null,
+  section: string | null
+): ProgressSection {
+  if (section && PROGRESS_SECTIONS.includes(section as ProgressSection)) {
+    return section as ProgressSection
+  }
+  if (
+    tab === 'check-ins' ||
+    tab === 'progress-photos' ||
+    tab === 'inbody' ||
+    tab === 'goals'
+  ) {
+    return tab as ProgressSection
+  }
+  return 'goals'
+}
+
+function progressSectionForUrl(section: ProgressSection): string | null {
+  return section === 'goals' ? null : section
+}
+
+function isLegacyTab(tab: string | null): boolean {
+  return (
+    tab !== null &&
+    LEGACY_TABS.includes(tab as (typeof LEGACY_TABS)[number])
+  )
+}
 
 type ClientDetailTabsProps = {
   client: Client
@@ -68,6 +144,8 @@ type ClientDetailTabsProps = {
   messagesSchemaError?: string | null
   progressPhotos?: ClientProgressPhotoWithUrl[]
   inbodyScans?: ClientInbodyScan[]
+  clientGoals?: ClientGoal[]
+  goalsSchemaError?: string | null
   photoCounts?: Record<string, number>
   photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
   loadMetrics?: {
@@ -79,6 +157,7 @@ type ClientDetailTabsProps = {
   recentPrs?: RecentPrHighlight[]
   coachPreferences?: CoachPreferences
   initialTab?: string
+  initialSection?: string
 }
 
 export function ClientDetailTabs({
@@ -94,20 +173,32 @@ export function ClientDetailTabs({
   messagesSchemaError = null,
   progressPhotos = [],
   inbodyScans = [],
+  clientGoals = [],
+  goalsSchemaError = null,
   photoCounts = {},
   photosByCheckInId = {},
   loadMetrics,
   recentPrs = [],
   coachPreferences,
   initialTab,
+  initialSection,
 }: ClientDetailTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const defaultTab: TabValue = VALID_TABS.includes(initialTab as TabValue)
-    ? (initialTab as TabValue)
-    : 'overview'
-  const [tab, setTab] = React.useState<TabValue>(defaultTab)
+
+  const urlTab = searchParams.get('tab') ?? initialTab ?? null
+  const urlSection = searchParams.get('section') ?? initialSection ?? null
+
+  const [mainTab, setMainTab] = React.useState<MainTab>(() =>
+    resolveMainTab(urlTab)
+  )
+  const [trainingSection, setTrainingSection] = React.useState<TrainingSection>(
+    () => resolveTrainingSection(urlTab, urlSection)
+  )
+  const [progressSection, setProgressSection] = React.useState<ProgressSection>(
+    () => resolveProgressSection(urlTab, urlSection)
+  )
 
   const rawAction = searchParams.get('action')
   const calendarAction = VALID_CALENDAR_ACTIONS.includes(
@@ -116,6 +207,25 @@ export function ClientDetailTabs({
     ? (rawAction as CalendarAction)
     : null
   const calendarActionDate = coerceDateKey(searchParams.get('date'))
+
+  function buildUrl(nextMain: MainTab, section?: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+
+    if (nextMain === 'overview') {
+      params.delete('tab')
+      params.delete('section')
+    } else {
+      params.set('tab', nextMain)
+      if (section) {
+        params.set('section', section)
+      } else {
+        params.delete('section')
+      }
+    }
+
+    const query = params.toString()
+    return query ? `${pathname}?${query}` : pathname
+  }
 
   function consumeCalendarAction() {
     const params = new URLSearchParams(searchParams.toString())
@@ -126,39 +236,69 @@ export function ClientDetailTabs({
   }
 
   React.useEffect(() => {
-    const urlTab = searchParams.get('tab')
-    if (urlTab && VALID_TABS.includes(urlTab as TabValue)) {
-      setTab(urlTab as TabValue)
+    const tab = searchParams.get('tab')
+    const section = searchParams.get('section')
+    const resolvedMain = resolveMainTab(tab)
+    setMainTab(resolvedMain)
+    setTrainingSection(resolveTrainingSection(tab, section))
+    setProgressSection(resolveProgressSection(tab, section))
+
+    if (isLegacyTab(tab)) {
+      const href =
+        resolvedMain === 'training'
+          ? buildUrl('training', resolveTrainingSection(tab, section))
+          : resolvedMain === 'progress'
+            ? buildUrl('progress', progressSectionForUrl(resolveProgressSection(tab, section)))
+            : buildUrl('overview')
+      router.replace(href, { scroll: false })
     }
   }, [searchParams])
 
-  function handleTabChange(value: string) {
-    const next = value as TabValue
-    setTab(next)
-    const params = new URLSearchParams(searchParams.toString())
-    if (next === 'overview') {
-      params.delete('tab')
-    } else {
-      params.set('tab', next)
-    }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  function handleMainTabChange(value: string) {
+    const next = value as MainTab
+    setMainTab(next)
+    router.replace(buildUrl(next), { scroll: false })
+  }
+
+  function handleTrainingSectionChange(value: string) {
+    const next = value as TrainingSection
+    setTrainingSection(next)
+    setMainTab('training')
+    router.replace(
+      buildUrl('training', next === 'calendar' ? null : next),
+      { scroll: false }
+    )
+  }
+
+  function handleProgressSectionChange(value: string) {
+    const next = value as ProgressSection
+    setProgressSection(next)
+    setMainTab('progress')
+    router.replace(
+      buildUrl('progress', progressSectionForUrl(next)),
+      { scroll: false }
+    )
+  }
+
+  function openTraining(section: TrainingSection = 'calendar') {
+    setMainTab('training')
+    setTrainingSection(section)
+    router.replace(
+      buildUrl('training', section === 'calendar' ? null : section),
+      { scroll: false }
+    )
   }
 
   return (
-    <Tabs value={tab} onValueChange={handleTabChange}>
+    <Tabs value={mainTab} onValueChange={handleMainTabChange}>
       <TabsList className="h-10">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="calendar">Calendar</TabsTrigger>
-        <TabsTrigger value="programs">Programs</TabsTrigger>
-        <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
-        <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
-        <TabsTrigger value="inbody">InBody results</TabsTrigger>
+        <TabsTrigger value="training">Training</TabsTrigger>
+        <TabsTrigger value="progress">Progress</TabsTrigger>
         <TabsTrigger value="messages">Messages</TabsTrigger>
-        <TabsTrigger value="notes">Notes</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview" className="mt-4">
+      <TabsContent value="overview" className="mt-4 space-y-4">
         <ClientOverview
           client={client}
           activeAssignment={activeAssignment}
@@ -169,58 +309,93 @@ export function ClientDetailTabs({
           recentPrs={recentPrs}
           weekStartsOn={coachPreferences?.weekStartsOn}
           weightUnit={coachPreferences?.weightUnit}
-          onOpenNotes={() => handleTabChange('notes')}
-          onOpenCalendar={() => handleTabChange('calendar')}
+          onOpenCalendar={() => openTraining('calendar')}
         />
+        <ClientNotesEditor clientId={client.id} initialNotes={client.notes} />
       </TabsContent>
 
-      <TabsContent value="calendar" className="mt-4">
-        <ClientCalendarPanel
-          clientId={client.id}
-          clientName={client.full_name}
-          exercises={calendar.exercises}
-          libraryWorkouts={calendar.libraryWorkouts}
-          schemaError={calendar.schemaError}
-          initialYear={calendar.year}
-          initialMonth={calendar.month}
-          initialSelectedDate={calendar.selectedDate}
-          initialDays={calendar.days}
-          initialWorkout={calendar.selectedWorkout}
-          initialAction={calendarAction}
-          initialActionDate={calendarActionDate}
-          onActionConsumed={consumeCalendarAction}
-          weightUnit={coachPreferences?.weightUnit}
-        />
+      <TabsContent value="training" className="mt-4">
+        <Tabs
+          value={trainingSection}
+          onValueChange={handleTrainingSectionChange}
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="programs">Programs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="mt-4">
+            <ClientCalendarPanel
+              clientId={client.id}
+              clientName={client.full_name}
+              exercises={calendar.exercises}
+              libraryWorkouts={calendar.libraryWorkouts}
+              schemaError={calendar.schemaError}
+              initialYear={calendar.year}
+              initialMonth={calendar.month}
+              initialSelectedDate={calendar.selectedDate}
+              initialDays={calendar.days}
+              initialWorkout={calendar.selectedWorkout}
+              initialAction={calendarAction}
+              initialActionDate={calendarActionDate}
+              onActionConsumed={consumeCalendarAction}
+              weightUnit={coachPreferences?.weightUnit}
+            />
+          </TabsContent>
+
+          <TabsContent value="programs" className="mt-4">
+            <ClientProgramsPanel
+              clientId={client.id}
+              activeAssignment={activeAssignment}
+              availablePrograms={availablePrograms}
+            />
+          </TabsContent>
+        </Tabs>
       </TabsContent>
 
-      <TabsContent value="programs" className="mt-4">
-        <ClientProgramsPanel
-          clientId={client.id}
-          activeAssignment={activeAssignment}
-          availablePrograms={availablePrograms}
-        />
-      </TabsContent>
+      <TabsContent value="progress" className="mt-4">
+        <Tabs
+          value={progressSection}
+          onValueChange={handleProgressSectionChange}
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="goals">Goals</TabsTrigger>
+            <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
+            <TabsTrigger value="inbody">InBody results</TabsTrigger>
+            <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
+          </TabsList>
 
-      <TabsContent value="check-ins" className="mt-4">
-        <ClientCheckInsPanel
-          client={client}
-          checkIns={checkIns}
-          photoCounts={photoCounts}
-          photosByCheckInId={photosByCheckInId}
-          weightUnit={coachPreferences?.weightUnit}
-        />
-      </TabsContent>
+          <TabsContent value="goals" className="mt-4">
+            <ClientGoalsPanel
+              client={client}
+              goals={clientGoals}
+              scans={inbodyScans}
+              schemaError={goalsSchemaError}
+            />
+          </TabsContent>
 
-      <TabsContent value="progress-photos" className="mt-4">
-        <ClientProgressPhotosPanel
-          clientId={client.id}
-          clientName={client.full_name}
-          photos={progressPhotos}
-        />
-      </TabsContent>
+          <TabsContent value="check-ins" className="mt-4">
+            <ClientCheckInsPanel
+              client={client}
+              checkIns={checkIns}
+              photoCounts={photoCounts}
+              photosByCheckInId={photosByCheckInId}
+              weightUnit={coachPreferences?.weightUnit}
+            />
+          </TabsContent>
 
-      <TabsContent value="inbody" className="mt-4">
-        <ClientInbodyPanel client={client} scans={inbodyScans} />
+          <TabsContent value="inbody" className="mt-4">
+            <ClientInbodyPanel client={client} scans={inbodyScans} />
+          </TabsContent>
+
+          <TabsContent value="progress-photos" className="mt-4">
+            <ClientProgressPhotosPanel
+              clientId={client.id}
+              clientName={client.full_name}
+              photos={progressPhotos}
+            />
+          </TabsContent>
+        </Tabs>
       </TabsContent>
 
       <TabsContent value="messages" className="mt-4">
@@ -230,10 +405,6 @@ export function ClientDetailTabs({
           messages={messages}
           schemaError={messagesSchemaError}
         />
-      </TabsContent>
-
-      <TabsContent value="notes" className="mt-4">
-        <ClientNotesEditor clientId={client.id} initialNotes={client.notes} />
       </TabsContent>
     </Tabs>
   )

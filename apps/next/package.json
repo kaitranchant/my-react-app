@@ -13,7 +13,7 @@
     "backfill:prs": "tsx scripts/backfill-pr-records.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:unit": "tsx --test lib/load-analytics.test.ts lib/workout-log-prescription.test.ts"
+    "test:unit": "tsx --test lib/load-analytics.test.ts lib/workout-log-prescription.test.ts lib/goal-progress.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

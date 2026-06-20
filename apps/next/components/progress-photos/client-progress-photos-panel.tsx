@@ -235,7 +235,7 @@ export function ProgressPhotosFeed({ photos }: ProgressPhotosFeedProps) {
                     <div className="space-y-1">
                       {photo.client ? (
                         <Link
-                          href={`/clients/${photo.client.id}?tab=progress-photos`}
+                          href={`/clients/${photo.client.id}?tab=progress&section=progress-photos`}
                           className="hover:text-brand text-sm font-medium transition-colors"
                         >
                           {photo.client.full_name}

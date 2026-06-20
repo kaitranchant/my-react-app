@@ -164,7 +164,6 @@ type ClientOverviewProps = {
   recentPrs?: RecentPrHighlight[]
   weekStartsOn?: CoachPreferences['weekStartsOn']
   weightUnit?: CoachPreferences['weightUnit']
-  onOpenNotes?: () => void
   onOpenCalendar?: () => void
 }
 
@@ -178,7 +177,6 @@ export function ClientOverview({
   recentPrs = [],
   weekStartsOn = 'monday',
   weightUnit = 'lbs',
-  onOpenNotes,
   onOpenCalendar,
 }: ClientOverviewProps) {
   const weekDays = getWeekDayLabels(weekStartsOn)
@@ -263,38 +261,6 @@ export function ClientOverview({
           hint="Most recent session activity"
         />
       </div>
-
-      {hasNotes && (
-        <Card className="gap-0 py-0">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
-            <div className="flex items-center gap-2">
-              <SectionLabel>Coach notes</SectionLabel>
-              {flaggedNotes && (
-                <Badge variant="warning" className="text-xs">
-                  Review
-                </Badge>
-              )}
-            </div>
-            {onOpenNotes && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-8 gap-1 px-2 text-xs"
-                onClick={onOpenNotes}
-              >
-                Edit notes
-                <ArrowRight className="size-3.5" />
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <blockquote className="border-brand text-foreground border-l-[3px] py-1 pl-4 text-sm leading-relaxed">
-              {client.notes!.trim()}
-            </blockquote>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="gap-0 py-0">
@@ -401,7 +367,7 @@ export function ClientOverview({
                     label={
                       hasProgram
                         ? `Program assigned: ${activeAssignment!.program.name}`
-                        : 'Assign a program on the Programs tab'
+                        : 'Assign a program in Training'
                     }
                   />
                   <ChecklistRow
@@ -409,7 +375,7 @@ export function ClientOverview({
                     label={
                       hasScheduledWorkouts
                         ? `${weekSessions.length} workout${weekSessions.length === 1 ? '' : 's'} scheduled this week`
-                        : 'Schedule workouts on the Calendar tab'
+                        : 'Schedule workouts in Training'
                     }
                   />
                 </div>
@@ -495,7 +461,7 @@ export function ClientOverview({
                   <div key={dateKey} className="flex flex-col items-center gap-2">
                     {session ? (
                       <Link
-                        href={`/clients/${client.id}?tab=calendar&action=log&date=${dateKey}`}
+                        href={`/clients/${client.id}?tab=training&action=log&date=${dateKey}`}
                         title={session.name}
                         aria-label={`Open ${session.name} workout log`}
                         className={boxClassName}
@@ -522,7 +488,7 @@ export function ClientOverview({
             <p className="text-muted-foreground mt-4 text-xs">
               {hasScheduledWorkouts
                 ? 'Click a day to open its workout log.'
-                : 'No workouts scheduled this week — use the Calendar tab to plan sessions.'}
+                : 'No workouts scheduled this week — use Training to plan sessions.'}
             </p>
           </CardContent>
         </Card>
@@ -590,31 +556,6 @@ export function ClientOverview({
         </Card>
       </div>
 
-      {!hasNotes && (
-        <Card className="gap-0 py-0">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
-            <SectionLabel>Coach notes</SectionLabel>
-            {onOpenNotes && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-8 gap-1 px-2 text-xs"
-                onClick={onOpenNotes}
-              >
-                Add notes
-                <ArrowRight className="size-3.5" />
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              No notes yet. Jot down injuries, preferences, or context from your
-              last session so you are prepared before the next one.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

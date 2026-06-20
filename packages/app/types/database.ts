@@ -38,6 +38,20 @@ export type MessageSenderRole = 'coach' | 'client'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
+export type ClientGoalCategory = 'composition' | 'daily'
+export type ClientGoalDirection = 'decrease' | 'increase'
+export type ClientGoalComparison = 'at_least' | 'at_most'
+export type CompositionGoalMetric =
+  | 'weight_lbs'
+  | 'percent_body_fat'
+  | 'skeletal_muscle_mass_lbs'
+  | 'body_fat_mass_lbs'
+  | 'lean_body_mass_lbs'
+  | 'bmi'
+  | 'total_body_water_lbs'
+  | 'dry_lean_mass_lbs'
+  | 'basal_metabolic_rate_kcal'
+  | 'skeletal_muscle_index'
 
 export type ScheduledExerciseBlock =
   | 'warmup'
@@ -1480,6 +1494,72 @@ export type Database = {
           },
         ]
       }
+      client_goals: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          category: ClientGoalCategory
+          metric: CompositionGoalMetric | null
+          direction: ClientGoalDirection | null
+          target_amount: number | null
+          title: string | null
+          target_value: number | null
+          comparison: ClientGoalComparison | null
+          unit: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          category: ClientGoalCategory
+          metric?: CompositionGoalMetric | null
+          direction?: ClientGoalDirection | null
+          target_amount?: number | null
+          title?: string | null
+          target_value?: number | null
+          comparison?: ClientGoalComparison | null
+          unit?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          category?: ClientGoalCategory
+          metric?: CompositionGoalMetric | null
+          direction?: ClientGoalDirection | null
+          target_amount?: number | null
+          title?: string | null
+          target_value?: number | null
+          comparison?: ClientGoalComparison | null
+          unit?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_goals_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_goals_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exercise_pr_records: {
         Row: {
           id: string
@@ -1903,6 +1983,12 @@ export type ClientInbodyScanInsert =
   Database['public']['Tables']['client_inbody_scans']['Insert']
 export type ClientInbodyScanUpdate =
   Database['public']['Tables']['client_inbody_scans']['Update']
+
+export type ClientGoal = Database['public']['Tables']['client_goals']['Row']
+export type ClientGoalInsert =
+  Database['public']['Tables']['client_goals']['Insert']
+export type ClientGoalUpdate =
+  Database['public']['Tables']['client_goals']['Update']
 
 export type ExercisePrRecord =
   Database['public']['Tables']['exercise_pr_records']['Row']
