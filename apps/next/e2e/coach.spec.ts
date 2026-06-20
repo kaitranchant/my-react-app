@@ -1,4 +1,9 @@
-import { test, expect, E2E_CLIENT_NAME } from './fixtures'
+import {
+  test,
+  expect,
+  E2E_CLIENT_NAME,
+  expectSidebarLink,
+} from './fixtures'
 
 test.describe('Coach auth and client management', () => {
   test('coach can sign in and add a client', async ({ coachPage: page }) => {
@@ -7,27 +12,27 @@ test.describe('Coach auth and client management', () => {
     await page.goto('/clients')
     await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
 
+    const dialog = page.getByRole('dialog', { name: 'Add client' })
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByRole('tab', { name: 'Add manually' }).click()
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('tab', { name: 'Add manually' }).click()
 
-    const panel = page.getByRole('tabpanel', { name: 'Add manually' })
     const uniqueName = `E2E Client ${Date.now()}`
-    await panel.getByLabel('Full name').fill(uniqueName)
-    await panel.getByLabel('Email').fill(`e2e-${Date.now()}@coaching-app.test`)
+    await dialog.getByLabel('Full name').fill(uniqueName)
+    await dialog.getByLabel('Email').fill(`e2e-${Date.now()}@coaching-app.test`)
 
-    await panel.getByRole('button', { name: 'Add client' }).click()
+    const submit = dialog.getByRole('button', { name: 'Add client', exact: true })
+    await submit.scrollIntoViewIfNeeded()
+    await submit.click()
 
-    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
+    await expect(page.getByText('Client added')).toBeVisible({ timeout: 15_000 })
+    await expect(dialog).toBeHidden({ timeout: 15_000 })
     await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 15_000 })
   })
 
   test('coach dashboard loads with navigation', async ({ coachPage: page }) => {
-    await expect(
-      page.getByRole('link', { name: 'Clients', exact: true })
-    ).toBeVisible()
-    await expect(
-      page.getByRole('link', { name: 'Library', exact: true })
-    ).toBeVisible()
+    await expectSidebarLink(page, 'Athletes', 'Clients')
+    await expectSidebarLink(page, 'Programming', 'Library')
   })
 })
 

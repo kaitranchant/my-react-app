@@ -1596,6 +1596,19 @@ export type Database = {
         Args: { p_token: string; p_user_id: string; p_email: string }
         Returns: string
       }
+      coach_create_client: {
+        Args: {
+          p_full_name: string
+          p_email?: string | null
+          p_phone?: string | null
+          p_status?: ClientStatus
+          p_coaching_type?: ClientCoachingType | null
+          p_gym_id?: string | null
+          p_goal?: string | null
+          p_notes?: string | null
+        }
+        Returns: string
+      }
     }
     Enums: {
       client_coaching_type: ClientCoachingType

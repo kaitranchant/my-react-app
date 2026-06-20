@@ -16,7 +16,7 @@ import {
   type ClientFormValues,
   type InviteClientValues,
 } from '@/lib/validations/client'
-import type { ClientStatus } from 'app/types/database'
+import type { ClientCoachingType, ClientStatus } from 'app/types/database'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
@@ -112,6 +112,12 @@ async function rejectCoachSelfClientMutation(
   return null
 }
 
+function coachingTypeForInsert(
+  coachingType?: ClientFormValues['coachingType']
+): ClientCoachingType | null {
+  return coachingType && coachingType !== 'none' ? coachingType : null
+}
+
 export async function createClientRecord(
   values: ClientFormValues
 ): Promise<CreateClientResult> {
@@ -126,22 +132,23 @@ export async function createClientRecord(
     return { success: false, error: gymResult.error }
   }
 
-  const { data, error } = await supabase
-    .from('clients')
-    .insert({
-      ...toRow(parsed.data),
-      coach_id: user.id,
-      gym_id: gymResult.gymId,
-    })
-    .select('id')
-    .single()
+  const { data: clientId, error } = await supabase.rpc('coach_create_client', {
+    p_full_name: parsed.data.fullName,
+    p_email: parsed.data.email ?? '',
+    p_phone: parsed.data.phone ?? '',
+    p_status: parsed.data.status,
+    p_coaching_type: coachingTypeForInsert(parsed.data.coachingType),
+    p_gym_id: gymResult.gymId,
+    p_goal: parsed.data.goal ?? '',
+    p_notes: parsed.data.notes ?? '',
+  })
 
-  if (error || !data) {
+  if (error || !clientId) {
     return { success: false, error: error?.message ?? 'Could not create client.' }
   }
 
   revalidateClients()
-  return { success: true, clientId: data.id }
+  return { success: true, clientId }
 }
 
 export async function updateClientRecord(

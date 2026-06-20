@@ -23,11 +23,41 @@ export const hasE2ECredentials = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-async function login(page: Page, email: string, password: string) {
+async function login(
+  page: Page,
+  email: string,
+  password: string,
+  expectedPath: RegExp
+) {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await Promise.all([
+    page.waitForURL(expectedPath, { timeout: 20_000 }),
+    page.getByRole('button', { name: 'Sign in' }).click(),
+  ])
+}
+
+export async function expandSidebarGroup(page: Page, groupLabel: string) {
+  const group = page.getByRole('button', { name: groupLabel, exact: true })
+  if ((await group.getAttribute('aria-expanded')) !== 'true') {
+    await group.click()
+  }
+}
+
+export async function expectSidebarLink(
+  page: Page,
+  groupLabel: string,
+  linkLabel: string
+) {
+  await expandSidebarGroup(page, groupLabel)
+  await expect(
+    page.getByRole('link', { name: linkLabel, exact: true })
+  ).toBeVisible()
+}
+
+export function teamIdFromUrl(url: string) {
+  return url.match(/\/teams\/([^/?#]+)/)?.[1] ?? null
 }
 
 export { login }
@@ -66,14 +96,12 @@ type E2EFixtures = {
 export const test = base.extend<E2EFixtures>({
   coachPage: async ({ page }, use) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD)
-    await expect(page).toHaveURL(/\/dashboard/)
+    await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
     await use(page)
   },
   clientPage: async ({ page }, use) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD)
-    await expect(page).toHaveURL(/\/portal/)
+    await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
     await use(page)
   },
 })

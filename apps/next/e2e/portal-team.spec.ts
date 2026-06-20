@@ -7,7 +7,9 @@ import {
   E2E_COACH_EMAIL,
   E2E_COACH_PASSWORD,
   hasE2ECredentials,
+  login,
   signOutFromApp,
+  teamIdFromUrl,
 } from './fixtures'
 
 function tomorrowDateKey() {
@@ -36,6 +38,8 @@ test.describe('Portal team', () => {
     await page.getByLabel('Name').fill(teamName)
     await page.getByRole('button', { name: 'Create team', exact: true }).click()
     await expect(page).toHaveURL(/\/teams\//, { timeout: 15_000 })
+    const teamId = teamIdFromUrl(page.url())
+    expect(teamId).toBeTruthy()
 
     await page.getByRole('tab', { name: 'Members' }).click()
     await page.getByRole('button', { name: 'Add member' }).click()
@@ -65,13 +69,9 @@ test.describe('Portal team', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/portal/)
+    await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
 
-    await page.goto('/portal/team')
+    await page.goto(`/portal/team?team=${teamId}`)
     await expect(page.getByRole('heading', { name: teamName })).toBeVisible({
       timeout: 15_000,
     })
@@ -85,11 +85,7 @@ test.describe('Portal team', () => {
 
     await signOutFromApp(page, E2E_CLIENT_NAME)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard/)
+    await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
 
     await page.goto('/teams')
     await page.getByRole('link', { name: teamName }).click()

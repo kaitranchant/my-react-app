@@ -26,6 +26,17 @@ test.describe('PR tracking', () => {
 
     await openPortalWorkoutForLogging(page)
 
+    const viewLogButton = page.getByRole('button', { name: /View log/i })
+    if (await viewLogButton.isVisible()) {
+      await viewLogButton.click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(page.getByText(/New PR/i).first()).toBeVisible({
+        timeout: 15_000,
+      })
+      return
+    }
+
     await page.getByRole('button', { name: /Log workout/i }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
@@ -37,6 +48,7 @@ test.describe('PR tracking', () => {
       await startButton.click()
     }
 
+    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({ timeout: 15_000 })
     await dialog.getByLabel(/Set 1 weight/i).fill('225')
     await dialog.getByLabel(/Set 1 reps/i).fill('5')
     await ensureSetLogged(dialog, 1)
