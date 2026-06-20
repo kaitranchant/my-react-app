@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/select'
 import { AddClientDialog } from '@/components/clients/add-client-dialog'
 
-export function ClientsToolbar() {
+export function ClientsToolbar({
+  gyms = [],
+}: {
+  gyms?: { id: string; name: string }[]
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -76,6 +80,7 @@ export function ClientsToolbar() {
       </div>
 
       <AddClientDialog
+        gyms={gyms}
         trigger={
           <Button>
             <Plus className="size-4" />

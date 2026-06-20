@@ -15,6 +15,7 @@ import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { TodaysSchedule } from '@/components/dashboard/todays-schedule'
+import { getGymsForCoach } from '@/lib/gym-access'
 import type { Client } from 'app/types/database'
 
 export const metadata = {
@@ -29,6 +30,8 @@ export default async function DashboardPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const coachGyms = user ? await getGymsForCoach(user.id) : []
 
   const [{ data: profile }, { data: clients }, { data: todayWorkouts }, { data: weekWorkouts }, { data: recentWorkouts }, { data: weekCheckIns }, { count: pendingCheckInsCount }, { data: recentCheckIns }] =
     await Promise.all([
@@ -202,7 +205,10 @@ export default async function DashboardPage() {
               {summary}
             </p>
           </div>
-          <QuickActions clients={activeClients} />
+          <QuickActions
+            clients={activeClients}
+            gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+          />
         </div>
       </section>
 

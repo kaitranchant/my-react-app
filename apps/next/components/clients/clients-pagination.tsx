@@ -9,7 +9,7 @@ type ClientsPaginationProps = {
   page: number
   totalPages: number
   totalCount: number
-  searchParams: { q?: string; status?: string }
+  searchParams: { q?: string; status?: string; scope?: string }
 }
 
 function buildHref(
@@ -19,6 +19,9 @@ function buildHref(
   const params = new URLSearchParams()
   if (searchParams.q) params.set('q', searchParams.q)
   if (searchParams.status) params.set('status', searchParams.status)
+  if (searchParams.scope && searchParams.scope !== 'all') {
+    params.set('scope', searchParams.scope)
+  }
   if (page > 1) params.set('page', String(page))
   const query = params.toString()
   return query ? `/clients?${query}` : '/clients'

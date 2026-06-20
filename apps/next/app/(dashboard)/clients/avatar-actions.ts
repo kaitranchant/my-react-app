@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
+import { canCoachAccessClient, getGymIdsForCoach } from '@/lib/gym-access'
 import {
   AVATAR_MAX_UPLOAD_BYTES,
   clientAvatarStoragePath,
@@ -43,8 +44,6 @@ async function persistAvatar(
 
   if (options.asClient) {
     clientQuery = clientQuery.eq('user_id', user.id)
-  } else {
-    clientQuery = clientQuery.eq('coach_id', user.id)
   }
 
   const { data: client, error: fetchError } = await clientQuery.maybeSingle()
@@ -65,15 +64,12 @@ async function persistAvatar(
     return { success: false, error: 'Client not found.' }
   }
 
-  const isCoach = client.coach_id === user.id
-  const isLinkedClient =
-    client.user_id != null && client.user_id === user.id
-
-  if (options.asClient && !isLinkedClient) {
-    return { success: false, error: 'You cannot update this photo.' }
-  }
-
-  if (!options.asClient && !isCoach) {
+  if (!options.asClient) {
+    const coachGymIds = await getGymIdsForCoach(user.id)
+    if (!canCoachAccessClient(user.id, client, coachGymIds)) {
+      return { success: false, error: 'Client not found.' }
+    }
+  } else if (client.user_id !== user.id) {
     return { success: false, error: 'You cannot update this photo.' }
   }
 
@@ -123,7 +119,7 @@ async function persistAvatar(
     return { success: false, error: updateError.message }
   }
 
-  if (isLinkedClient) {
+  if (options.asClient) {
     await supabase
       .from('profiles')
       .update({ avatar_url: avatarUrl })

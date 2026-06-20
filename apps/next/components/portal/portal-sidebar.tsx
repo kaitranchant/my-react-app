@@ -4,7 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { BrandLogo } from '@/components/dashboard/brand-logo'
-import { portalNavItems, type PortalNavItem } from '@/components/portal/portal-nav'
+import {
+  getPortalNavItems,
+  type PortalNavItem,
+} from '@/components/portal/portal-nav'
 import { cn } from '@/lib/utils'
 
 function NavLink({
@@ -34,8 +37,13 @@ function NavLink({
   )
 }
 
-export function PortalSidebar() {
+type PortalSidebarProps = {
+  showTeamNav?: boolean
+}
+
+export function PortalSidebar({ showTeamNav = false }: PortalSidebarProps) {
   const pathname = usePathname()
+  const portalNavItems = getPortalNavItems(showTeamNav)
 
   return (
     <aside className="bg-sidebar text-sidebar-foreground hidden h-full w-[260px] shrink-0 flex-col border-r md:flex">

@@ -3,36 +3,10 @@
 import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireClientAccess } from '@/lib/gym-access'
 import { messageBodySchema } from '@/lib/validations/message'
 
 export type ActionResult = { success: true } | { success: false; error: string }
-
-async function requireUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('You must be signed in.')
-  }
-  return { supabase, user }
-}
-
-async function requireCoachClient(clientId: string) {
-  const { supabase, user } = await requireUser()
-  const { data: client, error } = await supabase
-    .from('clients')
-    .select('id, coach_id, full_name')
-    .eq('id', clientId)
-    .eq('coach_id', user.id)
-    .maybeSingle()
-
-  if (error || !client) {
-    return null
-  }
-
-  return { supabase, user, client }
-}
 
 function revalidateMessagePaths(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
@@ -50,7 +24,7 @@ export async function sendCoachMessage(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
   }
 
-  const ctx = await requireCoachClient(clientId)
+  const ctx = await requireClientAccess(clientId)
   if (!ctx) {
     return { success: false, error: 'Client not found.' }
   }
@@ -75,7 +49,7 @@ export async function sendCoachMessage(
 export async function markCoachMessagesRead(
   clientId: string
 ): Promise<ActionResult> {
-  const ctx = await requireCoachClient(clientId)
+  const ctx = await requireClientAccess(clientId)
   if (!ctx) {
     return { success: false, error: 'Client not found.' }
   }

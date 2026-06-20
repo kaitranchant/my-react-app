@@ -3,15 +3,24 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { portalNavItems } from '@/components/portal/portal-nav'
+import { getPortalNavItems } from '@/components/portal/portal-nav'
 import { cn } from '@/lib/utils'
 
-export function PortalMobileNav() {
+type PortalMobileNavProps = {
+  showTeamNav?: boolean
+}
+
+export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
   const pathname = usePathname()
+  const portalNavItems = getPortalNavItems(showTeamNav)
+  const colCount = portalNavItems.length
 
   return (
     <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-lg grid-cols-3 sm:grid-cols-6">
+      <div
+        className="mx-auto grid max-w-lg"
+        style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+      >
         {portalNavItems.map((item) => {
           const Icon = item.icon
           const active =

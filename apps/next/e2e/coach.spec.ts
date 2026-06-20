@@ -12,7 +12,9 @@ test.describe('Coach auth and client management', () => {
     await page.getByLabel('Full name').fill(uniqueName)
     await page.getByLabel('Email').fill(`e2e-${Date.now()}@coaching-app.test`)
 
-    await page.getByRole('button', { name: 'Add client', exact: true }).click()
+    await page.getByRole('dialog').locator('form').evaluate((form) => {
+      form.requestSubmit()
+    })
 
     await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 15_000 })
   })

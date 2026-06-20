@@ -2,6 +2,8 @@ import {
 
   Activity,
 
+  Building2,
+
   CalendarDays,
 
   Camera,
@@ -83,6 +85,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Clients', href: '/clients', icon: Users },
 
       { label: 'Teams', href: '/teams', icon: Flag },
+      { label: 'Gym', href: '/gym', icon: Building2 },
 
       {
 

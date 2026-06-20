@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 
 type QuickActionsProps = {
   clients: { id: string; full_name: string }[]
+  gyms?: { id: string; name: string }[]
 }
 
 const actions = [
@@ -43,10 +44,11 @@ const actions = [
   },
 ] as const
 
-export function QuickActions({ clients }: QuickActionsProps) {
+export function QuickActions({ clients, gyms = [] }: QuickActionsProps) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <AddClientDialog
+        gyms={gyms}
         trigger={
           <button
             type="button"
@@ -112,6 +114,7 @@ export function QuickActions({ clients }: QuickActionsProps) {
             <p className="text-muted-foreground text-sm">
               No clients yet.{' '}
               <AddClientDialog
+                gyms={gyms}
                 trigger={
                   <button
                     type="button"

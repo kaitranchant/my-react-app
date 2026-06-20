@@ -4,6 +4,8 @@ export const clientStatuses = ['active', 'paused', 'archived'] as const
 
 export const clientCoachingTypes = ['online', 'in_person', 'hybrid'] as const
 
+export const clientGymIdSchema = z.union([z.string().uuid(), z.literal('none')])
+
 export const clientFormSchema = z.object({
   fullName: z
     .string()
@@ -18,6 +20,7 @@ export const clientFormSchema = z.object({
   coachingType: z
     .union([z.enum(clientCoachingTypes), z.literal('none')])
     .optional(),
+  gymId: clientGymIdSchema.optional(),
   goal: z.string().trim().max(500, 'Goal is too long').optional(),
   notes: z.string().trim().max(2000, 'Notes are too long').optional(),
 })
@@ -35,6 +38,7 @@ export const clientFormDefaults: ClientFormValues = {
   phone: '',
   status: 'active',
   coachingType: 'none',
+  gymId: 'none',
   goal: '',
   notes: '',
 }
@@ -49,6 +53,7 @@ export const inviteClientSchema = z.object({
   coachingType: z
     .union([z.enum(clientCoachingTypes), z.literal('none')])
     .optional(),
+  gymId: clientGymIdSchema.optional(),
   goal: z.string().trim().max(500, 'Goal is too long').optional(),
 })
 
@@ -58,5 +63,6 @@ export const inviteClientDefaults: InviteClientValues = {
   fullName: '',
   email: '',
   coachingType: 'none',
+  gymId: 'none',
   goal: '',
 }

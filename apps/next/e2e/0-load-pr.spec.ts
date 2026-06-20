@@ -1,6 +1,6 @@
 import { type Locator } from '@playwright/test'
 
-import { test, expect, selectedDayWorkoutSummary } from './fixtures'
+import { test, expect, openPortalWorkoutForLogging } from './fixtures'
 
 async function ensureSetLogged(dialog: Locator, setNumber: number) {
   const incompleteButton = dialog.getByRole('button', {
@@ -24,13 +24,9 @@ test.describe('PR tracking', () => {
   }) => {
     test.setTimeout(60_000)
 
-    await expect(selectedDayWorkoutSummary(page)).toBeVisible({
-      timeout: 15_000,
-    })
+    await openPortalWorkoutForLogging(page)
 
-    await page
-      .getByRole('button', { name: /Log workout|Continue log/i })
-      .click()
+    await page.getByRole('button', { name: /Log workout/i }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
 
@@ -46,7 +42,7 @@ test.describe('PR tracking', () => {
     await ensureSetLogged(dialog, 1)
 
     await dialog.getByRole('button', { name: 'Complete workout' }).click()
-    await expect(page.getByText(/New PR/i)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/New PR/i).first()).toBeVisible({ timeout: 15_000 })
     await expect(dialog.getByRole('button', { name: 'Reopen' })).toBeVisible({
       timeout: 15_000,
     })

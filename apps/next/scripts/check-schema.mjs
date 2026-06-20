@@ -1,5 +1,5 @@
 /**
- * Verify Supabase has avatar storage and key client columns.
+ * Verify hosted Supabase schema through migration 0029.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -37,6 +37,7 @@ if (!url || !key) {
 }
 
 const checks = []
+const headers = { apikey: key, Authorization: `Bearer ${key}` }
 
 async function check(name, fn) {
   try {
@@ -49,6 +50,16 @@ async function check(name, fn) {
       detail: error instanceof Error ? error.message : String(error),
     })
   }
+}
+
+async function checkRestTable(name, path) {
+  await check(name, async () => {
+    const res = await fetch(`${url}${path}`, { headers })
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(body || `HTTP ${res.status}`)
+    }
+  })
 }
 
 await check('avatars storage bucket', async () => {
@@ -262,6 +273,107 @@ await check('progress-photos storage bucket', async () => {
   }
 })
 
+// Migration 0020 — teams
+await checkRestTable('teams table', '/rest/v1/teams?select=id&limit=1')
+await checkRestTable(
+  'team_members table',
+  '/rest/v1/team_members?select=id,team_id,client_id&limit=1'
+)
+await checkRestTable(
+  'program_assignments.team_id column',
+  '/rest/v1/program_assignments?select=team_id&limit=1'
+)
+
+// Migration 0021 — team features
+await checkRestTable(
+  'team_announcements table',
+  '/rest/v1/team_announcements?select=id&limit=1'
+)
+await checkRestTable('team_events table', '/rest/v1/team_events?select=id&limit=1')
+await checkRestTable(
+  'team_event_member_status table',
+  '/rest/v1/team_event_member_status?select=id&limit=1'
+)
+
+// Migration 0022 — team member weight class
+await checkRestTable(
+  'team_members.weight_class column',
+  '/rest/v1/team_members?select=weight_class&limit=1'
+)
+
+// Migration 0024 — load prescription
+await checkRestTable(
+  'scheduled_workout_exercises.weight_percent column',
+  '/rest/v1/scheduled_workout_exercises?select=weight_percent,rpe_target&limit=1'
+)
+
+// Migration 0025 — client coaching type
+await checkRestTable(
+  'clients.coaching_type column',
+  '/rest/v1/clients?select=coaching_type&limit=1'
+)
+
+// Migration 0026 — program phases
+await checkRestTable(
+  'program_phases table',
+  '/rest/v1/program_phases?select=id,name,start_day_offset,end_day_offset&limit=1'
+)
+
+// Migration 0027 — client messaging
+await checkRestTable(
+  'client_message_threads table',
+  '/rest/v1/client_message_threads?select=client_id&limit=1'
+)
+await checkRestTable(
+  'client_messages table',
+  '/rest/v1/client_messages?select=id,body,sender_role&limit=1'
+)
+
+// Migration 0028 — coach self-client
+await checkRestTable(
+  'clients.is_coach_self column',
+  '/rest/v1/clients?select=is_coach_self&limit=1'
+)
+
+// Migration 0029 — client team portal (RLS only; verify trigger function exists via teams read)
+await checkRestTable('teams table (client portal)', '/rest/v1/teams?select=id&limit=1')
+
+// Migration 0030 — gyms
+await checkRestTable('gyms table', '/rest/v1/gyms?select=id,name&limit=1')
+await checkRestTable(
+  'gym_members table',
+  '/rest/v1/gym_members?select=id,gym_id,coach_id,role,status&limit=1'
+)
+await checkRestTable(
+  'gym_invites table',
+  '/rest/v1/gym_invites?select=id,email,status&limit=1'
+)
+await checkRestTable(
+  'clients.gym_id column',
+  '/rest/v1/clients?select=gym_id&limit=1'
+)
+
+await check('get_gym_invite_preview RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/get_gym_invite_preview`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_token: '00000000-0000-4000-8000-000000000000',
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+  const data = await res.json()
+  if (!Array.isArray(data)) {
+    throw new Error('Expected array response from get_gym_invite_preview')
+  }
+})
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -275,26 +387,26 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI:')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0029 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
-  console.error('  2. Supabase Dashboard → SQL → run scripts in order (migrations 0008–0014):')
-  console.error('       supabase/apply-client-calendar.sql')
-  console.error('       supabase/apply-exercise-details.sql')
-  console.error('       supabase/apply-exercise-block.sql')
-  console.error('       supabase/apply-workout-logging.sql')
-  console.error('       supabase/apply-program-calendar.sql')
-  console.error('       supabase/apply-program-workout-exercises.sql')
-  console.error('       supabase/apply-client-portal.sql   (required for client portal logging)')
-  console.error('       supabase/apply-client-check-ins.sql')
-  console.error('       supabase/apply-check-in-fields.sql')
-  console.error('       supabase/apply-exercise-prs.sql')
-  console.error('       supabase/apply-client-progress-photos.sql')
-  console.error('       supabase/apply-client-inbody-scans.sql')
-  console.error('     Earlier migrations (0002–0007): apply-programs.sql, apply-library.sql, etc.')
+  console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
+  console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
+  console.error('       supabase/apply-client-inbody-scans.sql       (0019 InBody scans)')
+  console.error('       supabase/apply-exercise-load-prescription.sql (0024 %1RM / RPE)')
+  console.error('       supabase/apply-client-coaching-type.sql      (0025 coaching type)')
+  console.error('       supabase/apply-program-phases.sql            (0026 program phases)')
+  console.error('       supabase/apply-client-messages.sql           (0027 messaging)')
+  console.error('       supabase/apply-coach-self-client.sql         (0028 My Workouts)')
+  console.error('       supabase/apply-team-client-portal.sql        (0029 client team portal)')
+  console.error('       supabase/apply-gyms.sql                      (0030 gyms)')
+  console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
+  console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
   process.exit(1)
 }
 
-console.log('\nSchema looks good — calendar, logging, program builder, portal, and check-ins tables are present.')
+console.log(
+  '\nSchema looks good — migrations through 0030 (teams, messaging, program phases, My Workouts, client team portal, gyms).'
+)
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

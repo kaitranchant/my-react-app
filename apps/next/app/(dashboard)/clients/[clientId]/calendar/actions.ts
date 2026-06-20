@@ -9,6 +9,7 @@ import {
   type OrderedExerciseRow,
 } from '@/lib/workout-exercise-order'
 import { createClient } from '@/lib/supabase/server'
+import { requireClientAccess } from '@/lib/gym-access'
 import {
   copyWorkoutRangeSchema,
   dateKeySchema,
@@ -70,19 +71,16 @@ async function requireUser() {
 }
 
 async function requireClient(clientId: string) {
-  const { supabase, user } = await requireUser()
-  const { data: client, error } = await supabase
-    .from('clients')
-    .select('id')
-    .eq('id', clientId)
-    .eq('coach_id', user.id)
-    .maybeSingle()
-
-  if (error || !client) {
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
     return null
   }
 
-  return { supabase, user, client }
+  return {
+    supabase: ctx.supabase,
+    user: ctx.user,
+    client: { id: ctx.client.id },
+  }
 }
 
 function revalidateClientCalendar(clientId: string) {

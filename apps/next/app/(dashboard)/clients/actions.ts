@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient, findAuthUserByEmail } from '@/lib/supabase/admin'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
+import { getGymMembershipForCoach, getGymIdsForCoach } from '@/lib/gym-access'
 import { buildClientInviteUrl } from '@/lib/invite'
 import {
   clientFormSchema,
@@ -66,6 +67,22 @@ function toRow(values: ClientFormValues) {
   }
 }
 
+async function resolveGymIdForCreate(
+  userId: string,
+  gymId?: string
+): Promise<{ gymId: string | null } | { error: string }> {
+  if (!gymId || gymId === 'none') {
+    return { gymId: null }
+  }
+
+  const membership = await getGymMembershipForCoach(userId, gymId)
+  if (!membership) {
+    return { error: 'You must be a member of the selected gym.' }
+  }
+
+  return { gymId }
+}
+
 function revalidateClients() {
   revalidatePath('/clients')
   revalidatePath('/dashboard')
@@ -104,9 +121,18 @@ export async function createClientRecord(
   }
 
   const { supabase, user } = await requireUser()
+  const gymResult = await resolveGymIdForCreate(user.id, parsed.data.gymId)
+  if ('error' in gymResult) {
+    return { success: false, error: gymResult.error }
+  }
+
   const { data, error } = await supabase
     .from('clients')
-    .insert({ ...toRow(parsed.data), coach_id: user.id })
+    .insert({
+      ...toRow(parsed.data),
+      coach_id: user.id,
+      gym_id: gymResult.gymId,
+    })
     .select('id')
     .single()
 
@@ -202,6 +228,11 @@ export async function inviteClientRecord(
 
   const token = newInviteToken()
   const { supabase, user } = await requireUser()
+  const gymResult = await resolveGymIdForCreate(user.id, parsed.data.gymId)
+  if ('error' in gymResult) {
+    return { success: false, error: gymResult.error }
+  }
+
   const { data, error } = await supabase
     .from('clients')
     .insert({
@@ -212,6 +243,7 @@ export async function inviteClientRecord(
         parsed.data.coachingType && parsed.data.coachingType !== 'none'
           ? parsed.data.coachingType
           : null,
+      gym_id: gymResult.gymId,
       goal: parsed.data.goal ? parsed.data.goal : null,
       status: 'active',
       invite_status: 'pending',
@@ -514,4 +546,92 @@ export async function resendClientActivationEmail(
   revalidateClients()
   revalidatePath(`/clients/${clientId}`)
   return { success: true }
+}
+
+export async function shareClientWithGym(
+  clientId: string,
+  gymId: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return { success: false, error: 'You must be a member of this gym to add clients.' }
+  }
+
+  const { data: client, error: fetchError } = await supabase
+    .from('clients')
+    .select('id, coach_id, is_coach_self')
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (fetchError || !client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  if (client.is_coach_self) {
+    return { success: false, error: 'This profile cannot be added as a gym member.' }
+  }
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClients()
+  revalidatePath(`/clients/${clientId}`)
+  return { success: true }
+}
+
+export async function unshareClientFromGym(clientId: string): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ gym_id: null })
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClients()
+  revalidatePath(`/clients/${clientId}`)
+  return { success: true }
+}
+
+export type ShareAllClientsResult =
+  | { success: true; count: number }
+  | { success: false; error: string }
+
+export async function shareAllClientsWithGym(
+  gymId: string
+): Promise<ShareAllClientsResult> {
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return { success: false, error: 'You must be a member of this gym to add clients.' }
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('coach_id', user.id)
+    .eq('is_coach_self', false)
+    .select('id')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClients()
+  return { success: true, count: data?.length ?? 0 }
 }

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, CalendarCheck, CalendarDays } from 'lucide-react'
 
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
 import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
 import { PortalStatCard } from '@/components/portal/portal-stat-cards'
@@ -19,6 +20,7 @@ import { toDateKey } from '@/lib/calendar'
 import { formatVolume } from '@/lib/load-analytics'
 import { fetchPortalHomeData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
+import { fetchClientNextTeamEvent } from '@/lib/portal-teams'
 import { createClient } from '@/lib/supabase/server'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import type { CalendarDaySummary } from 'app/types/database'
@@ -78,11 +80,12 @@ export default async function PortalPage() {
 
   let homeData = null
   let todayWorkout: CalendarDaySummary | null = null
+  let nextTeamEvent = null
 
   const todayKey = toDateKey(new Date())
 
   if (clientRecord?.id) {
-    const [assignmentResult, homeDataResult, todayWorkoutResult] =
+    const [assignmentResult, homeDataResult, todayWorkoutResult, nextTeamEventResult] =
       await Promise.all([
         supabase
           .from('program_assignments')
@@ -97,6 +100,7 @@ export default async function PortalPage() {
           .eq('client_id', clientRecord.id)
           .eq('scheduled_date', todayKey)
           .maybeSingle(),
+        fetchClientNextTeamEvent(supabase, clientRecord.id),
       ])
 
     if (
@@ -112,6 +116,7 @@ export default async function PortalPage() {
 
     homeData = homeDataResult
     todayWorkout = (todayWorkoutResult.data as CalendarDaySummary | null) ?? null
+    nextTeamEvent = nextTeamEventResult
   }
 
   const name =
@@ -297,6 +302,10 @@ export default async function PortalPage() {
                 </CardContent>
               </Card>
             </Link>
+
+            {nextTeamEvent && (
+              <PortalNextTeamEventCard nextEvent={nextTeamEvent} />
+            )}
 
             <Link href="/portal/check-in" className="group block">
               <Card className="h-full transition-colors group-hover:border-brand/40">

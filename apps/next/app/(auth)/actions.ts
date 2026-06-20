@@ -100,12 +100,13 @@ export async function signup(
   const email = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
   const inviteToken = String(formData.get('inviteToken') ?? '').trim()
+  const gymInviteToken = String(formData.get('gymInviteToken') ?? '').trim()
 
   if (!email || !password) {
     return { error: 'Email and password are required.' }
   }
 
-  if (inviteToken && !fullName) {
+  if ((inviteToken || gymInviteToken) && !fullName) {
     return { error: 'Full name is required.' }
   }
 
@@ -129,6 +130,7 @@ export async function signup(
           full_name: fullName,
           role: isClientSignup ? 'client' : 'coach',
           invite_token: inviteToken || undefined,
+          gym_invite_token: gymInviteToken || undefined,
         },
         emailRedirectTo: `${origin}/auth/callback`,
       },
@@ -138,8 +140,9 @@ export async function signup(
       const message = formatAuthError(error.message)
       if (message.toLowerCase().includes('database error saving new user')) {
         return {
-          error:
-            'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.',
+          error: isClientSignup
+            ? 'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.'
+            : 'Could not complete signup. The gym invite may be invalid, expired, or the email may not match.',
         }
       }
       return { error: message }

@@ -2,6 +2,9 @@ export type ClientStatus = 'active' | 'paused' | 'archived'
 export type ClientCoachingType = 'online' | 'in_person' | 'hybrid'
 export type UserRole = 'coach' | 'client'
 export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
+export type GymMemberRole = 'owner' | 'member'
+export type GymMemberStatus = 'active' | 'pending'
+export type GymInviteStatus = 'pending' | 'accepted' | 'revoked'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
 export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
 export type TeamEventType =
@@ -108,6 +111,7 @@ export type Database = {
           avatar_url: string | null
           coaching_type: ClientCoachingType | null
           is_coach_self: boolean
+          gym_id: string | null
           created_at: string
           updated_at: string
         }
@@ -127,6 +131,7 @@ export type Database = {
           avatar_url?: string | null
           coaching_type?: ClientCoachingType | null
           is_coach_self?: boolean
+          gym_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -146,6 +151,7 @@ export type Database = {
           avatar_url?: string | null
           coaching_type?: ClientCoachingType | null
           is_coach_self?: boolean
+          gym_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -153,6 +159,135 @@ export type Database = {
           {
             foreignKeyName: 'clients_coach_id_fkey'
             columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'clients_gym_id_fkey'
+            columns: ['gym_id']
+            isOneToOne: false
+            referencedRelation: 'gyms'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gyms: {
+        Row: {
+          id: string
+          name: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gyms_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gym_members: {
+        Row: {
+          id: string
+          gym_id: string
+          coach_id: string
+          role: GymMemberRole
+          status: GymMemberStatus
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          gym_id: string
+          coach_id: string
+          role?: GymMemberRole
+          status?: GymMemberStatus
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          gym_id?: string
+          coach_id?: string
+          role?: GymMemberRole
+          status?: GymMemberStatus
+          joined_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gym_members_gym_id_fkey'
+            columns: ['gym_id']
+            isOneToOne: false
+            referencedRelation: 'gyms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gym_members_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gym_invites: {
+        Row: {
+          id: string
+          gym_id: string
+          email: string
+          invite_token: string
+          invited_by: string
+          status: GymInviteStatus
+          expires_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          gym_id: string
+          email: string
+          invite_token?: string
+          invited_by: string
+          status?: GymInviteStatus
+          expires_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          gym_id?: string
+          email?: string
+          invite_token?: string
+          invited_by?: string
+          status?: GymInviteStatus
+          expires_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gym_invites_gym_id_fkey'
+            columns: ['gym_id']
+            isOneToOne: false
+            referencedRelation: 'gyms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gym_invites_invited_by_fkey'
+            columns: ['invited_by']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
@@ -1408,7 +1543,19 @@ export type Database = {
           email: string
         }[]
       }
+      get_gym_invite_preview: {
+        Args: { p_token: string }
+        Returns: {
+          gym_name: string
+          inviter_name: string
+          email: string
+        }[]
+      }
       link_client_invite: {
+        Args: { p_token: string; p_user_id: string; p_email: string }
+        Returns: string
+      }
+      link_gym_invite: {
         Args: { p_token: string; p_user_id: string; p_email: string }
         Returns: string
       }
@@ -1430,6 +1577,9 @@ export type Database = {
       check_in_submitted_by: CheckInSubmittedBy
       message_sender_role: MessageSenderRole
       exercise_pr_record_type: ExercisePrRecordType
+      gym_member_role: GymMemberRole
+      gym_member_status: GymMemberStatus
+      gym_invite_status: GymInviteStatus
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1458,6 +1608,23 @@ export type ProgramWithAssignmentCount = Program & {
 export type Team = Database['public']['Tables']['teams']['Row']
 export type TeamInsert = Database['public']['Tables']['teams']['Insert']
 export type TeamUpdate = Database['public']['Tables']['teams']['Update']
+
+export type Gym = Database['public']['Tables']['gyms']['Row']
+export type GymInsert = Database['public']['Tables']['gyms']['Insert']
+export type GymUpdate = Database['public']['Tables']['gyms']['Update']
+export type GymMember = Database['public']['Tables']['gym_members']['Row']
+export type GymMemberInsert = Database['public']['Tables']['gym_members']['Insert']
+export type GymInvite = Database['public']['Tables']['gym_invites']['Row']
+
+export type GymMemberWithProfile = GymMember & {
+  profile: Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'business_name'>
+}
+
+export type GymWithMembership = Gym & {
+  membership: GymMember
+  member_count: number
+  pending_invite_count: number
+}
 export type TeamMember = Database['public']['Tables']['team_members']['Row']
 export type TeamMemberInsert = Database['public']['Tables']['team_members']['Insert']
 

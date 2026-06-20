@@ -11,9 +11,11 @@ const INVITE_TOKEN_PATTERN =
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string }>
+  searchParams: Promise<{ invite?: string; gym_invite?: string }>
 }) {
-  const { invite } = await searchParams
+  const { invite, gym_invite: gymInvite } = await searchParams
+  const supabase = await createClient()
+
   let invitePreview: {
     clientName: string
     coachName: string
@@ -21,8 +23,30 @@ export default async function SignupPage({
     inviteToken: string
   } | null = null
 
-  if (invite && INVITE_TOKEN_PATTERN.test(invite)) {
-    const supabase = await createClient()
+  let gymInvitePreview: {
+    gymName: string
+    inviterName: string
+    email: string
+    inviteToken: string
+  } | null = null
+
+  if (gymInvite && INVITE_TOKEN_PATTERN.test(gymInvite)) {
+    const { data, error } = await supabase.rpc('get_gym_invite_preview', {
+      p_token: gymInvite,
+    })
+
+    if (!error) {
+      const row = data?.[0]
+      if (row?.email) {
+        gymInvitePreview = {
+          gymName: row.gym_name,
+          inviterName: row.inviter_name,
+          email: row.email,
+          inviteToken: gymInvite,
+        }
+      }
+    }
+  } else if (invite && INVITE_TOKEN_PATTERN.test(invite)) {
     const { data, error } = await supabase.rpc('get_client_invite_preview', {
       p_token: invite,
     })
@@ -40,15 +64,22 @@ export default async function SignupPage({
     }
   }
 
+  const hasInvalidInvite =
+    (invite && !invitePreview && !gymInvitePreview) ||
+    (gymInvite && !gymInvitePreview && !invitePreview)
+
   return (
     <>
-      {invite && !invitePreview && (
+      {hasInvalidInvite && (
         <p className="text-destructive mb-4 text-center text-sm" role="alert">
-          This invite link is invalid or has expired. Ask your coach for a new
-          one.
+          This invite link is invalid or has expired. Ask for a new invite link.
         </p>
       )}
-      <AuthForm mode="signup" invitePreview={invitePreview} />
+      <AuthForm
+        mode="signup"
+        invitePreview={invitePreview}
+        gymInvitePreview={gymInvitePreview}
+      />
     </>
   )
 }

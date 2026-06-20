@@ -8,6 +8,7 @@ import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { isCoachSelfClient } from '@/lib/coach-self'
+import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
 import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
@@ -16,6 +17,8 @@ import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
+import { ClientGymSharePanel } from '@/components/gym/client-gym-share-toggle'
+import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import type {
@@ -42,6 +45,10 @@ export default async function ClientDetailPage({
   const { clientId } = await params
   const { tab: initialTab } = await searchParams
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const coachGyms = user ? await getGymsForCoach(user.id) : []
   const today = new Date()
   const year = today.getFullYear()
   const month = today.getMonth()
@@ -176,6 +183,24 @@ export default async function ClientDetailPage({
   }
 
   const client = data as Client
+  const viewerIsPrimaryCoach = user
+    ? isPrimaryCoach(user.id, client)
+    : false
+
+  let primaryCoachName: string | null = null
+  if (!viewerIsPrimaryCoach) {
+    const { data: primaryCoach } = await supabase
+      .from('profiles')
+      .select('full_name, business_name')
+      .eq('id', client.coach_id)
+      .maybeSingle()
+
+    primaryCoachName =
+      primaryCoach?.full_name ??
+      primaryCoach?.business_name ??
+      'Primary coach'
+  }
+
   const activeAssignment = assignmentData
     ? (assignmentData as ClientProgramAssignment)
     : null
@@ -287,6 +312,18 @@ export default async function ClientDetailPage({
           </div>
         </div>
       </section>
+
+      {!viewerIsPrimaryCoach && primaryCoachName ? (
+        <ClientSharedBanner primaryCoachName={primaryCoachName} />
+      ) : null}
+
+      {coachGyms.length > 0 ? (
+        <ClientGymSharePanel
+          client={client}
+          gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+          isPrimaryCoach={viewerIsPrimaryCoach}
+        />
+      ) : null}
 
       <ClientAccountBanner client={client} />
 

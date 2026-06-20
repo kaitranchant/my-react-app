@@ -1,6 +1,6 @@
 import { type Locator } from '@playwright/test'
 
-import { test, expect, selectedDayWorkoutSummary } from './fixtures'
+import { test, expect, E2E_WORKOUT_NAME, openPortalWorkoutForLogging } from './fixtures'
 
 async function ensureSetLogged(dialog: Locator, setNumber: number) {
   const incompleteButton = dialog.getByRole('button', {
@@ -19,25 +19,33 @@ async function ensureSetLogged(dialog: Locator, setNumber: number) {
 }
 
 test.describe('Client portal logging', () => {
-  test('client sees portal calendar with scheduled workout', async ({
+  test('client sees portal dashboard with scheduled workout', async ({
     clientPage: page,
   }) => {
     await expect(page.getByRole('heading', { name: /Welcome/i })).toBeVisible()
-    await expect(selectedDayWorkoutSummary(page)).toBeVisible({
-      timeout: 15_000,
-    })
+    await expect(
+      page.getByRole('link', { name: new RegExp(`Today: ${E2E_WORKOUT_NAME}`) })
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   test('client can start and complete a workout', async ({ clientPage: page }) => {
     test.setTimeout(60_000)
 
-    await expect(selectedDayWorkoutSummary(page)).toBeVisible({
-      timeout: 15_000,
-    })
+    await openPortalWorkoutForLogging(page)
 
-    await page
-      .getByRole('button', { name: /Log workout|Continue log/i })
-      .click()
+    const viewLogButton = page.getByRole('button', { name: /View log/i })
+    if (await viewLogButton.isVisible()) {
+      await viewLogButton.click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: 'Reopen' })).toBeVisible({
+        timeout: 15_000,
+      })
+      await dialog.getByRole('button', { name: 'Close' }).click()
+      return
+    }
+
+    await page.getByRole('button', { name: /Log workout/i }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
 
@@ -48,6 +56,7 @@ test.describe('Client portal logging', () => {
       await startButton.click()
     }
 
+    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({ timeout: 15_000 })
     await dialog.getByLabel(/Set 1 weight/i).fill('135')
     await dialog.getByLabel(/Set 1 reps/i).fill('10')
     await ensureSetLogged(dialog, 1)

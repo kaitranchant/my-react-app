@@ -129,6 +129,12 @@ async function main() {
     clientId = inserted.id
   }
 
+  const startDate = todayKey()
+
+  await supabase.from('client_progress_photos').delete().eq('client_id', clientId)
+  await supabase.from('client_check_ins').delete().eq('client_id', clientId)
+  await supabase.from('exercise_pr_records').delete().eq('client_id', clientId)
+
   let exerciseId
   const { data: existingExercise } = await supabase
     .from('exercises')
@@ -226,8 +232,6 @@ async function main() {
       })
     if (error) throw error
   }
-
-  const startDate = todayKey()
 
   const { data: existingAssignment } = await supabase
     .from('program_assignments')

@@ -25,6 +25,13 @@ export type InvitePreview = {
   inviteToken: string
 }
 
+export type GymInvitePreview = {
+  gymName: string
+  inviterName: string
+  email: string
+  inviteToken: string
+}
+
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus()
   return (
@@ -37,15 +44,19 @@ function SubmitButton({ label }: { label: string }) {
 export function AuthForm({
   mode,
   invitePreview,
+  gymInvitePreview,
 }: {
   mode: 'login' | 'signup'
   invitePreview?: InvitePreview | null
+  gymInvitePreview?: GymInvitePreview | null
 }) {
   const router = useRouter()
   const action = mode === 'login' ? login : signup
   const [state, formAction] = useActionState<AuthState, FormData>(action, {})
   const isSignup = mode === 'signup'
   const isClientInvite = Boolean(isSignup && invitePreview)
+  const isGymInvite = Boolean(isSignup && gymInvitePreview)
+  const hasInvite = isClientInvite || isGymInvite
 
   useEffect(() => {
     if (state.redirectTo) {
@@ -60,16 +71,20 @@ export function AuthForm({
         <CardTitle className="text-xl font-semibold tracking-tight">
           {isClientInvite
             ? 'Join your coach'
-            : isSignup
-              ? 'Create your account'
-              : 'Welcome back'}
+            : isGymInvite
+              ? 'Join gym'
+              : isSignup
+                ? 'Create your account'
+                : 'Welcome back'}
         </CardTitle>
         <CardDescription>
           {isClientInvite && invitePreview
             ? `${invitePreview.coachName} invited you to track workouts and progress.`
-            : isSignup
-              ? 'Start managing your clients and programs.'
-              : 'Sign in to your coaching dashboard.'}
+            : isGymInvite && gymInvitePreview
+              ? `${gymInvitePreview.inviterName} invited you to join ${gymInvitePreview.gymName} as a coach.`
+              : isSignup
+                ? 'Start managing your clients and programs.'
+                : 'Sign in to your coaching dashboard.'}
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
@@ -78,6 +93,13 @@ export function AuthForm({
             type="hidden"
             name="inviteToken"
             value={invitePreview.inviteToken}
+          />
+        )}
+        {isGymInvite && gymInvitePreview && (
+          <input
+            type="hidden"
+            name="gymInviteToken"
+            value={gymInvitePreview.inviteToken}
           />
         )}
         <CardContent className="grid gap-4">
@@ -90,7 +112,7 @@ export function AuthForm({
                 placeholder="Jordan Smith"
                 autoComplete="name"
                 defaultValue={invitePreview?.clientName ?? ''}
-                required={isClientInvite}
+                required={hasInvite}
               />
             </div>
           )}
@@ -103,8 +125,10 @@ export function AuthForm({
               placeholder="you@example.com"
               autoComplete="email"
               required
-              defaultValue={invitePreview?.email ?? ''}
-              readOnly={isClientInvite}
+              defaultValue={
+                invitePreview?.email ?? gymInvitePreview?.email ?? ''
+              }
+              readOnly={hasInvite}
             />
           </div>
           <div className="grid gap-2">
@@ -140,12 +164,14 @@ export function AuthForm({
             label={
               isClientInvite
                 ? 'Create account & join'
-                : isSignup
-                  ? 'Create account'
-                  : 'Sign in'
+                : isGymInvite
+                  ? 'Create account & join gym'
+                  : isSignup
+                    ? 'Create account'
+                    : 'Sign in'
             }
           />
-          {!isClientInvite && (
+          {!hasInvite && (
             <p className="text-muted-foreground text-center text-sm">
               {isSignup ? (
                 <>

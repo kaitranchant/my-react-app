@@ -14,6 +14,7 @@ import {
 import { uploadPendingClientAvatar, setClientAvatarPreset } from '@/app/(dashboard)/clients/avatar-actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
+import { ClientGymField } from '@/components/clients/client-gym-field'
 import type { ClientAvatarPresetId } from '@/lib/client-avatar-presets'
 import { Button } from '@/components/ui/button'
 import {
@@ -54,13 +55,14 @@ import {
 
 type AddClientDialogProps = {
   trigger?: React.ReactNode
+  gyms?: { id: string; name: string }[]
 }
 
 async function copyInviteUrl(url: string) {
   await navigator.clipboard.writeText(url)
 }
 
-export function AddClientDialog({ trigger }: AddClientDialogProps) {
+export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [mode, setMode] = React.useState<'invite' | 'manual'>('invite')
@@ -257,6 +259,11 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                     control={inviteForm.control}
                     name="coachingType"
                   />
+                  <ClientGymField
+                    control={inviteForm.control}
+                    name="gymId"
+                    gyms={gyms}
+                  />
                   <FormField
                     control={inviteForm.control}
                     name="goal"
@@ -385,6 +392,11 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                 <ClientCoachingTypeField
                   control={manualForm.control}
                   name="coachingType"
+                />
+                <ClientGymField
+                  control={manualForm.control}
+                  name="gymId"
+                  gyms={gyms}
                 />
                 <FormField
                   control={manualForm.control}

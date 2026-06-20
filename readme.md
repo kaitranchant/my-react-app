@@ -16,6 +16,14 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Load management and PR analytics: weekly volume and ACWR on client overview, PR detection in workout logging, persisted PR history, and coach `/load` dashboard
 - Progress photos: client upload (front/side/back) attached to check-ins, coach gallery on client detail tab, and roster `/progress-photos` feed
 - Client messaging: direct coach ↔ client chat on the client detail Messages tab, coach `/messages` inbox, and client portal `/portal/messages`
+- Teams: create teams, roster management, shared program assignment, announcements, events with RSVP/attendance, and bulk program assign
+- Client team portal: athletes on a team see announcements and upcoming events at `/portal/team`, RSVP (going / maybe / declined), and a next-event card on the portal home
+- InBody scans: log body composition scans with history graphs on client detail
+- Program phases: named blocks (hypertrophy, strength, peaking) in the program builder calendar
+- Coach My Workouts: personal training calendar and logging via a hidden self-client row
+- Client coaching type: online, in-person, or hybrid badge on roster and client profile
+- Load prescription: `% 1RM` and RPE targets on program and client calendar exercises
+- Settings: profile, account, and coaching preference panels (some options marked “Soon”)
 
 ## What's coming
 
@@ -34,13 +42,15 @@ Attendance, form review, leaderboards, and wearables appear in the UI but are no
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   Or run scripts in Supabase Dashboard → SQL (see migration list below).
-4. Verify schema: `yarn db:check`
+   This applies all migrations in `supabase/migrations/` (currently **0001–0029**). For one-off patches without the CLI, see the apply scripts below.
+4. Verify schema: `yarn db:check` (checks tables through migration 0029)
 5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-If not using `yarn db:push`, run these in Supabase Dashboard → SQL:
+**Preferred:** `yarn db:push` applies migrations 0001–0029 in order.
+
+If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
 | Script | Purpose |
 |--------|---------|
@@ -55,8 +65,20 @@ If not using `yarn db:push`, run these in Supabase Dashboard → SQL:
 | `apply-client-portal.sql` | Client portal write access (required for logging) |
 | `apply-client-check-ins.sql` | Client check-ins and coach review |
 | `apply-check-in-fields.sql` | Expanded check-in metrics (calm, soreness, nutrition, pain) |
-| `apply-exercise-prs.sql` | Exercise PR history and load analytics |
+| `apply-exercise-prs.sql` | Exercise PR history and load analytics (0017) |
 | `apply-client-progress-photos.sql` | Progress photo uploads and private storage |
+| `apply-client-inbody-scans.sql` | InBody body composition scans (0019) |
+
+Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
+
+| Script | Purpose |
+|--------|---------|
+| `apply-exercise-load-prescription.sql` | `% 1RM` and RPE prescription fields |
+| `apply-client-coaching-type.sql` | Online / in-person / hybrid coaching type |
+| `apply-program-phases.sql` | Program phase blocks in program builder |
+| `apply-client-messages.sql` | Coach ↔ client messaging |
+| `apply-coach-self-client.sql` | Coach My Workouts self-client row |
+| `apply-team-client-portal.sql` | Client portal team announcements, events, RSVP (0029) |
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 
@@ -115,11 +137,10 @@ yarn workspace next-app test:e2e
    **Hosted Supabase:**
 
    ```sh
-   supabase link
-   supabase db push
+   npx supabase login && yarn db:link && yarn db:push
    ```
 
-   Or run feature-specific scripts in Supabase Dashboard → SQL (e.g. `supabase/apply-program-calendar.sql`, `supabase/apply-client-portal.sql`).
+   Or run feature-specific scripts in Supabase Dashboard → SQL (see migration list in Deployment above).
 
    **Local Supabase:**
 
@@ -163,7 +184,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0028) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |
