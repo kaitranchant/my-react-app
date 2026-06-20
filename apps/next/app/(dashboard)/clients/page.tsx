@@ -23,6 +23,7 @@ import { ClientRowActions } from '@/components/clients/client-row-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
+import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
@@ -48,6 +49,7 @@ export default async function ClientsPage({
   let queryBuilder = supabase
     .from('clients')
     .select('*', { count: 'exact' })
+    .eq('is_coach_self', false)
     .order('created_at', { ascending: false })
 
   if (q && q.trim()) {
@@ -144,6 +146,7 @@ export default async function ClientsPage({
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Account</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Teams</TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead className="w-12 pr-5" />
@@ -173,6 +176,13 @@ export default async function ClientsPage({
                     </TableCell>
                     <TableCell>
                       <ClientInviteStatusBadge status={client.invite_status} />
+                    </TableCell>
+                    <TableCell>
+                      {client.coaching_type ? (
+                        <ClientCoachingTypeBadge coachingType={client.coaching_type} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {(teamsByClientId.get(client.id) ?? []).length > 0 ? (

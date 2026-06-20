@@ -8,16 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   formatProgramDayLabel,
   formatProgramWeekLabel,
+  getPhaseForDayOffset,
   PROGRAM_WEEKDAY_HEADERS,
 } from '@/lib/program-calendar'
 import { cn } from '@/lib/utils'
-import type { ProgramDaySummary } from 'app/types/database'
+import type { ProgramDaySummary, ProgramPhase } from 'app/types/database'
 
 type ProgramWeekGridProps = {
   weekIndex: number
   dayOffsets: number[]
   selectedDayOffset: number
   scheduledWorkouts: ProgramDaySummary[]
+  phases?: ProgramPhase[]
   onWeekChange: (weekIndex: number) => void
   onSelectDay: (dayOffset: number) => void
   onDayDoubleClick?: (dayOffset: number) => void
@@ -140,6 +142,7 @@ export function ProgramWeekGrid({
   dayOffsets,
   selectedDayOffset,
   scheduledWorkouts,
+  phases = [],
   onWeekChange,
   onSelectDay,
   onDayDoubleClick,
@@ -148,6 +151,9 @@ export function ProgramWeekGrid({
   const scheduledByOffset = new Map(
     scheduledWorkouts.map((workout) => [workout.day_offset, workout])
   )
+  const weekPhase =
+    getPhaseForDayOffset(phases, dayOffsets[0]) ??
+    getPhaseForDayOffset(phases, selectedDayOffset)
 
   function goToPreviousWeek() {
     if (weekIndex > 0) {
@@ -162,10 +168,17 @@ export function ProgramWeekGrid({
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <CardHeader className="border-b px-6 py-4">
-        <div className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            {formatProgramWeekLabel(weekIndex)}
-          </CardTitle>
+        <div className="flex flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="text-lg font-semibold">
+              {formatProgramWeekLabel(weekIndex)}
+            </CardTitle>
+            {weekPhase ? (
+              <p className="text-muted-foreground truncate text-sm">
+                {weekPhase.name}
+              </p>
+            ) : null}
+          </div>
           <div className="flex items-center gap-1">
             <Button
               type="button"

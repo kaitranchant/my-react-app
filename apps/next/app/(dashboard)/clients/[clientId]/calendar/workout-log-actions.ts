@@ -7,6 +7,7 @@ import {
   fetchPersonalBestsByExerciseIds,
   type CompleteWorkoutResult,
 } from '@/lib/pr-records'
+import { fetchExerciseHistory } from '@/lib/scheduled-workout-queries'
 import {
   saveWorkoutLogSetsSchema,
   type WorkoutLogSetValues,
@@ -54,6 +55,7 @@ async function requireClient(clientId: string) {
 
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/my-workouts')
   revalidatePath('/portal', 'layout')
 }
 
@@ -522,4 +524,28 @@ export async function reopenWorkoutLog(
 
   revalidateClientCalendar(clientId)
   return { success: true }
+}
+
+export type ExerciseHistoryResult =
+  | { success: true; sessions: import('app/types/database').ExerciseHistorySession[] }
+  | { success: false; error: string }
+
+export async function getExerciseHistory(
+  clientId: string,
+  exerciseId: string,
+  options?: { excludeWorkoutId?: string; limit?: number }
+): Promise<ExerciseHistoryResult> {
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const sessions = await fetchExerciseHistory(
+    ctx.supabase,
+    clientId,
+    exerciseId,
+    options
+  )
+
+  return { success: true, sessions }
 }

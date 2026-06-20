@@ -11,7 +11,7 @@ export function PortalMobileNav() {
 
   return (
     <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-lg grid-cols-4">
+      <div className="mx-auto grid max-w-lg grid-cols-3 sm:grid-cols-6">
         {portalNavItems.map((item) => {
           const Icon = item.icon
           const active =

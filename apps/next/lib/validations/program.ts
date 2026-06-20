@@ -63,3 +63,27 @@ export const copyProgramWorkoutRangeSchema = z
     message: 'Start day must be on or before end day.',
     path: ['endDayOffset'],
   })
+
+export const programPhaseDaySchema = z
+  .number()
+  .int()
+  .min(1, 'Day must be at least 1.')
+  .max(365, 'Day cannot exceed 365.')
+
+export const programPhaseFormSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Name is required')
+      .max(120, 'Name is too long'),
+    description: z.string().trim().max(2000, 'Description is too long').optional(),
+    startDay: programPhaseDaySchema,
+    endDay: programPhaseDaySchema,
+  })
+  .refine((value) => value.startDay <= value.endDay, {
+    message: 'Start day must be on or before end day.',
+    path: ['endDay'],
+  })
+
+export type ProgramPhaseFormValues = z.infer<typeof programPhaseFormSchema>

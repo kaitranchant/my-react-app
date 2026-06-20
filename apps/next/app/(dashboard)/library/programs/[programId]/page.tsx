@@ -10,7 +10,7 @@ import { ProgramStatusBadge } from '@/components/programs/program-status-badge'
 import { LibraryLoadError } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import { getWeekDayOffsets } from '@/lib/program-calendar'
-import type { Client, Exercise, Program, ProgramDaySummary, Team, Workout } from 'app/types/database'
+import type { Client, Exercise, Program, ProgramDaySummary, ProgramPhase, Team, Workout } from 'app/types/database'
 
 export async function generateMetadata({
   params,
@@ -76,6 +76,15 @@ export default async function ProgramDetailPage({
     initialWorkouts.find(
       (workout) => workout.day_offset === initialSelectedDayOffset
     ) ?? null
+
+  const { data: phaseRows, error: phaseError } = await supabase
+    .from('program_phases')
+    .select('*')
+    .eq('program_id', programId)
+    .order('sort_order', { ascending: true })
+    .order('start_day_offset', { ascending: true })
+
+  const initialPhases = (phaseRows ?? []) as ProgramPhase[]
 
   const { data: libraryWorkoutRows } = await supabase
     .from('workouts')
@@ -168,6 +177,8 @@ export default async function ProgramDetailPage({
         exercises={exercises}
         libraryWorkouts={libraryWorkouts}
         schemaError={workoutError?.message ?? null}
+        phasesSchemaError={phaseError?.message ?? null}
+        initialPhases={initialPhases}
         initialWeekIndex={initialWeekIndex}
         initialSelectedDayOffset={initialSelectedDayOffset}
         initialWorkouts={initialWorkouts}

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { getPortalCalendarMonthData } from '@/app/portal/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
+import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { Button } from '@/components/ui/button'
 import { coerceDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
@@ -158,10 +159,13 @@ export function PortalCalendarPanel({
         </div>
 
         {workout && (
-          <Button type="button" size="sm" onClick={() => setLogOpen(true)}>
-            <ClipboardList className="size-4" />
-            {getLogButtonLabel()}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" onClick={() => setLogOpen(true)}>
+              <ClipboardList className="size-4" />
+              {getLogButtonLabel()}
+            </Button>
+            <PrintWorkoutButton workout={workout} selectedDate={selectedDate} />
+          </div>
         )}
       </div>
 

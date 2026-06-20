@@ -1,6 +1,7 @@
 'use client'
 
-import { ChevronDown, LogOut } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, LogOut, Settings } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,13 @@ export function UserMenu({
             </span>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/settings" className="flex items-center gap-2">
+            <Settings className="size-4" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <form action={signOut}>
           <DropdownMenuItem variant="destructive" asChild>

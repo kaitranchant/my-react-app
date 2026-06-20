@@ -21,6 +21,7 @@ export const trackingOptionsSchema = z.object({
   trackPeakPower: z.boolean(),
   trackReps: z.boolean(),
   trackVolume: z.boolean(),
+  autoProgressLoad: z.boolean(),
 })
 
 const exerciseBlockSchema = z
@@ -41,6 +42,8 @@ export const scheduledExercisePrescriptionSchema = z.object({
   eachSide: z.boolean(),
   tempo: z.string().trim().max(40).optional(),
   restSeconds: z.string().trim().max(20).optional(),
+  weightPercent: z.string().trim().max(20).optional(),
+  rpeTarget: z.string().trim().max(20).optional(),
   exerciseBlock: exerciseBlockSchema,
   supersetGroup: z
     .string()
@@ -93,6 +96,8 @@ export const defaultPrescriptionValues: ScheduledExercisePrescriptionValues = {
   eachSide: false,
   tempo: '',
   restSeconds: '',
+  weightPercent: '',
+  rpeTarget: '',
   exerciseBlock: '',
   supersetGroup: '',
   trackingOptions: { ...DEFAULT_TRACKING_OPTIONS },
@@ -126,6 +131,10 @@ export function prescriptionValuesToDbRow(
     each_side: values.eachSide,
     tempo: values.tempo?.trim() ? values.tempo.trim() : null,
     rest_seconds: values.restSeconds?.trim() ? values.restSeconds.trim() : null,
+    weight_percent: values.weightPercent?.trim()
+      ? values.weightPercent.trim()
+      : null,
+    rpe_target: values.rpeTarget?.trim() ? values.rpeTarget.trim() : null,
     exercise_block:
       exerciseBlock && isScheduledExerciseBlock(exerciseBlock)
         ? (exerciseBlock as ScheduledExerciseBlock)
@@ -144,6 +153,8 @@ export function rowToPrescriptionValues(row: {
   each_side?: boolean | null
   tempo?: string | null
   rest_seconds?: string | null
+  weight_percent?: string | null
+  rpe_target?: string | null
   exercise_block?: string | null
   superset_group: string | null
   tracking_options?: unknown
@@ -157,6 +168,8 @@ export function rowToPrescriptionValues(row: {
     eachSide: Boolean(row.each_side),
     tempo: row.tempo ?? '',
     restSeconds: row.rest_seconds ?? '',
+    weightPercent: row.weight_percent ?? '',
+    rpeTarget: row.rpe_target ?? '',
     exerciseBlock: row.exercise_block ?? '',
     supersetGroup: row.superset_group ?? '',
     trackingOptions: parseTrackingOptions(row.tracking_options),

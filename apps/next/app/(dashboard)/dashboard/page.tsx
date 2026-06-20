@@ -39,26 +39,30 @@ export default async function DashboardPage() {
         .single(),
       supabase
         .from('clients')
-        .select('id, full_name, status, invite_status')
+        .select('id, full_name, status, invite_status, is_coach_self')
+        .eq('is_coach_self', false)
         .order('full_name'),
       supabase
         .from('client_scheduled_workouts')
         .select(
-          'id, name, status, scheduled_date, started_at, client_id, clients(full_name)'
+          'id, name, status, scheduled_date, started_at, client_id, clients!inner(full_name, is_coach_self)'
         )
         .eq('scheduled_date', today)
+        .eq('clients.is_coach_self', false)
         .order('started_at', { ascending: true, nullsFirst: true })
         .order('name'),
       supabase
         .from('client_scheduled_workouts')
-        .select('status, client_id')
+        .select('status, client_id, clients!inner(is_coach_self)')
+        .eq('clients.is_coach_self', false)
         .gte('scheduled_date', weekStart)
         .lte('scheduled_date', weekEnd),
       supabase
         .from('client_scheduled_workouts')
         .select(
-          'id, name, status, completed_at, started_at, updated_at, client_id, clients(full_name)'
+          'id, name, status, completed_at, started_at, updated_at, client_id, clients!inner(full_name, is_coach_self)'
         )
+        .eq('clients.is_coach_self', false)
         .in('status', ['completed', 'in_progress', 'skipped'])
         .order('updated_at', { ascending: false })
         .limit(12),

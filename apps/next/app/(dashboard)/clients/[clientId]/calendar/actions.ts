@@ -24,6 +24,8 @@ import type {
   CalendarDaySummary,
   ClientScheduledWorkoutWithExercises,
   ScheduledExerciseBlock,
+  ScheduledExerciseRepMode,
+  ScheduledExerciseTrackingOptions,
   ScheduledWorkoutStatus,
 } from 'app/types/database'
 
@@ -41,6 +43,20 @@ export type CalendarMonthData = {
   days: CalendarDaySummary[]
   selectedWorkout: ClientScheduledWorkoutWithExercises | null
 }
+
+export type SchedulableWorkoutTemplate = {
+  key: string
+  source: 'library' | 'program'
+  id: string
+  name: string
+  subtitle: string | null
+  libraryWorkoutId: string | null
+  exerciseCount: number
+}
+
+export type SchedulableWorkoutTemplatesResult =
+  | { success: true; templates: SchedulableWorkoutTemplate[] }
+  | { success: false; error: string }
 
 async function requireUser() {
   const supabase = await createClient()
@@ -71,6 +87,7 @@ async function requireClient(clientId: string) {
 
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/my-workouts')
   revalidatePath('/portal', 'layout')
 }
 
@@ -206,6 +223,321 @@ export async function getCalendarMonthData(
   }
 }
 
+const LIBRARY_TEMPLATE_EXERCISE_SELECT =
+  'exercise_id, sort_order, sets, reps, prescription, superset_group, exercise_block, workout_notes, rep_mode, each_side, tempo, rest_seconds, weight_percent, rpe_target, tracking_options'
+
+type LibraryTemplateExerciseRow = {
+  exercise_id: string
+  sort_order: number
+  sets: string | null
+  reps: string | null
+  prescription: string | null
+  superset_group: string | null
+  exercise_block: ScheduledExerciseBlock | null
+  workout_notes: string | null
+  rep_mode: ScheduledExerciseRepMode
+  each_side: boolean
+  tempo: string | null
+  rest_seconds: string | null
+  weight_percent: string | null
+  rpe_target: string | null
+  tracking_options: ScheduledExerciseTrackingOptions
+}
+
+function mapTemplateExerciseToInsert(
+  scheduledWorkoutId: string,
+  row: LibraryTemplateExerciseRow
+) {
+  return {
+    scheduled_workout_id: scheduledWorkoutId,
+    exercise_id: row.exercise_id,
+    sort_order: row.sort_order,
+    sets: row.sets,
+    reps: row.reps,
+    prescription: row.prescription,
+    superset_group: row.superset_group,
+    exercise_block: row.exercise_block,
+    workout_notes: row.workout_notes,
+    rep_mode: row.rep_mode,
+    each_side: row.each_side,
+    tempo: row.tempo,
+    rest_seconds: row.rest_seconds,
+    weight_percent: row.weight_percent,
+    rpe_target: row.rpe_target,
+    tracking_options: row.tracking_options,
+  }
+}
+
+async function fetchLibraryWorkoutTemplateExercises(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  libraryWorkoutId: string
+): Promise<LibraryTemplateExerciseRow[]> {
+  const { data: programWorkouts } = await supabase
+    .from('program_scheduled_workouts')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('library_workout_id', libraryWorkoutId)
+    .order('updated_at', { ascending: false })
+
+  for (const programWorkout of programWorkouts ?? []) {
+    const { data: exercises, error } = await supabase
+      .from('program_scheduled_workout_exercises')
+      .select(LIBRARY_TEMPLATE_EXERCISE_SELECT)
+      .eq('program_scheduled_workout_id', programWorkout.id)
+      .order('sort_order', { ascending: true })
+
+    if (error) {
+      if (error.message.includes('Could not find the table')) {
+        break
+      }
+      continue
+    }
+
+    if (exercises?.length) {
+      return exercises as LibraryTemplateExerciseRow[]
+    }
+  }
+
+  const { data: clientWorkouts } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('library_workout_id', libraryWorkoutId)
+    .order('updated_at', { ascending: false })
+    .limit(10)
+
+  for (const clientWorkout of clientWorkouts ?? []) {
+    const { data: exercises } = await supabase
+      .from('scheduled_workout_exercises')
+      .select(LIBRARY_TEMPLATE_EXERCISE_SELECT)
+      .eq('scheduled_workout_id', clientWorkout.id)
+      .order('sort_order', { ascending: true })
+
+    if (exercises?.length) {
+      return exercises as LibraryTemplateExerciseRow[]
+    }
+  }
+
+  return []
+}
+
+async function copyLibraryWorkoutExercisesToScheduledWorkout(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  libraryWorkoutId: string,
+  scheduledWorkoutId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const templateExercises = await fetchLibraryWorkoutTemplateExercises(
+    supabase,
+    coachId,
+    libraryWorkoutId
+  )
+
+  if (templateExercises.length === 0) {
+    return { success: true }
+  }
+
+  const { error } = await supabase.from('scheduled_workout_exercises').insert(
+    templateExercises.map((row) =>
+      mapTemplateExerciseToInsert(scheduledWorkoutId, row)
+    )
+  )
+
+  if (error) {
+    await supabase
+      .from('client_scheduled_workouts')
+      .delete()
+      .eq('id', scheduledWorkoutId)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function getSchedulableWorkoutTemplates(): Promise<SchedulableWorkoutTemplatesResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const templates: SchedulableWorkoutTemplate[] = []
+
+  const { data: workouts, error: workoutsError } = await supabase
+    .from('workouts')
+    .select('id, name, description, status')
+    .neq('status', 'archived')
+    .order('name', { ascending: true })
+
+  if (workoutsError) {
+    return { success: false, error: workoutsError.message }
+  }
+
+  for (const workout of workouts ?? []) {
+    const exercises = await fetchLibraryWorkoutTemplateExercises(
+      supabase,
+      user.id,
+      workout.id
+    )
+    templates.push({
+      key: `library:${workout.id}`,
+      source: 'library',
+      id: workout.id,
+      name: workout.name,
+      subtitle: workout.description,
+      libraryWorkoutId: workout.id,
+      exerciseCount: exercises.length,
+    })
+  }
+
+  const { data: programWorkouts, error: programError } = await supabase
+    .from('program_scheduled_workouts')
+    .select('id, name, library_workout_id, program:programs(name)')
+    .eq('coach_id', user.id)
+    .order('updated_at', { ascending: false })
+
+  if (
+    programError &&
+    !programError.message.includes('Could not find the table')
+  ) {
+    return { success: false, error: programError.message }
+  }
+
+  const seenTemplateKeys = new Set<string>()
+
+  for (const programWorkout of programWorkouts ?? []) {
+    const { count, error: countError } = await supabase
+      .from('program_scheduled_workout_exercises')
+      .select('id', { count: 'exact', head: true })
+      .eq('program_scheduled_workout_id', programWorkout.id)
+
+    if (countError) {
+      if (countError.message.includes('Could not find the table')) {
+        break
+      }
+      continue
+    }
+
+    if (!count || count === 0) {
+      continue
+    }
+
+    const dedupeKey = programWorkout.library_workout_id ?? programWorkout.id
+    if (seenTemplateKeys.has(dedupeKey)) {
+      continue
+    }
+    seenTemplateKeys.add(dedupeKey)
+
+    const program = programWorkout.program as { name: string } | null
+    templates.push({
+      key: `program:${programWorkout.id}`,
+      source: 'program',
+      id: programWorkout.id,
+      name: programWorkout.name,
+      subtitle: program ? `From ${program.name}` : null,
+      libraryWorkoutId: programWorkout.library_workout_id,
+      exerciseCount: count,
+    })
+  }
+
+  templates.sort((a, b) => a.name.localeCompare(b.name))
+
+  return { success: true, templates }
+}
+
+export async function scheduleProgramWorkoutTemplateToDate(
+  clientId: string,
+  programScheduledWorkoutId: string,
+  scheduledDate: string
+): Promise<CreateScheduledWorkoutResult> {
+  const parsedDate = dateKeySchema.safeParse(scheduledDate)
+  if (!parsedDate.success) {
+    return { success: false, error: 'Invalid date.' }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user } = ctx
+
+  const { data: programWorkout, error: programWorkoutError } = await supabase
+    .from('program_scheduled_workouts')
+    .select('id, name, notes, library_workout_id')
+    .eq('id', programScheduledWorkoutId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (programWorkoutError || !programWorkout) {
+    return { success: false, error: 'Program workout template not found.' }
+  }
+
+  const { data: programExercises, error: exercisesError } = await supabase
+    .from('program_scheduled_workout_exercises')
+    .select(LIBRARY_TEMPLATE_EXERCISE_SELECT)
+    .eq('program_scheduled_workout_id', programWorkout.id)
+    .order('sort_order', { ascending: true })
+
+  if (exercisesError) {
+    return { success: false, error: exercisesError.message }
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from('client_scheduled_workouts')
+    .insert({
+      coach_id: user.id,
+      client_id: clientId,
+      scheduled_date: parsedDate.data,
+      name: programWorkout.name,
+      notes: programWorkout.notes,
+      library_workout_id: programWorkout.library_workout_id,
+    })
+    .select('id')
+    .single()
+
+  if (createError || !created) {
+    if (createError?.code === '23505') {
+      return {
+        success: false,
+        error: 'This client already has a workout on that date.',
+      }
+    }
+    return {
+      success: false,
+      error: createError?.message ?? 'Could not schedule workout.',
+    }
+  }
+
+  if (programExercises?.length) {
+    const { error: insertError } = await supabase
+      .from('scheduled_workout_exercises')
+      .insert(
+        programExercises.map((row) =>
+          mapTemplateExerciseToInsert(
+            created.id,
+            row as LibraryTemplateExerciseRow
+          )
+        )
+      )
+
+    if (insertError) {
+      await supabase
+        .from('client_scheduled_workouts')
+        .delete()
+        .eq('id', created.id)
+      return { success: false, error: insertError.message }
+    }
+  }
+
+  revalidateClientCalendar(clientId)
+  return { success: true, workoutId: created.id }
+}
+
 export async function createScheduledWorkout(
   clientId: string,
   scheduledDate: string,
@@ -250,6 +582,18 @@ export async function createScheduledWorkout(
       }
     }
     return { success: false, error: error.message }
+  }
+
+  if (libraryWorkoutId) {
+    const copyResult = await copyLibraryWorkoutExercisesToScheduledWorkout(
+      supabase,
+      user.id,
+      libraryWorkoutId,
+      data.id
+    )
+    if (!copyResult.success) {
+      return copyResult
+    }
   }
 
   revalidateClientCalendar(clientId)
@@ -807,6 +1151,8 @@ export async function copyScheduledWorkoutToDate(
           each_side: row.each_side,
           tempo: row.tempo,
           rest_seconds: row.rest_seconds,
+          weight_percent: row.weight_percent,
+          rpe_target: row.rpe_target,
           tracking_options: row.tracking_options,
         }))
       )
@@ -936,6 +1282,8 @@ export async function copyScheduledWorkoutToDateRange(
         each_side: row.each_side,
         tempo: row.tempo,
         rest_seconds: row.rest_seconds,
+        weight_percent: row.weight_percent,
+        rpe_target: row.rpe_target,
         tracking_options: row.tracking_options,
       }))
     )

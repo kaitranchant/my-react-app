@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
+import { GlobalSearch } from '@/components/dashboard/global-search'
 import { UserMenu } from '@/components/dashboard/user-menu'
 
 export default async function DashboardLayout({
@@ -21,7 +22,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('full_name, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -36,8 +37,15 @@ export default async function DashboardLayout({
           <div className="md:hidden">
             <BrandLogo />
           </div>
-          <div className="ml-auto">
-            <UserMenu name={name} email={user.email ?? ''} />
+          <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
+            <GlobalSearch />
+          </div>
+          <div className="shrink-0">
+            <UserMenu
+              name={name}
+              email={user.email ?? ''}
+              avatarUrl={profile?.avatar_url}
+            />
           </div>
         </header>
         <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">

@@ -81,7 +81,13 @@ const TRACKING_TOGGLES: {
     label: 'Track volume load',
     description: 'Include in volume load totals.',
   },
-]
+  {
+    key: 'autoProgressLoad',
+    label: 'Auto progress load',
+    description:
+      'Suggest a small weight increase when the client hit all targets last session.',
+  },
+] as const
 
 type ExercisePrescriptionFormProps = {
   form: UseFormReturn<ScheduledExercisePrescriptionValues>
@@ -235,6 +241,40 @@ export function ExercisePrescriptionForm({
         )}
       />
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="weightPercent"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Weight % of 1RM</FormLabel>
+              <FormControl>
+                <Input placeholder="75 or 70-80" {...field} />
+              </FormControl>
+              <FieldHint>
+                Prescribe load as a percentage of the client&apos;s best e1RM.
+              </FieldHint>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="rpeTarget"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>RPE target</FormLabel>
+              <FormControl>
+                <Input placeholder="8 or 7-8" {...field} />
+              </FormControl>
+              <FieldHint>Target effort for working sets (1–10 scale).</FieldHint>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
       <div className="space-y-4 rounded-lg border p-4">
         <div>
           <p className="text-sm font-medium">Workout structure</p>
@@ -351,11 +391,11 @@ export function ExercisePrescriptionForm({
         name="prescription"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Extra prescription</FormLabel>
+            <FormLabel>Additional notes</FormLabel>
             <FormControl>
-              <Input placeholder="RPE 8, cluster sets, band-assisted…" {...field} />
+              <Input placeholder="Cluster sets, band-assisted, pause reps…" {...field} />
             </FormControl>
-            <FieldHint>Short add-on cue shown in the workout summary.</FieldHint>
+            <FieldHint>Extra coaching cues shown in the workout summary.</FieldHint>
             <FormMessage />
           </FormItem>
         )}

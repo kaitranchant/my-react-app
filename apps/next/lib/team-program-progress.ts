@@ -2,6 +2,7 @@ import { toDateKey } from '@/lib/calendar'
 import {
   DAYS_PER_PROGRAM_WEEK,
   getMaxWeekIndexForOffsets,
+  getPhaseForDayOffset,
 } from '@/lib/program-calendar'
 import type { createClient } from '@/lib/supabase/server'
 import type { TeamProgramHistoryEntry, TeamProgramProgress } from 'app/types/database'
@@ -27,6 +28,7 @@ export async function fetchTeamProgramProgress(
       totalWeeks: 1,
       workoutsThisWeek: 0,
       workoutsRemainingThisWeek: 0,
+      currentPhase: null,
     }
   }
 
@@ -38,6 +40,17 @@ export async function fetchTeamProgramProgress(
   const weekStartOffset =
     Math.floor(dayOffset / DAYS_PER_PROGRAM_WEEK) * DAYS_PER_PROGRAM_WEEK
   const weekEndOffset = weekStartOffset + DAYS_PER_PROGRAM_WEEK - 1
+
+  const { data: phaseRows } = await supabase
+    .from('program_phases')
+    .select('id, name, start_day_offset, end_day_offset')
+    .eq('program_id', programId)
+    .order('sort_order', { ascending: true })
+
+  const currentPhaseRow = getPhaseForDayOffset(phaseRows ?? [], dayOffset)
+  const currentPhase = currentPhaseRow
+    ? { id: currentPhaseRow.id, name: currentPhaseRow.name }
+    : null
 
   const workoutsThisWeek = offsets.filter(
     (offset) => offset >= weekStartOffset && offset <= weekEndOffset
@@ -72,6 +85,7 @@ export async function fetchTeamProgramProgress(
     totalWeeks,
     workoutsThisWeek,
     workoutsRemainingThisWeek,
+    currentPhase,
   }
 }
 

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, findAuthUserByEmail } from '@/lib/supabase/admin'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { buildClientInviteUrl } from '@/lib/invite'
 import {
@@ -57,6 +58,9 @@ function toRow(values: ClientFormValues) {
     email: values.email ? values.email : null,
     phone: values.phone ? values.phone : null,
     status: values.status,
+    coaching_type: values.coachingType && values.coachingType !== 'none'
+      ? values.coachingType
+      : null,
     goal: values.goal ? values.goal : null,
     notes: values.notes ? values.notes : null,
   }
@@ -65,6 +69,30 @@ function toRow(values: ClientFormValues) {
 function revalidateClients() {
   revalidatePath('/clients')
   revalidatePath('/dashboard')
+}
+
+async function rejectCoachSelfClientMutation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string
+): Promise<ActionResult | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('is_coach_self')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if (data?.is_coach_self) {
+    return {
+      success: false,
+      error: 'This profile is managed from My Workouts.',
+    }
+  }
+
+  return null
 }
 
 export async function createClientRecord(
@@ -100,6 +128,11 @@ export async function updateClientRecord(
   }
 
   const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked) {
+    return blocked
+  }
+
   const { error } = await supabase
     .from('clients')
     .update(toRow(parsed.data))
@@ -123,6 +156,11 @@ export async function setClientStatus(
   }
 
   const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked) {
+    return blocked
+  }
+
   const { error } = await supabase
     .from('clients')
     .update({ status })
@@ -139,6 +177,11 @@ export async function setClientStatus(
 
 export async function deleteClientRecord(id: string): Promise<ActionResult> {
   const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked) {
+    return blocked
+  }
+
   const { error } = await supabase.from('clients').delete().eq('id', id)
 
   if (error) {
@@ -165,6 +208,10 @@ export async function inviteClientRecord(
       coach_id: user.id,
       full_name: parsed.data.fullName,
       email: parsed.data.email,
+      coaching_type:
+        parsed.data.coachingType && parsed.data.coachingType !== 'none'
+          ? parsed.data.coachingType
+          : null,
       goal: parsed.data.goal ? parsed.data.goal : null,
       status: 'active',
       invite_status: 'pending',
@@ -297,5 +344,174 @@ export async function updateClientNotes(
   }
 
   revalidatePath(`/clients/${id}`)
+  return { success: true }
+}
+
+export async function sendClientPasswordResetEmail(
+  clientId: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { data: client, error: fetchError } = await supabase
+    .from('clients')
+    .select('id, email, invite_status, user_id')
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (fetchError || !client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const hasAccount =
+    client.invite_status === 'accepted' || Boolean(client.user_id)
+
+  if (!hasAccount) {
+    return {
+      success: false,
+      error: 'This client has not activated their account yet.',
+    }
+  }
+
+  if (!client.email?.trim()) {
+    return {
+      success: false,
+      error: 'Add an email to this client before sending a password reset.',
+    }
+  }
+
+  const origin = await getOrigin()
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    client.email.trim(),
+    {
+      redirectTo: `${origin.replace(/\/$/, '')}/auth/callback?next=/portal`,
+    }
+  )
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function resendClientActivationEmail(
+  clientId: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { data: client, error: fetchError } = await supabase
+    .from('clients')
+    .select(
+      'id, email, full_name, invite_status, user_id, invite_token, invite_expires_at'
+    )
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (fetchError || !client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const hasAccount =
+    client.invite_status === 'accepted' || Boolean(client.user_id)
+
+  if (hasAccount) {
+    return {
+      success: false,
+      error: 'This client already has an active account.',
+    }
+  }
+
+  if (!client.email?.trim()) {
+    return {
+      success: false,
+      error: 'Add an email to this client before sending an activation email.',
+    }
+  }
+
+  const email = client.email.trim()
+  const origin = (await getOrigin()).replace(/\/$/, '')
+  const redirectTo = `${origin}/auth/callback?next=/portal`
+
+  let token = client.invite_token
+  const inviteExpired =
+    client.invite_expires_at &&
+    new Date(client.invite_expires_at) <= new Date()
+
+  if (!token || inviteExpired || client.invite_status === 'not_invited') {
+    token = newInviteToken()
+    const { error: updateError } = await supabase
+      .from('clients')
+      .update({
+        invite_status: 'pending',
+        invite_token: token,
+        invite_expires_at: inviteExpiresAt(),
+      })
+      .eq('id', clientId)
+      .eq('coach_id', user.id)
+
+    if (updateError) {
+      return { success: false, error: updateError.message }
+    }
+  }
+
+  const admin = createAdminClient()
+  if (!admin) {
+    return {
+      success: false,
+      error:
+        'Activation emails require SUPABASE_SERVICE_ROLE_KEY in your server environment.',
+    }
+  }
+
+  try {
+    const authUser = await findAuthUserByEmail(admin, email)
+
+    if (authUser && !authUser.email_confirmed_at) {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: redirectTo },
+      })
+
+      if (resendError) {
+        return { success: false, error: resendError.message }
+      }
+    } else if (authUser) {
+      return {
+        success: false,
+        error:
+          'This email already has a confirmed account. Ask the client to sign in or send a password reset instead.',
+      }
+    } else {
+      const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+        email,
+        {
+          redirectTo,
+          data: {
+            full_name: client.full_name,
+            role: 'client',
+            invite_token: token,
+          },
+        }
+      )
+
+      if (inviteError) {
+        return { success: false, error: inviteError.message }
+      }
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Could not send activation email.',
+    }
+  }
+
+  revalidateClients()
+  revalidatePath(`/clients/${clientId}`)
   return { success: true }
 }

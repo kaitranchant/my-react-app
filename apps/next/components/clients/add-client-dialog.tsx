@@ -13,6 +13,7 @@ import {
 } from '@/app/(dashboard)/clients/actions'
 import { uploadPendingClientAvatar, setClientAvatarPreset } from '@/app/(dashboard)/clients/avatar-actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
 import type { ClientAvatarPresetId } from '@/lib/client-avatar-presets'
 import { Button } from '@/components/ui/button'
 import {
@@ -252,6 +253,10 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                       </FormItem>
                     )}
                   />
+                  <ClientCoachingTypeField
+                    control={inviteForm.control}
+                    name="coachingType"
+                  />
                   <FormField
                     control={inviteForm.control}
                     name="goal"
@@ -376,6 +381,10 @@ export function AddClientDialog({ trigger }: AddClientDialogProps) {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+                <ClientCoachingTypeField
+                  control={manualForm.control}
+                  name="coachingType"
                 />
                 <FormField
                   control={manualForm.control}

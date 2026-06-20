@@ -15,6 +15,7 @@ import {
   getProgramWorkoutWithExercises,
 } from '@/app/(dashboard)/library/programs/[programId]/calendar/actions'
 import { ProgramWeekGrid } from '@/components/programs/program-week-grid'
+import { ProgramPhasesPanel } from '@/components/programs/program-phases-panel'
 import { ProgramWorkoutBuilderModal } from '@/components/programs/program-workout-builder-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
@@ -64,6 +65,7 @@ import {
 import type {
   Exercise,
   ProgramDaySummary,
+  ProgramPhase,
   ProgramScheduledWorkoutWithExercises,
   Workout,
 } from 'app/types/database'
@@ -74,6 +76,8 @@ type ProgramCalendarPanelProps = {
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
   libraryWorkouts: Pick<Workout, 'id' | 'name' | 'status'>[]
   schemaError?: string | null
+  phasesSchemaError?: string | null
+  initialPhases: ProgramPhase[]
   initialWeekIndex: number
   initialSelectedDayOffset: number
   initialWorkouts: ProgramDaySummary[]
@@ -86,6 +90,8 @@ export function ProgramCalendarPanel({
   exercises,
   libraryWorkouts,
   schemaError = null,
+  phasesSchemaError = null,
+  initialPhases,
   initialWeekIndex,
   initialSelectedDayOffset,
   initialWorkouts,
@@ -112,6 +118,7 @@ export function ProgramCalendarPanel({
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
     ...ALL_WEEKDAY_VALUES,
   ])
+  const [phases, setPhases] = React.useState(initialPhases)
 
   const dayOffsets = getWeekDayOffsets(weekIndex)
   const loadableWorkouts = libraryWorkouts.filter(
@@ -398,6 +405,15 @@ export function ProgramCalendarPanel({
 
   return (
     <div className="space-y-4">
+      <ProgramPhasesPanel
+        programId={programId}
+        phases={phases}
+        onPhasesChange={setPhases}
+        schemaError={phasesSchemaError}
+        selectedDayOffset={selectedDayOffset}
+        onJumpToWeek={handleWeekChange}
+      />
+
       <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs font-medium">Selected day</p>
@@ -460,6 +476,7 @@ export function ProgramCalendarPanel({
         dayOffsets={dayOffsets}
         selectedDayOffset={selectedDayOffset}
         scheduledWorkouts={scheduledWorkouts}
+        phases={phases}
         loading={loading}
         onWeekChange={handleWeekChange}
         onSelectDay={handleSelectDay}

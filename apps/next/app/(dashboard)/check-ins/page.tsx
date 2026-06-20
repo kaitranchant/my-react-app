@@ -43,6 +43,7 @@ export default async function CheckInsPage({
       .from('clients')
       .select('id, full_name')
       .eq('status', 'active')
+      .eq('is_coach_self', false)
       .order('full_name', { ascending: true }),
   ])
 

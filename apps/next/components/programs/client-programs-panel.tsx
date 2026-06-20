@@ -43,6 +43,7 @@ type ClientProgramsPanelProps = {
   clientId: string
   activeAssignment: ClientProgramAssignment | null
   availablePrograms: Pick<Program, 'id' | 'name' | 'status'>[]
+  personalMode?: boolean
 }
 
 function formatStartDate(value: string | null) {
@@ -58,6 +59,7 @@ export function ClientProgramsPanel({
   clientId,
   activeAssignment,
   availablePrograms,
+  personalMode = false,
 }: ClientProgramsPanelProps) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
@@ -178,10 +180,13 @@ export function ClientProgramsPanel({
             <ClipboardList className="size-7" />
           </div>
           <div className="space-y-1">
-            <p className="font-medium">No program assigned</p>
+            <p className="font-medium">
+              {personalMode ? 'No program assigned to you' : 'No program assigned'}
+            </p>
             <p className="text-muted-foreground max-w-sm text-sm">
-              Assign a program to fill this client&apos;s calendar with its
-              scheduled workouts.
+              {personalMode
+                ? 'Assign a program to fill your personal calendar with its scheduled workouts.'
+                : "Assign a program to fill this client's calendar with its scheduled workouts."}
             </p>
           </div>
         </div>
@@ -190,7 +195,13 @@ export function ClientProgramsPanel({
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
           <CardTitle className="text-sm font-medium">
-            {activeAssignment ? 'Change program' : 'Assign program'}
+            {activeAssignment
+              ? personalMode
+                ? 'Change your program'
+                : 'Change program'
+              : personalMode
+                ? 'Assign yourself a program'
+                : 'Assign program'}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-5 py-5">

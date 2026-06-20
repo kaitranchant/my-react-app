@@ -43,6 +43,8 @@ import {
   updateClientRecord,
 } from '@/app/(dashboard)/clients/actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
+import { ClientAccountEmailActions } from '@/components/clients/client-account-email-actions'
 import type { Client } from 'app/types/database'
 
 type ClientFormDialogProps = {
@@ -77,6 +79,7 @@ export function ClientFormDialog({
           email: client.email ?? '',
           phone: client.phone ?? '',
           status: client.status,
+          coachingType: client.coaching_type ?? 'none',
           goal: client.goal ?? '',
           notes: client.notes ?? '',
         }
@@ -92,6 +95,7 @@ export function ClientFormDialog({
               email: client.email ?? '',
               phone: client.phone ?? '',
               status: client.status,
+              coachingType: client.coaching_type ?? 'none',
               goal: client.goal ?? '',
               notes: client.notes ?? '',
             }
@@ -211,6 +215,8 @@ export function ClientFormDialog({
               )}
             />
 
+            <ClientCoachingTypeField control={form.control} name="coachingType" />
+
             <FormField
               control={form.control}
               name="goal"
@@ -245,6 +251,8 @@ export function ClientFormDialog({
                 </FormItem>
               )}
             />
+
+            {isEdit && client && <ClientAccountEmailActions client={client} />}
 
             <DialogFooter className="mt-2">
               <Button

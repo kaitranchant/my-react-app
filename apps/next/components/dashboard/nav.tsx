@@ -1,35 +1,163 @@
 import {
+
   Activity,
+
+  CalendarDays,
+
   Camera,
+
   CalendarCheck,
+
   CalendarClock,
+
   Flag,
+
   LayoutDashboard,
+
   LibraryBig,
+
+  MessageSquare,
+
   Trophy,
+
   Users,
+
   Video,
+
   Watch,
+
   type LucideIcon,
+
 } from 'lucide-react'
 
+
+
 export type NavItem = {
+
   label: string
+
   href: string
+
   icon: LucideIcon
+
   soon?: boolean
+
 }
 
-export const navItems: NavItem[] = [
+
+
+export type NavGroup = {
+
+  label: string
+
+  icon: LucideIcon
+
+  items: NavItem[]
+
+}
+
+
+
+export const topNavItems: NavItem[] = [
+
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Clients', href: '/clients', icon: Users },
-  { label: 'Teams', href: '/teams', icon: Flag },
-  { label: 'Library', href: '/library', icon: LibraryBig },
-  { label: 'Check-ins', href: '/check-ins', icon: CalendarCheck },
-  { label: 'Load Management', href: '/load', icon: Activity },
-  { label: 'Progress Photos', href: '/progress-photos', icon: Camera },
-  { label: 'Attendance', href: '/attendance', icon: CalendarClock, soon: true },
-  { label: 'Form Review', href: '/form-review', icon: Video, soon: true },
-  { label: 'Leaderboards', href: '/leaderboards', icon: Trophy, soon: true },
-  { label: 'Wearables', href: '/wearables', icon: Watch, soon: true },
+
+  { label: 'My Workouts', href: '/my-workouts', icon: CalendarDays },
+
+  { label: 'Inbox', href: '/messages', icon: MessageSquare },
+
 ]
+
+
+
+export const navGroups: NavGroup[] = [
+
+  {
+
+    label: 'Athletes',
+
+    icon: Users,
+
+    items: [
+
+      { label: 'Clients', href: '/clients', icon: Users },
+
+      { label: 'Teams', href: '/teams', icon: Flag },
+
+      {
+
+        label: 'Attendance',
+
+        href: '/attendance',
+
+        icon: CalendarClock,
+
+        soon: true,
+
+      },
+
+      {
+
+        label: 'Leaderboards',
+
+        href: '/leaderboards',
+
+        icon: Trophy,
+
+        soon: true,
+
+      },
+
+    ],
+
+  },
+
+  {
+
+    label: 'Programming',
+
+    icon: LibraryBig,
+
+    items: [
+
+      { label: 'Library', href: '/library', icon: LibraryBig },
+
+      { label: 'Load Management', href: '/load', icon: Activity },
+
+    ],
+
+  },
+
+  {
+
+    label: 'Monitoring',
+
+    icon: Camera,
+
+    items: [
+
+      { label: 'Check-ins', href: '/check-ins', icon: CalendarCheck },
+
+      { label: 'Progress Photos', href: '/progress-photos', icon: Camera },
+
+      { label: 'Form Review', href: '/form-review', icon: Video, soon: true },
+
+      { label: 'Wearables', href: '/wearables', icon: Watch, soon: true },
+
+    ],
+
+  },
+
+]
+
+
+
+export const navItems: NavItem[] = [
+
+  ...topNavItems,
+
+  ...navGroups.flatMap((group) => group.items),
+
+]
+
+

@@ -11,12 +11,7 @@ import { ClientProgramsPanel } from '@/components/programs/client-programs-panel
 import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-panel'
 import { ClientInbodyPanel } from '@/components/inbody/client-inbody-panel'
 import { ClientProgressPhotosPanel } from '@/components/progress-photos/client-progress-photos-panel'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { CoachClientMessagesPanel } from '@/components/messages/coach-client-messages-panel'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { coerceDateKey } from '@/lib/calendar'
@@ -27,6 +22,7 @@ import type {
   ClientScheduledWorkoutWithExercises,
   ClientCheckIn,
   ClientInbodyScan,
+  ClientMessage,
   ClientProgressPhotoWithUrl,
   Exercise,
   Program,
@@ -45,19 +41,6 @@ const VALID_TABS = [
 ] as const
 
 type TabValue = (typeof VALID_TABS)[number]
-
-function ComingSoon({ feature }: { feature: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{feature}</CardTitle>
-        <CardDescription>
-          This is where {feature.toLowerCase()} will live. Coming soon.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  )
-}
 
 const VALID_CALENDAR_ACTIONS = ['log', 'schedule'] as const
 type CalendarAction = (typeof VALID_CALENDAR_ACTIONS)[number]
@@ -80,6 +63,8 @@ type ClientDetailTabsProps = {
   recentWorkouts: ClientWorkoutActivity[]
   streakWorkouts: ClientWorkoutActivity[]
   checkIns?: ClientCheckIn[]
+  messages?: ClientMessage[]
+  messagesSchemaError?: string | null
   progressPhotos?: ClientProgressPhotoWithUrl[]
   inbodyScans?: ClientInbodyScan[]
   photoCounts?: Record<string, number>
@@ -103,6 +88,8 @@ export function ClientDetailTabs({
   recentWorkouts,
   streakWorkouts,
   checkIns = [],
+  messages = [],
+  messagesSchemaError = null,
   progressPhotos = [],
   inbodyScans = [],
   photoCounts = {},
@@ -230,7 +217,12 @@ export function ClientDetailTabs({
       </TabsContent>
 
       <TabsContent value="messages" className="mt-4">
-        <ComingSoon feature="Messages" />
+        <CoachClientMessagesPanel
+          clientId={client.id}
+          clientName={client.full_name}
+          messages={messages}
+          schemaError={messagesSchemaError}
+        />
       </TabsContent>
 
       <TabsContent value="notes" className="mt-4">

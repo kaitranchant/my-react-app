@@ -15,6 +15,7 @@ export const DEFAULT_TRACKING_OPTIONS: ScheduledExerciseTrackingOptions = {
   trackPeakPower: false,
   trackReps: true,
   trackVolume: true,
+  autoProgressLoad: false,
 }
 
 export function parseTrackingOptions(
@@ -35,6 +36,7 @@ export function parseTrackingOptions(
     trackPeakPower: Boolean(raw.trackPeakPower),
     trackReps: raw.trackReps === undefined ? true : Boolean(raw.trackReps),
     trackVolume: raw.trackVolume === undefined ? true : Boolean(raw.trackVolume),
+    autoProgressLoad: Boolean(raw.autoProgressLoad),
   }
 }
 
@@ -48,6 +50,8 @@ export function formatExercisePrescriptionSummary(
     | 'each_side'
     | 'tempo'
     | 'rest_seconds'
+    | 'weight_percent'
+    | 'rpe_target'
     | 'superset_group'
     | 'exercise_block'
     | 'workout_notes'
@@ -72,6 +76,10 @@ export function formatExercisePrescriptionSummary(
   }
   if (row.tempo?.trim()) parts.push(`tempo ${row.tempo.trim()}`)
   if (row.rest_seconds?.trim()) parts.push(`${row.rest_seconds.trim()}s rest`)
+  if (row.weight_percent?.trim()) {
+    parts.push(`${row.weight_percent.trim().replace(/%$/, '')}% 1RM`)
+  }
+  if (row.rpe_target?.trim()) parts.push(`RPE ${row.rpe_target.trim()}`)
   if (row.prescription?.trim()) parts.push(row.prescription.trim())
 
   const options = parseTrackingOptions(row.tracking_options)
@@ -109,6 +117,7 @@ export function getExerciseOptionBadges(
   if (options.coachCompletes) badges.push('Coach logs')
   if (options.trackBarSpeed) badges.push('Bar speed')
   if (options.trackPeakPower) badges.push('Peak power')
+  if (options.autoProgressLoad) badges.push('Auto progress')
   if (options.forcePrUpdate) badges.push('Force PR')
   if (options.disablePrTracking) badges.push('No PR track')
 

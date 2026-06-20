@@ -172,6 +172,9 @@ export function TeamProgramsPanel({
                 {programProgress && (
                   <span className="text-muted-foreground text-xs">
                     Week {programProgress.currentWeek} of {programProgress.totalWeeks}
+                    {programProgress.currentPhase
+                      ? ` · ${programProgress.currentPhase.name}`
+                      : ''}
                     · {programProgress.workoutsRemainingThisWeek} workout
                     {programProgress.workoutsRemainingThisWeek === 1 ? '' : 's'}{' '}
                     remaining this week

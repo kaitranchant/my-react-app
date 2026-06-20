@@ -1,6 +1,7 @@
 import { EXERCISE_BLOCK_OPTIONS } from '@/lib/exercise-groups'
 import { parseTrackingOptions } from '@/lib/scheduled-exercise'
 import type {
+  ExercisePersonalBest,
   ScheduledExerciseBlock,
   ScheduledWorkoutExerciseWithDetails,
   ScheduledWorkoutStatus,
@@ -34,6 +35,50 @@ export type WorkoutLogSetDraft = {
 const DEFAULT_SET_COUNT = 3
 export const MAX_LOG_SETS = 20
 export const MIN_LOG_SETS = 1
+
+const DEFAULT_REST_SECONDS = 90
+const DEFAULT_WEIGHT_INCREMENT = 2.5
+
+export type SuggestLogValuesOptions = {
+  personalBest?: ExercisePersonalBest | null
+}
+
+/** Parse rest duration from prescription text like "90", "90s", or "1:30". */
+export function parseRestSeconds(
+  restSeconds: string | null | undefined
+): number {
+  if (!restSeconds?.trim()) return DEFAULT_REST_SECONDS
+
+  const trimmed = restSeconds.trim().toLowerCase().replace(/s$/, '')
+
+  const colonMatch = trimmed.match(/^(\d+):(\d{1,2})$/)
+  if (colonMatch) {
+    const minutes = Number.parseInt(colonMatch[1], 10)
+    const seconds = Number.parseInt(colonMatch[2], 10)
+    if (Number.isFinite(minutes) && Number.isFinite(seconds)) {
+      return Math.max(5, Math.min(600, minutes * 60 + seconds))
+    }
+  }
+
+  const numeric = Number.parseInt(trimmed.replace(/[^\d]/g, ''), 10)
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.max(5, Math.min(600, numeric))
+  }
+
+  return DEFAULT_REST_SECONDS
+}
+
+export function formatElapsedTime(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
 
 export function parseSetCount(sets: string | null | undefined): number {
   if (!sets?.trim()) return DEFAULT_SET_COUNT
@@ -101,10 +146,105 @@ export function parsePrescriptionNumber(
   return match ? match[1] : null
 }
 
+/** Parse a percent-of-1RM prescription like "75", "75%", or "70-80". */
+export function parseWeightPercent(
+  value: string | null | undefined
+): number | null {
+  if (!value?.trim()) return null
+
+  const trimmed = value.trim().replace(/%$/, '')
+  const rangeMatch = trimmed.match(
+    /^(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)$/
+  )
+
+  if (rangeMatch) {
+    const low = Number.parseFloat(rangeMatch[1])
+    const high = Number.parseFloat(rangeMatch[2])
+    if (
+      Number.isFinite(low) &&
+      Number.isFinite(high) &&
+      low > 0 &&
+      high > 0 &&
+      low <= 100 &&
+      high <= 100
+    ) {
+      return (low + high) / 2
+    }
+    return null
+  }
+
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)/)
+  if (!match) return null
+
+  const percent = Number.parseFloat(match[1])
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+    return null
+  }
+
+  return percent
+}
+
+export function roundToWeightIncrement(
+  weight: number,
+  increment = DEFAULT_WEIGHT_INCREMENT
+): number {
+  return Math.round(weight / increment) * increment
+}
+
+export function calculateWeightFromPercent(
+  e1rm: number,
+  percent: number
+): number {
+  return roundToWeightIncrement((e1rm * percent) / 100)
+}
+
+export function previousSessionMetTargets(
+  exercise: Pick<
+    ScheduledWorkoutExerciseWithDetails,
+    'reps' | 'prescription' | 'sets'
+  >,
+  previousSets: Record<number, PreviousSetLog>
+): boolean {
+  const prescribedCount = parseSetCount(exercise.sets)
+  const setNumbers = Object.keys(previousSets)
+    .map(Number)
+    .filter((setNumber) => setNumber >= 1 && setNumber <= prescribedCount)
+
+  if (setNumbers.length < prescribedCount) {
+    return false
+  }
+
+  return setNumbers.every((setNumber) => {
+    const previous = previousSets[setNumber]
+    if (!previous) return false
+
+    const targetLabel = getTargetLabelForSet(exercise, setNumber)
+    const targetReps = parsePrescriptionNumber(targetLabel)
+    if (!targetReps) return true
+
+    return previous.reps >= Number.parseFloat(targetReps)
+  })
+}
+
+export function suggestProgressiveLoadWeight(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  previousSets: Record<number, PreviousSetLog>
+): number | null {
+  const options = parseTrackingOptions(exercise.tracking_options)
+  if (!options.autoProgressLoad) return null
+  if (!previousSessionMetTargets(exercise, previousSets)) return null
+
+  const weights = Object.values(previousSets).map((set) => set.weight)
+  if (weights.length === 0) return null
+
+  return roundToWeightIncrement(Math.max(...weights) + DEFAULT_WEIGHT_INCREMENT)
+}
+
 export function getSuggestedLogValuesForSet(
   exercise: ScheduledWorkoutExerciseWithDetails,
   setNumber: number,
-  previousSets: Record<number, PreviousSetLog> = {}
+  previousSets: Record<number, PreviousSetLog> = {},
+  options: SuggestLogValuesOptions = {}
 ): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'> {
   const fields = getLogFieldsForExercise(exercise)
   const targetLabel = getTargetLabelForSet(exercise, setNumber)
@@ -130,8 +270,24 @@ export function getSuggestedLogValuesForSet(
     }
   }
 
-  if (fields.showWeight && previous?.weight != null) {
-    weight = String(previous.weight)
+  if (fields.showWeight) {
+    const e1rm = options.personalBest?.e1rm ?? null
+    const percent = parseWeightPercent(exercise.weight_percent)
+
+    if (e1rm != null && percent != null) {
+      weight = String(calculateWeightFromPercent(e1rm, percent))
+    } else {
+      const progressiveWeight = suggestProgressiveLoadWeight(
+        exercise,
+        previousSets
+      )
+
+      if (progressiveWeight != null) {
+        weight = String(progressiveWeight)
+      } else if (previous?.weight != null) {
+        weight = String(previous.weight)
+      }
+    }
   }
 
   return { weight, reps, durationSeconds }
@@ -236,13 +392,15 @@ function buildSetDraft(
   exercise: ScheduledWorkoutExerciseWithDetails,
   setNumber: number,
   existing: WorkoutLogSet | undefined,
-  previousSets: Record<number, PreviousSetLog>
+  previousSets: Record<number, PreviousSetLog>,
+  personalBest: ExercisePersonalBest | null = null
 ): WorkoutLogSetDraft {
   const targetLabel = getTargetLabelForSet(exercise, setNumber)
   const suggested = getSuggestedLogValuesForSet(
     exercise,
     setNumber,
-    previousSets
+    previousSets,
+    { personalBest }
   )
 
   if (!existing) {
@@ -289,7 +447,8 @@ function buildSetDraft(
 export function buildSetDrafts(
   exercise: ScheduledWorkoutExerciseWithDetails,
   existingSets: WorkoutLogSet[],
-  previousSets: Record<number, PreviousSetLog> = {}
+  previousSets: Record<number, PreviousSetLog> = {},
+  personalBest: ExercisePersonalBest | null = null
 ): WorkoutLogSetDraft[] {
   const setCount = getEffectiveSetCount(exercise, existingSets)
   const bySetNumber = new Map(
@@ -302,7 +461,8 @@ export function buildSetDrafts(
       exercise,
       setNumber,
       bySetNumber.get(setNumber),
-      previousSets
+      previousSets,
+      personalBest
     )
   })
 }
@@ -348,7 +508,8 @@ export function countTotalSetsFromDrafts(
 export function appendSetDraft(
   exercise: ScheduledWorkoutExerciseWithDetails,
   sets: WorkoutLogSetDraft[],
-  previousSets: Record<number, PreviousSetLog> = {}
+  previousSets: Record<number, PreviousSetLog> = {},
+  personalBest: ExercisePersonalBest | null = null
 ): WorkoutLogSetDraft[] | null {
   if (sets.length >= MAX_LOG_SETS) return null
 
@@ -358,7 +519,8 @@ export function appendSetDraft(
   const suggested = getSuggestedLogValuesForSet(
     exercise,
     nextSetNumber,
-    previousSets
+    previousSets,
+    { personalBest }
   )
   const fields = getLogFieldsForExercise(exercise)
   const lastSet = sets[sets.length - 1]

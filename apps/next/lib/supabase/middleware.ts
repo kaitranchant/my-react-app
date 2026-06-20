@@ -71,6 +71,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/clients') ||
       pathname.startsWith('/library') ||
       pathname.startsWith('/programs') ||
+      pathname.startsWith('/my-workouts') ||
       pathname.startsWith('/check-ins') ||
       pathname.startsWith('/load')
     const isPortal = pathname.startsWith('/portal')

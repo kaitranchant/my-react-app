@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   CalendarDays,
   LayoutDashboard,
+  MessageSquare,
   Scale,
   TrendingUp,
   type LucideIcon,
@@ -17,6 +18,7 @@ export const portalNavItems: PortalNavItem[] = [
   { label: 'Home', href: '/portal', icon: LayoutDashboard },
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
+  { label: 'Messages', href: '/portal/messages', icon: MessageSquare },
   { label: 'InBody', href: '/portal/inbody', icon: Scale },
   { label: 'Progress', href: '/portal/progress', icon: TrendingUp },
 ]

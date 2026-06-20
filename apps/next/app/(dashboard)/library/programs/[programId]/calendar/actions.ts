@@ -129,7 +129,7 @@ function matchesMaterializedProgramWorkout(
 }
 
 const PROGRAM_EXERCISE_SYNC_SELECT =
-  'exercise_id, sort_order, sets, reps, prescription, superset_group, exercise_block, workout_notes, rep_mode, each_side, tempo, rest_seconds, tracking_options'
+  'exercise_id, sort_order, sets, reps, prescription, superset_group, exercise_block, workout_notes, rep_mode, each_side, tempo, rest_seconds, weight_percent, rpe_target, tracking_options'
 
 type ProgramExerciseSyncRow = {
   exercise_id: string
@@ -144,6 +144,8 @@ type ProgramExerciseSyncRow = {
   each_side: boolean
   tempo: string | null
   rest_seconds: string | null
+  weight_percent: string | null
+  rpe_target: string | null
   tracking_options: ScheduledExerciseTrackingOptions
 }
 
@@ -165,6 +167,8 @@ function buildClientExerciseRow(
     each_side: programExercise.each_side,
     tempo: programExercise.tempo,
     rest_seconds: programExercise.rest_seconds,
+    weight_percent: programExercise.weight_percent,
+    rpe_target: programExercise.rpe_target,
     tracking_options: programExercise.tracking_options,
   }
 }
@@ -1173,9 +1177,7 @@ export async function materializeProgramToClientCalendar(
 
     const { data: programExercises, error: exercisesError } = await supabase
       .from('program_scheduled_workout_exercises')
-      .select(
-        'exercise_id, sort_order, sets, reps, prescription, superset_group, exercise_block, workout_notes, rep_mode, each_side, tempo, rest_seconds, tracking_options'
-      )
+      .select(PROGRAM_EXERCISE_SYNC_SELECT)
       .eq('program_scheduled_workout_id', programWorkout.id)
       .order('sort_order', { ascending: true })
 
@@ -1204,6 +1206,8 @@ export async function materializeProgramToClientCalendar(
             each_side: exercise.each_side,
             tempo: exercise.tempo,
             rest_seconds: exercise.rest_seconds,
+            weight_percent: exercise.weight_percent,
+            rpe_target: exercise.rpe_target,
             tracking_options: exercise.tracking_options,
           }))
         )
@@ -1242,6 +1246,8 @@ function buildProgramExerciseInserts(
     each_side: row.each_side,
     tempo: row.tempo,
     rest_seconds: row.rest_seconds,
+    weight_percent: row.weight_percent,
+    rpe_target: row.rpe_target,
     tracking_options: row.tracking_options,
   }))
 }

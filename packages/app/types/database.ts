@@ -1,4 +1,5 @@
 export type ClientStatus = 'active' | 'paused' | 'archived'
+export type ClientCoachingType = 'online' | 'in_person' | 'hybrid'
 export type UserRole = 'coach' | 'client'
 export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
@@ -20,6 +21,7 @@ export type ScheduledWorkoutStatus =
   | 'completed'
   | 'skipped'
 export type CheckInSubmittedBy = 'client' | 'coach'
+export type MessageSenderRole = 'coach' | 'client'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
@@ -45,6 +47,7 @@ export type ScheduledExerciseTrackingOptions = {
   trackPeakPower: boolean
   trackReps: boolean
   trackVolume: boolean
+  autoProgressLoad: boolean
 }
 
 export type Json =
@@ -103,6 +106,8 @@ export type Database = {
           goal: string | null
           notes: string | null
           avatar_url: string | null
+          coaching_type: ClientCoachingType | null
+          is_coach_self: boolean
           created_at: string
           updated_at: string
         }
@@ -120,6 +125,8 @@ export type Database = {
           goal?: string | null
           notes?: string | null
           avatar_url?: string | null
+          coaching_type?: ClientCoachingType | null
+          is_coach_self?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -137,6 +144,8 @@ export type Database = {
           goal?: string | null
           notes?: string | null
           avatar_url?: string | null
+          coaching_type?: ClientCoachingType | null
+          is_coach_self?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -479,6 +488,60 @@ export type Database = {
           },
         ]
       }
+      program_phases: {
+        Row: {
+          id: string
+          coach_id: string
+          program_id: string
+          name: string
+          description: string | null
+          start_day_offset: number
+          end_day_offset: number
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          program_id: string
+          name: string
+          description?: string | null
+          start_day_offset: number
+          end_day_offset: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          program_id?: string
+          name?: string
+          description?: string | null
+          start_day_offset?: number
+          end_day_offset?: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'program_phases_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'program_phases_program_id_fkey'
+            columns: ['program_id']
+            isOneToOne: false
+            referencedRelation: 'programs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       program_scheduled_workouts: {
         Row: {
           id: string
@@ -553,6 +616,8 @@ export type Database = {
           each_side: boolean
           tempo: string | null
           rest_seconds: string | null
+          weight_percent: string | null
+          rpe_target: string | null
           tracking_options: ScheduledExerciseTrackingOptions
           created_at: string
           updated_at: string
@@ -572,6 +637,8 @@ export type Database = {
           each_side?: boolean
           tempo?: string | null
           rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -591,6 +658,8 @@ export type Database = {
           each_side?: boolean
           tempo?: string | null
           rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -792,6 +861,8 @@ export type Database = {
           each_side: boolean
           tempo: string | null
           rest_seconds: string | null
+          weight_percent: string | null
+          rpe_target: string | null
           tracking_options: ScheduledExerciseTrackingOptions
           created_at: string
           updated_at: string
@@ -811,6 +882,8 @@ export type Database = {
           each_side?: boolean
           tempo?: string | null
           rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -830,6 +903,8 @@ export type Database = {
           each_side?: boolean
           tempo?: string | null
           rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -1065,6 +1140,96 @@ export type Database = {
           },
         ]
       }
+      client_message_threads: {
+        Row: {
+          client_id: string
+          coach_id: string
+          coach_last_read_at: string | null
+          client_last_read_at: string | null
+          last_message_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          coach_id: string
+          coach_last_read_at?: string | null
+          client_last_read_at?: string | null
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          coach_id?: string
+          coach_last_read_at?: string | null
+          client_last_read_at?: string | null
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_message_threads_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: true
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_message_threads_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_messages: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          sender_id: string
+          sender_role: MessageSenderRole
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          sender_id: string
+          sender_role: MessageSenderRole
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          sender_id?: string
+          sender_role?: MessageSenderRole
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_messages_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_messages_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_inbody_scans: {
         Row: {
           id: string
@@ -1249,6 +1414,7 @@ export type Database = {
       }
     }
     Enums: {
+      client_coaching_type: ClientCoachingType
       client_status: ClientStatus
       user_role: UserRole
       client_invite_status: ClientInviteStatus
@@ -1262,6 +1428,7 @@ export type Database = {
       workout_status: WorkoutStatus
       scheduled_workout_status: ScheduledWorkoutStatus
       check_in_submitted_by: CheckInSubmittedBy
+      message_sender_role: MessageSenderRole
       exercise_pr_record_type: ExercisePrRecordType
     }
     CompositeTypes: {
@@ -1338,6 +1505,7 @@ export type TeamProgramProgress = {
   totalWeeks: number
   workoutsThisWeek: number
   workoutsRemainingThisWeek: number
+  currentPhase: Pick<ProgramPhase, 'id' | 'name'> | null
 }
 
 export type TeamProgramHistoryEntry = {
@@ -1364,6 +1532,12 @@ export type ClientProgramAssignment = ProgramAssignment & {
   program: Pick<Program, 'id' | 'name' | 'description' | 'status'>
   team?: Pick<Team, 'id' | 'name'> | null
 }
+
+export type ProgramPhase = Database['public']['Tables']['program_phases']['Row']
+export type ProgramPhaseInsert =
+  Database['public']['Tables']['program_phases']['Insert']
+export type ProgramPhaseUpdate =
+  Database['public']['Tables']['program_phases']['Update']
 
 export type ProgramScheduledWorkout =
   Database['public']['Tables']['program_scheduled_workouts']['Row']
@@ -1453,6 +1627,22 @@ export type WorkoutLogData = ClientScheduledWorkoutWithExercises & {
   personalBestsByExerciseId: Record<string, ExercisePersonalBest>
 }
 
+export type ExerciseHistorySet = {
+  setNumber: number
+  weight: number | null
+  reps: number | null
+  durationSeconds: number | null
+  e1rm: number | null
+}
+
+export type ExerciseHistorySession = {
+  workoutId: string
+  date: string
+  workoutName: string | null
+  sets: ExerciseHistorySet[]
+  bestE1rm: number | null
+}
+
 export type ClientCheckIn =
   Database['public']['Tables']['client_check_ins']['Row']
 export type ClientCheckInInsert =
@@ -1479,6 +1669,13 @@ export type ClientProgressPhotoWithClient = ClientProgressPhoto & {
   client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
   signedUrl: string | null
 }
+
+export type ClientMessage =
+  Database['public']['Tables']['client_messages']['Row']
+export type ClientMessageInsert =
+  Database['public']['Tables']['client_messages']['Insert']
+export type ClientMessageThread =
+  Database['public']['Tables']['client_message_threads']['Row']
 
 export type ClientInbodyScan =
   Database['public']['Tables']['client_inbody_scans']['Row']

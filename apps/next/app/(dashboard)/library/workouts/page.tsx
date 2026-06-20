@@ -42,9 +42,9 @@ function formatDate(value: string) {
 export default async function LibraryWorkoutsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; q?: string }>
 }) {
-  const { status } = await searchParams
+  const { status, q } = await searchParams
   const supabase = await createClient()
 
   let queryBuilder = supabase
@@ -54,6 +54,10 @@ export default async function LibraryWorkoutsPage({
 
   if (status && isStatus(status)) {
     queryBuilder = queryBuilder.eq('status', status)
+  }
+
+  if (q && q.trim()) {
+    queryBuilder = queryBuilder.ilike('name', `%${q.trim()}%`)
   }
 
   const { data, error } = await queryBuilder
@@ -114,7 +118,7 @@ export default async function LibraryWorkoutsPage({
               <div className="space-y-1">
                 <p className="font-medium">No workouts yet</p>
                 <p className="text-muted-foreground max-w-sm text-sm">
-                  {status
+                  {status || q
                     ? 'No workouts match this filter.'
                     : 'Create your first workout template.'}
                 </p>

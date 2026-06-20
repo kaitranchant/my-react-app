@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
+import { isCoachSelfClient } from '@/lib/coach-self'
 import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
@@ -15,6 +16,7 @@ import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
+import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import type {
   CalendarDaySummary,
@@ -22,6 +24,7 @@ import type {
   ClientProgramAssignment,
   ClientCheckIn,
   ClientInbodyScan,
+  ClientMessage,
   ClientScheduledWorkoutWithExercises,
   ClientTeamMembership,
   Exercise,
@@ -63,6 +66,7 @@ export default async function ClientDetailPage({
     recentWorkoutsResult,
     streakWorkoutsResult,
     checkInsResult,
+    messagesResult,
     progressPhotosResult,
     inbodyScansResult,
     teamMembershipsResult,
@@ -139,6 +143,12 @@ export default async function ClientDetailPage({
       .order('check_in_date', { ascending: false })
       .limit(50),
     supabase
+      .from('client_messages')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: true })
+      .limit(200),
+    supabase
       .from('client_progress_photos')
       .select('*')
       .eq('client_id', clientId)
@@ -159,6 +169,10 @@ export default async function ClientDetailPage({
 
   if (!data) {
     notFound()
+  }
+
+  if (isCoachSelfClient(data as Client)) {
+    redirect('/my-workouts')
   }
 
   const client = data as Client
@@ -198,6 +212,8 @@ export default async function ClientDetailPage({
   const streakWorkouts = (streakWorkoutsResult.data ??
     []) as ClientWorkoutActivity[]
   const checkIns = (checkInsResult.data ?? []) as ClientCheckIn[]
+  const messages = (messagesResult.data ?? []) as ClientMessage[]
+  const messagesSchemaError = messagesResult.error?.message ?? null
   const progressPhotos = await attachSignedUrlsToPhotos(
     supabase,
     progressPhotosResult.data ?? []
@@ -249,7 +265,12 @@ export default async function ClientDetailPage({
               {client.email && (
                 <p className="text-muted-foreground text-sm">{client.email}</p>
               )}
-              <ClientTeamBadges memberships={teamMemberships} />
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {client.coaching_type && (
+                  <ClientCoachingTypeBadge coachingType={client.coaching_type} />
+                )}
+                <ClientTeamBadges memberships={teamMemberships} />
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -278,6 +299,8 @@ export default async function ClientDetailPage({
           recentWorkouts={recentWorkouts}
           streakWorkouts={streakWorkouts}
           checkIns={checkIns}
+          messages={messages}
+          messagesSchemaError={messagesSchemaError}
           progressPhotos={progressPhotos}
           inbodyScans={inbodyScans}
           photoCounts={photoCounts}

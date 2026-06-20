@@ -9,6 +9,7 @@ import {
   type CompleteWorkoutResult,
 } from '@/lib/pr-records'
 import {
+  fetchExerciseHistory,
   fetchLogSets,
   fetchPreviousSetsForExercises,
   fetchWorkoutWithExercises,
@@ -351,4 +352,27 @@ export async function reopenPortalWorkoutLog(
 
   revalidatePortal()
   return { success: true }
+}
+
+export type ExerciseHistoryResult =
+  | { success: true; sessions: import('app/types/database').ExerciseHistorySession[] }
+  | { success: false; error: string }
+
+export async function getPortalExerciseHistory(
+  exerciseId: string,
+  options?: { excludeWorkoutId?: string; limit?: number }
+): Promise<ExerciseHistoryResult> {
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const sessions = await fetchExerciseHistory(
+    ctx.supabase,
+    ctx.client.id,
+    exerciseId,
+    options
+  )
+
+  return { success: true, sessions }
 }

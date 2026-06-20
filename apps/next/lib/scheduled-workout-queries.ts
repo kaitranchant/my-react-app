@@ -1,6 +1,9 @@
+import { calculateE1rm } from '@/lib/workout-log'
 import type { createClient } from '@/lib/supabase/server'
 import type {
   ClientScheduledWorkoutWithExercises,
+  ExerciseHistorySession,
+  ExerciseHistorySet,
   ExercisePreviousSets,
   WorkoutLogSet,
 } from 'app/types/database'
@@ -145,4 +148,111 @@ export async function fetchPreviousSetsForExercises(
   }
 
   return { previousSetsByExerciseId, previousSessionDateByExerciseId }
+}
+
+type ExerciseHistoryRow = {
+  set_number: number
+  weight: number | null
+  reps: number | null
+  duration_seconds: number | null
+  completed: boolean
+  scheduled_workout_id: string
+  scheduled_workout_exercises: { exercise_id: string }
+  client_scheduled_workouts: {
+    id: string
+    scheduled_date: string
+    name: string | null
+    status: string
+  }
+}
+
+export async function fetchExerciseHistory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  libraryExerciseId: string,
+  options?: { excludeWorkoutId?: string; limit?: number }
+): Promise<ExerciseHistorySession[]> {
+  const limit = options?.limit ?? 12
+
+  let query = supabase
+    .from('workout_log_sets')
+    .select(
+      `
+      set_number,
+      weight,
+      reps,
+      duration_seconds,
+      completed,
+      scheduled_workout_id,
+      scheduled_workout_exercises!inner (exercise_id),
+      client_scheduled_workouts!inner (id, client_id, scheduled_date, name, status)
+    `
+    )
+    .eq('client_scheduled_workouts.client_id', clientId)
+    .eq('scheduled_workout_exercises.exercise_id', libraryExerciseId)
+    .eq('client_scheduled_workouts.status', 'completed')
+    .eq('completed', true)
+    .order('scheduled_date', {
+      ascending: false,
+      referencedTable: 'client_scheduled_workouts',
+    })
+
+  if (options?.excludeWorkoutId) {
+    query = query.neq('scheduled_workout_id', options.excludeWorkoutId)
+  }
+
+  const { data, error } = await query
+
+  if (error || !data) {
+    return []
+  }
+
+  const rows = data as ExerciseHistoryRow[]
+  const sessionsByWorkout = new Map<string, ExerciseHistorySession>()
+
+  for (const row of rows) {
+    const workout = row.client_scheduled_workouts
+    const workoutId = workout.id
+    const date = String(workout.scheduled_date ?? '').slice(0, 10)
+    if (!date) continue
+
+    let session = sessionsByWorkout.get(workoutId)
+    if (!session) {
+      session = {
+        workoutId,
+        date,
+        workoutName: workout.name,
+        sets: [],
+        bestE1rm: null,
+      }
+      sessionsByWorkout.set(workoutId, session)
+    }
+
+    const e1rm =
+      row.weight != null && row.reps != null
+        ? calculateE1rm(row.weight, row.reps)
+        : null
+
+    const historySet: ExerciseHistorySet = {
+      setNumber: row.set_number,
+      weight: row.weight,
+      reps: row.reps,
+      durationSeconds: row.duration_seconds,
+      e1rm,
+    }
+
+    session.sets.push(historySet)
+
+    if (e1rm != null && (session.bestE1rm == null || e1rm > session.bestE1rm)) {
+      session.bestE1rm = e1rm
+    }
+  }
+
+  return Array.from(sessionsByWorkout.values())
+    .map((session) => ({
+      ...session,
+      sets: session.sets.sort((a, b) => a.setNumber - b.setNumber),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, limit)
 }

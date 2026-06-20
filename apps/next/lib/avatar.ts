@@ -5,6 +5,10 @@ export function clientAvatarStoragePath(clientId: string) {
   return `clients/${clientId}/avatar.webp`
 }
 
+export function coachAvatarStoragePath(userId: string) {
+  return `coaches/${userId}/avatar.webp`
+}
+
 export function withAvatarCacheBuster(url: string, version?: string | number) {
   const v = version ?? Date.now()
   return url.includes('?') ? `${url}&v=${v}` : `${url}?v=${v}`

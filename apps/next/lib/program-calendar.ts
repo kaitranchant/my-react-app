@@ -76,3 +76,58 @@ export function getMatchingDayOffsetsInRange(
 
   return offsets
 }
+
+export function getWeekIndexForDayOffset(dayOffset: number): number {
+  return Math.floor(dayOffset / DAYS_PER_PROGRAM_WEEK)
+}
+
+export type ProgramPhaseRange = {
+  id?: string
+  start_day_offset: number
+  end_day_offset: number
+}
+
+export function getPhaseForDayOffset<T extends ProgramPhaseRange>(
+  phases: T[],
+  dayOffset: number
+): T | null {
+  return (
+    phases.find(
+      (phase) =>
+        dayOffset >= phase.start_day_offset && dayOffset <= phase.end_day_offset
+    ) ?? null
+  )
+}
+
+export function phaseRangesOverlap(
+  startOffset: number,
+  endOffset: number,
+  existing: ProgramPhaseRange[],
+  excludePhaseId?: string
+): boolean {
+  return existing.some((phase) => {
+    if (excludePhaseId && phase.id === excludePhaseId) return false
+    return startOffset <= phase.end_day_offset && endOffset >= phase.start_day_offset
+  })
+}
+
+export function formatPhaseDayRange(
+  phase: Pick<ProgramPhaseRange, 'start_day_offset' | 'end_day_offset'>
+): string {
+  return `${formatProgramDayLabel(phase.start_day_offset)} – ${formatProgramDayLabel(phase.end_day_offset)}`
+}
+
+export function formatPhaseDuration(
+  phase: Pick<ProgramPhaseRange, 'start_day_offset' | 'end_day_offset'>
+): string {
+  const days = phase.end_day_offset - phase.start_day_offset + 1
+  const weeks = Math.ceil(days / DAYS_PER_PROGRAM_WEEK)
+  if (weeks === 1) return '1 week'
+  return `${weeks} weeks`
+}
+
+export function suggestNextPhaseStartOffset(phases: ProgramPhaseRange[]): number {
+  if (phases.length === 0) return 0
+  const maxEnd = Math.max(...phases.map((phase) => phase.end_day_offset))
+  return Math.min(maxEnd + 1, MAX_PROGRAM_DAY_OFFSET)
+}

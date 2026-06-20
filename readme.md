@@ -15,10 +15,11 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Check-ins: expanded weekly form (weight, sleep duration/quality, calm, energy, motivation, nutrition, soreness, pain flags), client portal submit with recent history, coach review inbox, and manual coach entry
 - Load management and PR analytics: weekly volume and ACWR on client overview, PR detection in workout logging, persisted PR history, and coach `/load` dashboard
 - Progress photos: client upload (front/side/back) attached to check-ins, coach gallery on client detail tab, and roster `/progress-photos` feed
+- Client messaging: direct coach ↔ client chat on the client detail Messages tab, coach `/messages` inbox, and client portal `/portal/messages`
 
 ## What's coming
 
-Attendance, form review, leaderboards, wearables, and client messages appear in the UI but are not yet implemented.
+Attendance, form review, leaderboards, and wearables appear in the UI but are not yet implemented.
 
 ## Deployment
 

@@ -37,12 +37,26 @@ import {
   stopPortalWorkoutLog,
 } from '@/app/portal/workout-log-actions'
 import { AddExerciseDialog } from '@/components/calendar/add-exercise-dialog'
+import {
+  ExerciseHistoryButton,
+  ExerciseHistoryDialog,
+} from '@/components/calendar/exercise-history-dialog'
 import { EditScheduledExerciseDialog } from '@/components/calendar/edit-scheduled-exercise-dialog'
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
+import {
+  RestTimerChip,
+  RestTimerProvider,
+  useRestTimer,
+} from '@/components/calendar/rest-timer'
+import {
+  WorkoutElapsedTimer,
+  WorkoutProgressBar,
+} from '@/components/calendar/workout-elapsed-timer'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +86,7 @@ import {
   applyExerciseSetChanges,
   appendSetDraft,
   buildSetDrafts,
+  calculateWeightFromPercent,
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
@@ -82,10 +97,14 @@ import {
   getSupersetColor,
   getWorkoutDisplayStatus,
   groupExercisesBySection,
+  parseWeightPercent,
+  previousSessionMetTargets,
+  suggestProgressiveLoadWeight,
   MAX_LOG_SETS,
   MIN_LOG_SETS,
   parseOptionalInt,
   parseOptionalNumber,
+  parseRestSeconds,
   removeSetDraft,
   workoutHasProgress,
   type WorkoutLogSetDraft,
@@ -122,7 +141,8 @@ type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
 function buildExerciseState(
   exercises: ScheduledWorkoutExerciseWithDetails[],
   logSets: WorkoutLogSet[],
-  previousSetsByExerciseId: Record<string, ExercisePreviousSets> = {}
+  previousSetsByExerciseId: Record<string, ExercisePreviousSets> = {},
+  personalBestsByExerciseId: Record<string, ExercisePersonalBest> = {}
 ): ExerciseLogState {
   const setsByExercise = new Map<string, WorkoutLogSet[]>()
 
@@ -137,7 +157,8 @@ function buildExerciseState(
     state[exercise.id] = buildSetDrafts(
       exercise,
       setsByExercise.get(exercise.id) ?? [],
-      previousSetsByExerciseId[exercise.exercise_id] ?? {}
+      previousSetsByExerciseId[exercise.exercise_id] ?? {},
+      personalBestsByExerciseId[exercise.exercise_id] ?? null
     )
   }
   return state
@@ -225,6 +246,10 @@ type WorkoutLogExerciseProps = {
   previousSessionDate: string | null
   personalBest: ExercisePersonalBest | null
   readOnly: boolean
+  isWorkoutActive: boolean
+  clientId: string
+  workoutId: string
+  variant: 'coach' | 'client'
   onSetChange: (
     setNumber: number,
     patch: Partial<WorkoutLogSetDraft>
@@ -245,6 +270,10 @@ function WorkoutLogExercise({
   previousSessionDate,
   personalBest,
   readOnly,
+  isWorkoutActive,
+  clientId,
+  workoutId,
+  variant,
   onSetChange,
   onAddSet,
   onRemoveSet,
@@ -254,6 +283,9 @@ function WorkoutLogExercise({
   allowPrescriptionEdits = true,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
+  const [historyOpen, setHistoryOpen] = React.useState(false)
+  const { startRestTimer } = useRestTimer()
+  const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
   const mediaUrl = getExerciseMediaUrl(mediaExercise, '180')
   const showMedia = hasExerciseMedia(mediaExercise)
@@ -271,6 +303,16 @@ function WorkoutLogExercise({
       ? getBestE1rmFromPrevious(previousSets)
       : null
   const allTimeE1rm = personalBest?.e1rm ?? null
+  const weightPercent = parseWeightPercent(exercise.weight_percent)
+  const percentTargetWeight =
+    weightPercent != null && allTimeE1rm != null
+      ? calculateWeightFromPercent(allTimeE1rm, weightPercent)
+      : null
+  const progressiveLoadWeight =
+    trackingOptions.autoProgressLoad &&
+    previousSessionMetTargets(exercise, previousSets)
+      ? suggestProgressiveLoadWeight(exercise, previousSets)
+      : null
   const isLivePr =
     currentE1rm != null &&
     (allTimeE1rm == null || currentE1rm > allTimeE1rm)
@@ -292,352 +334,446 @@ function WorkoutLogExercise({
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
   const setGridCols = fields.completionOnly
     ? canRemoveSet
-      ? 'grid-cols-[2.5rem_1fr_2rem_2rem]'
-      : 'grid-cols-[2.5rem_1fr_2rem]'
+      ? 'grid-cols-[2.5rem_1fr_2.5rem_2rem]'
+      : 'grid-cols-[2.5rem_1fr_2.5rem]'
     : fields.showWeight && fields.showReps
       ? canRemoveSet
-        ? 'grid-cols-[2.5rem_5rem_1fr_1fr_2rem_2rem]'
-        : 'grid-cols-[2.5rem_5rem_1fr_1fr_2rem]'
+        ? 'grid-cols-[2.5rem_4.5rem_1fr_1fr_2.5rem_2rem]'
+        : 'grid-cols-[2.5rem_4.5rem_1fr_1fr_2.5rem]'
       : canRemoveSet
-        ? 'grid-cols-[2.5rem_5rem_1fr_2rem_2rem]'
-        : 'grid-cols-[2.5rem_5rem_1fr_2rem]'
+        ? 'grid-cols-[2.5rem_4.5rem_1fr_2.5rem_2rem]'
+        : 'grid-cols-[2.5rem_4.5rem_1fr_2.5rem]'
+
+  const activeSetNumber =
+    sets.find((set) => !set.completed)?.setNumber ?? null
+  const completedCount = sets.filter((set) => set.completed).length
+  const allComplete = sets.length > 0 && completedCount === sets.length
+
+  function handleSetToggle(set: WorkoutLogSetDraft) {
+    const nextCompleted = !set.completed
+    onSetChange(set.setNumber, { completed: nextCompleted })
+
+    if (
+      nextCompleted &&
+      isWorkoutActive &&
+      !readOnly &&
+      restSeconds > 0
+    ) {
+      startRestTimer(exercise.exercise.name, restSeconds)
+    }
+  }
+
+  function handleMarkAll() {
+    for (const set of sets) {
+      if (!set.completed) {
+        onSetChange(set.setNumber, { completed: true })
+      }
+    }
+  }
+
+  function canConfirmSet(set: WorkoutLogSetDraft): boolean {
+    if (set.completed) return true
+    return (
+      fields.completionOnly ||
+      (fields.showWeight &&
+        fields.showReps &&
+        set.weight.trim() !== '' &&
+        set.reps.trim() !== '') ||
+      (!fields.showWeight &&
+        fields.showReps &&
+        set.reps.trim() !== '') ||
+      (fields.showDuration && set.durationSeconds.trim() !== '')
+    )
+  }
 
   return (
-    <div className="border-b py-4 last:border-b-0">
-      <div className="flex items-start gap-3">
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => showMedia && setMediaOpen(true)}
-            disabled={!showMedia}
-            className={cn(
-              'relative flex size-10 items-center justify-center overflow-hidden rounded-full',
-              showMedia
-                ? 'hover:ring-brand/40 ring-offset-background focus-visible:ring-brand ring-2 ring-transparent transition-shadow focus-visible:outline-none'
-                : 'bg-muted'
-            )}
-            aria-label={
-              showMedia
-                ? `View form for ${exercise.exercise.name}`
-                : exercise.exercise.name
-            }
-          >
-            {mediaUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={mediaUrl}
-                  alt=""
-                  className="size-full object-cover"
-                  loading="lazy"
-                />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <PlayCircle className="size-4 text-white drop-shadow" />
-                </span>
-              </>
-            ) : (
-              <Dumbbell className="text-muted-foreground size-4" />
-            )}
-          </button>
-          {exercise.superset_group && (
-            <span
-              className={cn(
-                'absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white',
-                getSupersetColor(exercise.superset_group)
-              )}
-            >
-              {exercise.superset_group}
-            </span>
+    <Card className="mb-4 gap-0 overflow-hidden py-0 shadow-sm">
+      {exercise.superset_group && (
+        <div
+          className={cn(
+            'px-4 py-1.5 text-center text-[11px] font-bold tracking-wide text-white uppercase',
+            getSupersetColor(exercise.superset_group)
           )}
+        >
+          Superset {exercise.superset_group}
         </div>
+      )}
 
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="font-semibold">{exercise.exercise.name}</p>
-              <p className="text-muted-foreground text-sm">{summary}</p>
-            </div>
-            {!readOnly && (allowPrescriptionEdits || showMedia) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0"
-                    aria-label={`Actions for ${exercise.exercise.name}`}
-                  >
-                    <MoreVertical className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {showMedia && (
-                    <DropdownMenuItem onSelect={() => setMediaOpen(true)}>
-                      View form
-                    </DropdownMenuItem>
-                  )}
-                  {allowPrescriptionEdits && (
-                    <>
-                      <DropdownMenuItem onSelect={onEdit}>
-                        Edit prescription
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={onReplace}>
-                        Replace exercise
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                        Remove exercise
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {readOnly && showMedia && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={() => setMediaOpen(true)}
-              >
-                View form
-              </Button>
-            )}
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => showMedia && setMediaOpen(true)}
+              disabled={!showMedia}
+              className={cn(
+                'relative flex size-12 items-center justify-center overflow-hidden rounded-xl',
+                showMedia
+                  ? 'hover:ring-brand/40 ring-offset-background focus-visible:ring-brand ring-2 ring-transparent transition-shadow focus-visible:outline-none'
+                  : 'bg-muted'
+              )}
+              aria-label={
+                showMedia
+                  ? `View form for ${exercise.exercise.name}`
+                  : exercise.exercise.name
+              }
+            >
+              {mediaUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={mediaUrl}
+                    alt=""
+                    className="size-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                    <PlayCircle className="size-5 text-white drop-shadow" />
+                  </span>
+                </>
+              ) : (
+                <Dumbbell className="text-muted-foreground size-5" />
+              )}
+            </button>
           </div>
-          <div>
-            {exercise.workout_notes?.trim() && (
-              <p className="text-muted-foreground mt-1 text-sm leading-snug">
-                {exercise.workout_notes.trim()}
-              </p>
-            )}
-            {(currentE1rm != null || previousE1rm != null || allTimeE1rm != null) && (
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                {currentE1rm != null && (
-                  <span>
-                    Est. 1RM{' '}
-                    <span className="text-foreground font-semibold">
-                      {currentE1rm} lbs
-                    </span>
-                  </span>
-                )}
-                {allTimeE1rm != null && (
-                  <span className="text-muted-foreground">
-                    All-time est. 1RM {allTimeE1rm} lbs
-                  </span>
-                )}
-                {previousE1rm != null && (
-                  <span className="text-muted-foreground">
-                    Last est. 1RM {previousE1rm} lbs
-                    {previousSessionDate &&
-                      ` · ${formatDayHeader(previousSessionDate)}`}
-                  </span>
-                )}
-                {isLivePr && (
-                  <Badge className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700">
-                    <Trophy className="size-3" />
-                    PR pace
-                  </Badge>
+
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-base leading-snug font-semibold">
+                  {exercise.exercise.name}
+                </p>
+                <p className="text-muted-foreground text-sm">{summary}</p>
+                {(percentTargetWeight != null || progressiveLoadWeight != null) && (
+                  <div className="text-muted-foreground mt-1 space-y-0.5 text-xs">
+                    {percentTargetWeight != null && allTimeE1rm != null && (
+                      <p>
+                        Target load{' '}
+                        <span className="text-foreground font-medium">
+                          {percentTargetWeight} lb
+                        </span>{' '}
+                        ({exercise.weight_percent?.trim()} of {allTimeE1rm} lb e1RM)
+                      </p>
+                    )}
+                    {progressiveLoadWeight != null && (
+                      <p>
+                        Suggested{' '}
+                        <span className="text-foreground font-medium">
+                          {progressiveLoadWeight} lb
+                        </span>{' '}
+                        based on last session performance
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-            {sessionVolume > 0 && (
-              <p className="text-muted-foreground mt-2 text-sm">
-                Session volume{' '}
-                <span className="text-foreground font-medium">
-                  {formatVolume(sessionVolume)}
-                </span>
-              </p>
-            )}
-          </div>
-
-          {showSetTable ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[320px] space-y-1">
-                <div
-                  className={cn(
-                    'text-muted-foreground grid gap-2 px-1 text-xs font-medium',
-                    setGridCols
-                  )}
-                >
-                  <span>Set</span>
-                  {fields.completionOnly ? (
-                    <span>Target</span>
-                  ) : (
-                    <>
-                      <span>Prev</span>
-                      {fields.showWeight && <span>Lbs</span>}
-                      {fields.showReps && <span>Reps</span>}
-                      {fields.showDuration && <span>Sec</span>}
-                    </>
-                  )}
-                  <span className="sr-only">Done</span>
-                  {canRemoveSet && <span className="sr-only">Remove</span>}
-                </div>
-
-                {sets.map((set) => {
-                  const previous = previousSets[set.setNumber]
-                  return (
-                    <div
-                      key={set.setNumber}
-                      className={cn(
-                        'grid items-center gap-2 rounded-md border px-1 py-1.5',
-                        setGridCols,
-                        set.completed && 'border-emerald-500/30 bg-emerald-500/5',
-                        set.predicted &&
-                          !set.completed &&
-                          'border-brand/30 bg-brand/5'
+              <div className="flex shrink-0 items-center gap-0.5">
+                <ExerciseHistoryButton onClick={() => setHistoryOpen(true)} />
+                {!readOnly && (allowPrescriptionEdits || showMedia) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        aria-label={`Actions for ${exercise.exercise.name}`}
+                      >
+                        <MoreVertical className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {showMedia && (
+                        <DropdownMenuItem onSelect={() => setMediaOpen(true)}>
+                          View form
+                        </DropdownMenuItem>
                       )}
-                    >
-                      <span className="text-muted-foreground pl-1 text-xs font-semibold">
-                        {set.setNumber}
-                      </span>
-
-                      {fields.completionOnly ? (
-                        <span className="text-muted-foreground px-1 text-sm">
-                          {set.targetLabel ?? '—'}
-                        </span>
-                      ) : (
-                        <span className="bg-muted/60 text-muted-foreground rounded px-2 py-1.5 text-center text-xs">
-                          {previous
-                            ? formatPreviousPerformance(
-                                previous.weight,
-                                previous.reps
-                              )
-                            : '—'}
-                        </span>
+                      {allowPrescriptionEdits && (
+                        <>
+                          <DropdownMenuItem onSelect={onEdit}>
+                            Edit prescription
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={onReplace}>
+                            Replace exercise
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                            Remove exercise
+                          </DropdownMenuItem>
+                        </>
                       )}
-
-                      {fields.showWeight && (
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="0.5"
-                          value={set.weight}
-                          disabled={readOnly}
-                          onChange={(event) =>
-                            onSetChange(set.setNumber, {
-                              weight: event.target.value,
-                            })
-                          }
-                          placeholder="—"
-                          className="h-8 text-center"
-                          aria-label={`Set ${set.setNumber} weight`}
-                        />
-                      )}
-
-                      {fields.showReps && (
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={set.reps}
-                          disabled={readOnly}
-                          onChange={(event) =>
-                            onSetChange(set.setNumber, {
-                              reps: event.target.value,
-                            })
-                          }
-                          placeholder="—"
-                          className="h-8 text-center"
-                          aria-label={`Set ${set.setNumber} reps`}
-                        />
-                      )}
-
-                      {fields.showDuration && (
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={set.durationSeconds}
-                          disabled={readOnly}
-                          onChange={(event) =>
-                            onSetChange(set.setNumber, {
-                              durationSeconds: event.target.value,
-                            })
-                          }
-                          placeholder="—"
-                          className="h-8 text-center"
-                          aria-label={`Set ${set.setNumber} duration`}
-                        />
-                      )}
-
-                      <div className="flex justify-center">
-                        <button
-                          type="button"
-                          disabled={
-                            readOnly ||
-                            (!set.completed &&
-                              !(
-                                fields.completionOnly ||
-                                (fields.showWeight &&
-                                  fields.showReps &&
-                                  set.weight.trim() !== '' &&
-                                  set.reps.trim() !== '') ||
-                                (!fields.showWeight &&
-                                  fields.showReps &&
-                                  set.reps.trim() !== '') ||
-                                (fields.showDuration &&
-                                  set.durationSeconds.trim() !== '')
-                              ))
-                          }
-                          onClick={() =>
-                            onSetChange(set.setNumber, {
-                              completed: !set.completed,
-                            })
-                          }
-                          className={cn(
-                            'flex size-6 items-center justify-center rounded-full border transition-colors',
-                            set.completed
-                              ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
-                              : set.predicted
-                                ? 'border-brand/50 hover:bg-brand/10'
-                                : 'border-muted-foreground/30 hover:bg-muted/50',
-                            'disabled:pointer-events-none disabled:opacity-40'
-                          )}
-                          aria-label={
-                            set.completed
-                              ? `Mark set ${set.setNumber} incomplete`
-                              : `Confirm set ${set.setNumber}`
-                          }
-                        >
-                          {set.completed && (
-                            <Check className="size-3.5" strokeWidth={3} />
-                          )}
-                        </button>
-                      </div>
-
-                      {canRemoveSet && (
-                        <div className="flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => onRemoveSet(set.setNumber)}
-                            className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center rounded-md transition-colors"
-                            aria-label={`Remove set ${set.setNumber}`}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                {!readOnly && sets.length < MAX_LOG_SETS && (
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                {readOnly && showMedia && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="mt-2 w-full gap-1.5"
-                    onClick={onAddSet}
+                    className="shrink-0"
+                    onClick={() => setMediaOpen(true)}
                   >
-                    <Plus className="size-4" />
-                    Add set
+                    View form
                   </Button>
                 )}
               </div>
             </div>
-          ) : null}
+
+            <div className="flex flex-wrap items-center gap-2">
+              {isWorkoutActive && !readOnly && (
+                <RestTimerChip
+                  seconds={restSeconds}
+                  onClick={() =>
+                    startRestTimer(exercise.exercise.name, restSeconds)
+                  }
+                />
+              )}
+              {currentE1rm != null && (
+                <span className="text-sm">
+                  1RM{' '}
+                  <span className="text-brand font-semibold">{currentE1rm}</span>
+                  <span className="text-muted-foreground ml-0.5 text-xs">lbs</span>
+                </span>
+              )}
+              {isLivePr && (
+                <Badge className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700">
+                  <Trophy className="size-3" />
+                  PR pace
+                </Badge>
+              )}
+            </div>
+
+            <div>
+              {exercise.workout_notes?.trim() && (
+                <p className="text-muted-foreground text-sm leading-snug">
+                  {exercise.workout_notes.trim()}
+                </p>
+              )}
+              {(previousE1rm != null || allTimeE1rm != null) && (
+                <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  {allTimeE1rm != null && <span>All-time {allTimeE1rm} lb</span>}
+                  {previousE1rm != null && (
+                    <span>
+                      Last {previousE1rm} lb
+                      {previousSessionDate &&
+                        ` · ${formatDayHeader(previousSessionDate)}`}
+                    </span>
+                  )}
+                </div>
+              )}
+              {sessionVolume > 0 && (
+                <p className="text-muted-foreground mt-1.5 text-xs">
+                  Volume{' '}
+                  <span className="text-foreground font-medium">
+                    {formatVolume(sessionVolume)}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {showSetTable ? (
+              <div className="bg-muted/25 overflow-hidden rounded-xl border">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[320px]">
+                    <div
+                      className={cn(
+                        'text-muted-foreground grid gap-2 border-b px-3 py-2 text-[11px] font-semibold tracking-wide uppercase',
+                        setGridCols
+                      )}
+                    >
+                      <span>Set</span>
+                      {fields.completionOnly ? (
+                        <span>Target</span>
+                      ) : (
+                        <>
+                          <span>Prev</span>
+                          {fields.showWeight && <span>Lbs</span>}
+                          {fields.showReps && <span>Reps</span>}
+                          {fields.showDuration && <span>Sec</span>}
+                        </>
+                      )}
+                      <span className="sr-only">Done</span>
+                      {canRemoveSet && <span className="sr-only">Remove</span>}
+                    </div>
+
+                    {sets.map((set) => {
+                      const previous = previousSets[set.setNumber]
+                      const isActive =
+                        !readOnly &&
+                        activeSetNumber === set.setNumber &&
+                        !set.completed
+
+                      return (
+                        <div
+                          key={set.setNumber}
+                          className={cn(
+                            'relative grid items-center gap-2 border-b px-3 py-2 last:border-b-0',
+                            setGridCols,
+                            set.completed && 'bg-emerald-500/5',
+                            set.predicted &&
+                              !set.completed &&
+                              'bg-brand/5',
+                            isActive && 'bg-brand/8'
+                          )}
+                        >
+                          {isActive && (
+                            <span className="bg-brand absolute inset-y-1 left-0 w-1 rounded-r-full" />
+                          )}
+
+                          <span
+                            className={cn(
+                              'pl-1 text-xs font-bold tabular-nums',
+                              isActive ? 'text-brand' : 'text-muted-foreground'
+                            )}
+                          >
+                            {set.setNumber}
+                          </span>
+
+                          {fields.completionOnly ? (
+                            <span className="text-muted-foreground text-sm">
+                              {set.targetLabel ?? '—'}
+                            </span>
+                          ) : (
+                            <span className="bg-background/80 text-muted-foreground rounded-md px-2 py-2 text-center text-xs">
+                              {previous
+                                ? formatPreviousPerformance(
+                                    previous.weight,
+                                    previous.reps
+                                  )
+                                : '—'}
+                            </span>
+                          )}
+
+                          {fields.showWeight && (
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              step="0.5"
+                              value={set.weight}
+                              disabled={readOnly}
+                              onChange={(event) =>
+                                onSetChange(set.setNumber, {
+                                  weight: event.target.value,
+                                })
+                              }
+                              placeholder="—"
+                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              aria-label={`Set ${set.setNumber} weight`}
+                            />
+                          )}
+
+                          {fields.showReps && (
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={set.reps}
+                              disabled={readOnly}
+                              onChange={(event) =>
+                                onSetChange(set.setNumber, {
+                                  reps: event.target.value,
+                                })
+                              }
+                              placeholder="—"
+                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              aria-label={`Set ${set.setNumber} reps`}
+                            />
+                          )}
+
+                          {fields.showDuration && (
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={set.durationSeconds}
+                              disabled={readOnly}
+                              onChange={(event) =>
+                                onSetChange(set.setNumber, {
+                                  durationSeconds: event.target.value,
+                                })
+                              }
+                              placeholder="—"
+                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              aria-label={`Set ${set.setNumber} duration`}
+                            />
+                          )}
+
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              disabled={readOnly || !canConfirmSet(set)}
+                              onClick={() => handleSetToggle(set)}
+                              className={cn(
+                                'flex size-8 items-center justify-center rounded-full border-2 transition-all',
+                                set.completed
+                                  ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
+                                  : isActive
+                                    ? 'border-brand hover:bg-brand/10'
+                                    : set.predicted
+                                      ? 'border-brand/50 hover:bg-brand/10'
+                                      : 'border-muted-foreground/25 hover:bg-muted/50',
+                                'disabled:pointer-events-none disabled:opacity-40'
+                              )}
+                              aria-label={
+                                set.completed
+                                  ? `Mark set ${set.setNumber} incomplete`
+                                  : `Confirm set ${set.setNumber}`
+                              }
+                            >
+                              {set.completed && (
+                                <Check className="size-4" strokeWidth={3} />
+                              )}
+                            </button>
+                          </div>
+
+                          {canRemoveSet && (
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => onRemoveSet(set.setNumber)}
+                                className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-md transition-colors"
+                                aria-label={`Remove set ${set.setNumber}`}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {!readOnly && (
+                  <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
+                    {sets.length < MAX_LOG_SETS && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground gap-1.5"
+                        onClick={onAddSet}
+                      >
+                        <Plus className="size-4" />
+                        Add set
+                      </Button>
+                    )}
+                    {!allComplete && sets.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="text-brand ml-auto h-auto p-0"
+                        onClick={handleMarkAll}
+                      >
+                        Mark all
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
 
           {(fields.showBarSpeed || fields.showPeakPower) && (
             <div className="space-y-2">
@@ -695,13 +831,24 @@ function WorkoutLogExercise({
           )}
         </div>
       </div>
+      </CardContent>
 
       <ExerciseMediaDialog
         exercise={mediaExercise}
         open={mediaOpen}
         onOpenChange={setMediaOpen}
       />
-    </div>
+
+      <ExerciseHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        exerciseName={exercise.exercise.name}
+        libraryExerciseId={exercise.exercise_id}
+        clientId={clientId}
+        excludeWorkoutId={workoutId}
+        variant={variant}
+      />
+    </Card>
   )
 }
 
@@ -766,7 +913,8 @@ export function WorkoutLogModal({
       buildExerciseState(
         result.data.exercises,
         result.data.logSets,
-        result.data.previousSetsByExerciseId
+        result.data.previousSetsByExerciseId,
+        result.data.personalBestsByExerciseId
       )
     )
   }, [clientId, isClientPortal, workoutId])
@@ -990,12 +1138,15 @@ export function WorkoutLogModal({
   function handleAddSet(exercise: ScheduledWorkoutExerciseWithDetails) {
     const previousSets =
       data?.previousSetsByExerciseId[exercise.exercise_id] ?? {}
+    const personalBest =
+      data?.personalBestsByExerciseId[exercise.exercise_id] ?? null
 
     setExerciseState((current) => {
       const nextSets = appendSetDraft(
         exercise,
         current[exercise.id] ?? [],
-        previousSets
+        previousSets,
+        personalBest
       )
 
       if (!nextSets) {
@@ -1227,6 +1378,7 @@ export function WorkoutLogModal({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
+        <RestTimerProvider>
         <div className="shrink-0 border-b px-5 py-4 pr-14">
           <DialogTitle className="sr-only">Log workout</DialogTitle>
           <DialogDescription className="sr-only">
@@ -1234,23 +1386,36 @@ export function WorkoutLogModal({
           </DialogDescription>
 
           <div className="space-y-3">
-            <div className="min-w-0 space-y-1">
-              <p className="text-muted-foreground text-xs font-medium">
-                {formatDayHeader(selectedDate)}
-              </p>
-              <h2 className="text-xl font-semibold tracking-tight">
-                {data?.name ?? 'Workout'}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <WorkoutStatusBadge status={status} hasProgress={hasProgress} />
-                {totalSetCount > 0 && (
-                  <span className="text-muted-foreground text-sm">
-                    {completedSetCount || savedCompletedCount} / {totalSetCount}{' '}
-                    sets logged
-                  </span>
-                )}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {formatDayHeader(selectedDate)}
+                </p>
+                <h2 className="text-xl font-semibold tracking-tight">
+                  {data?.name ?? 'Workout'}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <WorkoutStatusBadge status={status} hasProgress={hasProgress} />
+                  <WorkoutElapsedTimer
+                    startedAt={data?.started_at ?? null}
+                    active={isActive}
+                  />
+                  {totalSetCount > 0 && (
+                    <span className="text-muted-foreground text-sm">
+                      {completedSetCount || savedCompletedCount} / {totalSetCount}{' '}
+                      sets
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+
+            {totalSetCount > 0 && (
+              <WorkoutProgressBar
+                completed={completedSetCount || savedCompletedCount}
+                total={totalSetCount}
+              />
+            )}
 
             <div className="flex flex-wrap items-center gap-2">
               {!readOnly && !isActive && (
@@ -1348,7 +1513,7 @@ export function WorkoutLogModal({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-6">
           {schemaError ? (
             <div className="py-6">
               <SchemaSetupNotice
@@ -1424,6 +1589,10 @@ export function WorkoutLogModal({
                     data.personalBestsByExerciseId[exercise.exercise_id] ?? null
                   }
                   readOnly={readOnly}
+                  isWorkoutActive={isActive}
+                  clientId={clientId}
+                  workoutId={workoutId}
+                  variant={variant}
                   onSetChange={(setNumber, patch) =>
                     handleSetChange(exercise, setNumber, patch)
                   }
@@ -1473,6 +1642,8 @@ export function WorkoutLogModal({
             }}
           />
         )}
+
+        </RestTimerProvider>
       </DialogContent>
     </Dialog>
   )
