@@ -84,3 +84,9 @@ playwright/.cache/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# local env files
+.env.local
+**/.env.local
+.env*.local
+**/.env*.local
