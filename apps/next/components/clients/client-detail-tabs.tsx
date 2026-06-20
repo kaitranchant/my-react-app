@@ -15,6 +15,7 @@ import { CoachClientMessagesPanel } from '@/components/messages/coach-client-mes
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { coerceDateKey } from '@/lib/calendar'
+import type { CoachPreferences } from '@/lib/coach-preferences'
 import type {
   CalendarDaySummary,
   Client,
@@ -76,6 +77,7 @@ type ClientDetailTabsProps = {
     acwrVariant: 'success' | 'warning' | 'secondary'
   }
   recentPrs?: RecentPrHighlight[]
+  coachPreferences?: CoachPreferences
   initialTab?: string
 }
 
@@ -96,6 +98,7 @@ export function ClientDetailTabs({
   photosByCheckInId = {},
   loadMetrics,
   recentPrs = [],
+  coachPreferences,
   initialTab,
 }: ClientDetailTabsProps) {
   const router = useRouter()
@@ -164,6 +167,8 @@ export function ClientDetailTabs({
           streakWorkouts={streakWorkouts}
           loadMetrics={loadMetrics}
           recentPrs={recentPrs}
+          weekStartsOn={coachPreferences?.weekStartsOn}
+          weightUnit={coachPreferences?.weightUnit}
           onOpenNotes={() => handleTabChange('notes')}
           onOpenCalendar={() => handleTabChange('calendar')}
         />
@@ -184,6 +189,7 @@ export function ClientDetailTabs({
           initialAction={calendarAction}
           initialActionDate={calendarActionDate}
           onActionConsumed={consumeCalendarAction}
+          weightUnit={coachPreferences?.weightUnit}
         />
       </TabsContent>
 
@@ -201,6 +207,7 @@ export function ClientDetailTabs({
           checkIns={checkIns}
           photoCounts={photoCounts}
           photosByCheckInId={photosByCheckInId}
+          weightUnit={coachPreferences?.weightUnit}
         />
       </TabsContent>
 

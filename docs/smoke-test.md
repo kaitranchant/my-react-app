@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0029**)
+- `yarn db:check` passes (schema through migration **0035**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -97,6 +97,34 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Log at least one set and complete the session
 - [ ] Confirm the self-client workout does **not** appear on the main **Clients** roster or dashboard stats
 
+## 10. Gyms
+
+- [ ] Go to **Gym** in the sidebar → **Create gym** → name it and save
+- [ ] Confirm you appear as the gym owner on the members list
+- [ ] Open an existing client profile → **Add to {gym name}** → confirm the button changes to **Remove from {gym name}**
+- [ ] On **Clients**, switch the scope tab to your gym — the shared client appears with a gym member badge
+- [ ] Back on **Gym** → **Invite coach** → enter a second coach's email → copy the invite link
+- [ ] Sign in as that coach (new signup via `/signup?gym_invite=…` or existing account at `/gym/join?invite=…`) → **Accept invite**
+- [ ] As the invited coach: open **Clients** → gym scope tab — the shared client is visible
+- [ ] Open the client profile — **Primary coach** banner shows the original coach; calendar and overview load without errors
+- [ ] As the invited coach: confirm you **cannot** remove the client from the gym or delete the client (primary coach only)
+- [ ] (Optional) As gym owner: **Delete gym** in the danger zone — client gym membership clears and the invited coach loses access
+
+## 11. Settings
+
+- [ ] Go to **Settings** → **Notifications** — toggle **Workout completions** off and save (toast confirms)
+- [ ] Open **Dashboard** — completed workouts should no longer appear in the activity feed; re-enable the toggle and confirm they return
+- [ ] Go to **Settings** → **Account** → **Change password** — update password and sign in again with the new one
+- [ ] (Optional) **Delete account** requires `SUPABASE_SERVICE_ROLE_KEY` in server env; only test on a disposable coach account
+
+## 11b. Coaching preferences
+
+- [ ] Go to **Settings** → **Coaching preferences** → switch **Weight unit** to kg and save
+- [ ] Open **Load Management** and a client **Overview** — volumes and weights show kg
+- [ ] Change **Week starts on** to Sunday — client **Overview** week strip starts on Sunday
+- [ ] Change **Default check-in frequency** to **Daily** — sign in as client and confirm portal check-in card shows **Due today**
+- [ ] Change frequency to **Bi-weekly** — portal card shows **Due this period** until a check-in is submitted
+
 ---
 
 ## Troubleshooting
@@ -113,6 +141,13 @@ Repeatable manual verification for the coach → client loop and recent features
 | Program phases panel fails | Run [`supabase/apply-program-phases.sql`](../supabase/apply-program-phases.sql) or `yarn db:push` |
 | Teams page empty or errors | Run `yarn db:push` (migrations 0020–0022; no apply script) |
 | Client cannot see team page / RSVP fails | Run [`supabase/apply-team-client-portal.sql`](../supabase/apply-team-client-portal.sql) or `yarn db:push` |
+| Gym page empty or invite/join fails | Run [`supabase/apply-gyms.sql`](../supabase/apply-gyms.sql) or `yarn db:push` (migrations 0030–0032) |
+| Gym creation returns RLS error | Run [`supabase/apply-gym-create-fix.sql`](../supabase/apply-gym-create-fix.sql) or `yarn db:push` (0031) |
+| Coach cannot join a second gym | Run [`supabase/apply-multi-gym.sql`](../supabase/apply-multi-gym.sql) or `yarn db:push` (0032) |
+| Shared client shows "Primary coach" without a name | Run [`supabase/apply-gym-peer-profiles.sql`](../supabase/apply-gym-peer-profiles.sql) or `yarn db:push` (0033) |
+| Coach preferences fail to save | Run [`supabase/apply-coach-preferences.sql`](../supabase/apply-coach-preferences.sql) or `yarn db:push` (0034) |
+| Notification toggles fail to save | Run [`supabase/apply-notification-preferences.sql`](../supabase/apply-notification-preferences.sql) or `yarn db:push` (0035) |
+| Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |
 | `yarn db:check` fails | Run `npx supabase login && yarn db:link && yarn db:push` |

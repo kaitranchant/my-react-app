@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccountSettings } from '@/components/settings/account-settings'
 import { AppearanceSettings } from '@/components/settings/appearance-settings'
-import { CoachingPreferences } from '@/components/settings/coaching-preferences'
+import { CoachingPreferencesForm } from '@/components/settings/coaching-preferences'
+import { parseCoachPreferences } from '@/lib/coach-preferences'
+import { parseNotificationPreferences } from '@/lib/notification-preferences'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ProfileSettingsForm } from '@/components/settings/profile-settings-form'
 import { SettingsNav } from '@/components/settings/settings-nav'
@@ -20,7 +22,9 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, business_name, avatar_url')
+    .select(
+      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, notify_check_ins, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_weekly_summary'
+    )
     .eq('id', user!.id)
     .single()
 
@@ -28,6 +32,8 @@ export default async function SettingsPage() {
     fullName: profile?.full_name?.trim() ?? '',
     businessName: profile?.business_name?.trim() ?? '',
   }
+  const coachingPreferences = parseCoachPreferences(profile)
+  const notificationPreferences = parseNotificationPreferences(profile)
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -65,7 +71,7 @@ export default async function SettingsPage() {
             title="Coaching preferences"
             description="Defaults applied when working with clients and programs."
           >
-            <CoachingPreferences />
+            <CoachingPreferencesForm defaultValues={coachingPreferences} />
           </SettingsSection>
 
           <SettingsSection
@@ -73,7 +79,7 @@ export default async function SettingsPage() {
             title="Notifications"
             description="Choose what you want to be notified about."
           >
-            <NotificationSettings />
+            <NotificationSettings defaultValues={notificationPreferences} />
           </SettingsSection>
 
           <SettingsSection

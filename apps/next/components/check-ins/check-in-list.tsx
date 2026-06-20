@@ -33,7 +33,7 @@ import {
   isCheckInPendingReview,
 } from '@/lib/check-ins'
 import type { CheckInFormValues } from '@/lib/validations/check-in'
-import type { Client, ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
+import type { Client, ClientCheckIn, ClientProgressPhotoWithUrl, WeightUnit } from 'app/types/database'
 
 type CheckInListItem = ClientCheckIn & {
   client?: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'>
@@ -46,6 +46,7 @@ type CheckInListProps = {
   emptyMessage?: string
   photoCounts?: Record<string, number>
   photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
+  weightUnit?: WeightUnit
 }
 
 function CoachResponseEditor({ checkIn }: { checkIn: CheckInListItem }) {
@@ -105,12 +106,14 @@ function CheckInRow({
   clientId,
   photoCount = 0,
   progressPhotos = [],
+  weightUnit = 'lbs',
 }: {
   checkIn: CheckInListItem
   showClient?: boolean
   clientId?: string
   photoCount?: number
   progressPhotos?: ClientProgressPhotoWithUrl[]
+  weightUnit?: WeightUnit
 }) {
   const router = useRouter()
   const [isEditing, setIsEditing] = React.useState(false)
@@ -169,8 +172,8 @@ function CheckInRow({
               </CardTitle>
               <CardDescription>
                 {showClient && checkIn.client
-                  ? `${formatCheckInDate(checkIn.check_in_date)} · ${formatCheckInSummary(checkIn)}`
-                  : formatCheckInSummary(checkIn)}
+                  ? `${formatCheckInDate(checkIn.check_in_date)} · ${formatCheckInSummary(checkIn, weightUnit)}`
+                  : formatCheckInSummary(checkIn, weightUnit)}
               </CardDescription>
             </div>
           </div>
@@ -276,6 +279,7 @@ export function CheckInList({
   emptyMessage = 'No check-ins yet.',
   photoCounts = {},
   photosByCheckInId = {},
+  weightUnit = 'lbs',
 }: CheckInListProps) {
   if (checkIns.length === 0) {
     return (
@@ -297,6 +301,7 @@ export function CheckInList({
           clientId={clientId}
           photoCount={photoCounts[checkIn.id] ?? 0}
           progressPhotos={photosByCheckInId[checkIn.id] ?? []}
+          weightUnit={weightUnit}
         />
       ))}
     </div>

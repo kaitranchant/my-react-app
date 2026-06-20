@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/dashboard/sidebar'
+import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { GlobalSearch } from '@/components/dashboard/global-search'
 import { UserMenu } from '@/components/dashboard/user-menu'
@@ -30,7 +31,8 @@ export default async function DashboardLayout({
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="fixed inset-0 flex overflow-hidden">
+      <AppShellScrollLock />
       <Sidebar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
@@ -48,7 +50,7 @@ export default async function DashboardLayout({
             />
           </div>
         </header>
-        <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

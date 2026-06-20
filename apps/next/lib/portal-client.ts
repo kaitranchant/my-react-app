@@ -3,7 +3,7 @@ import type { Client } from 'app/types/database'
 
 export type PortalClientRecord = Pick<
   Client,
-  'id' | 'full_name' | 'avatar_url' | 'email'
+  'id' | 'coach_id' | 'full_name' | 'avatar_url' | 'email'
 >
 
 export type PortalClientContext = {
@@ -34,7 +34,7 @@ export async function getPortalClientContext(): Promise<PortalClientContext | nu
 
   const { data: client, error } = await supabase
     .from('clients')
-    .select('id, full_name, avatar_url, email')
+    .select('id, coach_id, full_name, avatar_url, email')
     .eq('user_id', user.id)
     .maybeSingle()
 

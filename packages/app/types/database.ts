@@ -2,7 +2,7 @@ export type ClientStatus = 'active' | 'paused' | 'archived'
 export type ClientCoachingType = 'online' | 'in_person' | 'hybrid'
 export type UserRole = 'coach' | 'client'
 export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
-export type GymMemberRole = 'owner' | 'member'
+export type GymMemberRole = 'owner' | 'coach'
 export type GymMemberStatus = 'active' | 'pending'
 export type GymInviteStatus = 'pending' | 'accepted' | 'revoked'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
@@ -24,6 +24,16 @@ export type ScheduledWorkoutStatus =
   | 'completed'
   | 'skipped'
 export type CheckInSubmittedBy = 'client' | 'coach'
+export type WeightUnit = 'lbs' | 'kg'
+export type WeekStartsOn = 'sunday' | 'monday'
+export type CheckInFrequency = 'daily' | 'weekly' | 'biweekly'
+export type CoachTimezone =
+  | 'auto'
+  | 'america_new_york'
+  | 'america_chicago'
+  | 'america_denver'
+  | 'america_los_angeles'
+  | 'europe_london'
 export type MessageSenderRole = 'coach' | 'client'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
@@ -71,6 +81,15 @@ export type Database = {
           business_name: string | null
           avatar_url: string | null
           role: UserRole
+          weight_unit: WeightUnit
+          week_starts_on: WeekStartsOn
+          coach_timezone: string | null
+          default_check_in_frequency: CheckInFrequency
+          notify_check_ins: boolean
+          notify_workout_completions: boolean
+          notify_missed_sessions: boolean
+          notify_invite_accepted: boolean
+          notify_weekly_summary: boolean
           created_at: string
           updated_at: string
         }
@@ -80,6 +99,15 @@ export type Database = {
           business_name?: string | null
           avatar_url?: string | null
           role?: UserRole
+          weight_unit?: WeightUnit
+          week_starts_on?: WeekStartsOn
+          coach_timezone?: string | null
+          default_check_in_frequency?: CheckInFrequency
+          notify_check_ins?: boolean
+          notify_workout_completions?: boolean
+          notify_missed_sessions?: boolean
+          notify_invite_accepted?: boolean
+          notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -89,6 +117,15 @@ export type Database = {
           business_name?: string | null
           avatar_url?: string | null
           role?: UserRole
+          weight_unit?: WeightUnit
+          week_starts_on?: WeekStartsOn
+          coach_timezone?: string | null
+          default_check_in_frequency?: CheckInFrequency
+          notify_check_ins?: boolean
+          notify_workout_completions?: boolean
+          notify_missed_sessions?: boolean
+          notify_invite_accepted?: boolean
+          notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1580,6 +1617,9 @@ export type Database = {
       gym_member_role: GymMemberRole
       gym_member_status: GymMemberStatus
       gym_invite_status: GymInviteStatus
+      weight_unit: WeightUnit
+      week_starts_on: WeekStartsOn
+      check_in_frequency: CheckInFrequency
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1617,7 +1657,7 @@ export type GymMemberInsert = Database['public']['Tables']['gym_members']['Inser
 export type GymInvite = Database['public']['Tables']['gym_invites']['Row']
 
 export type GymMemberWithProfile = GymMember & {
-  profile: Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'business_name'>
+  profile: Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'business_name'> | null
 }
 
 export type GymWithMembership = Gym & {

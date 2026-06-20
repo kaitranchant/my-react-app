@@ -4,6 +4,10 @@ export const E2E_COACH_EMAIL =
   process.env.E2E_COACH_EMAIL ?? 'e2e-coach@coaching-app.test'
 export const E2E_COACH_PASSWORD =
   process.env.E2E_COACH_PASSWORD ?? 'TestPassword123!'
+export const E2E_GYM_COACH_EMAIL =
+  process.env.E2E_GYM_COACH_EMAIL ?? 'e2e-gym-coach@coaching-app.test'
+export const E2E_GYM_COACH_PASSWORD =
+  process.env.E2E_GYM_COACH_PASSWORD ?? 'TestPassword123!'
 export const E2E_CLIENT_EMAIL =
   process.env.E2E_CLIENT_EMAIL ?? 'e2e-client@coaching-app.test'
 export const E2E_CLIENT_PASSWORD =
@@ -25,6 +29,8 @@ async function login(page: Page, email: string, password: string) {
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
+
+export { login }
 
 export async function signOutFromApp(page: Page, userName: string) {
   await page.getByRole('button', { name: new RegExp(userName, 'i') }).click()

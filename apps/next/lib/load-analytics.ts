@@ -1,10 +1,13 @@
 import { parseDateKey, toDateKey } from '@/lib/calendar'
+import {
+  formatVolume as formatVolumeWithUnit,
+} from '@/lib/coach-preferences'
 import { parseTrackingOptions } from '@/lib/scheduled-exercise'
 import {
   calculateE1rm,
   getBestE1rmFromDrafts,
 } from '@/lib/workout-log'
-import type { ScheduledExerciseTrackingOptions } from 'app/types/database'
+import type { ScheduledExerciseTrackingOptions, WeightUnit } from 'app/types/database'
 
 export type LogSetLike = {
   weight: number | null
@@ -428,7 +431,11 @@ export function aggregateWeeklyMetric(
   return buckets
 }
 
-export function formatMetricValue(metric: LoadMetric, value: number): string {
+export function formatMetricValue(
+  metric: LoadMetric,
+  value: number,
+  weightUnit: WeightUnit = 'lbs'
+): string {
   switch (metric) {
     case 'sessions':
       return value === 1 ? '1 session' : `${Math.round(value)} sessions`
@@ -441,14 +448,15 @@ export function formatMetricValue(metric: LoadMetric, value: number): string {
       return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`
     }
     default:
-      return formatVolume(value)
+      return formatVolume(value, weightUnit)
   }
 }
 
 export function formatMetricDelta(
   metric: LoadMetric,
   current: number,
-  previous: number
+  previous: number,
+  weightUnit: WeightUnit = 'lbs'
 ): string {
   if (metric === 'sessions') {
     if (previous <= 0) return current > 0 ? 'New activity' : 'No change'
@@ -464,7 +472,7 @@ export function formatMetricDelta(
     return `${delta > 0 ? '+' : ''}${delta}% vs prior period`
   }
 
-  return formatVolumeDelta(current, previous)
+  return formatVolumeDelta(current, previous, weightUnit)
 }
 
 export function buildLoadSummaryCounts(
@@ -506,12 +514,18 @@ export function buildAcwrAlerts(
     })
 }
 
-export function formatVolume(volume: number): string {
-  if (volume <= 0) return '0 lbs'
-  return `${Math.round(volume).toLocaleString('en-US')} lbs`
+export function formatVolume(
+  volume: number,
+  weightUnit: WeightUnit = 'lbs'
+): string {
+  return formatVolumeWithUnit(volume, weightUnit)
 }
 
-export function formatVolumeDelta(current: number, previous: number): string {
+export function formatVolumeDelta(
+  current: number,
+  previous: number,
+  weightUnit: WeightUnit = 'lbs'
+): string {
   if (previous <= 0) {
     return current > 0 ? 'New activity' : 'No change'
   }

@@ -30,7 +30,8 @@ import {
   isClientSetupComplete,
   type ClientWorkoutActivity,
 } from '@/lib/client-metrics'
-import { formatVolume } from '@/lib/load-analytics'
+import { formatVolume } from '@/lib/coach-preferences'
+import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import {
   formatRelativeUpdated,
@@ -161,6 +162,8 @@ type ClientOverviewProps = {
     acwrVariant: 'success' | 'warning' | 'secondary'
   }
   recentPrs?: RecentPrHighlight[]
+  weekStartsOn?: CoachPreferences['weekStartsOn']
+  weightUnit?: CoachPreferences['weightUnit']
   onOpenNotes?: () => void
   onOpenCalendar?: () => void
 }
@@ -173,10 +176,12 @@ export function ClientOverview({
   streakWorkouts = [],
   loadMetrics,
   recentPrs = [],
+  weekStartsOn = 'monday',
+  weightUnit = 'lbs',
   onOpenNotes,
   onOpenCalendar,
 }: ClientOverviewProps) {
-  const weekDays = getWeekDayLabels()
+  const weekDays = getWeekDayLabels(weekStartsOn)
   const sessionsByDate = new Map(
     weekSessions.map((session) => [session.scheduled_date, session])
   )
@@ -227,7 +232,7 @@ export function ClientOverview({
         <StatCard
           label="This week volume"
           value={
-            loadMetrics ? formatVolume(loadMetrics.thisWeekVolume) : '—'
+            loadMetrics ? formatVolume(loadMetrics.thisWeekVolume, weightUnit) : '—'
           }
           hint={loadMetrics?.volumeDeltaLabel ?? 'Log workouts to track load'}
         />

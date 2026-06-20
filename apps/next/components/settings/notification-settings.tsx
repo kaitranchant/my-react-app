@@ -1,59 +1,103 @@
-import { Badge } from '@/components/ui/badge'
+'use client'
+
+import * as React from 'react'
+import { toast } from 'sonner'
+
+import { updateNotificationPreference } from '@/app/(dashboard)/settings/actions'
 import { SettingsRow } from '@/components/settings/settings-row'
 import { SettingsToggle } from '@/components/settings/settings-toggle'
+import type { NotificationPreferences } from '@/lib/notification-preferences'
+import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
 
-const notificationOptions = [
+type NotificationOption = {
+  key: NotificationPreferenceKey
+  label: string
+  description: string
+  email?: boolean
+}
+
+const notificationOptions: NotificationOption[] = [
   {
-    id: 'check-ins',
+    key: 'notifyCheckIns',
     label: 'New client check-ins',
-    description: 'Get notified when a client submits a check-in for review.',
-    defaultChecked: true,
+    description:
+      'Show check-in submissions on your dashboard and in the activity feed.',
   },
   {
-    id: 'workouts',
+    key: 'notifyWorkoutCompletions',
     label: 'Workout completions',
-    description: 'Get notified when a client finishes a scheduled workout.',
-    defaultChecked: true,
+    description:
+      'Show completed workouts on your dashboard activity feed.',
   },
   {
-    id: 'missed',
+    key: 'notifyMissedSessions',
     label: 'Missed sessions',
-    description: 'Daily digest of clients who skipped scheduled workouts.',
-    defaultChecked: false,
+    description:
+      'Highlight skipped workouts and clients without logged sessions this week.',
   },
   {
-    id: 'invites',
+    key: 'notifyInviteAccepted',
     label: 'Client invite accepted',
-    description: 'Get notified when a pending invite is accepted.',
-    defaultChecked: true,
+    description:
+      'Highlight pending client invites on your dashboard action items.',
   },
   {
-    id: 'summary',
+    key: 'notifyWeeklySummary',
     label: 'Weekly summary email',
-    description: 'A Monday morning recap of client activity and action items.',
-    defaultChecked: false,
+    description:
+      'Receive a Monday morning recap of client activity and action items.',
+    email: true,
   },
-] as const
+]
 
-export function NotificationSettings() {
+export function NotificationSettings({
+  defaultValues,
+}: {
+  defaultValues: NotificationPreferences
+}) {
+  const [values, setValues] = React.useState(defaultValues)
+  const [pendingKey, setPendingKey] =
+    React.useState<NotificationPreferenceKey | null>(null)
+
+  React.useEffect(() => {
+    setValues(defaultValues)
+  }, [defaultValues])
+
+  async function onToggle(key: NotificationPreferenceKey, checked: boolean) {
+    const previous = values[key]
+    setValues((current) => ({ ...current, [key]: checked }))
+    setPendingKey(key)
+
+    const result = await updateNotificationPreference(key, checked)
+    setPendingKey(null)
+
+    if (result.success) {
+      toast.success('Notification preference saved')
+      return
+    }
+
+    setValues((current) => ({ ...current, [key]: previous }))
+    toast.error(result.error)
+  }
+
   return (
     <div>
       {notificationOptions.map((option) => (
         <SettingsRow
-          key={option.id}
+          key={option.key}
           label={option.label}
-          description={option.description}
+          description={
+            option.email
+              ? `${option.description} Email delivery is not enabled yet; your preference is saved for when it is.`
+              : option.description
+          }
         >
-          <div className="flex items-center gap-2">
-            <SettingsToggle
-              checked={option.defaultChecked}
-              disabled
-              label={option.label}
-            />
-            <Badge variant="outline" className="text-[10px] font-normal">
-              Soon
-            </Badge>
-          </div>
+          <SettingsToggle
+            checked={values[option.key]}
+            disabled={pendingKey === option.key}
+            onCheckedChange={(checked) => onToggle(option.key, checked)}
+            label={option.label}
+          />
         </SettingsRow>
       ))}
     </div>

@@ -1,7 +1,9 @@
 import { PortalCheckInPanel } from '@/components/portal/portal-check-in-panel'
 import { attachSignedUrlsToPhotos } from '@/lib/progress-photos'
 import { Card, CardContent } from '@/components/ui/card'
-import { toDateKey } from '@/lib/calendar'
+import { getCheckInPeriodBounds } from '@/lib/check-in-cadence'
+import { getCoachDateKey } from '@/lib/coach-preferences'
+import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 import type { ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
@@ -14,37 +16,48 @@ export default async function PortalCheckInPage() {
   const supabase = await createClient()
   const portalCtx = await getPortalClientContext()
   const clientRecord = portalCtx?.client ?? null
-  const todayKey = toDateKey(new Date())
 
-  let todayCheckIn: ClientCheckIn | null = null
+  let periodCheckIn: ClientCheckIn | null = null
   let recentCheckIns: ClientCheckIn[] = []
   let todayPhotos: ClientProgressPhotoWithUrl[] = []
+  let coachPreferences = null
 
   if (clientRecord?.id) {
-    const [checkInResult, recentCheckInsResult] = await Promise.all([
+    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+    const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+    const { start: periodStart, end: periodEnd } = getCheckInPeriodBounds(
+      coachPreferences.defaultCheckInFrequency,
+      coachPreferences.weekStartsOn,
+      coachPreferences.timezone
+    )
+
+    const [periodCheckInResult, recentCheckInsResult] = await Promise.all([
       supabase
         .from('client_check_ins')
         .select('*')
         .eq('client_id', clientRecord.id)
-        .eq('check_in_date', todayKey)
+        .gte('check_in_date', periodStart)
+        .lte('check_in_date', periodEnd)
+        .order('check_in_date', { ascending: false })
+        .limit(1)
         .maybeSingle(),
       supabase
         .from('client_check_ins')
         .select('*')
         .eq('client_id', clientRecord.id)
-        .neq('check_in_date', todayKey)
+        .neq('check_in_date', coachTodayKey)
         .order('check_in_date', { ascending: false })
         .limit(3),
     ])
 
-    todayCheckIn = (checkInResult.data as ClientCheckIn | null) ?? null
+    periodCheckIn = (periodCheckInResult.data as ClientCheckIn | null) ?? null
     recentCheckIns = (recentCheckInsResult.data ?? []) as ClientCheckIn[]
 
-    if (todayCheckIn?.id) {
+    if (periodCheckIn?.id) {
       const { data: photoData } = await supabase
         .from('client_progress_photos')
         .select('*')
-        .eq('check_in_id', todayCheckIn.id)
+        .eq('check_in_id', periodCheckIn.id)
         .order('pose', { ascending: true })
 
       todayPhotos = await attachSignedUrlsToPhotos(
@@ -72,9 +85,10 @@ export default async function PortalCheckInPage() {
         </Card>
       ) : (
         <PortalCheckInPanel
-          todayCheckIn={todayCheckIn}
+          periodCheckIn={periodCheckIn}
           recentCheckIns={recentCheckIns}
-          todayPhotos={todayPhotos}
+          periodPhotos={todayPhotos}
+          coachPreferences={coachPreferences}
         />
       )}
     </div>

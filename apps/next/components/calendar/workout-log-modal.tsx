@@ -75,8 +75,11 @@ import { formatDayHeader } from '@/lib/calendar'
 import {
   calcSessionVolumeForExercise,
   formatPrLabel,
-  formatVolume,
 } from '@/lib/load-analytics'
+import {
+  formatVolume,
+  weightUnitLabel,
+} from '@/lib/coach-preferences'
 import {
   getExerciseMediaUrl,
   hasExerciseMedia,
@@ -123,6 +126,7 @@ import type {
   WorkoutLogData,
   WorkoutLogSet,
 } from 'app/types/database'
+import type { WeightUnit } from 'app/types/database'
 
 type WorkoutLogModalProps = {
   open: boolean
@@ -134,6 +138,7 @@ type WorkoutLogModalProps = {
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
   onChanged: () => void
   variant?: 'coach' | 'client'
+  weightUnit?: WeightUnit
 }
 
 type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
@@ -260,6 +265,7 @@ type WorkoutLogExerciseProps = {
   onReplace: () => void
   onDelete: () => void
   allowPrescriptionEdits?: boolean
+  weightUnit?: WeightUnit
 }
 
 function WorkoutLogExercise({
@@ -281,6 +287,7 @@ function WorkoutLogExercise({
   onReplace,
   onDelete,
   allowPrescriptionEdits = true,
+  weightUnit = 'lbs',
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -532,7 +539,7 @@ function WorkoutLogExercise({
                 <span className="text-sm">
                   1RM{' '}
                   <span className="text-brand font-semibold">{currentE1rm}</span>
-                  <span className="text-muted-foreground ml-0.5 text-xs">lbs</span>
+                  <span className="text-muted-foreground ml-0.5 text-xs">{weightUnitLabel(weightUnit)}</span>
                 </span>
               )}
               {isLivePr && (
@@ -565,7 +572,7 @@ function WorkoutLogExercise({
                 <p className="text-muted-foreground mt-1.5 text-xs">
                   Volume{' '}
                   <span className="text-foreground font-medium">
-                    {formatVolume(sessionVolume)}
+                    {formatVolume(sessionVolume, weightUnit)}
                   </span>
                 </p>
               )}
@@ -862,6 +869,7 @@ export function WorkoutLogModal({
   exercises,
   onChanged,
   variant = 'coach',
+  weightUnit = 'lbs',
 }: WorkoutLogModalProps) {
   const isClientPortal = variant === 'client'
   const allowPrescriptionEdits = !isClientPortal
@@ -1604,6 +1612,7 @@ export function WorkoutLogModal({
                   onReplace={() => setReplacingExercise(exercise)}
                   onDelete={() => void handleRemoveExercise(exercise)}
                   allowPrescriptionEdits={allowPrescriptionEdits}
+                  weightUnit={weightUnit}
                 />
               ))}
             </div>

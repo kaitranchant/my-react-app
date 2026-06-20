@@ -168,6 +168,7 @@ export type CheckInFormProps = {
   onCancel?: () => void
   submitLabel?: string
   disabled?: boolean
+  weightUnit?: import('app/types/database').WeightUnit
 }
 
 export function CheckInForm({
@@ -183,6 +184,7 @@ export function CheckInForm({
   onCancel,
   submitLabel,
   disabled = false,
+  weightUnit = 'lbs',
 }: CheckInFormProps) {
   const [values, setValues] = React.useState(
     initialValues ?? createEmptyCheckInValues()
@@ -262,7 +264,7 @@ export function CheckInForm({
         <NumberField
           id="check-in-weight"
           label="Weight"
-          unit="lbs"
+          unit={weightUnit}
           value={values.weight}
           onChange={(value) => updateField('weight', value)}
           disabled={disabled || isSubmitting}

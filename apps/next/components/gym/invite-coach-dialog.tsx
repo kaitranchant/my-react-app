@@ -80,7 +80,7 @@ export function InviteCoachDialog({ gymId }: { gymId: string }) {
           <DialogTitle>Invite a coach</DialogTitle>
           <DialogDescription>
             Send an invite link to another coach. They will join your gym as a
-            member and can access gym member clients.
+            coach and can access gym member clients.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

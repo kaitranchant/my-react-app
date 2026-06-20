@@ -10,13 +10,15 @@ import type { CalendarDaySummary } from 'app/types/database'
 type PortalWeekStripProps = {
   weekSessions: CalendarDaySummary[]
   workoutsHref?: string
+  weekStartsOn?: import('app/types/database').WeekStartsOn
 }
 
 export function PortalWeekStrip({
   weekSessions,
   workoutsHref = '/portal/workouts',
+  weekStartsOn = 'monday',
 }: PortalWeekStripProps) {
-  const weekDays = getWeekDayLabels()
+  const weekDays = getWeekDayLabels(weekStartsOn)
   const sessionsByDate = new Map(
     weekSessions.map((session) => [session.scheduled_date, session])
   )

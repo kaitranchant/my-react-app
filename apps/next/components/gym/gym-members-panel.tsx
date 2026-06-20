@@ -47,7 +47,7 @@ export function GymMembersPanel({
       return
     }
 
-    toast.success('Member removed.')
+    toast.success('Coach removed.')
     router.refresh()
   }
 
@@ -64,8 +64,8 @@ export function GymMembersPanel({
       <TableBody>
         {members.map((member) => {
           const name =
-            member.profile.full_name ??
-            member.profile.business_name ??
+            member.profile?.full_name ??
+            member.profile?.business_name ??
             'Coach'
           const isSelf = member.coach_id === currentUserId
 
@@ -79,7 +79,7 @@ export function GymMembersPanel({
               </TableCell>
               <TableCell>
                 <Badge variant={member.role === 'owner' ? 'default' : 'secondary'}>
-                  {member.role === 'owner' ? 'Owner' : 'Member'}
+                  {member.role === 'owner' ? 'Owner' : 'Coach'}
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground">

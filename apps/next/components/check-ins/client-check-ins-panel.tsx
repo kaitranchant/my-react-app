@@ -7,13 +7,14 @@ import {
   CoachLogCheckInCard,
 } from '@/components/check-ins/check-in-list'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { Client, ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
+import type { Client, ClientCheckIn, ClientProgressPhotoWithUrl, WeightUnit } from 'app/types/database'
 
 type ClientCheckInsPanelProps = {
   client: Pick<Client, 'id' | 'full_name'>
   checkIns: ClientCheckIn[]
   photoCounts?: Record<string, number>
   photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
+  weightUnit?: WeightUnit
 }
 
 export function ClientCheckInsPanel({
@@ -21,6 +22,7 @@ export function ClientCheckInsPanel({
   checkIns,
   photoCounts = {},
   photosByCheckInId = {},
+  weightUnit = 'lbs',
 }: ClientCheckInsPanelProps) {
   const [tab, setTab] = React.useState<'history' | 'log'>('history')
 
@@ -37,6 +39,7 @@ export function ClientCheckInsPanel({
           clientId={client.id}
           photoCounts={photoCounts}
           photosByCheckInId={photosByCheckInId}
+          weightUnit={weightUnit}
           emptyMessage="No check-ins logged for this client yet."
         />
       </TabsContent>

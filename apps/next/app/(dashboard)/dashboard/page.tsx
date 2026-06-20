@@ -1,5 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import { toDateKey } from '@/lib/calendar'
+import {
+  getCheckInPeriodBounds,
+  getCheckInPeriodLabel,
+} from '@/lib/check-in-cadence'
+import {
+  defaultCoachPreferences,
+  getCoachDateKey,
+} from '@/lib/coach-preferences'
 import {
   buildActionItems,
   buildActivityFeed,
@@ -15,6 +22,13 @@ import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { TodaysSchedule } from '@/components/dashboard/todays-schedule'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import {
+  defaultNotificationPreferences,
+  filterActionItemsForNotifications,
+  filterActivityFeedForNotifications,
+} from '@/lib/notification-preferences'
+import { getNotificationPreferencesForUser } from '@/lib/notification-preferences-server'
 import { getGymsForCoach } from '@/lib/gym-access'
 import type { Client } from 'app/types/database'
 
@@ -24,12 +38,30 @@ export const metadata = {
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const today = toDateKey(new Date())
-  const { start: weekStart, end: weekEnd } = getWeekRange()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const coachPreferences = user
+    ? await getCoachPreferencesForUser(user.id)
+    : defaultCoachPreferences
+  const notificationPreferences = user
+    ? await getNotificationPreferencesForUser(user.id)
+    : null
+  const today = getCoachDateKey(coachPreferences.timezone)
+  const { start: weekStart, end: weekEnd } = getWeekRange(
+    coachPreferences.weekStartsOn,
+    coachPreferences.timezone
+  )
+  const { start: checkInPeriodStart, end: checkInPeriodEnd } =
+    getCheckInPeriodBounds(
+      coachPreferences.defaultCheckInFrequency,
+      coachPreferences.weekStartsOn,
+      coachPreferences.timezone
+    )
+  const checkInPeriodLabel = getCheckInPeriodLabel(
+    coachPreferences.defaultCheckInFrequency
+  )
 
   const coachGyms = user ? await getGymsForCoach(user.id) : []
 
@@ -72,8 +104,8 @@ export default async function DashboardPage() {
       supabase
         .from('client_check_ins')
         .select('client_id')
-        .gte('check_in_date', weekStart)
-        .lte('check_in_date', weekEnd),
+        .gte('check_in_date', checkInPeriodStart)
+        .lte('check_in_date', checkInPeriodEnd),
       supabase
         .from('client_check_ins')
         .select('*', { count: 'exact', head: true })
@@ -131,47 +163,54 @@ export default async function DashboardPage() {
   const activeClientIdsWithCheckIn = new Set(
     (weekCheckIns ?? []).map((checkIn) => checkIn.client_id)
   )
-  const clientsWithoutCheckInThisWeek = activeClients.filter(
+  const clientsWithoutCheckInThisPeriod = activeClients.filter(
     (c) => !activeClientIdsWithCheckIn.has(c.id)
   ).length
 
-  const actionItems = buildActionItems({
-    clients: allClients as Client[],
-    pendingInvites,
-    clientsWithoutWorkoutThisWeek,
-    skippedThisWeek,
-    pendingCheckIns: pendingCheckInsCount ?? 0,
-    clientsWithoutCheckInThisWeek,
-  })
+  const actionItems = filterActionItemsForNotifications(
+    buildActionItems({
+      clients: allClients as Client[],
+      pendingInvites,
+      clientsWithoutWorkoutThisWeek,
+      skippedThisWeek,
+      pendingCheckIns: pendingCheckInsCount ?? 0,
+      clientsWithoutCheckInThisPeriod,
+      checkInPeriodLabel,
+    }),
+    notificationPreferences ?? defaultNotificationPreferences
+  )
 
-  const activityItems = mergeActivityFeed(
-    buildActivityFeed(
-      (recentWorkouts ?? []).map((w) => {
-        const client = w.clients as { full_name: string } | null
-        return {
-          id: w.id,
-          name: w.name,
-          status: w.status,
-          completed_at: w.completed_at,
-          started_at: w.started_at,
-          updated_at: w.updated_at,
-          client_id: w.client_id,
-          clientName: client?.full_name ?? 'Unknown client',
-        }
-      })
+  const activityItems = filterActivityFeedForNotifications(
+    mergeActivityFeed(
+      buildActivityFeed(
+        (recentWorkouts ?? []).map((w) => {
+          const client = w.clients as { full_name: string } | null
+          return {
+            id: w.id,
+            name: w.name,
+            status: w.status,
+            completed_at: w.completed_at,
+            started_at: w.started_at,
+            updated_at: w.updated_at,
+            client_id: w.client_id,
+            clientName: client?.full_name ?? 'Unknown client',
+          }
+        })
+      ),
+      buildCheckInActivityFeed(
+        (recentCheckIns ?? []).map((checkIn) => {
+          const client = checkIn.clients as { full_name: string } | null
+          return {
+            id: checkIn.id,
+            client_id: checkIn.client_id,
+            updated_at: checkIn.updated_at,
+            created_at: checkIn.created_at,
+            clientName: client?.full_name ?? 'Unknown client',
+          }
+        })
+      )
     ),
-    buildCheckInActivityFeed(
-      (recentCheckIns ?? []).map((checkIn) => {
-        const client = checkIn.clients as { full_name: string } | null
-        return {
-          id: checkIn.id,
-          client_id: checkIn.client_id,
-          updated_at: checkIn.updated_at,
-          created_at: checkIn.created_at,
-          clientName: client?.full_name ?? 'Unknown client',
-        }
-      })
-    )
+    notificationPreferences ?? defaultNotificationPreferences
   )
 
   const sessionCount = sessions.length

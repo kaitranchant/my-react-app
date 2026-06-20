@@ -1,15 +1,18 @@
 import { cn } from '@/lib/utils'
 import { formatMetricValue, type LoadMetric, type WeeklyMetricBucket } from '@/lib/load-analytics'
+import type { WeightUnit } from 'app/types/database'
 
 type VolumeBarChartProps = {
   buckets: WeeklyMetricBucket[]
   metric?: LoadMetric
+  weightUnit?: WeightUnit
   className?: string
 }
 
 export function VolumeBarChart({
   buckets,
   metric = 'tonnage',
+  weightUnit = 'lbs',
   className,
 }: VolumeBarChartProps) {
   const maxValue = Math.max(...buckets.map((bucket) => bucket.value), 1)
@@ -31,13 +34,13 @@ export function VolumeBarChart({
             >
               <span className="text-muted-foreground text-[10px]">
                 {bucket.value > 0
-                  ? formatMetricValue(metric, bucket.value)
+                  ? formatMetricValue(metric, bucket.value, weightUnit)
                   : '—'}
               </span>
               <div
                 className="bg-brand/80 w-full rounded-t-md transition-all"
                 style={{ height: `${height}%` }}
-                title={`${label}: ${formatMetricValue(metric, bucket.value)}`}
+                title={`${label}: ${formatMetricValue(metric, bucket.value, weightUnit)}`}
               />
               <span className="text-muted-foreground truncate text-[10px]">
                 {label}

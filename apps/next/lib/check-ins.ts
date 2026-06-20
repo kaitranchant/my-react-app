@@ -1,9 +1,11 @@
 import { toDateKey } from '@/lib/calendar'
 import type { CheckInFormValues } from '@/lib/validations/check-in'
+import { formatWeight } from '@/lib/coach-preferences'
 import type {
   CheckInSubmittedBy,
   ClientCheckIn,
   ClientCheckInInsert,
+  WeightUnit,
 } from 'app/types/database'
 
 export function createEmptyCheckInValues(
@@ -102,10 +104,13 @@ export function formatLevel(value: number | null, suffix = '/5'): string {
   return `${value}${suffix}`
 }
 
-export function formatCheckInSummary(checkIn: ClientCheckIn): string {
+export function formatCheckInSummary(
+  checkIn: ClientCheckIn,
+  weightUnit: WeightUnit = 'lbs'
+): string {
   const parts: string[] = []
   if (checkIn.weight != null) {
-    parts.push(`${checkIn.weight} lbs`)
+    parts.push(formatWeight(checkIn.weight, weightUnit))
   }
   if (checkIn.sleep_hours != null) {
     parts.push(`${checkIn.sleep_hours}h sleep`)
@@ -134,9 +139,14 @@ export function formatCheckInSummary(checkIn: ClientCheckIn): string {
   return parts.length > 0 ? parts.join(' · ') : 'No metrics logged'
 }
 
-export function formatCheckInHistoryLine(checkIn: ClientCheckIn): string {
+export function formatCheckInHistoryLine(
+  checkIn: ClientCheckIn,
+  weightUnit: WeightUnit = 'lbs'
+): string {
   const parts: string[] = []
-  if (checkIn.weight != null) parts.push(`Weight ${checkIn.weight} lbs`)
+  if (checkIn.weight != null) {
+    parts.push(`Weight ${formatWeight(checkIn.weight, weightUnit)}`)
+  }
   if (checkIn.sleep_hours != null) parts.push(`Sleep ${checkIn.sleep_hours}h`)
   if (checkIn.energy_level != null) parts.push(`Energy ${checkIn.energy_level}/5`)
   if (checkIn.calm_level != null) parts.push(`Calm ${checkIn.calm_level}/5`)

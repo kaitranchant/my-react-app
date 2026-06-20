@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { formatVolume } from '@/lib/load-analytics'
 import { fetchPortalProgressData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
@@ -29,9 +30,15 @@ export default async function PortalProgressPage() {
   const clientRecord = portalCtx?.client ?? null
 
   let progressData = null
+  let coachPreferences = null
 
   if (clientRecord?.id) {
-    progressData = await fetchPortalProgressData(supabase, clientRecord.id)
+    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+    progressData = await fetchPortalProgressData(
+      supabase,
+      clientRecord.id,
+      coachPreferences
+    )
   }
 
   return (
@@ -55,7 +62,10 @@ export default async function PortalProgressPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <PortalStatCard
               label="This week volume"
-              value={formatVolume(progressData.loadMetrics?.thisWeekVolume ?? 0)}
+              value={formatVolume(
+                progressData.loadMetrics?.thisWeekVolume ?? 0,
+                coachPreferences?.weightUnit ?? 'lbs'
+              )}
               hint={
                 progressData.loadMetrics?.volumeDeltaLabel ??
                 'Log workouts to track load'

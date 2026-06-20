@@ -374,6 +374,16 @@ await check('get_gym_invite_preview RPC', async () => {
   }
 })
 
+await checkRestTable(
+  'profiles coaching preference columns',
+  '/rest/v1/profiles?select=weight_unit,week_starts_on,coach_timezone,default_check_in_frequency&limit=1'
+)
+
+await checkRestTable(
+  'profiles notification preference columns',
+  '/rest/v1/profiles?select=notify_check_ins,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_weekly_summary&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -387,7 +397,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0029 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0035 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -399,6 +409,11 @@ if (failed) {
   console.error('       supabase/apply-coach-self-client.sql         (0028 My Workouts)')
   console.error('       supabase/apply-team-client-portal.sql        (0029 client team portal)')
   console.error('       supabase/apply-gyms.sql                      (0030 gyms)')
+  console.error('       supabase/apply-gym-create-fix.sql            (0031 gym create RLS)')
+  console.error('       supabase/apply-multi-gym.sql                   (0032 multi-gym membership)')
+  console.error('       supabase/apply-gym-peer-profiles.sql           (0033 gym peer profiles)')
+  console.error('       supabase/apply-coach-preferences.sql         (0034 coach preferences)')
+  console.error('       supabase/apply-notification-preferences.sql  (0035 notification preferences)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -406,7 +421,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0030 (teams, messaging, program phases, My Workouts, client team portal, gyms).'
+  '\nSchema looks good — migrations through 0035 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

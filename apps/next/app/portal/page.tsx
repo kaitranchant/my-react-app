@@ -16,7 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { toDateKey } from '@/lib/calendar'
+import { getCoachDateKey } from '@/lib/coach-preferences'
+import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { formatVolume } from '@/lib/load-analytics'
 import { fetchPortalHomeData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
@@ -29,10 +30,13 @@ export const metadata = {
   title: 'My program — Coaching App',
 }
 
-function checkInStatusLabel(status: 'due' | 'submitted' | 'reviewed') {
+function checkInStatusLabel(
+  status: 'due' | 'submitted' | 'reviewed',
+  dueLabel: string
+) {
   switch (status) {
     case 'due':
-      return 'Due today'
+      return dueLabel
     case 'submitted':
       return 'Submitted'
     case 'reviewed':
@@ -82,9 +86,13 @@ export default async function PortalPage() {
   let todayWorkout: CalendarDaySummary | null = null
   let nextTeamEvent = null
 
-  const todayKey = toDateKey(new Date())
+  let coachPreferences = null
+
 
   if (clientRecord?.id) {
+    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+    const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+
     const [assignmentResult, homeDataResult, todayWorkoutResult, nextTeamEventResult] =
       await Promise.all([
         supabase
@@ -93,12 +101,12 @@ export default async function PortalPage() {
           .eq('client_id', clientRecord.id)
           .eq('status', 'active')
           .maybeSingle(),
-        fetchPortalHomeData(supabase, clientRecord.id),
+        fetchPortalHomeData(supabase, clientRecord.id, coachPreferences),
         supabase
           .from('client_scheduled_workouts')
           .select('id, scheduled_date, name, status, started_at')
           .eq('client_id', clientRecord.id)
-          .eq('scheduled_date', todayKey)
+          .eq('scheduled_date', coachTodayKey)
           .maybeSingle(),
         fetchClientNextTeamEvent(supabase, clientRecord.id),
       ])
@@ -204,7 +212,10 @@ export default async function PortalPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <PortalStatCard
               label="This week volume"
-              value={formatVolume(homeData.loadMetrics?.thisWeekVolume ?? 0)}
+              value={formatVolume(
+                homeData.loadMetrics?.thisWeekVolume ?? 0,
+                coachPreferences?.weightUnit ?? 'lbs'
+              )}
               hint={
                 homeData.loadMetrics?.volumeDeltaLabel ??
                 'Log workouts to track load'
@@ -256,13 +267,16 @@ export default async function PortalPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <PortalWeekStrip weekSessions={homeData.weekSessions} />
+              <PortalWeekStrip
+                weekSessions={homeData.weekSessions}
+                weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
+              />
             </CardContent>
           </Card>
 
           <section className="grid gap-4 sm:grid-cols-2">
             <Link
-              href={`/portal/workouts?date=${todayKey}`}
+              href={`/portal/workouts?date=${getCoachDateKey(coachPreferences?.timezone ?? 'auto')}`}
               className="group block"
             >
               <Card className="h-full transition-colors group-hover:border-brand/40">
@@ -316,7 +330,10 @@ export default async function PortalPage() {
                       Check-in
                     </span>
                     <Badge variant={checkInStatusVariant(homeData.checkInStatus)}>
-                      {checkInStatusLabel(homeData.checkInStatus)}
+                      {checkInStatusLabel(
+                        homeData.checkInStatus,
+                        homeData.checkInDueLabel
+                      )}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -325,7 +342,7 @@ export default async function PortalPage() {
                     Share sleep, energy, soreness, and how you are feeling today.
                   </p>
                   {homeData.checkInStatus === 'reviewed' &&
-                    homeData.todayCheckIn?.coach_notes && (
+                    homeData.periodCheckIn?.coach_notes && (
                       <p className="text-brand text-xs font-medium">
                         Coach left feedback — open to read
                       </p>

@@ -16,7 +16,7 @@ test.describe('Check-ins and progress photos', () => {
     await page.getByLabel('Notes for your coach').fill('Feeling good this week.')
     await page.getByRole('button', { name: 'Submit check-in' }).click()
 
-    await expect(page.getByText('185 lbs')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(/185(\.0)? lbs/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Check-in submitted')).toBeVisible()
   })
 
@@ -36,8 +36,8 @@ test.describe('Check-ins and progress photos', () => {
     await expect(page.getByRole('heading', { name: 'Check-ins' })).toBeVisible()
 
     await page.getByRole('tab', { name: /Pending/i }).click()
-    await expect(page.getByText('185 lbs')).toBeVisible({ timeout: 15_000 })
-    await page.getByText('185 lbs').click()
+    await expect(page.getByText(/185(\.0)? lbs/)).toBeVisible({ timeout: 15_000 })
+    await page.getByText(/185(\.0)? lbs/).click()
 
     await page
       .getByPlaceholder('Share encouragement, adjustments, or next steps…')

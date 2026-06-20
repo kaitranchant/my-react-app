@@ -82,7 +82,7 @@ function NavGroupSection({
   pathname: string
 }) {
   const hasActiveItem = groupHasActiveItem(pathname, group)
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(hasActiveItem)
   const GroupIcon = group.icon
 
   useEffect(() => {
@@ -145,12 +145,12 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="bg-sidebar text-sidebar-foreground hidden h-full w-[260px] shrink-0 flex-col border-r md:flex">
-      <div className="flex h-16 items-center px-5">
+    <aside className="bg-sidebar text-sidebar-foreground hidden h-full min-h-0 w-[260px] shrink-0 flex-col overflow-hidden border-r md:flex">
+      <div className="flex h-16 shrink-0 items-center px-5">
         <BrandLogo />
       </div>
 
-      <nav className="flex flex-1 flex-col overflow-y-auto px-3 pb-6">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-6">
         <div className="space-y-0.5">
           {topNavItems.map((item) => (
             <NavLink

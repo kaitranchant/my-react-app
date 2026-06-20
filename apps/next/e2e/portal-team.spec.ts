@@ -1,4 +1,14 @@
-import { test, expect, E2E_CLIENT_NAME } from './fixtures'
+import {
+  test,
+  expect,
+  E2E_CLIENT_NAME,
+  E2E_CLIENT_EMAIL,
+  E2E_CLIENT_PASSWORD,
+  E2E_COACH_EMAIL,
+  E2E_COACH_PASSWORD,
+  hasE2ECredentials,
+  signOutFromApp,
+} from './fixtures'
 
 function tomorrowDateKey() {
   const d = new Date()
@@ -11,61 +21,80 @@ function tomorrowDateKey() {
 
 test.describe('Portal team', () => {
   test('client sees team announcements and can RSVP to events', async ({
-    coachPage,
-    clientPage,
+    coachPage: page,
   }) => {
+    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+    test.setTimeout(90_000)
+
     const teamName = `E2E Portal Team ${Date.now()}`
     const eventTitle = `E2E Practice ${Date.now()}`
     const announcementText = `E2E team announcement ${Date.now()}`
     const eventDate = tomorrowDateKey()
 
-    await coachPage.goto('/teams')
-    await coachPage.getByRole('button', { name: 'Create team' }).click()
-    await coachPage.getByLabel('Name').fill(teamName)
-    await coachPage.getByRole('button', { name: 'Create team', exact: true }).click()
-    await expect(coachPage).toHaveURL(/\/teams\//, { timeout: 15_000 })
+    await page.goto('/teams')
+    await page.getByRole('button', { name: 'Create team' }).click()
+    await page.getByLabel('Name').fill(teamName)
+    await page.getByRole('button', { name: 'Create team', exact: true }).click()
+    await expect(page).toHaveURL(/\/teams\//, { timeout: 15_000 })
 
-    await coachPage.getByRole('tab', { name: 'Members' }).click()
-    await coachPage.getByRole('button', { name: 'Add member' }).click()
-    await coachPage.getByLabel('Client').click()
-    await coachPage.getByRole('option', { name: E2E_CLIENT_NAME }).click()
-    await coachPage
+    await page.getByRole('tab', { name: 'Members' }).click()
+    await page.getByRole('button', { name: 'Add member' }).click()
+    await page.getByLabel('Client').click()
+    await page.getByRole('option', { name: E2E_CLIENT_NAME }).click()
+    await page
       .getByRole('dialog')
       .getByRole('button', { name: 'Add member', exact: true })
       .click()
-    await expect(coachPage.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
+    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
 
-    await coachPage.getByRole('tab', { name: 'Overview' }).click()
-    await coachPage
+    await page.getByRole('tab', { name: 'Overview' }).click()
+    await page
       .getByPlaceholder('Post a message to the whole team…')
       .fill(announcementText)
-    await coachPage.getByRole('button', { name: 'Post announcement' }).click()
-    await expect(coachPage.getByText(announcementText)).toBeVisible({
+    await page.getByRole('button', { name: 'Post announcement' }).click()
+    await expect(page.getByText(announcementText)).toBeVisible({
       timeout: 15_000,
     })
 
-    await coachPage.getByRole('tab', { name: 'Schedule' }).click()
-    await coachPage.getByRole('button', { name: 'Add event' }).click()
-    await coachPage.getByLabel('Title').fill(eventTitle)
-    await coachPage.getByLabel('Date').fill(eventDate)
-    await coachPage.getByRole('button', { name: 'Add event', exact: true }).click()
-    await expect(coachPage.getByText(eventTitle)).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('tab', { name: 'Schedule' }).click()
+    await page.getByRole('button', { name: 'Add event' }).click()
+    await page.getByLabel('Title').fill(eventTitle)
+    await page.getByLabel('Date').fill(eventDate)
+    await page.getByRole('button', { name: 'Add event', exact: true }).click()
+    await expect(page.getByText(eventTitle)).toBeVisible({ timeout: 15_000 })
 
-    await clientPage.goto('/portal/team')
-    await expect(clientPage.getByRole('heading', { name: teamName })).toBeVisible({
+    await signOutFromApp(page, 'E2E Coach')
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
+    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page).toHaveURL(/\/portal/)
+
+    await page.goto('/portal/team')
+    await expect(page.getByRole('heading', { name: teamName })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(clientPage.getByText(announcementText)).toBeVisible()
-    await expect(clientPage.getByText(eventTitle)).toBeVisible()
+    await expect(page.getByText(announcementText)).toBeVisible()
+    await expect(page.getByText(eventTitle)).toBeVisible()
 
-    await clientPage.getByRole('button', { name: 'Going' }).click()
-    await expect(clientPage.getByText('RSVP updated')).toBeVisible({
+    await page.getByRole('button', { name: 'Going' }).click()
+    await expect(page.getByText('RSVP updated')).toBeVisible({
       timeout: 15_000,
     })
 
-    await coachPage.reload()
-    await coachPage.getByRole('tab', { name: 'Schedule' }).click()
-    await expect(coachPage.getByText(/RSVP: 1 going/)).toBeVisible({
+    await signOutFromApp(page, E2E_CLIENT_NAME)
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
+    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page).toHaveURL(/\/dashboard/)
+
+    await page.goto('/teams')
+    await page.getByRole('link', { name: teamName }).click()
+    await page.getByRole('tab', { name: 'Schedule' }).click()
+    await expect(page.getByText(/RSVP: 1 going/)).toBeVisible({
       timeout: 15_000,
     })
   })

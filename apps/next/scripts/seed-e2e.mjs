@@ -14,6 +14,10 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const COACH_EMAIL = process.env.E2E_COACH_EMAIL ?? 'e2e-coach@coaching-app.test'
 const COACH_PASSWORD = process.env.E2E_COACH_PASSWORD ?? 'TestPassword123!'
+const GYM_COACH_EMAIL =
+  process.env.E2E_GYM_COACH_EMAIL ?? 'e2e-gym-coach@coaching-app.test'
+const GYM_COACH_PASSWORD =
+  process.env.E2E_GYM_COACH_PASSWORD ?? 'TestPassword123!'
 const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL ?? 'e2e-client@coaching-app.test'
 const CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD ?? 'TestPassword123!'
 const PROGRAM_NAME = 'E2E Test Program'
@@ -47,6 +51,29 @@ async function findUserByEmail(email) {
   return data.users.find((user) => user.email === email) ?? null
 }
 
+async function resetGymState({ coachId, gymCoachId, clientId }) {
+  await supabase.from('clients').update({ gym_id: null }).eq('id', clientId)
+
+  const { data: ownedGyms } = await supabase
+    .from('gyms')
+    .select('id')
+    .eq('created_by', coachId)
+
+  if (ownedGyms?.length) {
+    await supabase
+      .from('gyms')
+      .delete()
+      .in(
+        'id',
+        ownedGyms.map((gym) => gym.id)
+      )
+  }
+
+  await supabase.from('gym_members').delete().eq('coach_id', coachId)
+  await supabase.from('gym_members').delete().eq('coach_id', gymCoachId)
+  await supabase.from('gym_invites').delete().eq('email', GYM_COACH_EMAIL)
+}
+
 async function ensureUser({ email, password, fullName, role }) {
   const existing = await findUserByEmail(email)
   if (existing) {
@@ -77,6 +104,13 @@ async function main() {
     role: 'coach',
   })
 
+  const gymCoachId = await ensureUser({
+    email: GYM_COACH_EMAIL,
+    password: GYM_COACH_PASSWORD,
+    fullName: 'E2E Gym Coach',
+    role: 'coach',
+  })
+
   const clientUserId = await ensureUser({
     email: CLIENT_EMAIL,
     password: CLIENT_PASSWORD,
@@ -88,6 +122,10 @@ async function main() {
     .from('profiles')
     .update({ role: 'coach', full_name: 'E2E Coach' })
     .eq('id', coachId)
+  await supabase
+    .from('profiles')
+    .update({ role: 'coach', full_name: 'E2E Gym Coach' })
+    .eq('id', gymCoachId)
   await supabase
     .from('profiles')
     .update({ role: 'client', full_name: CLIENT_NAME })
@@ -128,6 +166,8 @@ async function main() {
     if (error) throw error
     clientId = inserted.id
   }
+
+  await resetGymState({ coachId, gymCoachId, clientId })
 
   const startDate = todayKey()
 
@@ -315,8 +355,9 @@ async function main() {
   }
 
   console.log('E2E seed complete.')
-  console.log(`  Coach:  ${COACH_EMAIL}`)
-  console.log(`  Client: ${CLIENT_EMAIL}`)
+  console.log(`  Coach:     ${COACH_EMAIL}`)
+  console.log(`  Gym coach: ${GYM_COACH_EMAIL}`)
+  console.log(`  Client:    ${CLIENT_EMAIL}`)
   console.log(`  Program: ${PROGRAM_NAME} (assigned from ${startDate})`)
   console.log(`  Client ID: ${clientId}`)
 }

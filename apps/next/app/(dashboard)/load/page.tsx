@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchCoachLoadSummaries } from '@/lib/load-queries'
 import { LoadDashboard } from '@/components/load/load-dashboard'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -15,6 +16,12 @@ export default async function LoadPage({
 }) {
   const { client: initialClientId } = await searchParams
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const coachPreferences = user
+    ? await getCoachPreferencesForUser(user.id)
+    : null
 
   const { data: clientsData } = await supabase
     .from('clients')
@@ -35,6 +42,7 @@ export default async function LoadPage({
       <LoadDashboard
         summaries={summaries}
         initialClientId={initialClientId ?? null}
+        weightUnit={coachPreferences?.weightUnit ?? 'lbs'}
       />
     </div>
   )

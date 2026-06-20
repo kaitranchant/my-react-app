@@ -1,4 +1,6 @@
 import { toDateKey } from '@/lib/calendar'
+import { getWeekRange as resolveWeekRange } from '@/lib/coach-preferences'
+import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { Client, ClientCheckIn, ClientScheduledWorkout } from 'app/types/database'
 
 export type TodaySession = Pick<
@@ -32,18 +34,11 @@ export function getGreeting(): string {
   return 'Good evening'
 }
 
-export function getWeekRange(): { start: string; end: string } {
-  const today = new Date()
-  const dayIndex = today.getDay()
-  const mondayOffset = dayIndex === 0 ? -6 : 1 - dayIndex
-
-  const monday = new Date(today)
-  monday.setDate(today.getDate() + mondayOffset)
-
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-
-  return { start: toDateKey(monday), end: toDateKey(sunday) }
+export function getWeekRange(
+  weekStartsOn: CoachPreferences['weekStartsOn'] = 'monday',
+  timezone: CoachPreferences['timezone'] = 'auto'
+): { start: string; end: string } {
+  return resolveWeekRange(weekStartsOn, timezone)
 }
 
 export function calcWorkoutCompletionRate(
@@ -60,14 +55,16 @@ export function buildActionItems({
   clientsWithoutWorkoutThisWeek,
   skippedThisWeek,
   pendingCheckIns = 0,
-  clientsWithoutCheckInThisWeek = 0,
+  clientsWithoutCheckInThisPeriod = 0,
+  checkInPeriodLabel = 'this week',
 }: {
   clients: Client[]
   pendingInvites: number
   clientsWithoutWorkoutThisWeek: number
   skippedThisWeek: number
   pendingCheckIns?: number
-  clientsWithoutCheckInThisWeek?: number
+  clientsWithoutCheckInThisPeriod?: number
+  checkInPeriodLabel?: string
 }): ActionItem[] {
   const items: ActionItem[] = []
 
@@ -80,10 +77,10 @@ export function buildActionItems({
     })
   }
 
-  if (clientsWithoutCheckInThisWeek > 0) {
+  if (clientsWithoutCheckInThisPeriod > 0) {
     items.push({
       id: 'no-check-in',
-      message: `${clientsWithoutCheckInThisWeek} active client${clientsWithoutCheckInThisWeek === 1 ? '' : 's'} ha${clientsWithoutCheckInThisWeek === 1 ? 's' : 've'}n't checked in this week`,
+      message: `${clientsWithoutCheckInThisPeriod} active client${clientsWithoutCheckInThisPeriod === 1 ? '' : 's'} ha${clientsWithoutCheckInThisPeriod === 1 ? 's' : 've'}n't checked in ${checkInPeriodLabel}`,
       href: '/check-ins',
       priority: 'medium',
     })

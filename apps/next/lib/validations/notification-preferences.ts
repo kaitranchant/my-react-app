@@ -1,0 +1,24 @@
+import { z } from 'zod'
+
+export const notificationPreferenceKeys = [
+  'notifyCheckIns',
+  'notifyWorkoutCompletions',
+  'notifyMissedSessions',
+  'notifyInviteAccepted',
+  'notifyWeeklySummary',
+] as const
+
+export type NotificationPreferenceKey =
+  (typeof notificationPreferenceKeys)[number]
+
+export const notificationPreferencesSchema = z.object({
+  notifyCheckIns: z.boolean(),
+  notifyWorkoutCompletions: z.boolean(),
+  notifyMissedSessions: z.boolean(),
+  notifyInviteAccepted: z.boolean(),
+  notifyWeeklySummary: z.boolean(),
+})
+
+export type NotificationPreferencesValues = z.infer<
+  typeof notificationPreferencesSchema
+>

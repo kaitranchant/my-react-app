@@ -21,7 +21,7 @@ export function SettingsSection({
   className?: string
 }) {
   return (
-    <Card id={id} className={cn('scroll-mt-6 gap-0 py-0', className)}>
+    <Card id={id} className={cn('scroll-mt-6 gap-0 overflow-hidden py-0', className)}>
       <CardHeader className="border-b bg-muted/30 px-5 py-4">
         <CardTitle className="text-base">{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}

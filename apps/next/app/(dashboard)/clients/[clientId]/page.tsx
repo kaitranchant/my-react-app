@@ -5,6 +5,8 @@ import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
+import { defaultCoachPreferences } from '@/lib/coach-preferences'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { isCoachSelfClient } from '@/lib/coach-self'
@@ -54,7 +56,12 @@ export default async function ClientDetailPage({
   const month = today.getMonth()
   const selectedDate = toDateKey(today)
   const { start: monthStart, end: monthEnd } = getMonthDateRange(year, month)
-  const weekDateKeys = getWeekDayLabels().map((day) => day.dateKey)
+  const coachPreferences = user
+    ? await getCoachPreferencesForUser(user.id)
+    : defaultCoachPreferences
+  const weekDateKeys = getWeekDayLabels(coachPreferences.weekStartsOn).map(
+    (day) => day.dateKey
+  )
   const weekStart = weekDateKeys[0]
   const weekEnd = weekDateKeys[weekDateKeys.length - 1]
   const streakStart = toDateKey(
@@ -349,6 +356,7 @@ export default async function ClientDetailPage({
             acwrVariant: loadMetrics.acwrVariant,
           }}
           recentPrs={loadMetrics.recentPrs}
+          coachPreferences={coachPreferences}
           initialTab={initialTab}
           calendar={{
             schemaError: calendarSchemaError,

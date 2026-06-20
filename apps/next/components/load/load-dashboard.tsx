@@ -41,12 +41,14 @@ import {
   type LoadDateRange,
   type LoadMetric,
 } from '@/lib/load-analytics'
+import type { WeightUnit } from 'app/types/database'
 import type { ClientLoadSummary } from '@/lib/load-queries'
 import { cn } from '@/lib/utils'
 
 type LoadDashboardProps = {
   summaries: ClientLoadSummary[]
   initialClientId?: string | null
+  weightUnit?: WeightUnit
 }
 
 function getMetricRows(summary: ClientLoadSummary, metric: LoadMetric) {
@@ -113,6 +115,7 @@ function formatLastActive(days: number | null): string {
 export function LoadDashboard({
   summaries,
   initialClientId = null,
+  weightUnit = 'lbs',
 }: LoadDashboardProps) {
   const [expandedClientId, setExpandedClientId] = React.useState<string | null>(
     initialClientId
@@ -313,10 +316,15 @@ export function LoadDashboard({
                           </Link>
                         </TableCell>
                         <TableCell>
-                          {formatMetricValue(metric, currentValue)}
+                          {formatMetricValue(metric, currentValue, weightUnit)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {formatMetricDelta(metric, currentValue, previousValue)}
+                          {formatMetricDelta(
+                            metric,
+                            currentValue,
+                            previousValue,
+                            weightUnit
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -372,6 +380,7 @@ export function LoadDashboard({
                                 <VolumeBarChart
                                   buckets={weeklyBuckets}
                                   metric={metric}
+                                  weightUnit={weightUnit}
                                 />
                               </div>
                               <div className="space-y-3">

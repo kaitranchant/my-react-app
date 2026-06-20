@@ -15,13 +15,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { getCheckInCadenceTitle } from '@/lib/check-in-cadence'
+import {
+  defaultCoachPreferences,
+  getCoachDateKey,
+  type CoachPreferences,
+} from '@/lib/coach-preferences'
 import {
   checkInToFormValues,
   createEmptyCheckInValues,
   formatCheckInDate,
   formatCheckInSummary,
 } from '@/lib/check-ins'
-import { toDateKey } from '@/lib/calendar'
 import {
   toClientCheckInValues,
   type CheckInFormValues,
@@ -33,31 +38,44 @@ import {
 import type { ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
 
 type PortalCheckInPanelProps = {
-  todayCheckIn: ClientCheckIn | null
+  periodCheckIn: ClientCheckIn | null
   recentCheckIns?: ClientCheckIn[]
-  todayPhotos?: ClientProgressPhotoWithUrl[]
+  periodPhotos?: ClientProgressPhotoWithUrl[]
+  coachPreferences?: CoachPreferences | null
 }
 
 export function PortalCheckInPanel({
-  todayCheckIn,
+  periodCheckIn,
   recentCheckIns = [],
-  todayPhotos = [],
+  periodPhotos = [],
+  coachPreferences = defaultCoachPreferences,
 }: PortalCheckInPanelProps) {
   const router = useRouter()
-  const [isEditing, setIsEditing] = React.useState(!todayCheckIn)
-  const today = toDateKey(new Date())
+  const preferences = coachPreferences ?? defaultCoachPreferences
+  const [isEditing, setIsEditing] = React.useState(!periodCheckIn)
+  const today = getCoachDateKey(preferences.timezone)
   const canEdit =
-    !todayCheckIn ||
-    (todayCheckIn.submitted_by === 'client' && todayCheckIn.reviewed_at == null)
+    !periodCheckIn ||
+    (periodCheckIn.submitted_by === 'client' && periodCheckIn.reviewed_at == null)
 
-  const initialValues = todayCheckIn
-    ? checkInToFormValues(todayCheckIn)
+  const initialValues = periodCheckIn
+    ? checkInToFormValues(periodCheckIn)
     : createEmptyCheckInValues(today)
+
+  const cadenceTitle = getCheckInCadenceTitle(
+    preferences.defaultCheckInFrequency
+  )
+  const cadenceDescription =
+    preferences.defaultCheckInFrequency === 'daily'
+      ? 'Share how you are feeling today so your coach can adjust your program.'
+      : preferences.defaultCheckInFrequency === 'weekly'
+        ? 'Share how your week went so your coach can adjust your program.'
+        : 'Share how the last two weeks went so your coach can adjust your program.'
 
   async function handleSubmit(values: CheckInFormValues) {
     const result = await submitClientCheckIn(toClientCheckInValues(values))
     if (result.success) {
-      toast.success(todayCheckIn ? 'Check-in updated' : 'Check-in submitted')
+      toast.success(periodCheckIn ? 'Check-in updated' : 'Check-in submitted')
       setIsEditing(false)
       router.refresh()
       return { success: true }
@@ -71,15 +89,13 @@ export function PortalCheckInPanel({
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">Weekly check-in</CardTitle>
-            <CardDescription>
-              Share how your week went so your coach can adjust your program.
-            </CardDescription>
+            <CardTitle className="text-base">{cadenceTitle}</CardTitle>
+            <CardDescription>{cadenceDescription}</CardDescription>
           </div>
-          {todayCheckIn && !todayCheckIn.reviewed_at && (
+          {periodCheckIn && !periodCheckIn.reviewed_at && (
             <Badge variant="secondary">Submitted</Badge>
           )}
-          {todayCheckIn?.reviewed_at && (
+          {periodCheckIn?.reviewed_at && (
             <Badge variant="outline">Reviewed by coach</Badge>
           )}
         </div>
@@ -90,52 +106,61 @@ export function PortalCheckInPanel({
             variant="client"
             initialValues={initialValues}
             recentCheckIns={recentCheckIns}
-            checkInId={todayCheckIn?.id ?? null}
-            progressPhotos={todayPhotos}
+            checkInId={periodCheckIn?.id ?? null}
+            progressPhotos={periodPhotos}
+            weightUnit={preferences.weightUnit}
             onSubmit={handleSubmit}
-            onCancel={todayCheckIn ? () => setIsEditing(false) : undefined}
-            submitLabel={todayCheckIn ? 'Update check-in' : 'Submit check-in'}
+            onCancel={periodCheckIn ? () => setIsEditing(false) : undefined}
+            submitLabel={periodCheckIn ? 'Update check-in' : 'Submit check-in'}
           />
-        ) : todayCheckIn ? (
+        ) : periodCheckIn ? (
           <>
             <div className="space-y-2 text-sm">
-              <p className="font-medium">{formatCheckInDate(todayCheckIn.check_in_date)}</p>
-              <p className="text-muted-foreground">{formatCheckInSummary(todayCheckIn)}</p>
-              {todayCheckIn.soreness_notes && (
+              <p className="font-medium">
+                {formatCheckInDate(periodCheckIn.check_in_date)}
+              </p>
+              <p className="text-muted-foreground">
+                {formatCheckInSummary(periodCheckIn, preferences.weightUnit)}
+              </p>
+              {periodCheckIn.soreness_notes && (
                 <p className="text-muted-foreground text-xs">
-                  Soreness: {todayCheckIn.soreness_notes}
+                  Soreness: {periodCheckIn.soreness_notes}
                 </p>
               )}
-              {todayCheckIn.has_pain && todayCheckIn.pain_notes && (
+              {periodCheckIn.has_pain && periodCheckIn.pain_notes && (
                 <p className="text-red-700 text-xs">
-                  Pain noted: {todayCheckIn.pain_notes}
+                  Pain noted: {periodCheckIn.pain_notes}
                 </p>
               )}
-              {todayCheckIn.client_notes && (
+              {periodCheckIn.client_notes && (
                 <p className="leading-relaxed whitespace-pre-wrap">
-                  {todayCheckIn.client_notes}
+                  {periodCheckIn.client_notes}
                 </p>
               )}
             </div>
 
-            <ProgressPhotoThumbnails photos={todayPhotos} />
+            <ProgressPhotoThumbnails photos={periodPhotos} />
 
-            {todayCheckIn.coach_notes && (
+            {periodCheckIn.coach_notes && (
               <div className="bg-brand/5 border-brand/10 rounded-lg border p-4 text-sm leading-relaxed">
                 <p className="text-brand mb-1 font-medium">Coach feedback</p>
-                <p className="whitespace-pre-wrap">{todayCheckIn.coach_notes}</p>
+                <p className="whitespace-pre-wrap">{periodCheckIn.coach_notes}</p>
               </div>
             )}
 
             {canEdit && (
               <div className="grid gap-4">
                 <ProgressPhotoUpload
-                  checkInId={todayCheckIn.id}
-                  photos={todayPhotos}
+                  checkInId={periodCheckIn.id}
+                  photos={periodPhotos}
                   variant="client"
                 />
                 <div className="flex justify-end">
-                  <Button type="button" variant="outline" onClick={() => setIsEditing(true)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditing(true)}
+                  >
                     Edit check-in
                   </Button>
                 </div>
@@ -147,6 +172,7 @@ export function PortalCheckInPanel({
             variant="client"
             initialValues={initialValues}
             recentCheckIns={recentCheckIns}
+            weightUnit={preferences.weightUnit}
             onSubmit={handleSubmit}
             submitLabel="Submit check-in"
           />

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { isCheckInPendingReview } from '@/lib/check-ins'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import {
   attachSignedUrlsToPhotos,
   countPhotosByCheckInId,
@@ -31,6 +32,13 @@ export default async function CheckInsPage({
     tab === 'all' || tab === 'log' ? tab : 'pending'
 
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const coachPreferences = user
+    ? await getCoachPreferencesForUser(user.id)
+    : null
+
   const [{ data: checkInsData }, { data: clientsData }] = await Promise.all([
     supabase
       .from('client_check_ins')
@@ -84,6 +92,7 @@ export default async function CheckInsPage({
     showClient: true as const,
     photoCounts,
     photosByCheckInId,
+    weightUnit: coachPreferences?.weightUnit ?? 'lbs',
   }
 
   return (

@@ -99,6 +99,7 @@ type ClientCalendarPanelProps = {
   initialActionDate?: string | null
   onActionConsumed?: () => void
   personalMode?: boolean
+  weightUnit?: import('app/types/database').WeightUnit
 }
 
 export function ClientCalendarPanel({
@@ -116,6 +117,7 @@ export function ClientCalendarPanel({
   initialActionDate = null,
   onActionConsumed,
   personalMode = false,
+  weightUnit = 'lbs',
 }: ClientCalendarPanelProps) {
   const [year, setYear] = React.useState(initialYear)
   const [month, setMonth] = React.useState(initialMonth)
@@ -710,6 +712,7 @@ export function ClientCalendarPanel({
             initialStatus={workout.status}
             exercises={exercises}
             onChanged={() => refreshCalendar()}
+            weightUnit={weightUnit}
           />
         </>
       )}

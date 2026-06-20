@@ -145,14 +145,23 @@ export function formatPrescription(
   return parts.join(' · ') || 'No prescription set'
 }
 
-export function getCurrentWeekDateKeys(): string[] {
-  const today = new Date()
-  const dayIndex = today.getDay()
-  const mondayOffset = dayIndex === 0 ? -6 : 1 - dayIndex
+import type { WeekStartsOn } from 'app/types/database'
+
+export function getCurrentWeekDateKeys(
+  weekStartsOn: WeekStartsOn = 'monday',
+  referenceDate = new Date()
+): string[] {
+  const dayIndex = referenceDate.getDay()
+  const startOffset =
+    weekStartsOn === 'monday'
+      ? dayIndex === 0
+        ? -6
+        : 1 - dayIndex
+      : -dayIndex
 
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today)
-    date.setDate(today.getDate() + mondayOffset + index)
+    const date = new Date(referenceDate)
+    date.setDate(referenceDate.getDate() + startOffset + index)
     return toDateKey(date)
   })
 }
@@ -196,13 +205,21 @@ export function getMatchingDatesInRange(
   return dates
 }
 
-export function getWeekDayLabels(): { label: string; dateKey: string; isToday: boolean }[] {
+export function getWeekDayLabels(
+  weekStartsOn: WeekStartsOn = 'monday',
+  referenceDate = new Date()
+): { label: string; dateKey: string; isToday: boolean }[] {
   const todayKey = toDateKey(new Date())
-  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+  const labels =
+    weekStartsOn === 'monday'
+      ? (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const)
+      : (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const)
 
-  return getCurrentWeekDateKeys().map((dateKey, index) => ({
-    label: labels[index],
-    dateKey,
-    isToday: dateKey === todayKey,
-  }))
+  return getCurrentWeekDateKeys(weekStartsOn, referenceDate).map(
+    (dateKey, index) => ({
+      label: labels[index]!,
+      dateKey,
+      isToday: dateKey === todayKey,
+    })
+  )
 }

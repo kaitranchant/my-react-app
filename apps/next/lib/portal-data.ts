@@ -1,4 +1,9 @@
 import { getWeekDayLabels, toDateKey } from '@/lib/calendar'
+import { getCheckInPeriodBounds, getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
+import {
+  defaultCoachPreferences,
+  type CoachPreferences,
+} from '@/lib/coach-preferences'
 import {
   calcClientCompletionRate,
   calcWorkoutStreak,
@@ -18,10 +23,10 @@ import type {
 export type PortalCheckInStatus = 'due' | 'submitted' | 'reviewed'
 
 export function getPortalCheckInStatus(
-  checkIn: ClientCheckIn | null
+  periodCheckIn: ClientCheckIn | null
 ): PortalCheckInStatus {
-  if (!checkIn) return 'due'
-  if (checkIn.reviewed_at) return 'reviewed'
+  if (!periodCheckIn) return 'due'
+  if (periodCheckIn.reviewed_at) return 'reviewed'
   return 'submitted'
 }
 
@@ -46,8 +51,9 @@ export function getPortalAcwrHint(
 export type PortalHomeData = {
   loadMetrics: Awaited<ReturnType<typeof fetchClientLoadMetrics>> | null
   weekSessions: CalendarDaySummary[]
-  todayCheckIn: ClientCheckIn | null
+  periodCheckIn: ClientCheckIn | null
   checkInStatus: PortalCheckInStatus
+  checkInDueLabel: string
   streak: number
   completionRate: number | null
   lastActive: string
@@ -66,20 +72,31 @@ export type PortalProgressData = {
 
 export async function fetchPortalHomeData(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  clientId: string
+  clientId: string,
+  coachPreferences: CoachPreferences = defaultCoachPreferences
 ): Promise<PortalHomeData> {
-  const todayKey = toDateKey(new Date())
-  const weekDateKeys = getWeekDayLabels().map((day) => day.dateKey)
-  const weekStart = weekDateKeys[0]
-  const weekEnd = weekDateKeys[weekDateKeys.length - 1]
+  const { start: periodStart, end: periodEnd } = getCheckInPeriodBounds(
+    coachPreferences.defaultCheckInFrequency,
+    coachPreferences.weekStartsOn,
+    coachPreferences.timezone
+  )
+  const weekDateKeys = getWeekDayLabels(
+    coachPreferences.weekStartsOn
+  ).map((day) => day.dateKey)
+  const weekStart = weekDateKeys[0]!
+  const weekEnd = weekDateKeys[weekDateKeys.length - 1]!
   const streakStart = toDateKey(
-    new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 90)
+    new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      new Date().getDate() - 90
+    )
   )
 
   const [
     loadMetricsResult,
     weekResult,
-    todayCheckInResult,
+    periodCheckInResult,
     streakResult,
     recentWorkoutsResult,
   ] = await Promise.all([
@@ -95,7 +112,10 @@ export async function fetchPortalHomeData(
       .from('client_check_ins')
       .select('*')
       .eq('client_id', clientId)
-      .eq('check_in_date', todayKey)
+      .gte('check_in_date', periodStart)
+      .lte('check_in_date', periodEnd)
+      .order('check_in_date', { ascending: false })
+      .limit(1)
       .maybeSingle(),
     supabase
       .from('client_scheduled_workouts')
@@ -116,15 +136,19 @@ export async function fetchPortalHomeData(
   ])
 
   const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
-  const todayCheckIn = (todayCheckInResult.data as ClientCheckIn | null) ?? null
+  const periodCheckIn =
+    (periodCheckInResult.data as ClientCheckIn | null) ?? null
   const streakWorkouts = (streakResult.data ?? []) as ClientWorkoutActivity[]
   const recentWorkouts = (recentWorkoutsResult.data ?? []) as ClientWorkoutActivity[]
 
   return {
     loadMetrics: loadMetricsResult,
     weekSessions,
-    todayCheckIn,
-    checkInStatus: getPortalCheckInStatus(todayCheckIn),
+    periodCheckIn,
+    checkInStatus: getPortalCheckInStatus(periodCheckIn),
+    checkInDueLabel: getPortalCheckInDueLabel(
+      coachPreferences.defaultCheckInFrequency
+    ),
     streak: calcWorkoutStreak(streakWorkouts),
     completionRate: calcClientCompletionRate(weekSessions),
     lastActive: getLastActiveLabel(recentWorkouts),
@@ -134,13 +158,20 @@ export async function fetchPortalHomeData(
 
 export async function fetchPortalProgressData(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  clientId: string
+  clientId: string,
+  coachPreferences: CoachPreferences = defaultCoachPreferences
 ): Promise<PortalProgressData> {
-  const weekDateKeys = getWeekDayLabels().map((day) => day.dateKey)
-  const weekStart = weekDateKeys[0]
-  const weekEnd = weekDateKeys[weekDateKeys.length - 1]
+  const weekDateKeys = getWeekDayLabels(
+    coachPreferences.weekStartsOn
+  ).map((day) => day.dateKey)
+  const weekStart = weekDateKeys[0]!
+  const weekEnd = weekDateKeys[weekDateKeys.length - 1]!
   const streakStart = toDateKey(
-    new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 90)
+    new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      new Date().getDate() - 90
+    )
   )
 
   const [
