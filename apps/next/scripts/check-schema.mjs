@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0041.
+ * Verify hosted Supabase schema through migration 0050.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -414,6 +414,24 @@ await checkRestTable(
   '/rest/v1/client_daily_attendance?select=coaching_type&limit=1'
 )
 
+// Migration 0043 — leaderboard opt-out
+await checkRestTable(
+  'clients.leaderboard_opt_out column',
+  '/rest/v1/clients?select=leaderboard_opt_out&limit=1'
+)
+
+// Migration 0045 — biological sex for Wilks / DOTS
+await checkRestTable(
+  'clients.biological_sex column',
+  '/rest/v1/clients?select=biological_sex&limit=1'
+)
+
+// Migration 0047 — team powerlifting exercise mapping
+await checkRestTable(
+  'teams powerlifting exercise columns',
+  '/rest/v1/teams?select=squat_exercise_id,bench_exercise_id,deadlift_exercise_id&limit=1'
+)
+
 // Migration 0048 — client form reviews
 await checkRestTable(
   'client_form_reviews table',
@@ -425,6 +443,21 @@ await checkRestTable(
   'client_form_reviews workout context columns',
   '/rest/v1/client_form_reviews?select=scheduled_workout_id,scheduled_exercise_id&limit=1'
 )
+
+// Migration 0050 — form review image uploads (bucket from 0048)
+await check('form-reviews storage bucket', async () => {
+  const res = await fetch(
+    `${url}/storage/v1/object/form-reviews/.schema-check`,
+    { headers: { apikey: key } }
+  )
+  const body = await res.text()
+  if (body.includes('Bucket not found')) {
+    throw new Error('Bucket not found')
+  }
+  if (!body.includes('Object not found') && !res.ok && res.status !== 400) {
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
 
 let failed = false
 for (const { name, ok, detail } of checks) {
@@ -439,7 +472,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0042 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0050 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -461,6 +494,14 @@ if (failed) {
   console.error('       supabase/apply-client-daily-attendance.sql (0040 daily attendance)')
   console.error('       supabase/apply-team-gym.sql                   (0041 team gym sharing)')
   console.error('       supabase/apply-attendance-enhancements.sql   (0042 attendance enhancements)')
+  console.error('       supabase/apply-leaderboard-opt-out.sql        (0043 leaderboard opt-out)')
+  console.error('       supabase/apply-portal-leaderboards.sql         (0044 portal leaderboards)')
+  console.error('       supabase/apply-client-biological-sex.sql       (0045 biological sex)')
+  console.error('       supabase/apply-portal-leaderboard-bodyweight.sql (0046 leaderboard bodyweight)')
+  console.error('       supabase/apply-team-powerlifting-exercises.sql (0047 team lift mapping)')
+  console.error('       supabase/apply-client-form-reviews.sql         (0048 form reviews)')
+  console.error('       supabase/apply-client-form-review-workout-context.sql (0049 workout context)')
+  console.error('       supabase/apply-form-review-images.sql          (0050 form review images)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -468,7 +509,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0042 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements).'
+  '\nSchema looks good — migrations through 0050 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

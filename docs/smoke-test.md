@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0042**)
+- `yarn db:check` passes (schema through migration **0050**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -159,6 +159,29 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Add a **Habit** goal (e.g. train 4×/week) and a **Milestone** goal (e.g. complete 20 sessions)
 - [ ] Sign in as client → `/portal/goals` — all three trackable goal types appear with status badges
 
+## 13. Form review
+
+- [ ] As client, open **Form Review** in the portal sidebar (`/portal/form-review`)
+- [ ] Add a title and notes, upload a photo or video → **Submit for review**
+- [ ] Confirm the submission appears with **Awaiting review** status
+- [ ] (Optional) Log a workout → on an exercise row, open **Submit form** → **Submit form photo/video** — confirm submission shows **From workout log** context
+- [ ] Sign in as coach → **Monitoring → Form Review** (`/form-review`)
+- [ ] **Pending** tab shows the submission with client name and notes
+- [ ] Add coach feedback → **Save feedback** — item leaves the pending list
+- [ ] **All** tab shows the submission as **Reviewed**
+- [ ] Sign back in as client → `/portal/form-review` — coach feedback is visible
+
+## 14. Leaderboards
+
+- [ ] Sign in as coach → **Athletes → Leaderboards** (`/leaderboards`)
+- [ ] Confirm the roster table loads and category tabs work (Strength, Wilks/DOTS, Streak, etc.)
+- [ ] Switch period tabs (e.g. **This month**) — URL updates and table refreshes
+- [ ] Select a **team** scope tab — weight-class filter appears
+- [ ] (Optional) On a client profile, set **Biological sex** and bodyweight — open **Wilks / DOTS** and confirm a score appears for that athlete
+- [ ] Sign in as client on a team → **Leaderboards** in portal sidebar (`/portal/leaderboards`)
+- [ ] Confirm team rankings load and **Your leaderboard profile** card is visible
+- [ ] (Optional) Set biological sex on the profile card — Wilks/DOTS column updates on refresh
+
 ---
 
 ## Troubleshooting
@@ -185,6 +208,9 @@ Repeatable manual verification for the coach → client loop and recent features
 | Performance/habit/milestone goals fail to save | Run [`supabase/apply-client-goals-v2.sql`](../supabase/apply-client-goals-v2.sql) or `yarn db:push` (0039) |
 | Attendance page fails or coaching type won't save | Run [`supabase/apply-client-daily-attendance.sql`](../supabase/apply-client-daily-attendance.sql) and [`supabase/apply-attendance-enhancements.sql`](../supabase/apply-attendance-enhancements.sql) or `yarn db:push` (0040–0042) |
 | Team gym assignment fails | Run [`supabase/apply-team-gym.sql`](../supabase/apply-team-gym.sql) or `yarn db:push` (0041) |
+| Leaderboards page fails or portal rankings empty | Run [`supabase/apply-leaderboard-opt-out.sql`](../supabase/apply-leaderboard-opt-out.sql), [`supabase/apply-portal-leaderboards.sql`](../supabase/apply-portal-leaderboards.sql), and related scripts through [`supabase/apply-team-powerlifting-exercises.sql`](../supabase/apply-team-powerlifting-exercises.sql) or `yarn db:push` (0043–0047) |
+| Wilks/DOTS scores missing | Set client **Biological sex** and bodyweight; run [`supabase/apply-client-biological-sex.sql`](../supabase/apply-client-biological-sex.sql) and [`supabase/apply-portal-leaderboard-bodyweight.sql`](../supabase/apply-portal-leaderboard-bodyweight.sql) or `yarn db:push` (0045–0046) |
+| Form review page fails or upload errors | Run [`supabase/apply-client-form-reviews.sql`](../supabase/apply-client-form-reviews.sql) through [`supabase/apply-form-review-images.sql`](../supabase/apply-form-review-images.sql) or `yarn db:push` (0048–0050) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |

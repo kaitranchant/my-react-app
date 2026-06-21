@@ -27,10 +27,12 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Settings: profile, notification preferences, password change, account deletion, and coaching preferences (weight unit, week start, timezone, check-in cadence)
 - Client goals: coach-set composition, daily, performance, habit, and milestone goals with auto-progress from workouts, PRs, check-ins, and InBody; target dates and pace tracking; client portal `/portal/goals`; Goals section on client Progress tab
 - Attendance: global `/attendance` page with daily client roll call (present/late/absent/excused), per-session training type, gym/team scope tabs, and team event roll call when a team is selected
+- Leaderboards: coach `/leaderboards` roster rankings (strength PRs, Wilks/DOTS, consistency, volume, improvement, streaks) with gym/team scope and weight-class filters; client portal `/portal/leaderboards` for team rankings; biological sex and bodyweight for relative-strength scoring; per-client opt-out
+- Form review: client portal `/portal/form-review` for photo/video submissions; submit from workout log with exercise context linked; coach `/form-review` pending inbox and written feedback
 
 ## What's coming
 
-Form review, leaderboards, and wearables appear in the UI but are not yet implemented.
+Wearables appear in the coach sidebar but are not yet implemented.
 
 ## Deployment
 
@@ -45,13 +47,13 @@ Form review, leaderboards, and wearables appear in the UI but are not yet implem
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0042**). For one-off patches without the CLI, see the apply scripts below.
-4. Verify schema: `yarn db:check` (checks tables through migration 0042)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0050**). For one-off patches without the CLI, see the apply scripts below.
+4. Verify schema: `yarn db:check` (checks tables through migration 0050)
 5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0042 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0050 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -93,6 +95,14 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-client-daily-attendance.sql` | Daily client presence tracking (0040) |
 | `apply-team-gym.sql` | Opt-in team sharing with gym peers (0041) |
 | `apply-attendance-enhancements.sql` | Late status and per-session coaching type on daily attendance (0042) |
+| `apply-leaderboard-opt-out.sql` | Per-client leaderboard opt-out (0043) |
+| `apply-portal-leaderboards.sql` | Client portal team leaderboard visibility (0044) |
+| `apply-client-biological-sex.sql` | Biological sex for Wilks/DOTS scoring (0045) |
+| `apply-portal-leaderboard-bodyweight.sql` | Client bodyweight for relative-strength scoring (0046) |
+| `apply-team-powerlifting-exercises.sql` | Team squat/bench/deadlift exercise mapping (0047) |
+| `apply-client-form-reviews.sql` | Form review submissions and private storage (0048) |
+| `apply-client-form-review-workout-context.sql` | Link form reviews to workout log exercises (0049) |
+| `apply-form-review-images.sql` | Photo uploads (JPEG/PNG/WebP) for form review (0050) |
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 
@@ -198,7 +208,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema (migrations through 0042) |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0050) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |
