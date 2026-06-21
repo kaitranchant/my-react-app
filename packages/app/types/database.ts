@@ -1383,6 +1383,79 @@ export type Database = {
           },
         ]
       }
+      client_form_reviews: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          exercise_id: string | null
+          storage_path: string
+          content_type: string
+          file_size_bytes: number | null
+          title: string | null
+          client_notes: string | null
+          coach_feedback: string | null
+          uploaded_by: CheckInSubmittedBy
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          exercise_id?: string | null
+          storage_path: string
+          content_type: string
+          file_size_bytes?: number | null
+          title?: string | null
+          client_notes?: string | null
+          coach_feedback?: string | null
+          uploaded_by: CheckInSubmittedBy
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          exercise_id?: string | null
+          storage_path?: string
+          content_type?: string
+          file_size_bytes?: number | null
+          title?: string | null
+          client_notes?: string | null
+          coach_feedback?: string | null
+          uploaded_by?: CheckInSubmittedBy
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_form_reviews_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_form_reviews_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_form_reviews_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_message_threads: {
         Row: {
           client_id: string
@@ -2133,6 +2206,23 @@ export type ClientProgressPhotoWithUrl = ClientProgressPhoto & {
 
 export type ClientProgressPhotoWithClient = ClientProgressPhoto & {
   client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
+  signedUrl: string | null
+}
+
+export type ClientFormReview =
+  Database['public']['Tables']['client_form_reviews']['Row']
+export type ClientFormReviewInsert =
+  Database['public']['Tables']['client_form_reviews']['Insert']
+export type ClientFormReviewUpdate =
+  Database['public']['Tables']['client_form_reviews']['Update']
+
+export type ClientFormReviewWithUrl = ClientFormReview & {
+  signedUrl: string | null
+}
+
+export type ClientFormReviewWithClient = ClientFormReview & {
+  client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
+  exercise: Pick<Exercise, 'id' | 'name'> | null
   signedUrl: string | null
 }
 

@@ -131,7 +131,7 @@ export const navGroups: NavGroup[] = [
 
       { label: 'Progress Photos', href: '/progress-photos', icon: Camera },
 
-      { label: 'Form Review', href: '/form-review', icon: Video, soon: true },
+      { label: 'Form Review', href: '/form-review', icon: Video },
 
       { label: 'Wearables', href: '/wearables', icon: Watch, soon: true },
 

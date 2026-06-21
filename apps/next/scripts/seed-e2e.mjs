@@ -54,6 +54,21 @@ async function findUserByEmail(email) {
   return data.users.find((user) => user.email === email) ?? null
 }
 
+async function resetFormReviews(clientId) {
+  const { data: reviews } = await supabase
+    .from('client_form_reviews')
+    .select('storage_path')
+    .eq('client_id', clientId)
+
+  if (reviews?.length) {
+    await supabase.storage
+      .from('form-reviews')
+      .remove(reviews.map((review) => review.storage_path))
+  }
+
+  await supabase.from('client_form_reviews').delete().eq('client_id', clientId)
+}
+
 async function resetGymState({ coachId, gymCoachId, clientId }) {
   await supabase.from('clients').update({ gym_id: null }).eq('id', clientId)
 
@@ -235,6 +250,7 @@ async function main() {
   await supabase.from('client_progress_photos').delete().eq('client_id', clientId)
   await supabase.from('client_check_ins').delete().eq('client_id', clientId)
   await supabase.from('exercise_pr_records').delete().eq('client_id', clientId)
+  await resetFormReviews(clientId)
 
   let exerciseId = await ensureExercise(coachId, EXERCISE_NAME, 'Legs')
   const benchExerciseId = await ensureExercise(

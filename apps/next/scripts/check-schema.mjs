@@ -414,6 +414,12 @@ await checkRestTable(
   '/rest/v1/client_daily_attendance?select=coaching_type&limit=1'
 )
 
+// Migration 0048 — client form reviews
+await checkRestTable(
+  'client_form_reviews table',
+  '/rest/v1/client_form_reviews?select=id,client_id,coach_id,storage_path,reviewed_at&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {

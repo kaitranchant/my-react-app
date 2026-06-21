@@ -12,6 +12,7 @@ import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
 import { isCoachSelfClient } from '@/lib/coach-self'
 import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
+import { fetchClientFormReviews } from '@/app/(dashboard)/form-review/actions'
 import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
@@ -259,6 +260,7 @@ export default async function ClientDetailPage({
     supabase,
     progressPhotosResult.data ?? []
   )
+  const formReviews = await fetchClientFormReviews(clientId)
   const inbodyScans = (inbodyScansResult.data ?? []) as ClientInbodyScan[]
   const clientGoals = (clientGoalsResult.data ?? []) as ClientGoal[]
   const goalsSchemaError = clientGoalsResult.error?.message ?? null
@@ -366,6 +368,7 @@ export default async function ClientDetailPage({
           messages={messages}
           messagesSchemaError={messagesSchemaError}
           progressPhotos={progressPhotos}
+          formReviews={formReviews}
           inbodyScans={inbodyScans}
           clientGoals={clientGoals}
           goalsSchemaError={goalsSchemaError}

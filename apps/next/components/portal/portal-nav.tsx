@@ -8,6 +8,7 @@ import {
   Target,
   TrendingUp,
   Trophy,
+  Video,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -32,6 +33,7 @@ export const portalLeaderboardsNavItem: PortalNavItem = {
 export const portalBaseNavItems: PortalNavItem[] = [
   { label: 'Home', href: '/portal', icon: LayoutDashboard },
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
+  { label: 'Form Review', href: '/portal/form-review', icon: Video },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
   { label: 'Messages', href: '/portal/messages', icon: MessageSquare },
   { label: 'InBody', href: '/portal/inbody', icon: Scale },

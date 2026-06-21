@@ -12,6 +12,7 @@ import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-pan
 import { ClientInbodyPanel } from '@/components/inbody/client-inbody-panel'
 import { ClientGoalsPanel } from '@/components/goals/client-goals-panel'
 import { ClientProgressPhotosPanel } from '@/components/progress-photos/client-progress-photos-panel'
+import { ClientFormReviewsPanel } from '@/components/form-review/form-review-review-card'
 import { CoachClientMessagesPanel } from '@/components/messages/coach-client-messages-panel'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
@@ -28,6 +29,7 @@ import type {
   ClientGoal,
   ClientMessage,
   ClientProgressPhotoWithUrl,
+  ClientFormReviewWithClient,
   Exercise,
   Program,
   Workout,
@@ -44,6 +46,7 @@ const PROGRESS_SECTIONS = [
   'check-ins',
   'inbody',
   'progress-photos',
+  'form-reviews',
 ] as const
 type ProgressSection = (typeof PROGRESS_SECTIONS)[number]
 
@@ -52,6 +55,7 @@ const LEGACY_TABS = [
   'programs',
   'check-ins',
   'progress-photos',
+  'form-reviews',
   'inbody',
   'goals',
   'notes',
@@ -70,6 +74,7 @@ function resolveMainTab(tab: string | null): MainTab {
   if (
     tab === 'check-ins' ||
     tab === 'progress-photos' ||
+    tab === 'form-reviews' ||
     tab === 'inbody' ||
     tab === 'goals'
   ) {
@@ -104,6 +109,7 @@ function resolveProgressSection(
   if (
     tab === 'check-ins' ||
     tab === 'progress-photos' ||
+    tab === 'form-reviews' ||
     tab === 'inbody' ||
     tab === 'goals'
   ) {
@@ -144,6 +150,7 @@ type ClientDetailTabsProps = {
   messages?: ClientMessage[]
   messagesSchemaError?: string | null
   progressPhotos?: ClientProgressPhotoWithUrl[]
+  formReviews?: ClientFormReviewWithClient[]
   inbodyScans?: ClientInbodyScan[]
   clientGoals?: ClientGoal[]
   goalsSchemaError?: string | null
@@ -175,6 +182,7 @@ export function ClientDetailTabs({
   messages = [],
   messagesSchemaError = null,
   progressPhotos = [],
+  formReviews = [],
   inbodyScans = [],
   clientGoals = [],
   goalsSchemaError = null,
@@ -368,6 +376,7 @@ export function ClientDetailTabs({
             <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
             <TabsTrigger value="inbody">InBody results</TabsTrigger>
             <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
+            <TabsTrigger value="form-reviews">Form review</TabsTrigger>
           </TabsList>
 
           <TabsContent value="goals" className="mt-4">
@@ -412,6 +421,13 @@ export function ClientDetailTabs({
               clientId={client.id}
               clientName={client.full_name}
               photos={progressPhotos}
+            />
+          </TabsContent>
+
+          <TabsContent value="form-reviews" className="mt-4">
+            <ClientFormReviewsPanel
+              clientName={client.full_name}
+              reviews={formReviews}
             />
           </TabsContent>
         </Tabs>
