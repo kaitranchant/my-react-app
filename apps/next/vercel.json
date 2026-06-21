@@ -5,8 +5,7 @@
   "crons": [
     {
       "path": "/api/cron/weekly-summary",
-      "schedule": "0 11 * * 0",
-      "timezone": "America/New_York"
+      "schedule": "0 16 * * 0"
     }
   ]
 }
