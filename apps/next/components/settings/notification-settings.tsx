@@ -51,7 +51,7 @@ const notificationOptions: NotificationOption[] = [
     key: 'notifyWeeklySummary',
     label: 'Weekly summary email',
     description:
-      'Receive a Monday morning recap of client activity and action items.',
+      'Receive a Sunday morning recap of client activity and action items.',
     email: true,
   },
 ]
