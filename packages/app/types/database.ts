@@ -14,7 +14,11 @@ export type TeamEventType =
   | 'competition'
   | 'other'
 export type TeamEventRsvpStatus = 'going' | 'maybe' | 'declined' | 'no_response'
-export type TeamEventAttendanceStatus = 'present' | 'absent' | 'excused'
+export type TeamEventAttendanceStatus =
+  | 'present'
+  | 'late'
+  | 'absent'
+  | 'excused'
 export type ExerciseStatus = 'active' | 'archived'
 export type ExerciseSource = 'custom' | 'exercisedb'
 export type WorkoutStatus = 'draft' | 'active' | 'archived'
@@ -420,6 +424,7 @@ export type Database = {
           program_start_date: string | null
           next_competition_name: string | null
           next_competition_date: string | null
+          gym_id: string | null
           created_at: string
           updated_at: string
         }
@@ -432,6 +437,7 @@ export type Database = {
           program_start_date?: string | null
           next_competition_name?: string | null
           next_competition_date?: string | null
+          gym_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -444,6 +450,7 @@ export type Database = {
           program_start_date?: string | null
           next_competition_name?: string | null
           next_competition_date?: string | null
+          gym_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -460,6 +467,13 @@ export type Database = {
             columns: ['active_program_id']
             isOneToOne: false
             referencedRelation: 'programs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'teams_gym_id_fkey'
+            columns: ['gym_id']
+            isOneToOne: false
+            referencedRelation: 'gyms'
             referencedColumns: ['id']
           },
         ]
@@ -1634,6 +1648,57 @@ export type Database = {
           },
         ]
       }
+      client_daily_attendance: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          attendance_date: string
+          status: TeamEventAttendanceStatus
+          notes: string | null
+          coaching_type: ClientCoachingType | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          attendance_date: string
+          status: TeamEventAttendanceStatus
+          notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          attendance_date?: string
+          status?: TeamEventAttendanceStatus
+          notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_daily_attendance_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_daily_attendance_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exercise_pr_records: {
         Row: {
           id: string
@@ -1855,6 +1920,17 @@ export type TeamEventWithMemberStatus = TeamEvent & {
     client: Pick<Client, 'id' | 'full_name' | 'avatar_url'>
   })[]
 }
+
+export type TeamEventWithTeamContext = TeamEventWithMemberStatus & {
+  team: Pick<Team, 'id' | 'name'>
+}
+
+export type ClientDailyAttendance =
+  Database['public']['Tables']['client_daily_attendance']['Row']
+export type ClientDailyAttendanceInsert =
+  Database['public']['Tables']['client_daily_attendance']['Insert']
+export type ClientDailyAttendanceUpdate =
+  Database['public']['Tables']['client_daily_attendance']['Update']
 
 export type TeamMemberPerformance = {
   clientId: string

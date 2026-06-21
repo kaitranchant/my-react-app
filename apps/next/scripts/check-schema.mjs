@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0029.
+ * Verify hosted Supabase schema through migration 0041.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -396,6 +396,24 @@ await checkRestTable(
   '/rest/v1/client_goals?select=target_date,performance_metric,habit_source,milestone_type,program_id&limit=1'
 )
 
+// Migration 0040 — daily client attendance
+await checkRestTable(
+  'client_daily_attendance table',
+  '/rest/v1/client_daily_attendance?select=id,client_id,coach_id,attendance_date,status,coaching_type&limit=1'
+)
+
+// Migration 0041 — team gym sharing
+await checkRestTable(
+  'teams gym_id column',
+  '/rest/v1/teams?select=id,gym_id&limit=1'
+)
+
+// Migration 0042 — attendance enhancements (late status + coaching type override)
+await checkRestTable(
+  'client_daily_attendance coaching_type column',
+  '/rest/v1/client_daily_attendance?select=coaching_type&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -409,7 +427,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0039 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0042 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -428,6 +446,9 @@ if (failed) {
   console.error('       supabase/apply-notification-preferences.sql  (0035 notification preferences)')
   console.error('       supabase/apply-client-goals.sql            (0038 client goals)')
   console.error('       supabase/apply-client-goals-v2.sql         (0039 goal types)')
+  console.error('       supabase/apply-client-daily-attendance.sql (0040 daily attendance)')
+  console.error('       supabase/apply-team-gym.sql                   (0041 team gym sharing)')
+  console.error('       supabase/apply-attendance-enhancements.sql   (0042 attendance enhancements)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -435,7 +456,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0039 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2).'
+  '\nSchema looks good — migrations through 0042 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

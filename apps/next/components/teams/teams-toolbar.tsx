@@ -7,7 +7,12 @@ import { Search } from 'lucide-react'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
 import { Input } from '@/components/ui/input'
 
-export function TeamsToolbar() {
+type GymOption = {
+  id: string
+  name: string
+}
+
+export function TeamsToolbar({ gyms = [] }: { gyms?: GymOption[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -45,7 +50,7 @@ export function TeamsToolbar() {
           className="pl-9"
         />
       </div>
-      <TeamFormDialog />
+      <TeamFormDialog gyms={gyms} />
     </div>
   )
 }

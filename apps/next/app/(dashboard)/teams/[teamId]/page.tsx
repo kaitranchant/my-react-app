@@ -11,9 +11,11 @@ import {
   fetchTeamProgramProgress,
 } from '@/lib/team-program-progress'
 import { Button } from '@/components/ui/button'
+import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { TeamCompetitionLink } from '@/components/teams/team-competition-link'
 import { TeamDetailTabs } from '@/components/teams/team-detail-tabs'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
+import { getGymsForCoach, isPrimaryTeamCoach } from '@/lib/gym-access'
 import type {
   Client,
   Program,
@@ -53,6 +55,10 @@ export default async function TeamDetailPage({
   const { teamId } = await params
   const { tab: initialTab, date: highlightDate } = await searchParams
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const coachGyms = user ? await getGymsForCoach(user.id) : []
 
   const [
     { data: teamData },
@@ -112,6 +118,22 @@ export default async function TeamDetailPage({
   }
 
   const team = teamData as Team
+  const viewerIsPrimaryCoach = user
+    ? isPrimaryTeamCoach(user.id, team)
+    : false
+  let primaryCoachName: string | null = null
+
+  if (!viewerIsPrimaryCoach && team.coach_id) {
+    const { data: coachProfile } = await supabase
+      .from('profiles')
+      .select('full_name, business_name')
+      .eq('id', team.coach_id)
+      .maybeSingle()
+
+    primaryCoachName =
+      coachProfile?.full_name ?? coachProfile?.business_name ?? 'Coach'
+  }
+
   const members = (memberRows ?? []) as TeamMemberWithClient[]
   const allClients = (clientsData ?? []) as Pick<
     Client,
@@ -211,17 +233,24 @@ export default async function TeamDetailPage({
               </p>
             )}
           </div>
-          <TeamFormDialog
-            team={team}
-            trigger={
-              <Button variant="outline">
-                <Pencil className="size-4" />
-                Edit
-              </Button>
-            }
-          />
+          {viewerIsPrimaryCoach ? (
+            <TeamFormDialog
+              team={team}
+              gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+              trigger={
+                <Button variant="outline">
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
+              }
+            />
+          ) : null}
         </div>
       </section>
+
+      {!viewerIsPrimaryCoach && primaryCoachName ? (
+        <ClientSharedBanner primaryCoachName={primaryCoachName} />
+      ) : null}
 
       <Suspense fallback={null}>
         <TeamDetailTabs

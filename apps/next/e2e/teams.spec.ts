@@ -8,8 +8,9 @@ test.describe('Teams', () => {
     await expect(page.getByRole('heading', { name: 'Teams' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Create team' }).click()
-    await page.getByLabel('Name').fill(teamName)
-    await page.getByRole('button', { name: 'Create team', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create team' })
+    await dialog.getByLabel('Name').fill(teamName)
+    await dialog.getByRole('button', { name: 'Create team', exact: true }).click()
 
     await expect(page).toHaveURL(/\/teams\//, { timeout: 15_000 })
     await expect(page.getByRole('heading', { name: teamName })).toBeVisible()

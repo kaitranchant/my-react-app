@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Client, Gym, GymMember } from 'app/types/database'
+import type { Client, Gym, GymMember, Team } from 'app/types/database'
 
 export type GymMembershipContext = {
   gym: Gym
@@ -115,6 +115,53 @@ export function isPrimaryCoach(
   client: Pick<Client, 'coach_id'>
 ): boolean {
   return client.coach_id === userId
+}
+
+export function isPrimaryTeamCoach(
+  userId: string,
+  team: Pick<Team, 'coach_id'>
+): boolean {
+  return team.coach_id === userId
+}
+
+export function canCoachAccessTeam(
+  userId: string,
+  team: Pick<Team, 'coach_id' | 'gym_id'>,
+  coachGymIds: readonly string[]
+): boolean {
+  if (team.coach_id === userId) {
+    return true
+  }
+  if (!team.gym_id) {
+    return false
+  }
+  return coachGymIds.includes(team.gym_id)
+}
+
+export async function requireTeamAccess(teamId: string) {
+  const { supabase, user } = await requireUser()
+  const coachGymIds = await getGymIdsForCoach(user.id)
+
+  const { data: team, error } = await supabase
+    .from('teams')
+    .select('*')
+    .eq('id', teamId)
+    .maybeSingle()
+
+  if (error || !team) {
+    return null
+  }
+
+  if (!canCoachAccessTeam(user.id, team, coachGymIds)) {
+    return null
+  }
+
+  return {
+    supabase,
+    user,
+    team: team as Team,
+    isPrimaryCoach: isPrimaryTeamCoach(user.id, team),
+  }
 }
 
 export async function requireClientAccess(clientId: string) {

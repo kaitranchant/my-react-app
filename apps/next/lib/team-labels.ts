@@ -34,11 +34,37 @@ export const teamEventRsvpLabels = {
   no_response: 'No response',
 } as const
 
-export const teamEventAttendanceLabels = {
+import type { TeamEventAttendanceStatus } from 'app/types/database'
+
+export const teamEventAttendanceLabels: Record<
+  TeamEventAttendanceStatus,
+  string
+> = {
   present: 'Present',
+  late: 'Late',
   absent: 'Absent',
   excused: 'Excused',
-} as const
+}
+
+export const teamEventAttendanceDotClass: Record<
+  TeamEventAttendanceStatus,
+  string
+> = {
+  present: 'bg-emerald-500',
+  late: 'bg-amber-500',
+  absent: 'bg-red-500',
+  excused: 'bg-slate-400',
+}
+
+export const teamEventAttendanceTriggerClass: Record<
+  TeamEventAttendanceStatus,
+  string
+> = {
+  present: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100',
+  late: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100',
+  absent: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100',
+  excused: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200',
+}
 
 export function formatTeamEventDate(dateKey: string, startTime?: string | null) {
   const dateLabel = new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {

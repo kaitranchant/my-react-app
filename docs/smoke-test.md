@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0039**)
+- `yarn db:check` passes (schema through migration **0042**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -90,6 +90,19 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Sign back in as coach → team **Schedule** tab — RSVP count shows the client response (e.g. "1 going")
 - [ ] On the client portal home, confirm the **Team event** card appears when a future event exists
 
+## 8c. Global attendance
+
+- [ ] Go to **Attendance** in the sidebar (`/attendance`)
+- [ ] Confirm **Daily roll call** lists active clients for the selected scope
+- [ ] Use the top row (**All** / **Personal** / gym tabs) to filter by gym context
+- [ ] Use the second row (**All clients** / team tabs) to filter by team
+- [ ] Select a **team tab** — roll call shows only that team's members
+- [ ] Mark a client **Present** — summary chip updates (e.g. "1 present")
+- [ ] With **All clients** selected, confirm **Team events** is hidden
+- [ ] Select a specific team tab — **Team events** appears for that team
+- [ ] If a team event exists for today: expand **Roll call** on the event → mark a member **Present** — attendance count updates
+- [ ] Use the date nav to move to another day and back — state follows the URL `?date=` param
+
 ## 9. Coach My Workouts
 
 - [ ] Open **My Workouts** in the sidebar
@@ -102,12 +115,16 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Go to **Gym** in the sidebar → **Create gym** → name it and save
 - [ ] Confirm you appear as the gym owner on the members list
 - [ ] Open an existing client profile → **Add to {gym name}** → confirm the button changes to **Remove from {gym name}**
+- [ ] Open an existing team → **Add to {gym name}** → confirm the button changes to **Remove from {gym name}**
 - [ ] On **Clients**, switch the scope tab to your gym — the shared client appears with a gym member badge
+- [ ] On **Teams**, switch the scope tab to your gym — the shared team appears with a gym member badge
 - [ ] Back on **Gym** → **Invite coach** → enter a second coach's email → copy the invite link
 - [ ] Sign in as that coach (new signup via `/signup?gym_invite=…` or existing account at `/gym/join?invite=…`) → **Accept invite**
 - [ ] As the invited coach: open **Clients** → gym scope tab — the shared client is visible
+- [ ] As the invited coach: open **Teams** → gym scope tab — the shared team is visible and manageable
 - [ ] Open the client profile — **Primary coach** banner shows the original coach; calendar and overview load without errors
 - [ ] As the invited coach: confirm you **cannot** remove the client from the gym or delete the client (primary coach only)
+- [ ] As the invited coach: confirm you **cannot** remove the team from the gym or delete the team (primary coach only)
 - [ ] (Optional) As gym owner: **Delete gym** in the danger zone — client gym membership clears and the invited coach loses access
 
 ## 11. Settings
@@ -166,6 +183,8 @@ Repeatable manual verification for the coach → client loop and recent features
 | Notification toggles fail to save | Run [`supabase/apply-notification-preferences.sql`](../supabase/apply-notification-preferences.sql) or `yarn db:push` (0035) |
 | Goals tab or portal goals page fails | Run [`supabase/apply-client-goals.sql`](../supabase/apply-client-goals.sql) or `yarn db:push` (0038) |
 | Performance/habit/milestone goals fail to save | Run [`supabase/apply-client-goals-v2.sql`](../supabase/apply-client-goals-v2.sql) or `yarn db:push` (0039) |
+| Attendance page fails or coaching type won't save | Run [`supabase/apply-client-daily-attendance.sql`](../supabase/apply-client-daily-attendance.sql) and [`supabase/apply-attendance-enhancements.sql`](../supabase/apply-attendance-enhancements.sql) or `yarn db:push` (0040–0042) |
+| Team gym assignment fails | Run [`supabase/apply-team-gym.sql`](../supabase/apply-team-gym.sql) or `yarn db:push` (0041) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |

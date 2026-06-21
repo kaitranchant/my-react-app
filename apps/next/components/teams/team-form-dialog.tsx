@@ -11,6 +11,7 @@ import {
   createTeamRecord,
   updateTeamRecord,
 } from '@/app/(dashboard)/teams/actions'
+import { ClientGymField } from '@/components/clients/client-gym-field'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -38,8 +39,24 @@ import {
 } from '@/lib/validations/team'
 import type { Team } from 'app/types/database'
 
+type GymOption = {
+  id: string
+  name: string
+}
+
+function teamToFormValues(team: Team): TeamFormValues {
+  return {
+    name: team.name,
+    description: team.description ?? '',
+    nextCompetitionName: team.next_competition_name ?? '',
+    nextCompetitionDate: team.next_competition_date ?? '',
+    gymId: team.gym_id ?? 'none',
+  }
+}
+
 type TeamFormDialogProps = {
   team?: Team
+  gyms?: GymOption[]
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -47,6 +64,7 @@ type TeamFormDialogProps = {
 
 export function TeamFormDialog({
   team,
+  gyms = [],
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -58,47 +76,37 @@ export function TeamFormDialog({
 
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamFormSchema),
-    defaultValues: team
-      ? {
-          name: team.name,
-          description: team.description ?? '',
-          nextCompetitionName: team.next_competition_name ?? '',
-          nextCompetitionDate: team.next_competition_date ?? '',
-        }
-      : teamFormDefaults,
+    defaultValues: team ? teamToFormValues(team) : teamFormDefaults,
   })
 
   React.useEffect(() => {
     if (!open) return
-    form.reset(
-      team
-        ? {
-            name: team.name,
-            description: team.description ?? '',
-            nextCompetitionName: team.next_competition_name ?? '',
-            nextCompetitionDate: team.next_competition_date ?? '',
-          }
-        : teamFormDefaults
-    )
+    form.reset(team ? teamToFormValues(team) : teamFormDefaults)
   }, [form, open, team])
 
   async function onSubmit(values: TeamFormValues) {
-    const result = team
-      ? await updateTeamRecord(team.id, values)
-      : await createTeamRecord(values)
+    try {
+      const result = team
+        ? await updateTeamRecord(team.id, values)
+        : await createTeamRecord(values)
 
-    if (result.success) {
-      toast.success(team ? 'Team updated' : 'Team created')
-      setOpen(false)
-      if (!team && 'teamId' in result) {
-        router.push(`/teams/${result.teamId}`)
-      } else {
-        router.refresh()
+      if (result.success) {
+        toast.success(team ? 'Team updated' : 'Team created')
+        setOpen(false)
+        if (!team && 'teamId' in result) {
+          router.push(`/teams/${result.teamId}`)
+        } else {
+          router.refresh()
+        }
+        return
       }
-      return
-    }
 
-    toast.error(result.error)
+      toast.error(result.error)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not save team.'
+      )
+    }
   }
 
   const defaultTrigger = (
@@ -119,12 +127,13 @@ export function TeamFormDialog({
           <DialogTitle>{team ? 'Edit team' : 'Create team'}</DialogTitle>
           <DialogDescription>
             {team
-              ? 'Update this team’s name and description.'
+              ? 'Update this team’s details and gym membership.'
               : 'Group clients who share the same workout program, like a powerlifting team.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+            <input type="hidden" {...form.register('gymId')} />
             <FormField
               control={form.control}
               name="name"
@@ -155,6 +164,7 @@ export function TeamFormDialog({
                 </FormItem>
               )}
             />
+            <ClientGymField control={form.control} name="gymId" gyms={gyms} />
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}

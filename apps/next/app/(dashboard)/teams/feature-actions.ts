@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { requireTeamAccess, requireUser } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
 import {
   teamAnnouncementSchema,
@@ -18,36 +19,28 @@ export type CreateTeamEventResult =
   | { success: true; eventId: string }
   | { success: false; error: string }
 
-async function requireUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('You must be signed in.')
-  }
-  return { supabase, user }
-}
-
 async function getTeamForCoach(teamId: string) {
-  const { supabase, user } = await requireUser()
-  const { data: team, error } = await supabase
-    .from('teams')
-    .select('id, coach_id')
-    .eq('id', teamId)
-    .eq('coach_id', user.id)
-    .maybeSingle()
-
-  if (error || !team) {
+  const access = await requireTeamAccess(teamId)
+  if (!access) {
+    const { supabase, user } = await requireUser()
     return { supabase, user, team: null, error: 'Team not found.' as const }
   }
 
-  return { supabase, user, team, error: null }
+  return {
+    supabase: access.supabase,
+    user: access.user,
+    team: {
+      id: access.team.id,
+      coach_id: access.team.coach_id,
+    },
+    error: null,
+  }
 }
 
 function revalidateTeam(teamId: string) {
   revalidatePath('/teams')
   revalidatePath(`/teams/${teamId}`)
+  revalidatePath('/attendance')
 }
 
 async function seedEventMemberStatuses(

@@ -35,8 +35,9 @@ test.describe('Portal team', () => {
 
     await page.goto('/teams')
     await page.getByRole('button', { name: 'Create team' }).click()
-    await page.getByLabel('Name').fill(teamName)
-    await page.getByRole('button', { name: 'Create team', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create team' })
+    await dialog.getByLabel('Name').fill(teamName)
+    await dialog.getByRole('button', { name: 'Create team', exact: true }).click()
     await expect(page).toHaveURL(/\/teams\//, { timeout: 15_000 })
     const teamId = teamIdFromUrl(page.url())
     expect(teamId).toBeTruthy()

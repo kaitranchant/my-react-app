@@ -17,6 +17,7 @@ import { GymMembersPanel } from '@/components/gym/gym-members-panel'
 import { GymInvitesPanel } from '@/components/gym/gym-invites-panel'
 import { GymDangerZone } from '@/components/gym/gym-danger-zone'
 import { ShareAllClientsButton } from '@/components/gym/client-gym-share-toggle'
+import { ShareAllTeamsButton } from '@/components/gym/team-gym-share-toggle'
 import { GymScopeTabs } from '@/components/gym/gym-scope-tabs'
 import { Button } from '@/components/ui/button'
 import type { GymInvite, GymMemberWithProfile } from 'app/types/database'
@@ -176,6 +177,19 @@ export default async function GymPage({
         </CardHeader>
         <CardContent>
           <ShareAllClientsButton gymId={gym.id} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Team membership</CardTitle>
+          <CardDescription>
+            Add teams as gym members individually from each team page,
+            or add all of your teams at once.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ShareAllTeamsButton gymId={gym.id} />
         </CardContent>
       </Card>
 

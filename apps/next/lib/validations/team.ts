@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { clientGymIdSchema } from '@/lib/validations/client'
+
 export const teamFormSchema = z.object({
   name: z
     .string()
@@ -9,6 +11,7 @@ export const teamFormSchema = z.object({
   description: z.string().trim().max(2000, 'Description is too long').optional(),
   nextCompetitionName: z.string().trim().max(120, 'Name is too long').optional(),
   nextCompetitionDate: z.string().optional(),
+  gymId: clientGymIdSchema.optional(),
 })
 
 export type TeamFormValues = z.infer<typeof teamFormSchema>
@@ -18,6 +21,7 @@ export const teamFormDefaults: TeamFormValues = {
   description: '',
   nextCompetitionName: '',
   nextCompetitionDate: '',
+  gymId: 'none',
 }
 
 export const teamEventTypes = [
@@ -61,6 +65,7 @@ export const teamEventRsvpStatuses = [
 
 export const teamEventAttendanceStatuses = [
   'present',
+  'late',
   'absent',
   'excused',
 ] as const

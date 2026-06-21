@@ -17,7 +17,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Team } from 'app/types/database'
 
-export function TeamRowActions({ team }: { team: Team }) {
+export function TeamRowActions({
+  team,
+  isPrimaryCoach = true,
+  gyms = [],
+}: {
+  team: Team
+  isPrimaryCoach?: boolean
+  gyms?: { id: string; name: string }[]
+}) {
   const router = useRouter()
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
@@ -41,6 +49,10 @@ export function TeamRowActions({ team }: { team: Team }) {
     } else {
       toast.error(result.error)
     }
+  }
+
+  if (!isPrimaryCoach) {
+    return null
   }
 
   return (
@@ -70,7 +82,12 @@ export function TeamRowActions({ team }: { team: Team }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <TeamFormDialog team={team} open={editOpen} onOpenChange={setEditOpen} />
+      <TeamFormDialog
+        team={team}
+        gyms={gyms}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </>
   )
 }

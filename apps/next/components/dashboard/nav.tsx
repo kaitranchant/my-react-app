@@ -95,8 +95,6 @@ export const navGroups: NavGroup[] = [
 
         icon: CalendarClock,
 
-        soon: true,
-
       },
 
       {

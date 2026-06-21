@@ -1,8 +1,14 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 
 import { toDateKey } from '@/lib/calendar'
+import {
+  getGymMembershipForCoach,
+  requireTeamAccess,
+  requireUser,
+} from '@/lib/gym-access'
 import { assignProgramToTeamMembers } from '@/lib/team-programs'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -47,17 +53,6 @@ export type UnassignProgramFromTeamResult =
   | { success: true; unassignedCount: number }
   | { success: false; error: string }
 
-async function requireUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('You must be signed in.')
-  }
-  return { supabase, user }
-}
-
 function toTeamRow(values: TeamFormValues) {
   return {
     name: values.name,
@@ -85,19 +80,23 @@ function revalidateTeams(teamId?: string, clientIds?: string[]) {
 }
 
 async function getTeamForCoach(teamId: string) {
-  const { supabase, user } = await requireUser()
-  const { data: team, error } = await supabase
-    .from('teams')
-    .select('id, coach_id, active_program_id, program_start_date')
-    .eq('id', teamId)
-    .eq('coach_id', user.id)
-    .maybeSingle()
-
-  if (error || !team) {
+  const access = await requireTeamAccess(teamId)
+  if (!access) {
+    const { supabase, user } = await requireUser()
     return { supabase, user, team: null, error: 'Team not found.' as const }
   }
 
-  return { supabase, user, team, error: null }
+  return {
+    supabase: access.supabase,
+    user: access.user,
+    team: {
+      id: access.team.id,
+      coach_id: access.team.coach_id,
+      active_program_id: access.team.active_program_id,
+      program_start_date: access.team.program_start_date,
+    },
+    error: null,
+  }
 }
 
 function resolveMemberStartDate(
@@ -119,6 +118,22 @@ function resolveMemberStartDate(
   return custom ? custom : null
 }
 
+async function resolveGymIdForTeam(
+  userId: string,
+  gymId?: string
+): Promise<{ gymId: string | null } | { error: string }> {
+  if (!gymId || gymId === 'none') {
+    return { gymId: null }
+  }
+
+  const membership = await getGymMembershipForCoach(userId, gymId)
+  if (!membership) {
+    return { error: 'You must be a member of the selected gym.' }
+  }
+
+  return { gymId }
+}
+
 export async function createTeamRecord(
   values: TeamFormValues
 ): Promise<CreateTeamResult> {
@@ -128,18 +143,25 @@ export async function createTeamRecord(
   }
 
   const { supabase, user } = await requireUser()
-  const { data, error } = await supabase
-    .from('teams')
-    .insert({ ...toTeamRow(parsed.data), coach_id: user.id })
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    return { success: false, error: error?.message ?? 'Could not create team.' }
+  const gymResult = await resolveGymIdForTeam(user.id, parsed.data.gymId)
+  if ('error' in gymResult) {
+    return { success: false, error: gymResult.error }
   }
 
-  revalidateTeams()
-  return { success: true, teamId: data.id }
+  const teamId = randomUUID()
+  const { error } = await supabase.from('teams').insert({
+    id: teamId,
+    ...toTeamRow(parsed.data),
+    coach_id: user.id,
+    gym_id: gymResult.gymId,
+  })
+
+  if (error) {
+    return { success: false, error: error.message ?? 'Could not create team.' }
+  }
+
+  revalidateTeams(teamId)
+  return { success: true, teamId }
 }
 
 export async function updateTeamRecord(
@@ -152,9 +174,17 @@ export async function updateTeamRecord(
   }
 
   const { supabase, user } = await requireUser()
+  const gymResult = await resolveGymIdForTeam(user.id, parsed.data.gymId)
+  if ('error' in gymResult) {
+    return { success: false, error: gymResult.error }
+  }
+
   const { error } = await supabase
     .from('teams')
-    .update(toTeamRow(parsed.data))
+    .update({
+      ...toTeamRow(parsed.data),
+      gym_id: gymResult.gymId,
+    })
     .eq('id', id)
     .eq('coach_id', user.id)
 
@@ -481,4 +511,92 @@ export async function unassignProgramFromTeam(
 
   revalidateTeams(teamId)
   return { success: true, unassignedCount }
+}
+
+export async function shareTeamWithGym(
+  teamId: string,
+  gymId: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return {
+      success: false,
+      error: 'You must be a member of this gym to add teams.',
+    }
+  }
+
+  const { data: team, error: fetchError } = await supabase
+    .from('teams')
+    .select('id, coach_id')
+    .eq('id', teamId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (fetchError || !team) {
+    return { success: false, error: 'Team not found.' }
+  }
+
+  const { error } = await supabase
+    .from('teams')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('id', teamId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeams(teamId)
+  return { success: true }
+}
+
+export async function unshareTeamFromGym(teamId: string): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { error } = await supabase
+    .from('teams')
+    .update({ gym_id: null })
+    .eq('id', teamId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeams(teamId)
+  return { success: true }
+}
+
+export type ShareAllTeamsResult =
+  | { success: true; count: number }
+  | { success: false; error: string }
+
+export async function shareAllTeamsWithGym(
+  gymId: string
+): Promise<ShareAllTeamsResult> {
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return {
+      success: false,
+      error: 'You must be a member of this gym to add teams.',
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('teams')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('coach_id', user.id)
+    .select('id')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeams()
+  revalidatePath('/gym')
+  return { success: true, count: data?.length ?? 0 }
 }

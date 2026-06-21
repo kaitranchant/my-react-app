@@ -147,6 +147,13 @@ export function formatPrescription(
 
 import type { WeekStartsOn } from 'app/types/database'
 
+export function getWeekStartDateKey(
+  dateKey: string,
+  weekStartsOn: WeekStartsOn = 'monday'
+): string {
+  return getCurrentWeekDateKeys(weekStartsOn, parseDateKey(dateKey))[0]!
+}
+
 export function getCurrentWeekDateKeys(
   weekStartsOn: WeekStartsOn = 'monday',
   referenceDate = new Date()
