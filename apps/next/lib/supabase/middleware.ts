@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from 'app/types/database'
 
 const PUBLIC_ROUTES = ['/login', '/signup', '/auth']
+const MOBILE_AUTH_API_ROUTES = ['/api/wearables/apple-health/sync']
+const CRON_API_ROUTES = ['/api/cron']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -38,8 +40,14 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   )
+  const isMobileAuthApiRoute = MOBILE_AUTH_API_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  )
+  const isCronApiRoute = CRON_API_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  )
 
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !isMobileAuthApiRoute && !isCronApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
