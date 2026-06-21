@@ -197,6 +197,13 @@ export default async function TeamDetailPage({
 
   const programHistory = await fetchTeamProgramHistory(supabase, teamId)
 
+  const { data: exerciseRows } = await supabase
+    .from('exercises')
+    .select('id, name')
+    .eq('coach_id', team.coach_id)
+    .eq('status', 'active')
+    .order('name', { ascending: true })
+
   const todayKey = new Date().toISOString().slice(0, 10)
   const nextEvent =
     eventsWithStatuses.find((event) => event.event_date >= todayKey) ?? null
@@ -268,6 +275,8 @@ export default async function TeamDetailPage({
           programProgress={programProgress}
           programHistory={programHistory}
           nextEvent={nextEvent}
+          exercises={exerciseRows ?? []}
+          canEditLeaderboardLifts={viewerIsPrimaryCoach}
           initialTab={initialTab}
           highlightDate={highlightDate ?? null}
         />

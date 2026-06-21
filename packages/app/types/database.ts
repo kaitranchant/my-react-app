@@ -432,6 +432,9 @@ export type Database = {
           next_competition_name: string | null
           next_competition_date: string | null
           gym_id: string | null
+          squat_exercise_id: string | null
+          bench_exercise_id: string | null
+          deadlift_exercise_id: string | null
           created_at: string
           updated_at: string
         }
@@ -445,6 +448,9 @@ export type Database = {
           next_competition_name?: string | null
           next_competition_date?: string | null
           gym_id?: string | null
+          squat_exercise_id?: string | null
+          bench_exercise_id?: string | null
+          deadlift_exercise_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -458,6 +464,9 @@ export type Database = {
           next_competition_name?: string | null
           next_competition_date?: string | null
           gym_id?: string | null
+          squat_exercise_id?: string | null
+          bench_exercise_id?: string | null
+          deadlift_exercise_id?: string | null
           created_at?: string
           updated_at?: string
         }

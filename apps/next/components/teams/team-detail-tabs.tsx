@@ -6,6 +6,7 @@ import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-pa
 import { TeamEventsPanel } from '@/components/teams/team-events-panel'
 import { TeamMembersPanel } from '@/components/teams/team-members-panel'
 import { TeamOverviewPanel } from '@/components/teams/team-overview-panel'
+import { TeamPowerliftingExercisesCard } from '@/components/teams/team-powerlifting-exercises-card'
 import { TeamProgramsPanel } from '@/components/teams/team-programs-panel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type {
@@ -36,6 +37,8 @@ type TeamDetailTabsProps = {
   programProgress: TeamProgramProgress | null
   programHistory: TeamProgramHistoryEntry[]
   nextEvent: TeamEventWithMemberStatus | null
+  exercises: { id: string; name: string }[]
+  canEditLeaderboardLifts: boolean
   initialTab?: string
   highlightDate?: string | null
 }
@@ -55,6 +58,8 @@ export function TeamDetailTabs({
   programProgress,
   programHistory,
   nextEvent,
+  exercises,
+  canEditLeaderboardLifts,
   initialTab,
   highlightDate,
 }: TeamDetailTabsProps) {
@@ -91,6 +96,9 @@ export function TeamDetailTabs({
           performance={performance}
           activity={activity}
         />
+        {canEditLeaderboardLifts ? (
+          <TeamPowerliftingExercisesCard team={team} exercises={exercises} />
+        ) : null}
         <TeamAnnouncementsPanel teamId={teamId} announcements={announcements} />
       </TabsContent>
 

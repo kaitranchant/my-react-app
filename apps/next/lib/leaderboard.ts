@@ -344,6 +344,23 @@ export function pickPowerliftingExerciseIds(
   }
 }
 
+export function resolvePowerliftingExerciseIds(
+  exercises: { id: string; name: string }[],
+  teamOverrides?: PowerliftingExerciseIds | null
+): PowerliftingExerciseIds {
+  const auto = pickPowerliftingExerciseIds(exercises)
+
+  if (!teamOverrides) {
+    return auto
+  }
+
+  return {
+    squatId: teamOverrides.squatId ?? auto.squatId,
+    benchId: teamOverrides.benchId ?? auto.benchId,
+    deadliftId: teamOverrides.deadliftId ?? auto.deadliftId,
+  }
+}
+
 export function pickDefaultExerciseIdFromNames(
   exercises: { id: string; name: string }[]
 ): string | null {

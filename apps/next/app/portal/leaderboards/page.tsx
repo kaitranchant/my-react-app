@@ -6,6 +6,7 @@ import { LeaderboardPeriodTabs } from '@/components/leaderboards/leaderboard-per
 import { LeaderboardTable } from '@/components/leaderboards/leaderboard-table'
 import { LeaderboardToolbar } from '@/components/leaderboards/leaderboard-toolbar'
 import { LeaderboardWeightClassFilter } from '@/components/leaderboards/leaderboard-weight-class-filter'
+import { PortalLeaderboardProfileCard } from '@/components/portal/portal-leaderboard-profile-card'
 import {
   Card,
   CardContent,
@@ -171,6 +172,10 @@ export default async function PortalLeaderboardsPage({
           volume, and improvement.
         </p>
       </section>
+
+      <PortalLeaderboardProfileCard
+        defaultBiologicalSex={clientRecord.biological_sex ?? null}
+      />
 
       <Suspense fallback={null}>
         <LeaderboardCategoryTabs />

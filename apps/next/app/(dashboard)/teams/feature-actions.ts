@@ -7,9 +7,11 @@ import { createClient } from '@/lib/supabase/server'
 import {
   teamAnnouncementSchema,
   teamEventFormSchema,
+  teamPowerliftingExercisesSchema,
   updateTeamEventMemberStatusSchema,
   type TeamAnnouncementValues,
   type TeamEventFormValues,
+  type TeamPowerliftingExercisesValues,
   type UpdateTeamEventMemberStatusValues,
 } from '@/lib/validations/team'
 
@@ -41,6 +43,8 @@ function revalidateTeam(teamId: string) {
   revalidatePath('/teams')
   revalidatePath(`/teams/${teamId}`)
   revalidatePath('/attendance')
+  revalidatePath('/leaderboards')
+  revalidatePath('/portal/leaderboards')
 }
 
 async function seedEventMemberStatuses(
@@ -312,6 +316,81 @@ export async function updateTeamMemberWeightClass(
     .update({ weight_class: trimmed ? trimmed : null })
     .eq('team_id', teamId)
     .eq('client_id', clientId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeam(teamId)
+  return { success: true }
+}
+
+function toExerciseId(value: string): string | null {
+  return value === 'none' ? null : value
+}
+
+async function validateTeamCoachExercises(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  exerciseIds: (string | null)[]
+): Promise<ActionResult | null> {
+  const ids = exerciseIds.filter((value): value is string => Boolean(value))
+  if (ids.length === 0) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('coach_id', coachId)
+    .in('id', ids)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if ((data?.length ?? 0) !== ids.length) {
+    return { success: false, error: 'One or more exercises were not found.' }
+  }
+
+  return null
+}
+
+export async function updateTeamPowerliftingExercises(
+  teamId: string,
+  values: TeamPowerliftingExercisesValues
+): Promise<ActionResult> {
+  const parsed = teamPowerliftingExercisesSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const { supabase, team, error: teamError } = await getTeamForCoach(teamId)
+  if (teamError || !team) {
+    return { success: false, error: teamError ?? 'Team not found.' }
+  }
+
+  const squatExerciseId = toExerciseId(parsed.data.squatExerciseId)
+  const benchExerciseId = toExerciseId(parsed.data.benchExerciseId)
+  const deadliftExerciseId = toExerciseId(parsed.data.deadliftExerciseId)
+
+  const validationError = await validateTeamCoachExercises(
+    supabase,
+    team.coach_id,
+    [squatExerciseId, benchExerciseId, deadliftExerciseId]
+  )
+  if (validationError) {
+    return validationError
+  }
+
+  const { error } = await supabase
+    .from('teams')
+    .update({
+      squat_exercise_id: squatExerciseId,
+      bench_exercise_id: benchExerciseId,
+      deadlift_exercise_id: deadliftExerciseId,
+    })
+    .eq('id', teamId)
 
   if (error) {
     return { success: false, error: error.message }

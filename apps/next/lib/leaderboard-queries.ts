@@ -23,7 +23,7 @@ import {
   formatRelativeStrengthScore,
   getLeaderboardPeriodBounds,
   pickDefaultExerciseIdFromNames,
-  pickPowerliftingExerciseIds,
+  resolvePowerliftingExerciseIds,
   rankLeaderboardRows,
   type LeaderboardPeriodBounds,
   type LeaderboardRow,
@@ -95,6 +95,27 @@ export async function fetchLeaderboardExercises(
   }
 
   return data
+}
+
+export async function fetchTeamPowerliftingExerciseIds(
+  supabase: SupabaseClient,
+  teamId: string
+): Promise<PowerliftingExerciseIds | null> {
+  const { data, error } = await supabase
+    .from('teams')
+    .select('squat_exercise_id, bench_exercise_id, deadlift_exercise_id')
+    .eq('id', teamId)
+    .maybeSingle()
+
+  if (error || !data) {
+    return null
+  }
+
+  return {
+    squatId: data.squat_exercise_id,
+    benchId: data.bench_exercise_id,
+    deadliftId: data.deadlift_exercise_id,
+  }
 }
 
 export async function fetchTeamWeightClassesByClientId(
@@ -1061,7 +1082,13 @@ export async function fetchLeaderboardRows(
   })
 
   const periodBounds = getLeaderboardPeriodBounds(options.period, options.weekStartsOn)
-  const powerliftingExerciseIds = pickPowerliftingExerciseIds(options.exercises)
+  const teamPowerliftingOverrides = options.teamId
+    ? await fetchTeamPowerliftingExerciseIds(supabase, options.teamId)
+    : null
+  const powerliftingExerciseIds = resolvePowerliftingExerciseIds(
+    options.exercises,
+    teamPowerliftingOverrides
+  )
   const formula = options.formula ?? 'dots'
 
   let resolvedExerciseId = options.exerciseId

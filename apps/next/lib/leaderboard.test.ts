@@ -7,7 +7,9 @@ import {
   formatLeaderboardStreak,
   formatRankChangeLabel,
   pickDefaultExerciseIdFromNames,
+  pickPowerliftingExerciseIds,
   rankLeaderboardRows,
+  resolvePowerliftingExerciseIds,
   type LeaderboardRowData,
 } from './leaderboard'
 
@@ -71,6 +73,29 @@ test('pickDefaultExerciseIdFromNames prefers common powerlifting lifts', () => {
   ]
 
   assert.equal(pickDefaultExerciseIdFromNames(exercises), '2')
+})
+
+test('resolvePowerliftingExerciseIds prefers team overrides over auto-detect', () => {
+  const exercises = [
+    { id: 'squat-auto', name: 'Back Squat' },
+    { id: 'bench-auto', name: 'Bench Press' },
+    { id: 'deadlift-auto', name: 'Deadlift' },
+    { id: 'custom-bench', name: 'Close Grip Bench' },
+  ]
+
+  const auto = pickPowerliftingExerciseIds(exercises)
+  assert.equal(auto.squatId, 'squat-auto')
+  assert.equal(auto.benchId, 'bench-auto')
+
+  const resolved = resolvePowerliftingExerciseIds(exercises, {
+    squatId: null,
+    benchId: 'custom-bench',
+    deadliftId: null,
+  })
+
+  assert.equal(resolved.squatId, 'squat-auto')
+  assert.equal(resolved.benchId, 'custom-bench')
+  assert.equal(resolved.deadliftId, 'deadlift-auto')
 })
 
 test('formatLeaderboardCompletion, streak, and rank change labels', () => {

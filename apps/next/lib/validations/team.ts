@@ -115,6 +115,21 @@ export const assignProgramToTeamSchema = z.object({
 
 export type AssignProgramToTeamValues = z.infer<typeof assignProgramToTeamSchema>
 
+export const teamPowerliftingExerciseIdSchema = z
+  .string()
+  .uuid()
+  .or(z.literal('none'))
+
+export const teamPowerliftingExercisesSchema = z.object({
+  squatExerciseId: teamPowerliftingExerciseIdSchema,
+  benchExerciseId: teamPowerliftingExerciseIdSchema,
+  deadliftExerciseId: teamPowerliftingExerciseIdSchema,
+})
+
+export type TeamPowerliftingExercisesValues = z.infer<
+  typeof teamPowerliftingExercisesSchema
+>
+
 export const unassignProgramFromTeamSchema = z.object({
   unassignMembers: z.boolean(),
 })

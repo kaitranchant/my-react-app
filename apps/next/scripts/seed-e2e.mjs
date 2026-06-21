@@ -23,6 +23,9 @@ const CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD ?? 'TestPassword123!'
 const PROGRAM_NAME = 'E2E Test Program'
 const CLIENT_NAME = 'E2E Test Client'
 const EXERCISE_NAME = 'E2E Squat'
+const BENCH_EXERCISE_NAME = 'E2E Bench Press'
+const DEADLIFT_EXERCISE_NAME = 'E2E Deadlift'
+const TEAM_NAME = 'E2E Leaderboard Team'
 const WORKOUT_NAME = 'E2E Day 1 Workout'
 
 if (!url || !serviceKey) {
@@ -72,6 +75,64 @@ async function resetGymState({ coachId, gymCoachId, clientId }) {
   await supabase.from('gym_members').delete().eq('coach_id', coachId)
   await supabase.from('gym_members').delete().eq('coach_id', gymCoachId)
   await supabase.from('gym_invites').delete().eq('email', GYM_COACH_EMAIL)
+}
+
+async function ensureExercise(coachId, name, muscleGroup) {
+  const { data: existingExercise } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('name', name)
+    .maybeSingle()
+
+  if (existingExercise) {
+    return existingExercise.id
+  }
+
+  const { data: inserted, error } = await supabase
+    .from('exercises')
+    .insert({
+      coach_id: coachId,
+      name,
+      muscle_group: muscleGroup,
+    })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return inserted.id
+}
+
+async function ensureScheduledExercise({
+  scheduledWorkoutId,
+  exerciseId,
+  sortOrder,
+}) {
+  const { data: existingScheduledExercise } = await supabase
+    .from('scheduled_workout_exercises')
+    .select('id')
+    .eq('scheduled_workout_id', scheduledWorkoutId)
+    .eq('exercise_id', exerciseId)
+    .maybeSingle()
+
+  if (existingScheduledExercise) {
+    return existingScheduledExercise.id
+  }
+
+  const { data: inserted, error } = await supabase
+    .from('scheduled_workout_exercises')
+    .insert({
+      scheduled_workout_id: scheduledWorkoutId,
+      exercise_id: exerciseId,
+      sort_order: sortOrder,
+      sets: '3',
+      reps: '5',
+    })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return inserted.id
 }
 
 async function ensureUser({ email, password, fullName, role }) {
@@ -175,29 +236,17 @@ async function main() {
   await supabase.from('client_check_ins').delete().eq('client_id', clientId)
   await supabase.from('exercise_pr_records').delete().eq('client_id', clientId)
 
-  let exerciseId
-  const { data: existingExercise } = await supabase
-    .from('exercises')
-    .select('id')
-    .eq('coach_id', coachId)
-    .eq('name', EXERCISE_NAME)
-    .maybeSingle()
-
-  if (existingExercise) {
-    exerciseId = existingExercise.id
-  } else {
-    const { data: inserted, error } = await supabase
-      .from('exercises')
-      .insert({
-        coach_id: coachId,
-        name: EXERCISE_NAME,
-        muscle_group: 'Legs',
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    exerciseId = inserted.id
-  }
+  let exerciseId = await ensureExercise(coachId, EXERCISE_NAME, 'Legs')
+  const benchExerciseId = await ensureExercise(
+    coachId,
+    BENCH_EXERCISE_NAME,
+    'Chest'
+  )
+  const deadliftExerciseId = await ensureExercise(
+    coachId,
+    DEADLIFT_EXERCISE_NAME,
+    'Back'
+  )
 
   let programId
   const { data: existingProgram } = await supabase
@@ -336,20 +385,132 @@ async function main() {
     scheduledWorkoutId = inserted.id
   }
 
-  const { data: existingScheduledExercise } = await supabase
-    .from('scheduled_workout_exercises')
+  const squatScheduledExerciseId = await ensureScheduledExercise({
+    scheduledWorkoutId,
+    exerciseId,
+    sortOrder: 0,
+  })
+  const benchScheduledExerciseId = await ensureScheduledExercise({
+    scheduledWorkoutId,
+    exerciseId: benchExerciseId,
+    sortOrder: 1,
+  })
+  const deadliftScheduledExerciseId = await ensureScheduledExercise({
+    scheduledWorkoutId,
+    exerciseId: deadliftExerciseId,
+    sortOrder: 2,
+  })
+
+  await supabase
+    .from('clients')
+    .update({
+      biological_sex: 'male',
+      leaderboard_opt_out: false,
+    })
+    .eq('id', clientId)
+
+  const achievedAt = `${startDate}T12:00:00.000Z`
+  await supabase.from('client_check_ins').upsert(
+    {
+      client_id: clientId,
+      coach_id: coachId,
+      check_in_date: startDate,
+      weight: 180,
+      submitted_by: 'coach',
+    },
+    { onConflict: 'client_id,check_in_date' }
+  )
+
+  const prRows = [
+    {
+      client_id: clientId,
+      coach_id: coachId,
+      exercise_id: exerciseId,
+      record_type: 'e1rm',
+      e1rm: 315,
+      weight: 275,
+      reps: 3,
+      scheduled_workout_id: scheduledWorkoutId,
+      scheduled_exercise_id: squatScheduledExerciseId,
+      achieved_at: achievedAt,
+    },
+    {
+      client_id: clientId,
+      coach_id: coachId,
+      exercise_id: benchExerciseId,
+      record_type: 'e1rm',
+      e1rm: 225,
+      weight: 205,
+      reps: 3,
+      scheduled_workout_id: scheduledWorkoutId,
+      scheduled_exercise_id: benchScheduledExerciseId,
+      achieved_at: achievedAt,
+    },
+    {
+      client_id: clientId,
+      coach_id: coachId,
+      exercise_id: deadliftExerciseId,
+      record_type: 'e1rm',
+      e1rm: 405,
+      weight: 365,
+      reps: 3,
+      scheduled_workout_id: scheduledWorkoutId,
+      scheduled_exercise_id: deadliftScheduledExerciseId,
+      achieved_at: achievedAt,
+    },
+  ]
+
+  for (const row of prRows) {
+    const { error } = await supabase.from('exercise_pr_records').insert(row)
+    if (error) throw error
+  }
+
+  let teamId
+  const { data: existingTeam } = await supabase
+    .from('teams')
     .select('id')
-    .eq('scheduled_workout_id', scheduledWorkoutId)
-    .eq('exercise_id', exerciseId)
+    .eq('coach_id', coachId)
+    .eq('name', TEAM_NAME)
     .maybeSingle()
 
-  if (!existingScheduledExercise) {
-    const { error } = await supabase.from('scheduled_workout_exercises').insert({
-      scheduled_workout_id: scheduledWorkoutId,
-      exercise_id: exerciseId,
-      sort_order: 0,
-      sets: '3',
-      reps: '10',
+  if (existingTeam) {
+    teamId = existingTeam.id
+    await supabase
+      .from('teams')
+      .update({
+        squat_exercise_id: exerciseId,
+        bench_exercise_id: benchExerciseId,
+        deadlift_exercise_id: deadliftExerciseId,
+      })
+      .eq('id', teamId)
+  } else {
+    const { data: insertedTeam, error } = await supabase
+      .from('teams')
+      .insert({
+        coach_id: coachId,
+        name: TEAM_NAME,
+        description: 'Automated E2E leaderboard team',
+        squat_exercise_id: exerciseId,
+        bench_exercise_id: benchExerciseId,
+        deadlift_exercise_id: deadliftExerciseId,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    teamId = insertedTeam.id
+  }
+
+  const { data: existingMembership } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (!existingMembership) {
+    const { error } = await supabase.from('team_members').insert({
+      team_id: teamId,
+      client_id: clientId,
     })
     if (error) throw error
   }
@@ -359,6 +520,7 @@ async function main() {
   console.log(`  Gym coach: ${GYM_COACH_EMAIL}`)
   console.log(`  Client:    ${CLIENT_EMAIL}`)
   console.log(`  Program: ${PROGRAM_NAME} (assigned from ${startDate})`)
+  console.log(`  Team: ${TEAM_NAME}`)
   console.log(`  Client ID: ${clientId}`)
 }
 
