@@ -2,7 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { getCompositionMetricConfig, resolveCompositionGoalTitle } from '@/lib/goal-progress'
+import {
+  formatHabitGoalLabel,
+  formatMilestoneGoalLabel,
+  getCompositionMetricConfig,
+  resolveCompositionGoalTitle,
+} from '@/lib/goal-progress'
 import { requireClientAccess } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -58,6 +63,131 @@ function goalValuesToInsert(
       title: resolveCompositionGoalTitle(values.metric, values.title),
       unit: config?.unit ?? 'lbs',
       sort_order: sortOrder,
+      target_date: values.targetDate,
+      progress_source: values.progressSource ?? 'prefer_inbody',
+    }
+  }
+
+  if (values.category === 'performance') {
+    const title =
+      values.title ??
+      (values.performanceMetric === 'powerlifting_total'
+        ? `Powerlifting total: ${values.comparison === 'at_most' ? 'under' : 'at least'} ${values.targetValue} ${values.unit}`
+        : `Performance goal: ${values.comparison === 'at_most' ? 'under' : 'at least'} ${values.targetValue} ${values.unit}`)
+
+    return {
+      client_id: clientId,
+      coach_id: coachId,
+      category: 'performance',
+      performance_metric: values.performanceMetric,
+      exercise_id:
+        values.performanceMetric === 'powerlifting_total'
+          ? null
+          : values.exerciseId ?? null,
+      target_value: values.targetValue,
+      comparison: values.comparison,
+      unit: values.unit,
+      title,
+      sort_order: sortOrder,
+      target_date: values.targetDate,
+      metadata:
+        values.performanceMetric === 'powerlifting_total'
+          ? values.metadata ?? null
+          : null,
+    }
+  }
+
+  if (values.category === 'habit') {
+    const title = values.title ?? formatHabitGoalLabel({
+      id: '',
+      client_id: clientId,
+      coach_id: coachId,
+      category: 'habit',
+      metric: null,
+      direction: null,
+      target_amount: null,
+      comparison: null,
+      unit: null,
+      sort_order: 0,
+      created_at: '',
+      updated_at: '',
+      title: null,
+      target_date: null,
+      exercise_id: null,
+      performance_metric: null,
+      habit_source: values.habitSource,
+      habit_frequency: values.habitFrequency,
+      habit_period: 'week',
+      milestone_type: null,
+      milestone_target_count: null,
+      program_id: null,
+      progress_source: null,
+      metadata: null,
+      target_value:
+        values.habitSource === 'nutrition_adherence'
+          ? values.targetValue ?? 7
+          : null,
+    })
+
+    return {
+      client_id: clientId,
+      coach_id: coachId,
+      category: 'habit',
+      habit_source: values.habitSource,
+      habit_frequency: values.habitFrequency,
+      habit_period: 'week',
+      target_value:
+        values.habitSource === 'nutrition_adherence'
+          ? values.targetValue ?? 7
+          : null,
+      title,
+      sort_order: sortOrder,
+      target_date: values.targetDate,
+    }
+  }
+
+  if (values.category === 'milestone') {
+    const title = values.title ?? formatMilestoneGoalLabel({
+      id: '',
+      client_id: clientId,
+      coach_id: coachId,
+      category: 'milestone',
+      metric: null,
+      direction: null,
+      target_amount: null,
+      comparison: null,
+      unit: null,
+      sort_order: 0,
+      created_at: '',
+      updated_at: '',
+      title: null,
+      target_date: null,
+      exercise_id: null,
+      performance_metric: null,
+      habit_source: null,
+      habit_frequency: null,
+      habit_period: null,
+      milestone_type: values.milestoneType,
+      milestone_target_count: values.milestoneTargetCount,
+      program_id: values.programId ?? null,
+      progress_source: null,
+      metadata: null,
+      target_value: null,
+    })
+
+    return {
+      client_id: clientId,
+      coach_id: coachId,
+      category: 'milestone',
+      milestone_type: values.milestoneType,
+      milestone_target_count: values.milestoneTargetCount,
+      program_id:
+        values.milestoneType === 'program_completion'
+          ? values.programId ?? null
+          : null,
+      title,
+      sort_order: sortOrder,
+      target_date: values.targetDate,
     }
   }
 
@@ -70,6 +200,73 @@ function goalValuesToInsert(
     comparison: values.comparison,
     unit: values.unit,
     sort_order: sortOrder,
+  }
+}
+
+function goalValuesToUpdate(values: ClientGoalFormValues): ClientGoalUpdate {
+  if (values.category === 'composition') {
+    return {
+      metric: values.metric,
+      direction: values.direction,
+      target_amount: values.targetAmount,
+      title: resolveCompositionGoalTitle(values.metric, values.title),
+      unit: getCompositionMetricConfig(values.metric)?.unit ?? 'lbs',
+      target_date: values.targetDate,
+      progress_source: values.progressSource ?? 'prefer_inbody',
+    }
+  }
+
+  if (values.category === 'performance') {
+    return {
+      performance_metric: values.performanceMetric,
+      exercise_id:
+        values.performanceMetric === 'powerlifting_total'
+          ? null
+          : values.exerciseId ?? null,
+      target_value: values.targetValue,
+      comparison: values.comparison,
+      unit: values.unit,
+      title: values.title,
+      target_date: values.targetDate,
+      metadata:
+        values.performanceMetric === 'powerlifting_total'
+          ? values.metadata ?? null
+          : null,
+    }
+  }
+
+  if (values.category === 'habit') {
+    return {
+      habit_source: values.habitSource,
+      habit_frequency: values.habitFrequency,
+      habit_period: 'week',
+      target_value:
+        values.habitSource === 'nutrition_adherence'
+          ? values.targetValue ?? 7
+          : null,
+      title: values.title,
+      target_date: values.targetDate,
+    }
+  }
+
+  if (values.category === 'milestone') {
+    return {
+      milestone_type: values.milestoneType,
+      milestone_target_count: values.milestoneTargetCount,
+      program_id:
+        values.milestoneType === 'program_completion'
+          ? values.programId ?? null
+          : null,
+      title: values.title,
+      target_date: values.targetDate,
+    }
+  }
+
+  return {
+    title: values.title,
+    target_value: values.targetValue,
+    comparison: values.comparison,
+    unit: values.unit,
   }
 }
 
@@ -139,30 +336,9 @@ export async function updateClientGoal(
     return { success: false, error: 'Goal type cannot be changed.' }
   }
 
-  const updateRow: ClientGoalUpdate =
-    parsed.data.category === 'composition'
-      ? {
-          metric: parsed.data.metric,
-          direction: parsed.data.direction,
-          target_amount: parsed.data.targetAmount,
-          title: resolveCompositionGoalTitle(
-            parsed.data.metric,
-            parsed.data.title
-          ),
-          unit:
-            getCompositionMetricConfig(parsed.data.metric)?.unit ??
-            'lbs',
-        }
-      : {
-          title: parsed.data.title,
-          target_value: parsed.data.targetValue,
-          comparison: parsed.data.comparison,
-          unit: parsed.data.unit,
-        }
-
   const { error } = await ctx.supabase
     .from('client_goals')
-    .update(updateRow)
+    .update(goalValuesToUpdate(parsed.data))
     .eq('id', goalId)
 
   if (error) {

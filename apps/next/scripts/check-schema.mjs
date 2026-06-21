@@ -390,6 +390,12 @@ await checkRestTable(
   '/rest/v1/client_goals?select=id,client_id,category,title,metric,sort_order&limit=1'
 )
 
+// Migration 0039 — extended goal types
+await checkRestTable(
+  'client_goals v2 columns',
+  '/rest/v1/client_goals?select=target_date,performance_metric,habit_source,milestone_type,program_id&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -403,7 +409,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0038 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0039 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -421,6 +427,7 @@ if (failed) {
   console.error('       supabase/apply-coach-preferences.sql         (0034 coach preferences)')
   console.error('       supabase/apply-notification-preferences.sql  (0035 notification preferences)')
   console.error('       supabase/apply-client-goals.sql            (0038 client goals)')
+  console.error('       supabase/apply-client-goals-v2.sql         (0039 goal types)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -428,7 +435,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0038 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals).'
+  '\nSchema looks good — migrations through 0039 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

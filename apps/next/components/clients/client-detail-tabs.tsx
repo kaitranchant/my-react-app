@@ -16,6 +16,7 @@ import { CoachClientMessagesPanel } from '@/components/messages/coach-client-mes
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { coerceDateKey } from '@/lib/calendar'
+import type { GoalProgressContext } from '@/lib/goal-progress-context'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type {
   CalendarDaySummary,
@@ -146,6 +147,8 @@ type ClientDetailTabsProps = {
   inbodyScans?: ClientInbodyScan[]
   clientGoals?: ClientGoal[]
   goalsSchemaError?: string | null
+  goalProgressContext?: GoalProgressContext
+  goalExercises?: Pick<Exercise, 'id' | 'name'>[]
   photoCounts?: Record<string, number>
   photosByCheckInId?: Record<string, ClientProgressPhotoWithUrl[]>
   loadMetrics?: {
@@ -175,6 +178,8 @@ export function ClientDetailTabs({
   inbodyScans = [],
   clientGoals = [],
   goalsSchemaError = null,
+  goalProgressContext,
+  goalExercises = [],
   photoCounts = {},
   photosByCheckInId = {},
   loadMetrics,
@@ -369,7 +374,21 @@ export function ClientDetailTabs({
             <ClientGoalsPanel
               client={client}
               goals={clientGoals}
-              scans={inbodyScans}
+              progressContext={
+                goalProgressContext ?? {
+                  scans: inbodyScans,
+                  checkIns,
+                  prRecords: [],
+                  bestDurationByExerciseId: {},
+                  workouts: streakWorkouts,
+                  activeAssignment,
+                  programDayOffsets: [],
+                  exercises: goalExercises,
+                }
+              }
+              exercises={goalExercises.length > 0 ? goalExercises : calendar.exercises}
+              programs={availablePrograms}
+              coachPreferences={coachPreferences}
               schemaError={goalsSchemaError}
             />
           </TabsContent>

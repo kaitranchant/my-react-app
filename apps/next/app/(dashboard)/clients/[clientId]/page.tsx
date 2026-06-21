@@ -9,6 +9,7 @@ import { defaultCoachPreferences } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
+import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
 import { isCoachSelfClient } from '@/lib/coach-self'
 import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
 import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
@@ -276,6 +277,7 @@ export default async function ClientDetailPage({
   }, {})
   const photoCounts = countPhotosByCheckInId(progressPhotos)
   const loadMetrics = await fetchClientLoadMetrics(supabase, clientId)
+  const goalProgressContext = await fetchGoalProgressContext(supabase, clientId)
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -358,6 +360,8 @@ export default async function ClientDetailPage({
           inbodyScans={inbodyScans}
           clientGoals={clientGoals}
           goalsSchemaError={goalsSchemaError}
+          goalProgressContext={goalProgressContext}
+          goalExercises={exercises}
           photoCounts={photoCounts}
           photosByCheckInId={photosByCheckInId}
           loadMetrics={{

@@ -5,16 +5,21 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { formatDailyTargetLabel } from '@/lib/goal-progress'
-import type { ClientGoal } from 'app/types/database'
+import {
+  formatDailyTargetLabel,
+  getDailyTargetCheckInHint,
+} from '@/lib/goal-progress'
+import type { ClientCheckIn, ClientGoal } from 'app/types/database'
 
 type DailyTargetsCardProps = {
   goals: ClientGoal[]
+  checkIns?: ClientCheckIn[]
   description?: string
 }
 
 export function DailyTargetsCard({
   goals,
+  checkIns = [],
   description = 'Daily targets set by your coach.',
 }: DailyTargetsCardProps) {
   return (
@@ -29,15 +34,23 @@ export function DailyTargetsCard({
             No daily targets yet.
           </p>
         ) : (
-          <ul className="flex flex-wrap gap-2">
-            {goals.map((goal) => (
-              <li
-                key={goal.id}
-                className="border-brand/20 bg-brand/5 text-foreground rounded-full border px-3 py-1.5 text-sm font-medium"
-              >
-                {formatDailyTargetLabel(goal)}
-              </li>
-            ))}
+          <ul className="grid gap-3">
+            {goals.map((goal) => {
+              const hint = getDailyTargetCheckInHint(goal, checkIns)
+
+              return (
+                <li key={goal.id} className="space-y-1">
+                  <span className="border-brand/20 bg-brand/5 text-foreground inline-flex rounded-full border px-3 py-1.5 text-sm font-medium">
+                    {formatDailyTargetLabel(goal)}
+                  </span>
+                  {hint ? (
+                    <p className="text-muted-foreground pl-1 text-xs leading-relaxed">
+                      {hint}
+                    </p>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         )}
       </CardContent>

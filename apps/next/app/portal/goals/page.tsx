@@ -5,10 +5,15 @@ import {
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { DailyTargetsCard } from '@/components/goals/daily-targets-card'
 import { GoalProgressCard } from '@/components/goals/goal-progress-card'
+import { HabitGoalCard } from '@/components/goals/habit-goal-card'
+import { MilestoneGoalCard } from '@/components/goals/milestone-goal-card'
+import { PerformanceGoalCard } from '@/components/goals/performance-goal-card'
 import { partitionClientGoals } from '@/lib/goal-progress'
+import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
+import type { GoalProgressContext } from '@/lib/goal-progress-context'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
-import type { ClientGoal, ClientInbodyScan } from 'app/types/database'
+import type { ClientGoal } from 'app/types/database'
 
 export const metadata = {
   title: 'Goals — Coaching App',
@@ -20,37 +25,48 @@ export default async function PortalGoalsPage() {
   const clientRecord = portalCtx?.client ?? null
 
   let goals: ClientGoal[] = []
-  let scans: ClientInbodyScan[] = []
   let goalsSchemaError: string | null = null
+  let progressContext: GoalProgressContext = {
+    scans: [],
+    checkIns: [],
+    prRecords: [],
+    bestDurationByExerciseId: {},
+    workouts: [],
+    activeAssignment: null,
+    programDayOffsets: [],
+    exercises: [],
+  }
 
   if (clientRecord?.id) {
-    const [goalsResult, scansResult] = await Promise.all([
+    const [goalsResult, context] = await Promise.all([
       supabase
         .from('client_goals')
         .select('*')
         .eq('client_id', clientRecord.id)
         .order('sort_order', { ascending: true }),
-      supabase
-        .from('client_inbody_scans')
-        .select('*')
-        .eq('client_id', clientRecord.id)
-        .order('scan_date', { ascending: false })
-        .limit(50),
+      fetchGoalProgressContext(supabase, clientRecord.id),
     ])
 
     goals = (goalsResult.data ?? []) as ClientGoal[]
     goalsSchemaError = goalsResult.error?.message ?? null
-    scans = (scansResult.data ?? []) as ClientInbodyScan[]
+    progressContext = context
   }
 
-  const { dailyGoals, compositionGoals } = partitionClientGoals(goals)
+  const {
+    dailyGoals,
+    compositionGoals,
+    performanceGoals,
+    habitGoals,
+    milestoneGoals,
+  } = partitionClientGoals(goals)
 
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Goals</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Daily targets and body composition progress set by your coach.
+          Daily targets, performance, habits, milestones, and body composition
+          progress set by your coach.
         </p>
       </section>
 
@@ -64,11 +80,71 @@ export default async function PortalGoalsPage() {
       ) : goalsSchemaError?.includes('Could not find the table') ? (
         <SchemaSetupNotice
           tables={['client_goals']}
-          sqlFile="apply-client-goals.sql"
+          sqlFile="apply-client-goals-v2.sql"
         />
       ) : (
         <>
-          <DailyTargetsCard goals={dailyGoals} />
+          <DailyTargetsCard goals={dailyGoals} checkIns={progressContext.checkIns} />
+
+          {performanceGoals.length > 0 ? (
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Performance goals
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Progress updates automatically from your workout PRs.
+                </p>
+              </div>
+              {performanceGoals.map((goal) => (
+                <PerformanceGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  context={progressContext}
+                />
+              ))}
+            </section>
+          ) : null}
+
+          {habitGoals.length > 0 ? (
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Habit goals
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Weekly consistency tracked from workouts and check-ins.
+                </p>
+              </div>
+              {habitGoals.map((goal) => (
+                <HabitGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  context={progressContext}
+                />
+              ))}
+            </section>
+          ) : null}
+
+          {milestoneGoals.length > 0 ? (
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Milestone goals
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Long-term milestones like session counts and training streaks.
+                </p>
+              </div>
+              {milestoneGoals.map((goal) => (
+                <MilestoneGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  context={progressContext}
+                />
+              ))}
+            </section>
+          ) : null}
 
           <section className="grid gap-4">
             <div className="space-y-1">
@@ -76,8 +152,8 @@ export default async function PortalGoalsPage() {
                 Body composition goals
               </h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Progress is measured from your first InBody scan to your most
-                recent.
+                Progress is measured from InBody scans or check-in weight when
+                configured.
               </p>
             </div>
 
@@ -89,7 +165,11 @@ export default async function PortalGoalsPage() {
               </Card>
             ) : (
               compositionGoals.map((goal) => (
-                <GoalProgressCard key={goal.id} goal={goal} scans={scans} />
+                <GoalProgressCard
+                  key={goal.id}
+                  goal={goal}
+                  context={progressContext}
+                />
               ))
             )}
           </section>

@@ -38,9 +38,36 @@ export type MessageSenderRole = 'coach' | 'client'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
-export type ClientGoalCategory = 'composition' | 'daily'
+export type ClientGoalCategory =
+  | 'composition'
+  | 'daily'
+  | 'performance'
+  | 'habit'
+  | 'milestone'
 export type ClientGoalDirection = 'decrease' | 'increase'
 export type ClientGoalComparison = 'at_least' | 'at_most'
+export type ClientGoalPerformanceMetric =
+  | 'weight'
+  | 'reps'
+  | 'e1rm'
+  | 'time_seconds'
+  | 'powerlifting_total'
+export type ClientGoalHabitSource =
+  | 'workouts_per_week'
+  | 'check_in_submitted'
+  | 'nutrition_adherence'
+export type ClientGoalHabitPeriod = 'week'
+export type ClientGoalMilestoneType =
+  | 'session_count'
+  | 'program_completion'
+  | 'training_streak_days'
+export type ClientGoalProgressSource = 'inbody' | 'check_in' | 'prefer_inbody'
+
+export type ClientGoalMetadata = {
+  squatExerciseId?: string
+  benchExerciseId?: string
+  deadliftExerciseId?: string
+}
 export type CompositionGoalMetric =
   | 'weight_lbs'
   | 'percent_body_fat'
@@ -1508,6 +1535,17 @@ export type Database = {
           comparison: ClientGoalComparison | null
           unit: string | null
           sort_order: number
+          target_date: string | null
+          exercise_id: string | null
+          performance_metric: ClientGoalPerformanceMetric | null
+          habit_source: ClientGoalHabitSource | null
+          habit_frequency: number | null
+          habit_period: ClientGoalHabitPeriod | null
+          milestone_type: ClientGoalMilestoneType | null
+          milestone_target_count: number | null
+          program_id: string | null
+          progress_source: ClientGoalProgressSource | null
+          metadata: ClientGoalMetadata | null
           created_at: string
           updated_at: string
         }
@@ -1524,6 +1562,17 @@ export type Database = {
           comparison?: ClientGoalComparison | null
           unit?: string | null
           sort_order?: number
+          target_date?: string | null
+          exercise_id?: string | null
+          performance_metric?: ClientGoalPerformanceMetric | null
+          habit_source?: ClientGoalHabitSource | null
+          habit_frequency?: number | null
+          habit_period?: ClientGoalHabitPeriod | null
+          milestone_type?: ClientGoalMilestoneType | null
+          milestone_target_count?: number | null
+          program_id?: string | null
+          progress_source?: ClientGoalProgressSource | null
+          metadata?: ClientGoalMetadata | null
           created_at?: string
           updated_at?: string
         }
@@ -1540,6 +1589,17 @@ export type Database = {
           comparison?: ClientGoalComparison | null
           unit?: string | null
           sort_order?: number
+          target_date?: string | null
+          exercise_id?: string | null
+          performance_metric?: ClientGoalPerformanceMetric | null
+          habit_source?: ClientGoalHabitSource | null
+          habit_frequency?: number | null
+          habit_period?: ClientGoalHabitPeriod | null
+          milestone_type?: ClientGoalMilestoneType | null
+          milestone_target_count?: number | null
+          program_id?: string | null
+          progress_source?: ClientGoalProgressSource | null
+          metadata?: ClientGoalMetadata | null
           created_at?: string
           updated_at?: string
         }
@@ -1556,6 +1616,20 @@ export type Database = {
             columns: ['coach_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_goals_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_goals_program_id_fkey'
+            columns: ['program_id']
+            isOneToOne: false
+            referencedRelation: 'programs'
             referencedColumns: ['id']
           },
         ]

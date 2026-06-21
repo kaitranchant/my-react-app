@@ -25,7 +25,7 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Load prescription: `% 1RM` and RPE targets on program and client calendar exercises
 - Gyms: create gyms, invite coaches, opt-in client sharing with gym peers, multi-gym membership, and client roster filtering by gym
 - Settings: profile, notification preferences, password change, account deletion, and coaching preferences (weight unit, week start, timezone, check-in cadence)
-- Client goals: coach-set daily targets and body composition goals with InBody progress tracking, client portal `/portal/goals`, and Goals section on client Progress tab
+- Client goals: coach-set composition, daily, performance, habit, and milestone goals with auto-progress from workouts, PRs, check-ins, and InBody; target dates and pace tracking; client portal `/portal/goals`; Goals section on client Progress tab
 
 ## What's coming
 
@@ -44,13 +44,13 @@ Attendance, form review, leaderboards, and wearables appear in the UI but are no
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0038**). For one-off patches without the CLI, see the apply scripts below.
-4. Verify schema: `yarn db:check` (checks tables through migration 0038)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0039**). For one-off patches without the CLI, see the apply scripts below.
+4. Verify schema: `yarn db:check` (checks tables through migration 0039)
 5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0038 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0039 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -88,6 +88,7 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-coach-preferences.sql` | Coach preferences on profiles (0034) |
 | `apply-notification-preferences.sql` | Notification preferences on profiles (0035) |
 | `apply-client-goals.sql` | Coach-set client goals and portal goals page (0038) |
+| `apply-client-goals-v2.sql` | Performance, habit, and milestone goal types (0039) |
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 
@@ -193,7 +194,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema (migrations through 0038) |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0039) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |

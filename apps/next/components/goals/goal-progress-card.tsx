@@ -1,47 +1,30 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { ProgressBar } from '@/components/ui/progress-bar'
+import { TrackableGoalCard } from '@/components/goals/trackable-goal-card'
 import {
   computeCompositionProgress,
   formatCompositionGoalLabel,
 } from '@/lib/goal-progress'
-import type { ClientGoal, ClientInbodyScan } from 'app/types/database'
+import type { GoalProgressContext } from '@/lib/goal-progress-context'
+import type { ClientGoal } from 'app/types/database'
+import type { CoachPreferences } from '@/lib/coach-preferences'
 
 type GoalProgressCardProps = {
   goal: ClientGoal
-  scans: ClientInbodyScan[]
+  context: Pick<GoalProgressContext, 'scans' | 'checkIns'>
+  coachPreferences?: Pick<CoachPreferences, 'weekStartsOn' | 'timezone'>
 }
 
-export function GoalProgressCard({ goal, scans }: GoalProgressCardProps) {
-  const progress = computeCompositionProgress(goal, scans)
+export function GoalProgressCard({
+  goal,
+  context,
+  coachPreferences,
+}: GoalProgressCardProps) {
+  const progress = computeCompositionProgress(
+    goal,
+    context.scans,
+    context.checkIns,
+    coachPreferences
+  )
   const label = formatCompositionGoalLabel(goal)
 
-  return (
-    <Card>
-      <CardHeader className="gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-base">{label}</CardTitle>
-            <CardDescription>{progress.detailLine}</CardDescription>
-          </div>
-          <span className="text-brand shrink-0 text-2xl font-semibold tabular-nums">
-            {progress.status === 'awaiting_scan' ? '—' : `${progress.percent}%`}
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <ProgressBar value={progress.percent} />
-        {progress.hint ? (
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            {progress.hint}
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
-  )
+  return <TrackableGoalCard title={label} progress={progress} targetDate={goal.target_date} />
 }
