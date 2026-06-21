@@ -19,6 +19,18 @@ export const formReviewUploadSchema = z.object({
         ? null
         : value
     ),
+  scheduledWorkoutId: z
+    .union([z.string().uuid(), z.literal(''), z.null()])
+    .optional()
+    .transform((value) =>
+      value === '' || value === undefined || value === null ? null : value
+    ),
+  scheduledExerciseId: z
+    .union([z.string().uuid(), z.literal(''), z.null()])
+    .optional()
+    .transform((value) =>
+      value === '' || value === undefined || value === null ? null : value
+    ),
 })
 
 export type FormReviewUploadValues = z.infer<typeof formReviewUploadSchema>

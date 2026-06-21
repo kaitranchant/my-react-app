@@ -11,6 +11,10 @@ import {
   updateFormReviewFeedback,
 } from '@/app/(dashboard)/form-review/actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
+import {
+  FormReviewMedia,
+  FormReviewMediaUnavailable,
+} from '@/components/form-review/form-review-media'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -106,6 +110,7 @@ export function FormReviewReviewCard({
               <CardDescription>
                 {formatFormReviewDate(review.created_at)} ·{' '}
                 {formatFormReviewFileSize(review.file_size_bytes)}
+                {review.scheduled_workout_id ? ' · From workout log' : ''}
               </CardDescription>
             </div>
           </div>
@@ -129,17 +134,15 @@ export function FormReviewReviewCard({
       {expanded ? (
         <CardContent className="space-y-4 border-t pt-4">
           {review.signedUrl ? (
-            <video
-              src={review.signedUrl}
-              controls
-              playsInline
-              preload="metadata"
-              className="bg-muted max-h-[480px] w-full rounded-lg border"
+            <FormReviewMedia
+              signedUrl={review.signedUrl}
+              contentType={review.content_type}
+              title={title}
+              videoClassName="max-h-[480px]"
+              imageClassName="max-h-[480px]"
             />
           ) : (
-            <div className="text-muted-foreground flex h-48 items-center justify-center rounded-lg border text-sm">
-              Video unavailable
-            </div>
+            <FormReviewMediaUnavailable className="h-48" />
           )}
 
           {review.client_notes ? (
@@ -238,7 +241,7 @@ export function ClientFormReviewsPanel({
         <CardHeader>
           <CardTitle className="text-base">Form review</CardTitle>
           <CardDescription>
-            {clientName} has not submitted any lift videos yet. Videos appear
+            {clientName} has not submitted any form photos or videos yet. Submissions
             here when uploaded from the client portal.
           </CardDescription>
         </CardHeader>

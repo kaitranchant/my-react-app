@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Upload, Video } from 'lucide-react'
+import { Loader2, Upload, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { uploadClientFormReview } from '@/app/portal/form-review-actions'
@@ -24,7 +24,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { FORM_REVIEW_MAX_UPLOAD_BYTES } from '@/lib/form-reviews'
+import {
+  FORM_REVIEW_FILE_ACCEPT,
+  FORM_REVIEW_UPLOAD_HINT,
+  getFormReviewMaxUploadBytes,
+  resolveFormReviewContentType,
+} from '@/lib/form-reviews'
 
 type ExerciseOption = {
   id: string
@@ -53,12 +58,23 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
 
     const file = fileInputRef.current?.files?.[0]
     if (!file) {
-      toast.error('Choose a video to upload.')
+      toast.error('Choose a photo or video to upload.')
       return
     }
 
-    if (file.size > FORM_REVIEW_MAX_UPLOAD_BYTES) {
-      toast.error('Video must be under 50 MB.')
+    const contentType = resolveFormReviewContentType(file)
+    if (!contentType) {
+      toast.error('Unsupported file type. Use MP4, WebM, MOV, JPEG, PNG, or WebP.')
+      return
+    }
+
+    const maxUploadBytes = getFormReviewMaxUploadBytes(contentType)
+    if (file.size > maxUploadBytes) {
+      toast.error(
+        contentType.startsWith('image/')
+          ? 'Photos must be under 10 MB.'
+          : 'Videos must be under 50 MB.'
+      )
       return
     }
 
@@ -71,13 +87,15 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
         title: title.trim() || null,
         clientNotes: clientNotes.trim() || null,
         exerciseId: exerciseId === UNSET_EXERCISE ? null : exerciseId,
+        scheduledWorkoutId: null,
+        scheduledExerciseId: null,
       },
       formData
     )
     setPending(false)
 
     if (result.success) {
-      toast.success('Video submitted for review')
+      toast.success('Form review submitted')
       setTitle('')
       setClientNotes('')
       setExerciseId(UNSET_EXERCISE)
@@ -95,10 +113,9 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Submit a video</CardTitle>
+        <CardTitle className="text-base">Submit form review</CardTitle>
         <CardDescription>
-          Upload a lift video for your coach to review. MP4, WebM, or MOV up to
-          50 MB.
+          Upload a lift photo or video for your coach to review. {FORM_REVIEW_UPLOAD_HINT}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -150,12 +167,12 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="form-review-file">Video</Label>
+            <Label htmlFor="form-review-file">Photo or video</Label>
             <input
               ref={fileInputRef}
               id="form-review-file"
               type="file"
-              accept="video/mp4,video/webm,video/quicktime"
+              accept={FORM_REVIEW_FILE_ACCEPT}
               className="hidden"
               disabled={pending}
               onChange={(event) => {
@@ -175,7 +192,7 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
               ) : (
                 <Upload className="size-4" />
               )}
-              {selectedFileName ?? 'Choose video file'}
+              {selectedFileName ?? 'Choose photo or video'}
             </Button>
           </div>
 
@@ -187,7 +204,7 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
               </>
             ) : (
               <>
-                <Video className="size-4" />
+                <Camera className="size-4" />
                 Submit for review
               </>
             )}

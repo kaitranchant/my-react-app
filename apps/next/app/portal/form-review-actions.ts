@@ -6,8 +6,8 @@ import {
   attachSignedUrlsToFormReviews,
   formReviewStoragePath,
   FORM_REVIEWS_BUCKET,
-  FORM_REVIEW_MAX_UPLOAD_BYTES,
-  isFormReviewMimeType,
+  getFormReviewMaxUploadBytes,
+  resolveFormReviewContentType,
 } from '@/lib/form-reviews'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
@@ -28,9 +28,57 @@ export type FormReviewUploadResult = ActionResult<ClientFormReviewWithUrl>
 
 async function revalidateFormReviewPaths(clientId: string) {
   revalidatePath('/portal/form-review')
+  revalidatePath('/portal/workouts')
   revalidatePath('/portal', 'layout')
   revalidatePath('/form-review')
   revalidatePath(`/clients/${clientId}`)
+}
+
+async function validateWorkoutContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  scheduledWorkoutId: string | null,
+  scheduledExerciseId: string | null
+): Promise<string | null> {
+  if (!scheduledWorkoutId && !scheduledExerciseId) {
+    return null
+  }
+
+  if (scheduledWorkoutId) {
+    const { data: workout } = await supabase
+      .from('client_scheduled_workouts')
+      .select('id')
+      .eq('id', scheduledWorkoutId)
+      .eq('client_id', clientId)
+      .maybeSingle()
+
+    if (!workout) {
+      return 'Workout not found.'
+    }
+  }
+
+  if (scheduledExerciseId) {
+    const { data: scheduledExercise } = await supabase
+      .from('scheduled_workout_exercises')
+      .select('id, scheduled_workout_id, scheduled_workout:client_scheduled_workouts(client_id)')
+      .eq('id', scheduledExerciseId)
+      .maybeSingle()
+
+    const workout = Array.isArray(scheduledExercise?.scheduled_workout)
+      ? scheduledExercise.scheduled_workout[0]
+      : scheduledExercise?.scheduled_workout
+
+    if (
+      !scheduledExercise ||
+      workout?.client_id !== clientId ||
+      (scheduledWorkoutId &&
+        scheduledExercise.scheduled_workout_id !== scheduledWorkoutId)
+    ) {
+      return 'Exercise not found in this workout.'
+    }
+  }
+
+  return null
 }
 
 export async function uploadClientFormReview(
@@ -44,17 +92,24 @@ export async function uploadClientFormReview(
 
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
-    return { success: false, error: 'No video provided.' }
+    return { success: false, error: 'No file provided.' }
   }
 
-  if (file.size > FORM_REVIEW_MAX_UPLOAD_BYTES) {
-    return { success: false, error: 'Video must be under 50 MB.' }
-  }
-
-  if (!isFormReviewMimeType(file.type)) {
+  const contentType = resolveFormReviewContentType(file)
+  if (!contentType) {
     return {
       success: false,
-      error: 'Unsupported video type. Use MP4, WebM, or MOV.',
+      error: 'Unsupported file type. Use MP4, WebM, MOV, JPEG, PNG, or WebP.',
+    }
+  }
+
+  const maxUploadBytes = getFormReviewMaxUploadBytes(contentType)
+  if (file.size > maxUploadBytes) {
+    return {
+      success: false,
+      error: contentType.startsWith('image/')
+        ? 'Photos must be under 10 MB.'
+        : 'Videos must be under 50 MB.',
     }
   }
 
@@ -87,11 +142,21 @@ export async function uploadClientFormReview(
     }
   }
 
+  const workoutContextError = await validateWorkoutContext(
+    supabase,
+    client.id,
+    parsed.data.scheduledWorkoutId,
+    parsed.data.scheduledExerciseId
+  )
+  if (workoutContextError) {
+    return { success: false, error: workoutContextError }
+  }
+
   const reviewId = crypto.randomUUID()
   const storagePath = formReviewStoragePath(
     client.id,
     reviewId,
-    file.type
+    contentType
   )
   const buffer = Buffer.from(await file.arrayBuffer())
 
@@ -99,7 +164,7 @@ export async function uploadClientFormReview(
     .from(FORM_REVIEWS_BUCKET)
     .upload(storagePath, buffer, {
       upsert: false,
-      contentType: file.type,
+      contentType,
       cacheControl: '3600',
     })
 
@@ -123,10 +188,12 @@ export async function uploadClientFormReview(
       coach_id: client.coach_id,
       exercise_id: parsed.data.exerciseId,
       storage_path: storagePath,
-      content_type: file.type,
+      content_type: contentType,
       file_size_bytes: file.size,
       title: parsed.data.title,
       client_notes: parsed.data.clientNotes,
+      scheduled_workout_id: parsed.data.scheduledWorkoutId,
+      scheduled_exercise_id: parsed.data.scheduledExerciseId,
       uploaded_by: 'client',
     })
     .select('*')

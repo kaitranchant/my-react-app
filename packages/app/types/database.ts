@@ -1397,6 +1397,8 @@ export type Database = {
           coach_feedback: string | null
           uploaded_by: CheckInSubmittedBy
           reviewed_at: string | null
+          scheduled_workout_id: string | null
+          scheduled_exercise_id: string | null
           created_at: string
           updated_at: string
         }
@@ -1413,6 +1415,8 @@ export type Database = {
           coach_feedback?: string | null
           uploaded_by: CheckInSubmittedBy
           reviewed_at?: string | null
+          scheduled_workout_id?: string | null
+          scheduled_exercise_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1429,6 +1433,8 @@ export type Database = {
           coach_feedback?: string | null
           uploaded_by?: CheckInSubmittedBy
           reviewed_at?: string | null
+          scheduled_workout_id?: string | null
+          scheduled_exercise_id?: string | null
           created_at?: string
           updated_at?: string
         }

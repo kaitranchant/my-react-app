@@ -40,7 +40,7 @@ export default async function PortalFormReviewPage() {
       <section className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Form Review</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Upload lift videos for your coach to review technique and leave
+          Upload lift photos or videos for your coach to review technique and leave
           feedback.
         </p>
       </section>

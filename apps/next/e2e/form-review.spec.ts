@@ -18,18 +18,18 @@ test.describe('Form review', () => {
   }) => {
     await page.goto('/portal/form-review')
     await expect(page.getByRole('heading', { name: 'Form Review' })).toBeVisible()
-    await expect(page.getByText('Submit a video')).toBeVisible()
+    await expect(page.getByText('Submit form review')).toBeVisible()
 
     await page.getByLabel('Title (optional)').fill(E2E_FORM_REVIEW_TITLE)
     await page
       .getByLabel('Notes for your coach (optional)')
       .fill(E2E_FORM_REVIEW_NOTES)
-    await page.getByRole('button', { name: 'Choose video file' }).click()
+    await page.getByRole('button', { name: 'Choose photo or video' }).click()
     await page.locator('#form-review-file').setInputFiles(fixtureVideo)
     await expect(page.getByRole('button', { name: 'e2e-squat.mp4' })).toBeVisible()
     await page.getByRole('button', { name: 'Submit for review' }).click()
 
-    await expect(page.getByText('Video submitted for review')).toBeVisible({
+    await expect(page.getByText('Form review submitted')).toBeVisible({
       timeout: 20_000,
     })
     await expect(page.getByText(E2E_FORM_REVIEW_TITLE)).toBeVisible()

@@ -6,6 +6,10 @@ import { Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteClientFormReview } from '@/app/portal/form-review-actions'
+import {
+  FormReviewMedia,
+  FormReviewMediaUnavailable,
+} from '@/components/form-review/form-review-media'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -54,7 +58,7 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
         <CardHeader>
           <CardTitle className="text-base">Your submissions</CardTitle>
           <CardDescription>
-            Uploaded videos and coach feedback will appear here.
+            Uploaded photos, videos, and coach feedback will appear here.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -66,7 +70,7 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
       <div className="space-y-1">
         <h2 className="text-base font-semibold">Your submissions</h2>
         <p className="text-muted-foreground text-sm">
-          {reviews.length} video{reviews.length === 1 ? '' : 's'} submitted
+          {reviews.length} submission{reviews.length === 1 ? '' : 's'}
         </p>
       </div>
 
@@ -111,17 +115,13 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
               </div>
 
               {review.signedUrl ? (
-                <video
-                  src={review.signedUrl}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="bg-muted max-h-80 w-full rounded-lg border"
+                <FormReviewMedia
+                  signedUrl={review.signedUrl}
+                  contentType={review.content_type}
+                  title={title}
                 />
               ) : (
-                <div className="text-muted-foreground flex h-40 items-center justify-center rounded-lg border text-sm">
-                  Video unavailable
-                </div>
+                <FormReviewMediaUnavailable />
               )}
 
               {review.client_notes ? (

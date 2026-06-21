@@ -23,7 +23,7 @@ export default async function FormReviewPage({
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <PageHeader
         title="Form Review"
-        description="Review lift videos submitted by clients and leave technique feedback."
+        description="Review lift photos and videos submitted by clients and leave technique feedback."
       />
 
       <Tabs defaultValue={defaultTab}>

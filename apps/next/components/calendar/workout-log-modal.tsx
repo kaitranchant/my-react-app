@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   Trophy,
+  Video,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -44,6 +45,7 @@ import {
 import { EditScheduledExerciseDialog } from '@/components/calendar/edit-scheduled-exercise-dialog'
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
+import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
 import {
   RestTimerChip,
   RestTimerProvider,
@@ -291,6 +293,7 @@ function WorkoutLogExercise({
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
+  const [formReviewOpen, setFormReviewOpen] = React.useState(false)
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -476,7 +479,19 @@ function WorkoutLogExercise({
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
                 <ExerciseHistoryButton onClick={() => setHistoryOpen(true)} />
-                {!readOnly && (allowPrescriptionEdits || showMedia) && (
+                {variant === 'client' && !readOnly && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="hidden shrink-0 gap-1.5 sm:inline-flex"
+                    onClick={() => setFormReviewOpen(true)}
+                  >
+                    <Video className="size-3.5" />
+                    Submit form
+                  </Button>
+                )}
+                {!readOnly && (allowPrescriptionEdits || showMedia || variant === 'client') && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -490,6 +505,11 @@ function WorkoutLogExercise({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {variant === 'client' && (
+                        <DropdownMenuItem onSelect={() => setFormReviewOpen(true)}>
+                          Submit form photo/video
+                        </DropdownMenuItem>
+                      )}
                       {showMedia && (
                         <DropdownMenuItem onSelect={() => setMediaOpen(true)}>
                           View form
@@ -855,6 +875,17 @@ function WorkoutLogExercise({
         excludeWorkoutId={workoutId}
         variant={variant}
       />
+
+      {variant === 'client' && (
+        <FormReviewSubmitDialog
+          open={formReviewOpen}
+          onOpenChange={setFormReviewOpen}
+          exerciseName={exercise.exercise.name}
+          exerciseId={exercise.exercise_id}
+          scheduledWorkoutId={workoutId}
+          scheduledExerciseId={exercise.id}
+        />
+      )}
     </Card>
   )
 }
