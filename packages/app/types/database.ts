@@ -29,6 +29,7 @@ export type ScheduledWorkoutStatus =
   | 'skipped'
 export type CheckInSubmittedBy = 'client' | 'coach'
 export type WeightUnit = 'lbs' | 'kg'
+export type BiologicalSex = 'male' | 'female'
 export type WeekStartsOn = 'sunday' | 'monday'
 export type CheckInFrequency = 'daily' | 'weekly' | 'biweekly'
 export type CoachTimezone =
@@ -194,6 +195,8 @@ export type Database = {
           coaching_type: ClientCoachingType | null
           is_coach_self: boolean
           gym_id: string | null
+          leaderboard_opt_out: boolean
+          biological_sex: BiologicalSex | null
           created_at: string
           updated_at: string
         }
@@ -214,6 +217,8 @@ export type Database = {
           coaching_type?: ClientCoachingType | null
           is_coach_self?: boolean
           gym_id?: string | null
+          leaderboard_opt_out?: boolean
+          biological_sex?: BiologicalSex | null
           created_at?: string
           updated_at?: string
         }
@@ -234,6 +239,8 @@ export type Database = {
           coaching_type?: ClientCoachingType | null
           is_coach_self?: boolean
           gym_id?: string | null
+          leaderboard_opt_out?: boolean
+          biological_sex?: BiologicalSex | null
           created_at?: string
           updated_at?: string
         }

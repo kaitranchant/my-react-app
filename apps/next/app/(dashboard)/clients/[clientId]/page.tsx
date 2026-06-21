@@ -16,6 +16,7 @@ import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountBanner } from '@/components/clients/client-account-banner'
+import { ClientLeaderboardProfileCard } from '@/components/clients/client-leaderboard-profile-card'
 import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
@@ -344,6 +345,14 @@ export default async function ClientDetailPage({
       ) : null}
 
       <ClientAccountBanner client={client} />
+
+      {viewerIsPrimaryCoach ? (
+        <ClientLeaderboardProfileCard
+          clientId={client.id}
+          defaultOptOut={client.leaderboard_opt_out ?? false}
+          defaultBiologicalSex={client.biological_sex ?? null}
+        />
+      ) : null}
 
       <Suspense fallback={null}>
         <ClientDetailTabs

@@ -97,17 +97,7 @@ export const navGroups: NavGroup[] = [
 
       },
 
-      {
-
-        label: 'Leaderboards',
-
-        href: '/leaderboards',
-
-        icon: Trophy,
-
-        soon: true,
-
-      },
+      { label: 'Leaderboards', href: '/leaderboards', icon: Trophy },
 
     ],
 

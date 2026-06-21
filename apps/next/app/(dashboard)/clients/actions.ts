@@ -386,6 +386,50 @@ export async function updateClientNotes(
   return { success: true }
 }
 
+export async function updateClientLeaderboardOptOut(
+  clientId: string,
+  optOut: boolean
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ leaderboard_opt_out: optOut })
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/leaderboards')
+  revalidatePath('/portal/leaderboards')
+  return { success: true }
+}
+
+export async function updateClientBiologicalSex(
+  clientId: string,
+  biologicalSex: 'male' | 'female' | null
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ biological_sex: biologicalSex })
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/leaderboards')
+  revalidatePath('/portal/leaderboards')
+  return { success: true }
+}
+
 export async function sendClientPasswordResetEmail(
   clientId: string
 ): Promise<ActionResult> {

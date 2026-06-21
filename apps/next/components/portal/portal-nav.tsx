@@ -7,6 +7,7 @@ import {
   Scale,
   Target,
   TrendingUp,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -20,6 +21,12 @@ export const portalTeamNavItem: PortalNavItem = {
   label: 'Team',
   href: '/portal/team',
   icon: Flag,
+}
+
+export const portalLeaderboardsNavItem: PortalNavItem = {
+  label: 'Leaderboards',
+  href: '/portal/leaderboards',
+  icon: Trophy,
 }
 
 export const portalBaseNavItems: PortalNavItem[] = [
@@ -37,6 +44,7 @@ export function getPortalNavItems(showTeam: boolean): PortalNavItem[] {
   return [
     portalBaseNavItems[0],
     portalTeamNavItem,
+    portalLeaderboardsNavItem,
     ...portalBaseNavItems.slice(1),
   ]
 }
