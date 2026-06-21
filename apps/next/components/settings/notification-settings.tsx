@@ -24,6 +24,12 @@ const notificationOptions: NotificationOption[] = [
       'Show check-in submissions on your dashboard and in the activity feed.',
   },
   {
+    key: 'notifyFormReviews',
+    label: 'New form review submissions',
+    description:
+      'Show form review submissions on your dashboard and in the activity feed.',
+  },
+  {
     key: 'notifyWorkoutCompletions',
     label: 'Workout completions',
     description:
@@ -52,8 +58,10 @@ const notificationOptions: NotificationOption[] = [
 
 export function NotificationSettings({
   defaultValues,
+  emailDeliveryEnabled = false,
 }: {
   defaultValues: NotificationPreferences
+  emailDeliveryEnabled?: boolean
 }) {
   const [values, setValues] = React.useState(defaultValues)
   const [pendingKey, setPendingKey] =
@@ -87,7 +95,7 @@ export function NotificationSettings({
           key={option.key}
           label={option.label}
           description={
-            option.email
+            option.email && !emailDeliveryEnabled
               ? `${option.description} Email delivery is not enabled yet; your preference is saved for when it is.`
               : option.description
           }

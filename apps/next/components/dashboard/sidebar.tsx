@@ -14,6 +14,11 @@ import {
   type NavGroup,
   type NavItem,
 } from '@/components/dashboard/nav'
+import type { CoachNavBadges } from '@/lib/dashboard-queries'
+
+function formatNavBadgeCount(count: number): string {
+  return count > 99 ? '99+' : String(count)
+}
 
 function isNavItemActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -28,11 +33,13 @@ function NavLink({
   label,
   icon: Icon,
   active,
+  badgeCount = 0,
 }: {
   href: string
   label: string
   icon: NavItem['icon']
   active: boolean
+  badgeCount?: number
 }) {
   return (
     <Link
@@ -45,7 +52,15 @@ function NavLink({
       )}
     >
       <Icon className={cn('size-[18px]', active && 'text-brand')} />
-      {label}
+      <span className="flex-1">{label}</span>
+      {badgeCount > 0 ? (
+        <Badge
+          variant="destructive"
+          className="h-5 min-w-5 justify-center px-1.5 text-[10px] font-semibold"
+        >
+          {formatNavBadgeCount(badgeCount)}
+        </Badge>
+      ) : null}
     </Link>
   )
 }
@@ -77,9 +92,11 @@ function NavSoonItem({
 function NavGroupSection({
   group,
   pathname,
+  badgeByHref,
 }: {
   group: NavGroup
   pathname: string
+  badgeByHref: Record<string, number>
 }) {
   const hasActiveItem = groupHasActiveItem(pathname, group)
   const [open, setOpen] = useState(hasActiveItem)
@@ -132,6 +149,7 @@ function NavGroupSection({
                 label={item.label}
                 icon={item.icon}
                 active={isNavItemActive(pathname, item.href)}
+                badgeCount={badgeByHref[item.href] ?? 0}
               />
             )
           })}
@@ -141,8 +159,12 @@ function NavGroupSection({
   )
 }
 
-export function Sidebar() {
+export function Sidebar({ badges }: { badges?: CoachNavBadges }) {
   const pathname = usePathname()
+  const badgeByHref: Record<string, number> = {
+    '/messages': badges?.inboxUnread ?? 0,
+    '/form-review': badges?.pendingFormReviews ?? 0,
+  }
 
   return (
     <aside className="bg-sidebar text-sidebar-foreground hidden h-full min-h-0 w-[260px] shrink-0 flex-col overflow-hidden border-r md:flex">
@@ -159,10 +181,16 @@ export function Sidebar() {
               label={item.label}
               icon={item.icon}
               active={isNavItemActive(pathname, item.href)}
+              badgeCount={badgeByHref[item.href] ?? 0}
             />
           ))}
           {navGroups.map((group) => (
-            <NavGroupSection key={group.label} group={group} pathname={pathname} />
+            <NavGroupSection
+              key={group.label}
+              group={group}
+              pathname={pathname}
+              badgeByHref={badgeByHref}
+            />
           ))}
         </div>
       </nav>

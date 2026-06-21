@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0050.
+ * Verify hosted Supabase schema through migration 0052.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -381,7 +381,7 @@ await checkRestTable(
 
 await checkRestTable(
   'profiles notification preference columns',
-  '/rest/v1/profiles?select=notify_check_ins,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_weekly_summary&limit=1'
+  '/rest/v1/profiles?select=notify_check_ins,notify_form_reviews,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_weekly_summary&limit=1'
 )
 
 // Migration 0038 — client goals
@@ -459,6 +459,23 @@ await check('form-reviews storage bucket', async () => {
   }
 })
 
+// Migration 0051 — client wearables
+await checkRestTable(
+  'client_wearable_connections table',
+  '/rest/v1/client_wearable_connections?select=id,client_id,coach_id,provider,status&limit=1'
+)
+
+await checkRestTable(
+  'client_wearable_daily_metrics table',
+  '/rest/v1/client_wearable_daily_metrics?select=id,client_id,provider,metric_date,steps,sleep_hours,hrv_ms,recovery_score&limit=1'
+)
+
+// Migration 0052 — wearable OAuth token secrets (RLS enabled, no policies)
+await checkRestTable(
+  'client_wearable_connection_secrets table',
+  '/rest/v1/client_wearable_connection_secrets?select=connection_id,expires_at&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -472,7 +489,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0050 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0052 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -502,6 +519,9 @@ if (failed) {
   console.error('       supabase/apply-client-form-reviews.sql         (0048 form reviews)')
   console.error('       supabase/apply-client-form-review-workout-context.sql (0049 workout context)')
   console.error('       supabase/apply-form-review-images.sql          (0050 form review images)')
+  console.error('       supabase/apply-client-wearables.sql            (0051 wearables)')
+  console.error('       supabase/apply-client-wearable-secrets.sql     (0052 wearable OAuth tokens)')
+  console.error('       supabase/apply-notify-form-reviews.sql         (0053 form review notifications)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -509,7 +529,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0050 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review).'
+  '\nSchema looks good — migrations through 0053 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, Whoop OAuth tokens, form review notification preference).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

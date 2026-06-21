@@ -5,6 +5,7 @@ import {
   ChevronRight,
   PlayCircle,
   SkipForward,
+  Video,
   Zap,
 } from 'lucide-react'
 
@@ -38,6 +39,13 @@ function getActivityIcon(item: ActivityItem) {
     }
   }
 
+  if (item.kind === 'form_review') {
+    return {
+      icon: Video,
+      className: 'text-brand bg-brand/10',
+    }
+  }
+
   const status = item.status ?? 'scheduled'
   return workoutStatusIcons[status]
 }
@@ -52,7 +60,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
       <CardHeader className="border-b pb-4">
         <CardTitle className="text-base font-semibold">Recent activity</CardTitle>
         <CardDescription>
-          Latest session and check-in updates from your clients
+          Latest session, check-in, and form review updates from your clients
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-2">
@@ -75,13 +83,15 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               const Icon = config.icon
               const href = getActivityHref(item)
               const isCheckIn = item.kind === 'check_in'
+              const isFormReview = item.kind === 'form_review'
+              const isHighlighted = isCheckIn || isFormReview
 
               return (
                 <li key={`${item.kind}-${item.id}`}>
                   <div
                     className={cn(
                       'rounded-lg border bg-card p-4',
-                      isCheckIn && 'border-brand/20 bg-brand/[0.02]'
+                      isHighlighted && 'border-brand/20 bg-brand/[0.02]'
                     )}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -113,6 +123,14 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                           className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
                         >
                           View check-in
+                          <ChevronRight className="size-4" />
+                        </Link>
+                      ) : isFormReview ? (
+                        <Link
+                          href={href}
+                          className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
+                        >
+                          Review submission
                           <ChevronRight className="size-4" />
                         </Link>
                       ) : (

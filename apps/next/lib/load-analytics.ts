@@ -494,17 +494,23 @@ export function buildLoadSummaryCounts(
   return counts
 }
 
+export function isAcwrLoadAlert(
+  riskLevel: AcwrRiskLevel,
+  acwrRatio: number | null
+): boolean {
+  return (
+    riskLevel === 'overreaching' ||
+    (riskLevel === 'borderline' &&
+      acwrRatio != null &&
+      acwrRatio > 1.3)
+  )
+}
+
 export function buildAcwrAlerts(
   clients: { clientName: string; acwrRatio: number | null; riskLevel: AcwrRiskLevel }[]
 ): string[] {
   return clients
-    .filter(
-      (client) =>
-        client.riskLevel === 'overreaching' ||
-        (client.riskLevel === 'borderline' &&
-          client.acwrRatio != null &&
-          client.acwrRatio > 1.3)
-    )
+    .filter((client) => isAcwrLoadAlert(client.riskLevel, client.acwrRatio))
     .map((client) => {
       const ratio = client.acwrRatio!.toFixed(2)
       if (client.riskLevel === 'overreaching') {

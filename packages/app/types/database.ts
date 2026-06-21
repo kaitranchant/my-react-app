@@ -67,6 +67,17 @@ export type ClientGoalMilestoneType =
   | 'program_completion'
   | 'training_streak_days'
 export type ClientGoalProgressSource = 'inbody' | 'check_in' | 'prefer_inbody'
+export type WearableProvider =
+  | 'whoop'
+  | 'garmin'
+  | 'oura'
+  | 'apple_health'
+  | 'fitbit'
+export type WearableConnectionStatus =
+  | 'pending'
+  | 'connected'
+  | 'disconnected'
+  | 'error'
 
 export type ClientGoalMetadata = {
   squatExerciseId?: string
@@ -135,6 +146,7 @@ export type Database = {
           notify_workout_completions: boolean
           notify_missed_sessions: boolean
           notify_invite_accepted: boolean
+          notify_form_reviews: boolean
           notify_weekly_summary: boolean
           created_at: string
           updated_at: string
@@ -153,6 +165,7 @@ export type Database = {
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
           notify_invite_accepted?: boolean
+          notify_form_reviews?: boolean
           notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
@@ -171,6 +184,7 @@ export type Database = {
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
           notify_invite_accepted?: boolean
+          notify_form_reviews?: boolean
           notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
@@ -1462,6 +1476,186 @@ export type Database = {
           },
         ]
       }
+      client_wearable_connection_secrets: {
+        Row: {
+          connection_id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          scope: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          scope?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          access_token?: string
+          refresh_token?: string
+          expires_at?: string
+          scope?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_wearable_connection_secrets_connection_id_fkey'
+            columns: ['connection_id']
+            isOneToOne: true
+            referencedRelation: 'client_wearable_connections'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_wearable_connections: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          provider: WearableProvider
+          status: WearableConnectionStatus
+          external_user_id: string | null
+          display_name: string | null
+          last_synced_at: string | null
+          sync_error: string | null
+          metadata: Record<string, unknown>
+          connected_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          provider: WearableProvider
+          status?: WearableConnectionStatus
+          external_user_id?: string | null
+          display_name?: string | null
+          last_synced_at?: string | null
+          sync_error?: string | null
+          metadata?: Record<string, unknown>
+          connected_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          provider?: WearableProvider
+          status?: WearableConnectionStatus
+          external_user_id?: string | null
+          display_name?: string | null
+          last_synced_at?: string | null
+          sync_error?: string | null
+          metadata?: Record<string, unknown>
+          connected_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_wearable_connections_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_wearable_connections_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_wearable_daily_metrics: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          connection_id: string | null
+          provider: WearableProvider
+          metric_date: string
+          steps: number | null
+          sleep_hours: number | null
+          sleep_score: number | null
+          hrv_ms: number | null
+          resting_hr_bpm: number | null
+          recovery_score: number | null
+          strain_score: number | null
+          calories_kcal: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          connection_id?: string | null
+          provider: WearableProvider
+          metric_date: string
+          steps?: number | null
+          sleep_hours?: number | null
+          sleep_score?: number | null
+          hrv_ms?: number | null
+          resting_hr_bpm?: number | null
+          recovery_score?: number | null
+          strain_score?: number | null
+          calories_kcal?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          connection_id?: string | null
+          provider?: WearableProvider
+          metric_date?: string
+          steps?: number | null
+          sleep_hours?: number | null
+          sleep_score?: number | null
+          hrv_ms?: number | null
+          resting_hr_bpm?: number | null
+          recovery_score?: number | null
+          strain_score?: number | null
+          calories_kcal?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_wearable_daily_metrics_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_wearable_daily_metrics_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_wearable_daily_metrics_connection_id_fkey'
+            columns: ['connection_id']
+            isOneToOne: false
+            referencedRelation: 'client_wearable_connections'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_message_threads: {
         Row: {
           client_id: string
@@ -1947,6 +2141,8 @@ export type Database = {
       weight_unit: WeightUnit
       week_starts_on: WeekStartsOn
       check_in_frequency: CheckInFrequency
+      wearable_provider: WearableProvider
+      wearable_connection_status: WearableConnectionStatus
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2231,6 +2427,25 @@ export type ClientFormReviewWithClient = ClientFormReview & {
   exercise: Pick<Exercise, 'id' | 'name'> | null
   signedUrl: string | null
 }
+
+export type ClientWearableConnection =
+  Database['public']['Tables']['client_wearable_connections']['Row']
+export type ClientWearableConnectionInsert =
+  Database['public']['Tables']['client_wearable_connections']['Insert']
+export type ClientWearableConnectionUpdate =
+  Database['public']['Tables']['client_wearable_connections']['Update']
+
+export type ClientWearableConnectionSecret =
+  Database['public']['Tables']['client_wearable_connection_secrets']['Row']
+export type ClientWearableConnectionSecretInsert =
+  Database['public']['Tables']['client_wearable_connection_secrets']['Insert']
+
+export type ClientWearableDailyMetric =
+  Database['public']['Tables']['client_wearable_daily_metrics']['Row']
+export type ClientWearableDailyMetricInsert =
+  Database['public']['Tables']['client_wearable_daily_metrics']['Insert']
+export type ClientWearableDailyMetricUpdate =
+  Database['public']['Tables']['client_wearable_daily_metrics']['Update']
 
 export type ClientMessage =
   Database['public']['Tables']['client_messages']['Row']

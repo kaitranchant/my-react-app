@@ -6,6 +6,7 @@ import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { GlobalSearch } from '@/components/dashboard/global-search'
 import { UserMenu } from '@/components/dashboard/user-menu'
+import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
 
 export default async function DashboardLayout({
   children,
@@ -30,10 +31,12 @@ export default async function DashboardLayout({
   const name =
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
+  const navBadges = await fetchCoachNavBadges(supabase, user.id)
+
   return (
     <div className="fixed inset-0 flex overflow-hidden">
       <AppShellScrollLock />
-      <Sidebar />
+      <Sidebar badges={navBadges} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
           <div className="md:hidden">

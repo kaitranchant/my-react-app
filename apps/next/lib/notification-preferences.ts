@@ -6,6 +6,7 @@ export type NotificationPreferences = NotificationPreferencesValues
 
 export const defaultNotificationPreferences: NotificationPreferences = {
   notifyCheckIns: true,
+  notifyFormReviews: true,
   notifyWorkoutCompletions: true,
   notifyMissedSessions: false,
   notifyInviteAccepted: true,
@@ -15,6 +16,7 @@ export const defaultNotificationPreferences: NotificationPreferences = {
 type ProfileNotificationRow = Pick<
   Profile,
   | 'notify_check_ins'
+  | 'notify_form_reviews'
   | 'notify_workout_completions'
   | 'notify_missed_sessions'
   | 'notify_invite_accepted'
@@ -27,6 +29,8 @@ export function parseNotificationPreferences(
   return {
     notifyCheckIns:
       row?.notify_check_ins ?? defaultNotificationPreferences.notifyCheckIns,
+    notifyFormReviews:
+      row?.notify_form_reviews ?? defaultNotificationPreferences.notifyFormReviews,
     notifyWorkoutCompletions:
       row?.notify_workout_completions ??
       defaultNotificationPreferences.notifyWorkoutCompletions,
@@ -45,6 +49,7 @@ export function parseNotificationPreferences(
 export function notificationPreferencesToRow(values: NotificationPreferences) {
   return {
     notify_check_ins: values.notifyCheckIns,
+    notify_form_reviews: values.notifyFormReviews,
     notify_workout_completions: values.notifyWorkoutCompletions,
     notify_missed_sessions: values.notifyMissedSessions,
     notify_invite_accepted: values.notifyInviteAccepted,
@@ -61,6 +66,8 @@ export function filterActionItemsForNotifications(
       case 'pending-check-ins':
       case 'no-check-in':
         return preferences.notifyCheckIns
+      case 'pending-form-reviews':
+        return preferences.notifyFormReviews
       case 'no-workout':
       case 'skipped':
         return preferences.notifyMissedSessions
@@ -79,6 +86,10 @@ export function filterActivityFeedForNotifications(
   return items.filter((item) => {
     if (item.kind === 'check_in') {
       return preferences.notifyCheckIns
+    }
+
+    if (item.kind === 'form_review') {
+      return preferences.notifyFormReviews
     }
 
     if (item.kind === 'workout' && item.status === 'completed') {

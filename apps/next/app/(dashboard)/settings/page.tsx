@@ -4,6 +4,7 @@ import { AccountSettings } from '@/components/settings/account-settings'
 import { AppearanceSettings } from '@/components/settings/appearance-settings'
 import { CoachingPreferencesForm } from '@/components/settings/coaching-preferences'
 import { parseCoachPreferences } from '@/lib/coach-preferences'
+import { isEmailDeliveryConfigured } from '@/lib/email/config'
 import { parseNotificationPreferences } from '@/lib/notification-preferences'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ProfileSettingsForm } from '@/components/settings/profile-settings-form'
@@ -23,7 +24,7 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, notify_check_ins, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_weekly_summary'
+      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_weekly_summary'
     )
     .eq('id', user!.id)
     .single()
@@ -79,7 +80,10 @@ export default async function SettingsPage() {
             title="Notifications"
             description="Choose what you want to be notified about."
           >
-            <NotificationSettings defaultValues={notificationPreferences} />
+            <NotificationSettings
+              defaultValues={notificationPreferences}
+              emailDeliveryEnabled={isEmailDeliveryConfigured()}
+            />
           </SettingsSection>
 
           <SettingsSection

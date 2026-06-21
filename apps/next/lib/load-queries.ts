@@ -9,6 +9,7 @@ import {
   formatVolumeDelta,
   getCheckInReadiness,
   getDateRangeBounds,
+  isAcwrLoadAlert,
   type AcwrRiskLevel,
   type DailyMetricRow,
   type WeeklyMetricBucket,
@@ -223,6 +224,56 @@ function countSessionCompliance(
   const completed = inRange.filter((workout) => workout.status === 'completed').length
 
   return { completed, planned }
+}
+
+export type CoachDashboardLoadAlerts = {
+  elevatedLoadCount: number
+  injuryFlagCount: number
+}
+
+export async function fetchCoachDashboardLoadAlerts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clients: { id: string; full_name: string }[]
+): Promise<CoachDashboardLoadAlerts> {
+  if (clients.length === 0) {
+    return { elevatedLoadCount: 0, injuryFlagCount: 0 }
+  }
+
+  const today = new Date()
+  const eightWeeksAgo = new Date(today)
+  eightWeeksAgo.setDate(today.getDate() - 7 * 8)
+  const startDateKey = toDateKey(eightWeeksAgo)
+  const recentCheckInCutoff = toDateKey(new Date(Date.now() - 7 * 86_400_000))
+
+  const results = await Promise.all(
+    clients.map(async (client) => {
+      const [logRows, latestCheckIn] = await Promise.all([
+        fetchClientLogRows(supabase, client.id, startDateKey),
+        fetchLatestCheckIn(supabase, client.id),
+      ])
+
+      const tonnageRows = buildVolumeRowsFromLogData(logRows)
+      const volumeRowsForAcwr = tonnageRows.map((row) => ({
+        dateKey: row.dateKey,
+        volume: row.value,
+      }))
+      const acwr = calcAcwr(volumeRowsForAcwr, today)
+      const hasInjuryFlag = Boolean(
+        latestCheckIn?.has_pain &&
+          latestCheckIn.check_in_date >= recentCheckInCutoff
+      )
+
+      return {
+        elevatedLoad: isAcwrLoadAlert(acwr.riskLevel, acwr.ratio),
+        hasInjuryFlag,
+      }
+    })
+  )
+
+  return {
+    elevatedLoadCount: results.filter((result) => result.elevatedLoad).length,
+    injuryFlagCount: results.filter((result) => result.hasInjuryFlag).length,
+  }
 }
 
 export async function fetchCoachLoadSummaries(

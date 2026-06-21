@@ -11,12 +11,15 @@ import {
   buildActionItems,
   buildActivityFeed,
   buildCheckInActivityFeed,
+  buildFormReviewActivityFeed,
   calcWorkoutCompletionRate,
   getGreeting,
   getWeekRange,
   mergeActivityFeed,
   type TodaySession,
 } from '@/lib/dashboard'
+import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
+import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
@@ -65,8 +68,18 @@ export default async function DashboardPage() {
 
   const coachGyms = user ? await getGymsForCoach(user.id) : []
 
-  const [{ data: profile }, { data: clients }, { data: todayWorkouts }, { data: weekWorkouts }, { data: recentWorkouts }, { data: weekCheckIns }, { count: pendingCheckInsCount }, { data: recentCheckIns }] =
-    await Promise.all([
+  const [
+    { data: profile },
+    { data: clients },
+    { data: todayWorkouts },
+    { data: weekWorkouts },
+    { data: recentWorkouts },
+    { data: weekCheckIns },
+    { count: pendingCheckInsCount },
+    { data: recentCheckIns },
+    { data: recentFormReviews },
+    navBadges,
+  ] = await Promise.all([
       supabase
         .from('profiles')
         .select('full_name')
@@ -116,6 +129,17 @@ export default async function DashboardPage() {
         .select('id, client_id, updated_at, created_at, clients(full_name)')
         .order('updated_at', { ascending: false })
         .limit(8),
+      supabase
+        .from('client_form_reviews')
+        .select('id, client_id, title, created_at, clients(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(8),
+      user
+        ? fetchCoachNavBadges(supabase, user.id)
+        : Promise.resolve({
+            inboxUnread: 0,
+            pendingFormReviews: 0,
+          }),
     ])
 
   const coachName =
@@ -167,6 +191,17 @@ export default async function DashboardPage() {
     (c) => !activeClientIdsWithCheckIn.has(c.id)
   ).length
 
+  const loadAlerts =
+    activeClients.length > 0
+      ? await fetchCoachDashboardLoadAlerts(
+          supabase,
+          activeClients.map((client) => ({
+            id: client.id,
+            full_name: client.full_name,
+          }))
+        )
+      : { elevatedLoadCount: 0, injuryFlagCount: 0 }
+
   const actionItems = filterActionItemsForNotifications(
     buildActionItems({
       clients: allClients as Client[],
@@ -176,6 +211,10 @@ export default async function DashboardPage() {
       pendingCheckIns: pendingCheckInsCount ?? 0,
       clientsWithoutCheckInThisPeriod,
       checkInPeriodLabel,
+      pendingFormReviews: navBadges.pendingFormReviews,
+      elevatedLoadClients: loadAlerts.elevatedLoadCount,
+      injuryFlagClients: loadAlerts.injuryFlagCount,
+      unreadMessages: navBadges.inboxUnread,
     }),
     notificationPreferences ?? defaultNotificationPreferences
   )
@@ -205,6 +244,18 @@ export default async function DashboardPage() {
             client_id: checkIn.client_id,
             updated_at: checkIn.updated_at,
             created_at: checkIn.created_at,
+            clientName: client?.full_name ?? 'Unknown client',
+          }
+        })
+      ),
+      buildFormReviewActivityFeed(
+        (recentFormReviews ?? []).map((review) => {
+          const client = review.clients as { full_name: string } | null
+          return {
+            id: review.id,
+            client_id: review.client_id,
+            title: review.title,
+            created_at: review.created_at,
             clientName: client?.full_name ?? 'Unknown client',
           }
         })

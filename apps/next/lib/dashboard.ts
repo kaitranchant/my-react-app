@@ -14,8 +14,9 @@ export type ActivityItem = {
   id: string
   clientId: string
   clientName: string
-  kind: 'workout' | 'check_in'
+  kind: 'workout' | 'check_in' | 'form_review'
   workoutName?: string
+  formReviewTitle?: string | null
   status?: ClientScheduledWorkout['status']
   timestamp: string
 }
@@ -57,6 +58,10 @@ export function buildActionItems({
   pendingCheckIns = 0,
   clientsWithoutCheckInThisPeriod = 0,
   checkInPeriodLabel = 'this week',
+  pendingFormReviews = 0,
+  elevatedLoadClients = 0,
+  injuryFlagClients = 0,
+  unreadMessages = 0,
 }: {
   clients: Client[]
   pendingInvites: number
@@ -65,8 +70,30 @@ export function buildActionItems({
   pendingCheckIns?: number
   clientsWithoutCheckInThisPeriod?: number
   checkInPeriodLabel?: string
+  pendingFormReviews?: number
+  elevatedLoadClients?: number
+  injuryFlagClients?: number
+  unreadMessages?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
+
+  if (injuryFlagClients > 0) {
+    items.push({
+      id: 'injury-flags',
+      message: `${injuryFlagClients} client${injuryFlagClients === 1 ? '' : 's'} flagged pain in a recent check-in`,
+      href: '/check-ins',
+      priority: 'high',
+    })
+  }
+
+  if (pendingFormReviews > 0) {
+    items.push({
+      id: 'pending-form-reviews',
+      message: `${pendingFormReviews} form review${pendingFormReviews === 1 ? '' : 's'} awaiting feedback`,
+      href: '/form-review',
+      priority: 'high',
+    })
+  }
 
   if (pendingCheckIns > 0) {
     items.push({
@@ -74,6 +101,24 @@ export function buildActionItems({
       message: `${pendingCheckIns} client check-in${pendingCheckIns === 1 ? '' : 's'} awaiting review`,
       href: '/check-ins',
       priority: 'high',
+    })
+  }
+
+  if (elevatedLoadClients > 0) {
+    items.push({
+      id: 'elevated-load',
+      message: `${elevatedLoadClients} athlete${elevatedLoadClients === 1 ? '' : 's'} with elevated training load (ACWR)`,
+      href: '/load',
+      priority: 'high',
+    })
+  }
+
+  if (unreadMessages > 0) {
+    items.push({
+      id: 'unread-messages',
+      message: `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}`,
+      href: '/messages',
+      priority: 'medium',
     })
   }
 
@@ -172,12 +217,32 @@ export function buildCheckInActivityFeed(
   }))
 }
 
-export function mergeActivityFeed(
-  workouts: ActivityItem[],
-  checkIns: ActivityItem[],
-  limit = 8
+export function buildFormReviewActivityFeed(
+  reviews: {
+    id: string
+    client_id: string
+    title: string | null
+    created_at: string
+    clientName: string
+  }[]
 ): ActivityItem[] {
-  return [...workouts, ...checkIns]
+  return reviews.map((review) => ({
+    id: review.id,
+    clientId: review.client_id,
+    clientName: review.clientName,
+    kind: 'form_review' as const,
+    formReviewTitle: review.title,
+    timestamp: review.created_at,
+  }))
+}
+
+export function mergeActivityFeed(
+  ...feeds: ActivityItem[][]
+): ActivityItem[] {
+  const limit = 8
+
+  return feeds
+    .flat()
     .sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -188,6 +253,11 @@ export function mergeActivityFeed(
 export function formatActivityMessage(item: ActivityItem): string {
   if (item.kind === 'check_in') {
     return 'submitted a check-in'
+  }
+
+  if (item.kind === 'form_review') {
+    const title = item.formReviewTitle?.trim()
+    return title ? `submitted form review: ${title}` : 'submitted a form review'
   }
 
   switch (item.status) {
@@ -205,6 +275,9 @@ export function formatActivityMessage(item: ActivityItem): string {
 export function getActivityHref(item: ActivityItem): string {
   if (item.kind === 'check_in') {
     return `/clients/${item.clientId}?tab=progress&section=check-ins`
+  }
+  if (item.kind === 'form_review') {
+    return '/form-review'
   }
   return `/clients/${item.clientId}`
 }
