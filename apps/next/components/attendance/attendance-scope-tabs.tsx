@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterPills } from '@/components/ui/filter-pills'
 import {
   parseAttendanceScope,
   teamBelongsToBaseScope,
@@ -95,63 +95,42 @@ export function AttendanceScopeTabs({
     pushParams(params)
   }
 
+  const locationOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'personal', label: 'Personal' },
+    ...gyms.map((gym) => ({
+      value: gym.id,
+      label: gym.name,
+      title: gym.name,
+    })),
+  ]
+
+  const teamOptions = [
+    { value: 'all-teams', label: 'All clients' },
+    ...visibleTeams.map((team) => ({
+      value: team.id,
+      label: team.name,
+      title: team.name,
+    })),
+  ]
+
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-        Filter by location
-      </p>
-      <Tabs value={baseValue} onValueChange={handleBaseScopeChange} className="min-w-0">
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <TabsList className="inline-flex h-10 w-max gap-1">
-            <TabsTrigger value="all" className="flex-none px-4">
-              All
-            </TabsTrigger>
-            <TabsTrigger value="personal" className="flex-none px-4">
-              Personal
-            </TabsTrigger>
-            {gyms.map((gym) => (
-              <TabsTrigger
-                key={gym.id}
-                value={gym.id}
-                title={gym.name}
-                className="flex-none px-4"
-              >
-                {gym.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      </Tabs>
+      <FilterPills
+        label="Filter by location"
+        value={baseValue}
+        onChange={handleBaseScopeChange}
+        options={locationOptions}
+      />
 
       {visibleTeams.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-            Filter by team
-          </p>
-          <Tabs
+        <FilterPills
+          label="Filter by team"
           value={selectedTeamId ?? 'all-teams'}
-          onValueChange={handleTeamChange}
-          className="min-w-0"
-        >
-          <div className="-mx-1 overflow-x-auto px-1 pb-1">
-            <TabsList className="inline-flex h-9 w-max gap-1 bg-muted/50">
-              <TabsTrigger value="all-teams" className="flex-none px-3 text-sm">
-                All clients
-              </TabsTrigger>
-              {visibleTeams.map((team) => (
-                <TabsTrigger
-                  key={team.id}
-                  value={team.id}
-                  title={team.name}
-                  className="flex-none px-3 text-sm"
-                >
-                  {team.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-          </Tabs>
-        </div>
+          onChange={handleTeamChange}
+          size="sm"
+          options={teamOptions}
+        />
       ) : null}
     </div>
   )

@@ -4,15 +4,9 @@ import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 
-import { TeamFormDialog } from '@/components/teams/team-form-dialog'
 import { Input } from '@/components/ui/input'
 
-type GymOption = {
-  id: string
-  name: string
-}
-
-export function TeamsToolbar({ gyms = [] }: { gyms?: GymOption[] }) {
+export function TeamsToolbar() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -40,17 +34,14 @@ export function TeamsToolbar({ gyms = [] }: { gyms?: GymOption[] }) {
   }, [query])
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="relative w-full sm:max-w-xs">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search teams…"
-          className="pl-9"
-        />
-      </div>
-      <TeamFormDialog gyms={gyms} />
+    <div className="relative w-full sm:max-w-xs">
+      <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search teams…"
+        className="pl-9"
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Trophy,
   Video,
+  Watch,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -16,6 +17,7 @@ export type PortalNavItem = {
   label: string
   href: string
   icon: LucideIcon
+  soon?: boolean
 }
 
 export const portalTeamNavItem: PortalNavItem = {
@@ -35,11 +37,19 @@ export const portalBaseNavItems: PortalNavItem[] = [
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
   { label: 'Form Review', href: '/portal/form-review', icon: Video },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
+  { label: 'Wearables', href: '/portal/wearables', icon: Watch, soon: true },
   { label: 'Messages', href: '/portal/messages', icon: MessageSquare },
   { label: 'InBody', href: '/portal/inbody', icon: Scale },
   { label: 'Goals', href: '/portal/goals', icon: Target },
   { label: 'Progress', href: '/portal/progress', icon: TrendingUp },
 ]
+
+const portalPrimaryMobileHrefs = new Set([
+  '/portal',
+  '/portal/workouts',
+  '/portal/check-in',
+  '/portal/messages',
+])
 
 export function getPortalNavItems(showTeam: boolean): PortalNavItem[] {
   if (!showTeam) return portalBaseNavItems
@@ -49,6 +59,18 @@ export function getPortalNavItems(showTeam: boolean): PortalNavItem[] {
     portalLeaderboardsNavItem,
     ...portalBaseNavItems.slice(1),
   ]
+}
+
+export function getPortalPrimaryMobileNavItems(showTeam: boolean): PortalNavItem[] {
+  return getPortalNavItems(showTeam).filter(
+    (item) => portalPrimaryMobileHrefs.has(item.href) && !item.soon
+  )
+}
+
+export function getPortalOverflowMobileNavItems(showTeam: boolean): PortalNavItem[] {
+  return getPortalNavItems(showTeam).filter(
+    (item) => !portalPrimaryMobileHrefs.has(item.href) && !item.soon
+  )
 }
 
 /** @deprecated Use getPortalNavItems(showTeam) from layout instead */

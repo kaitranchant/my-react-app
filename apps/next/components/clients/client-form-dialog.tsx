@@ -44,8 +44,23 @@ import {
 } from '@/app/(dashboard)/clients/actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
+import { ClientLeaderboardProfileFields } from '@/components/clients/client-leaderboard-profile-fields'
 import { ClientAccountEmailActions } from '@/components/clients/client-account-email-actions'
 import type { Client } from 'app/types/database'
+
+function clientToFormValues(client: Client): ClientFormValues {
+  return {
+    fullName: client.full_name,
+    email: client.email ?? '',
+    phone: client.phone ?? '',
+    status: client.status,
+    coachingType: client.coaching_type ?? 'none',
+    goal: client.goal ?? '',
+    notes: client.notes ?? '',
+    biologicalSex: client.biological_sex ?? 'none',
+    leaderboardOptOut: client.leaderboard_opt_out ?? false,
+  }
+}
 
 type ClientFormDialogProps = {
   client?: Client
@@ -73,34 +88,12 @@ export function ClientFormDialog({
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: client
-      ? {
-          fullName: client.full_name,
-          email: client.email ?? '',
-          phone: client.phone ?? '',
-          status: client.status,
-          coachingType: client.coaching_type ?? 'none',
-          goal: client.goal ?? '',
-          notes: client.notes ?? '',
-        }
-      : clientFormDefaults,
+    defaultValues: client ? clientToFormValues(client) : clientFormDefaults,
   })
 
   React.useEffect(() => {
     if (open) {
-      form.reset(
-        client
-          ? {
-              fullName: client.full_name,
-              email: client.email ?? '',
-              phone: client.phone ?? '',
-              status: client.status,
-              coachingType: client.coaching_type ?? 'none',
-              goal: client.goal ?? '',
-              notes: client.notes ?? '',
-            }
-          : clientFormDefaults
-      )
+      form.reset(client ? clientToFormValues(client) : clientFormDefaults)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -122,7 +115,7 @@ export function ClientFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit client' : 'Add client'}</DialogTitle>
           <DialogDescription>
@@ -250,6 +243,12 @@ export function ClientFormDialog({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <ClientLeaderboardProfileFields
+              control={form.control}
+              biologicalSexName="biologicalSex"
+              leaderboardOptOutName="leaderboardOptOut"
             />
 
             {isEdit && client && <ClientAccountEmailActions client={client} />}

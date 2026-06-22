@@ -95,10 +95,11 @@ export function CollapsibleGoalForm({
         type="button"
         variant="outline"
         size="sm"
+        className="w-full sm:w-auto"
         onClick={() => setOpen(true)}
         disabled={isSubmitting}
       >
-        {addLabel}
+        + {addLabel}
       </Button>
     )
   }

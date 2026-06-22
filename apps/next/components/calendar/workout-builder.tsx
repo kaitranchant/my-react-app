@@ -286,7 +286,7 @@ export function WorkoutBuilder({
     />
   )
 
-  const prescriptionPanel = (
+  const prescriptionPanel = (compact = false) => (
     <div className="flex min-h-0 flex-1 flex-col">
       {mode === 'idle' && (
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
@@ -348,7 +348,7 @@ export function WorkoutBuilder({
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                <ExercisePrescriptionForm form={addForm} idPrefix="builder-add" />
+                <ExercisePrescriptionForm form={addForm} idPrefix="builder-add" compact={compact} />
               </div>
               <div className="shrink-0 border-t px-4 py-3">
                 <Button
@@ -395,7 +395,7 @@ export function WorkoutBuilder({
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                <ExercisePrescriptionForm form={editForm} idPrefix="builder-edit" />
+                <ExercisePrescriptionForm form={editForm} idPrefix="builder-edit" compact={compact} />
               </div>
               <div className="flex shrink-0 gap-2 border-t px-4 py-3">
                 <Button type="submit" disabled={pending} className="flex-1">
@@ -432,7 +432,7 @@ export function WorkoutBuilder({
       {!embedded ? panelHeader : null}
 
       {/* Desktop: 3-panel layout */}
-      <div className="hidden h-full min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)]">
+      <div className="hidden h-full min-h-0 flex-1 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)]">
         <div className="flex min-h-0 flex-col border-r">
           <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Exercise library
@@ -446,7 +446,7 @@ export function WorkoutBuilder({
           <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Prescription
           </p>
-          {prescriptionPanel}
+          {prescriptionPanel(false)}
         </div>
 
         <div className="flex min-h-0 flex-col">
@@ -458,16 +458,16 @@ export function WorkoutBuilder({
       </div>
 
       {/* Mobile / tablet: tabbed panels */}
-      <div className="h-full min-h-0 flex-1 lg:hidden">
+      <div className="h-full min-h-0 flex-1 md:hidden">
         <Tabs value={mobileTab} onValueChange={setMobileTab}>
-          <TabsList className="mx-4 mt-3 grid w-auto grid-cols-3">
-            <TabsTrigger value="library" className="text-xs">
+          <TabsList className="mx-2 mt-3 grid w-auto grid-cols-3 sm:mx-4">
+            <TabsTrigger value="library" className="px-2 text-xs">
               Library
             </TabsTrigger>
-            <TabsTrigger value="prescription" className="text-xs">
+            <TabsTrigger value="prescription" className="px-2 text-xs">
               Configure
             </TabsTrigger>
-            <TabsTrigger value="workout" className="text-xs">
+            <TabsTrigger value="workout" className="px-2 text-xs">
               Workout ({workout.exercises.length})
             </TabsTrigger>
           </TabsList>
@@ -476,7 +476,7 @@ export function WorkoutBuilder({
             {libraryPanel}
           </TabsContent>
           <TabsContent value="prescription" className="mt-0 min-h-[400px]">
-            {prescriptionPanel}
+            {prescriptionPanel(true)}
           </TabsContent>
           <TabsContent value="workout" className="mt-0 min-h-[300px]">
             {arrangementPanel}

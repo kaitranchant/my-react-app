@@ -16,9 +16,14 @@ import { InviteCoachDialog } from '@/components/gym/invite-coach-dialog'
 import { GymMembersPanel } from '@/components/gym/gym-members-panel'
 import { GymInvitesPanel } from '@/components/gym/gym-invites-panel'
 import { GymDangerZone } from '@/components/gym/gym-danger-zone'
-import { ShareAllClientsButton } from '@/components/gym/client-gym-share-toggle'
-import { ShareAllTeamsButton } from '@/components/gym/team-gym-share-toggle'
+import { AddClientsButton } from '@/components/gym/client-gym-share-toggle'
+import { AddTeamsButton } from '@/components/gym/team-gym-share-toggle'
 import { GymScopeTabs } from '@/components/gym/gym-scope-tabs'
+import { GymScopeBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
+import {
+  ClearPageFilters,
+  PageFilterPersistence,
+} from '@/components/filters/page-filter-persistence'
 import { Button } from '@/components/ui/button'
 import type { GymInvite, GymMemberWithProfile } from 'app/types/database'
 
@@ -78,24 +83,40 @@ export default async function GymPage({
   const { gym, membership } = gymContext
   const isOwner = membership.role === 'owner'
 
-  const [{ data: memberRows }, { data: inviteRows }] = await Promise.all([
-    supabase
-      .from('gym_members')
-      .select(
-        '*, profile:profiles(id, full_name, avatar_url, business_name)'
-      )
-      .eq('gym_id', gym.id)
-      .eq('status', 'active')
-      .order('joined_at', { ascending: true }),
-    isOwner
-      ? supabase
-          .from('gym_invites')
-          .select('*')
-          .eq('gym_id', gym.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] as GymInvite[] }),
-  ])
+  const [
+    { data: memberRows },
+    { data: inviteRows },
+    { data: clientRows },
+    { data: teamRows },
+  ] = await Promise.all([
+      supabase
+        .from('gym_members')
+        .select(
+          '*, profile:profiles(id, full_name, avatar_url, business_name)'
+        )
+        .eq('gym_id', gym.id)
+        .eq('status', 'active')
+        .order('joined_at', { ascending: true }),
+      isOwner
+        ? supabase
+            .from('gym_invites')
+            .select('*')
+            .eq('gym_id', gym.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] as GymInvite[] }),
+      supabase
+        .from('clients')
+        .select('id, full_name, gym_id')
+        .eq('coach_id', user.id)
+        .eq('is_coach_self', false)
+        .order('full_name', { ascending: true }),
+      supabase
+        .from('teams')
+        .select('id, name, gym_id')
+        .eq('coach_id', user.id)
+        .order('name', { ascending: true }),
+    ])
 
   const members = (memberRows ?? []).map((row) => ({
     id: row.id,
@@ -127,15 +148,22 @@ export default async function GymPage({
 
       {coachGyms.length > 1 ? (
         <Suspense fallback={null}>
-          <GymScopeTabs
+          <PageFilterPersistence pageKey="gym" filterKeys={['gym']} />
+          <GymScopeBreadcrumbs
             gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
           />
+          <div className="space-y-3">
+            <GymScopeTabs
+              gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
+            />
+            <ClearPageFilters pageKey="gym" filterKeys={['gym']} />
+          </div>
         </Suspense>
       ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{gym.name}</CardTitle>
+          <CardTitle>{gym.name}</CardTitle>
           <CardDescription>
             {members.length} coach{members.length === 1 ? '' : 'es'} in this gym
           </CardDescription>
@@ -153,7 +181,7 @@ export default async function GymPage({
       {isOwner ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Pending invites</CardTitle>
+            <CardTitle>Pending invites</CardTitle>
             <CardDescription>
               Invited coaches can sign up or join with the invite link.
             </CardDescription>
@@ -169,31 +197,47 @@ export default async function GymPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Client membership</CardTitle>
+          <CardTitle>Client membership</CardTitle>
           <CardDescription>
-            Add clients as gym members individually from each client profile,
-            or add all of your clients at once.
+            Choose specific clients to add, or add all of your clients at once.
+            You can also add clients individually from each client profile.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ShareAllClientsButton gymId={gym.id} />
+          <AddClientsButton
+            gymId={gym.id}
+            gymName={gym.name}
+            clients={(clientRows ?? []).map((client) => ({
+              id: client.id,
+              full_name: client.full_name,
+              gym_id: client.gym_id,
+            }))}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Team membership</CardTitle>
+          <CardTitle>Team membership</CardTitle>
           <CardDescription>
-            Add teams as gym members individually from each team page,
-            or add all of your teams at once.
+            Choose specific teams to add, or add all of your teams at once.
+            You can also add teams individually from each team page.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ShareAllTeamsButton gymId={gym.id} />
+          <AddTeamsButton
+            gymId={gym.id}
+            gymName={gym.name}
+            teams={(teamRows ?? []).map((team) => ({
+              id: team.id,
+              name: team.name,
+              gym_id: team.gym_id,
+            }))}
+          />
         </CardContent>
       </Card>
 
-      <GymDangerZone gymId={gym.id} isOwner={isOwner} />
+      <GymDangerZone gymId={gym.id} gymName={gym.name} isOwner={isOwner} />
     </div>
   )
 }

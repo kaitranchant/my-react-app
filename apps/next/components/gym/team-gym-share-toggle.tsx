@@ -6,9 +6,11 @@ import { toast } from 'sonner'
 
 import {
   shareAllTeamsWithGym,
+  shareTeamsWithGym,
   shareTeamWithGym,
   unshareTeamFromGym,
 } from '@/app/(dashboard)/teams/actions'
+import { GymMembershipPickerDialog } from '@/components/gym/gym-membership-picker-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { Gym, Team } from 'app/types/database'
@@ -108,37 +110,37 @@ export function TeamGymSharePanel({
   )
 }
 
-export function ShareAllTeamsButton({ gymId }: { gymId: string }) {
-  const router = useRouter()
-  const [pending, setPending] = React.useState(false)
+type AddTeamsPreview = {
+  id: string
+  name: string
+  gym_id: string | null
+}
 
-  async function handleAddAll() {
-    if (
-      !window.confirm(
-        'Add all of your teams as members of this gym? Other gym coaches will be able to view and manage them.'
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
-    const result = await shareAllTeamsWithGym(gymId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success(
-      `Added ${result.count} team${result.count === 1 ? '' : 's'} as gym members.`
-    )
-    router.refresh()
-  }
-
+export function AddTeamsButton({
+  gymId,
+  gymName,
+  teams,
+}: {
+  gymId: string
+  gymName: string
+  teams: AddTeamsPreview[]
+}) {
   return (
-    <Button variant="outline" disabled={pending} onClick={handleAddAll}>
-      {pending ? 'Adding…' : 'Add all my teams as members'}
-    </Button>
+    <GymMembershipPickerDialog
+      gymId={gymId}
+      gymName={gymName}
+      items={teams.map((team) => ({
+        id: team.id,
+        name: team.name,
+        gym_id: team.gym_id,
+      }))}
+      triggerLabel="Add teams"
+      title={`Add teams to ${gymName}`}
+      description="Select teams to add, or add all at once. Other coaches in this gym will be able to view and manage them."
+      itemLabelSingular="team"
+      itemLabelPlural="teams"
+      onAddSelected={(teamIds) => shareTeamsWithGym(gymId, teamIds)}
+      onAddAll={() => shareAllTeamsWithGym(gymId)}
+    />
   )
 }

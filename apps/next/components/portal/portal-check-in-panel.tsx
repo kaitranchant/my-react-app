@@ -89,7 +89,7 @@ export function PortalCheckInPanel({
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">{cadenceTitle}</CardTitle>
+            <CardTitle>{cadenceTitle}</CardTitle>
             <CardDescription>{cadenceDescription}</CardDescription>
           </div>
           {periodCheckIn && !periodCheckIn.reviewed_at && (

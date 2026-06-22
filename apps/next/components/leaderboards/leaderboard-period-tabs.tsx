@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterPills } from '@/components/ui/filter-pills'
 import { LEADERBOARD_PERIODS } from '@/lib/leaderboard'
 import {
   parseLeaderboardMetric,
@@ -38,25 +38,15 @@ export function LeaderboardPeriodTabs() {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-        Time period
-      </p>
-      <Tabs value={period} onValueChange={handleChange} className="min-w-0">
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <TabsList className="inline-flex h-9 w-max gap-1 bg-muted/50">
-            {LEADERBOARD_PERIODS.map((entry) => (
-              <TabsTrigger
-                key={entry.id}
-                value={entry.id}
-                className="flex-none px-3 text-sm"
-              >
-                {entry.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      </Tabs>
-    </div>
+    <FilterPills
+      label="Time period"
+      value={period}
+      onChange={handleChange}
+      size="sm"
+      options={LEADERBOARD_PERIODS.map((entry) => ({
+        value: entry.id,
+        label: entry.label,
+      }))}
+    />
   )
 }

@@ -302,27 +302,38 @@ export function ClientDetailTabs({
     )
   }
 
-  return (
-    <Tabs value={mainTab} onValueChange={handleMainTabChange}>
-      <TabsList className="h-10">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="training">Training</TabsTrigger>
-        <TabsTrigger value="progress">Progress</TabsTrigger>
-        <TabsTrigger value="messages">Messages</TabsTrigger>
-      </TabsList>
+  function openCheckIns() {
+    setMainTab('progress')
+    setProgressSection('check-ins')
+    router.replace(buildUrl('progress', 'check-ins'), { scroll: false })
+  }
 
-      <TabsContent value="overview" className="mt-4 space-y-4">
+  return (
+    <Tabs value={mainTab} onValueChange={handleMainTabChange} variant="filter">
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <TabsList className="w-max flex-nowrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="training">Training</TabsTrigger>
+          <TabsTrigger value="progress">Progress</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="overview" className="mt-4 space-y-3 md:space-y-4">
         <ClientOverview
           client={client}
           activeAssignment={activeAssignment}
           weekSessions={weekSessions}
           recentWorkouts={recentWorkouts}
           streakWorkouts={streakWorkouts}
+          checkIns={checkIns}
           loadMetrics={loadMetrics}
           recentPrs={recentPrs}
           weekStartsOn={coachPreferences?.weekStartsOn}
           weightUnit={coachPreferences?.weightUnit}
           onOpenCalendar={() => openTraining('calendar')}
+          onOpenCheckIns={openCheckIns}
+          onOpenPrograms={() => openTraining('programs')}
         />
         <ClientNotesEditor clientId={client.id} initialNotes={client.notes} />
       </TabsContent>
@@ -331,11 +342,18 @@ export function ClientDetailTabs({
         <Tabs
           value={trainingSection}
           onValueChange={handleTrainingSectionChange}
+          variant="filter"
         >
-          <TabsList className="h-9">
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="programs">Programs</TabsTrigger>
-          </TabsList>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="calendar" size="sm">
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="programs" size="sm">
+                Programs
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="calendar" className="mt-4">
             <ClientCalendarPanel
@@ -370,14 +388,30 @@ export function ClientDetailTabs({
         <Tabs
           value={progressSection}
           onValueChange={handleProgressSectionChange}
+          variant="filter"
         >
-          <TabsList className="h-9">
-            <TabsTrigger value="goals">Goals</TabsTrigger>
-            <TabsTrigger value="check-ins">Check-ins</TabsTrigger>
-            <TabsTrigger value="inbody">InBody results</TabsTrigger>
-            <TabsTrigger value="progress-photos">Progress photos</TabsTrigger>
-            <TabsTrigger value="form-reviews">Form review</TabsTrigger>
-          </TabsList>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="goals" size="sm">
+                Goals
+              </TabsTrigger>
+              <TabsTrigger value="check-ins" size="sm">
+                Check-ins
+              </TabsTrigger>
+              <TabsTrigger value="inbody" size="sm">
+                <span className="sm:hidden">InBody</span>
+                <span className="hidden sm:inline">InBody results</span>
+              </TabsTrigger>
+              <TabsTrigger value="progress-photos" size="sm">
+                <span className="sm:hidden">Photos</span>
+                <span className="hidden sm:inline">Progress photos</span>
+              </TabsTrigger>
+              <TabsTrigger value="form-reviews" size="sm">
+                <span className="sm:hidden">Form</span>
+                <span className="hidden sm:inline">Form review</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="goals" className="mt-4">
             <ClientGoalsPanel

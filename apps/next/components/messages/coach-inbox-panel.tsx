@@ -14,8 +14,9 @@ import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { ClientMessagesPanel } from '@/components/messages/client-messages-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
-import { formatRelativeTime } from '@/lib/dashboard'
+import { LiveRelativeTime } from '@/components/ui/live-relative-time'
 import {
   formatInboxPreview,
   type InboxConversation,
@@ -80,11 +81,11 @@ export function CoachInboxPanel({
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <div className="grid min-h-[min(36rem,70vh)] lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid min-h-[min(36rem,70dvh)] md:grid-cols-[300px_minmax(0,1fr)]">
         <aside
           className={cn(
-            'flex flex-col border-b lg:border-b-0 lg:border-r',
-            selectedClientId && 'max-lg:hidden'
+            'flex flex-col border-b md:border-b-0 md:border-r',
+            selectedClientId && 'max-md:hidden'
           )}
         >
           <div className="space-y-3 border-b px-4 py-4">
@@ -98,11 +99,25 @@ export function CoachInboxPanel({
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
-              <p className="text-muted-foreground px-4 py-8 text-center text-sm">
-                {query.trim()
-                  ? 'No clients match your search.'
-                  : 'No active clients yet.'}
-              </p>
+              <div className="px-4 py-8">
+                <EmptyState
+                  icon={MessageSquare}
+                  title={
+                    query.trim() ? 'No matches' : 'No conversations yet'
+                  }
+                  description={
+                    query.trim()
+                      ? 'Try a different client name.'
+                      : 'Add clients to your roster, then message them from here or their profile.'
+                  }
+                  action={
+                    query.trim()
+                      ? undefined
+                      : { label: 'Add a client', href: '/clients' }
+                  }
+                  className="py-6"
+                />
+              </div>
             ) : (
               <ul className="divide-y">
                 {filteredConversations.map((conversation) => {
@@ -137,7 +152,7 @@ export function CoachInboxPanel({
                             </p>
                             {conversation.lastMessageAt && (
                               <span className="text-muted-foreground shrink-0 text-[11px]">
-                                {formatRelativeTime(conversation.lastMessageAt)}
+                                <LiveRelativeTime iso={conversation.lastMessageAt} />
                               </span>
                             )}
                           </div>
@@ -174,8 +189,8 @@ export function CoachInboxPanel({
         <section
           className={cn(
             'flex min-h-64 flex-col',
-            !selectedClientId && 'max-lg:hidden',
-            !activeClientId && 'hidden lg:flex'
+            !selectedClientId && 'max-md:hidden',
+            !activeClientId && 'hidden md:flex'
           )}
         >
           {activeConversation ? (
@@ -185,7 +200,7 @@ export function CoachInboxPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden"
+                  className="md:hidden"
                   onClick={clearSelection}
                   aria-label="Back to conversations"
                 >

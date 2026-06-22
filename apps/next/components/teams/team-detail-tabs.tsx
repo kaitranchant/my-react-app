@@ -82,13 +82,15 @@ export function TeamDetailTabs({
   }
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="schedule">Schedule</TabsTrigger>
-        <TabsTrigger value="members">Members</TabsTrigger>
-        <TabsTrigger value="program">Program</TabsTrigger>
-      </TabsList>
+    <Tabs value={tab} onValueChange={setTab} className="space-y-6" variant="filter">
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="program">Program</TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="overview" className="space-y-6">
         <TeamOverviewPanel

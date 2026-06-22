@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/dashboard/sidebar'
+import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav'
 import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
+import { DashboardShortcuts } from '@/components/dashboard/dashboard-shortcuts'
 import { GlobalSearch } from '@/components/dashboard/global-search'
 import { UserMenu } from '@/components/dashboard/user-menu'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
@@ -38,8 +40,11 @@ export default async function DashboardLayout({
       <AppShellScrollLock />
       <Sidebar badges={navBadges} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
-          <div className="md:hidden">
+        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6">
+          <div className="shrink-0">
+            <DashboardMobileNav badges={navBadges} />
+          </div>
+          <div className="min-w-0 flex-1 md:hidden">
             <BrandLogo />
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
@@ -56,6 +61,7 @@ export default async function DashboardLayout({
         <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8">
           {children}
         </main>
+        <DashboardShortcuts />
       </div>
     </div>
   )

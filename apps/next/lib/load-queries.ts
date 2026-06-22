@@ -1,5 +1,9 @@
 import { toDateKey } from '@/lib/calendar'
-import { getDaysSinceLastSession } from '@/lib/client-metrics'
+import {
+  getBlendedReadinessLevel,
+  getDaysSinceLastSession,
+  isRecentCheckIn,
+} from '@/lib/client-metrics'
 import {
   aggregateWeeklyMetric,
   aggregateWeeklyVolume,
@@ -7,7 +11,6 @@ import {
   calcSetVolume,
   formatAcwrLabel,
   formatVolumeDelta,
-  getCheckInReadiness,
   getDateRangeBounds,
   isAcwrLoadAlert,
   type AcwrRiskLevel,
@@ -54,6 +57,7 @@ type CheckInRow = {
 export type ClientLoadSummary = {
   clientId: string
   clientName: string
+  avatarUrl: string | null
   tonnageRows: DailyMetricRow[]
   sessionRows: DailyMetricRow[]
   timeRows: DailyMetricRow[]
@@ -278,7 +282,7 @@ export async function fetchCoachDashboardLoadAlerts(
 
 export async function fetchCoachLoadSummaries(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  clients: { id: string; full_name: string }[]
+  clients: { id: string; full_name: string; avatar_url?: string | null }[]
 ): Promise<ClientLoadSummary[]> {
   const today = new Date()
   const eightWeeksAgo = new Date(today)
@@ -323,15 +327,26 @@ export async function fetchCoachLoadSummaries(
           updated_at: workout.completed_at ?? workout.scheduled_date,
         }))
       )
-      const readiness = getCheckInReadiness(latestCheckIn)
-      const checkInRecent =
-        latestCheckIn &&
-        latestCheckIn.check_in_date >=
-          toDateKey(new Date(Date.now() - 14 * 86_400_000))
+      const readiness = getBlendedReadinessLevel(
+        workouts.map((workout) => ({
+          id: workout.id,
+          name: '',
+          status: workout.status,
+          scheduled_date: workout.scheduled_date,
+          started_at: null,
+          completed_at: workout.completed_at,
+          updated_at: workout.completed_at ?? workout.scheduled_date,
+        })),
+        latestCheckIn
+      )
+      const hasReadinessData =
+        daysSinceLastSession !== null ||
+        isRecentCheckIn(latestCheckIn, 14)
 
       return {
         clientId: client.id,
         clientName: client.full_name,
+        avatarUrl: client.avatar_url ?? null,
         tonnageRows,
         sessionRows,
         timeRows,
@@ -343,8 +358,8 @@ export async function fetchCoachLoadSummaries(
         acwrLabel: formatAcwrLabel(acwr),
         acwrRiskLevel: acwr.riskLevel,
         daysSinceLastSession,
-        readinessLabel: checkInRecent ? readiness.label : 'No data',
-        readinessVariant: checkInRecent ? readiness.variant : 'secondary',
+        readinessLabel: hasReadinessData ? readiness.label : 'No data',
+        readinessVariant: hasReadinessData ? readiness.variant : 'secondary',
         hasInjuryFlag: Boolean(
           latestCheckIn?.has_pain &&
             latestCheckIn.check_in_date >=

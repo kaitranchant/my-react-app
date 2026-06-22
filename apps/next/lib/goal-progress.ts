@@ -206,11 +206,54 @@ function formatMetricValue(value: number, unit: string) {
   return value.toFixed(1)
 }
 
-function formatSignedChange(value: number, unit: string) {
+function formatChangeAmount(value: number, unit: string) {
   const formatted = formatMetricValue(Math.abs(value), unit)
-  if (value > 0) return `+${formatted}`
-  if (value < 0) return `-${formatted}`
-  return formatted
+  if (unit === '%') return `${formatted}%`
+  if (unit === 'kcal') return `${formatted} calories`
+  return `${formatted} ${unit}`
+}
+
+function buildCompositionSetbackHint(
+  metric: CompositionGoalMetric,
+  direction: ClientGoalDirection,
+  setback: number,
+  unit: string
+): string {
+  const amount = formatChangeAmount(setback, unit)
+  const metricLabel =
+    getCompositionMetricConfig(metric)?.label.toLowerCase() ?? 'value'
+
+  if (direction === 'decrease') {
+    switch (metric) {
+      case 'percent_body_fat':
+        return `Body fat has increased ${amount} since starting.`
+      case 'weight_lbs':
+        return `Weight has increased ${amount} since starting.`
+      case 'body_fat_mass_lbs':
+        return `Body fat mass has increased ${amount} since starting.`
+      case 'bmi':
+        return `BMI has increased ${amount} since starting.`
+      default:
+        return `${metricLabel.charAt(0).toUpperCase()}${metricLabel.slice(1)} has increased ${amount} since starting.`
+    }
+  }
+
+  switch (metric) {
+    case 'skeletal_muscle_mass_lbs':
+      return `Muscle mass has decreased ${amount} since starting.`
+    case 'lean_body_mass_lbs':
+      return `Lean body mass has decreased ${amount} since starting.`
+    case 'dry_lean_mass_lbs':
+      return `Dry lean mass has decreased ${amount} since starting.`
+    case 'total_body_water_lbs':
+      return `Total body water has decreased ${amount} since starting.`
+    case 'basal_metabolic_rate_kcal':
+      return `Basal metabolic rate has decreased ${amount} since starting.`
+    case 'skeletal_muscle_index':
+      return `Skeletal muscle index has decreased ${amount} since starting.`
+    default:
+      return `${metricLabel.charAt(0).toUpperCase()}${metricLabel.slice(1)} has decreased ${amount} since starting.`
+  }
 }
 
 function directionVerb(direction: ClientGoalDirection) {
@@ -250,15 +293,21 @@ function applyPaceToProgress<T extends GoalProgressBase>(
   )
 
   let status = progress.status
+  let hint = progress.hint
   if (pace.paceStatus === 'behind' && status === 'on_track') {
     status = 'behind'
   } else if (pace.paceStatus === 'ahead' && status === 'on_track') {
     status = 'ahead'
   }
 
+  if (status === 'behind' && !hint) {
+    hint = 'Progress is behind the pace needed to hit the target date.'
+  }
+
   return {
     ...progress,
     status,
+    hint,
     paceStatus: pace.paceStatus,
     estimatedCompletionLabel:
       pace.estimatedCompletionLabel ?? progress.estimatedCompletionLabel,
@@ -531,7 +580,7 @@ function buildCompositionProgressFromValues(params: {
       hint = 'Only one measurement logged so far.'
     } else {
       const setback = Math.abs(rawChange)
-      hint = `${formatSignedChange(direction === 'decrease' ? setback : -setback, unit)} ${unit} from starting ${metric === 'weight_lbs' ? 'weight' : 'value'}.`
+      hint = buildCompositionSetbackHint(metric, direction, setback, unit)
     }
   }
 

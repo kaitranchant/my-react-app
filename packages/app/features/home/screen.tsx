@@ -34,7 +34,7 @@ export function HomeScreen() {
           .
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', gap: 32 }}>
+      <View style={{ flexDirection: 'row', gap: 32, flexWrap: 'wrap' }}>
         <TextLink
           href="/users/fernando"
           style={{
@@ -44,6 +44,16 @@ export function HomeScreen() {
           }}
         >
           Link
+        </TextLink>
+        <TextLink
+          href="/wearables/apple-health"
+          style={{
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: 'blue',
+          }}
+        >
+          Apple Health
         </TextLink>
       </View>
     </View>

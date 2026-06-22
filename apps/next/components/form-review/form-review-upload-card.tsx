@@ -113,7 +113,7 @@ export function FormReviewUploadCard({ exercises }: FormReviewUploadCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Submit form review</CardTitle>
+        <CardTitle>Submit form review</CardTitle>
         <CardDescription>
           Upload a lift photo or video for your coach to review. {FORM_REVIEW_UPLOAD_HINT}
         </CardDescription>

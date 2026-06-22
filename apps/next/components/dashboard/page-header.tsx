@@ -21,13 +21,9 @@ export function PageHeader({
       <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
       <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {title}
-          </h1>
+          <h1 className="page-title">{title}</h1>
           {description && (
-            <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
-              {description}
-            </p>
+            <p className="helper-text max-w-xl leading-relaxed">{description}</p>
           )}
         </div>
         {children && (

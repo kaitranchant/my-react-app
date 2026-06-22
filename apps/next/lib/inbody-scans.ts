@@ -158,6 +158,23 @@ export function formatInbodyChartLabel(scanDate: string) {
   })
 }
 
+export function formatInbodyChartAxisLabel(scanDate: string) {
+  const date = new Date(scanDate)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: '2-digit',
+  })
+}
+
+export const DEFAULT_COMBINED_INBODY_METRIC_KEYS: InbodyChartMetricKey[] = [
+  'weight',
+  'skeletalMuscleMass',
+  'percentBodyFat',
+]
+
+export const MAX_COMBINED_INBODY_METRICS = 3
+
 export function formatInbodyMetric(value: number, unit: string) {
   const formatted =
     unit === '%'

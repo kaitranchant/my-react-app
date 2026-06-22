@@ -45,7 +45,7 @@ export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
       <TabsContent value="log" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Log InBody scan</CardTitle>
+            <CardTitle>Log InBody scan</CardTitle>
             <CardDescription>
               Enter values from the client&apos;s InBody printout. Only weight,
               SMM, and PBF are required for the history graphs.
@@ -72,7 +72,7 @@ export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
       <TabsContent value="graphs" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Body composition history</CardTitle>
+            <CardTitle>Body composition history</CardTitle>
             <CardDescription>
               Track every logged metric across scans — weight, muscle mass, body
               fat, and any optional values entered from the printout.
@@ -88,6 +88,7 @@ export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
         <InbodyScanList
           scans={scans}
           emptyMessage={`No InBody scans logged for ${client.full_name} yet.`}
+          emptyAction={{ label: 'Log first scan', onClick: () => setTab('log') }}
           onUpdate={updateCoachInbodyScan}
           onDelete={deleteCoachInbodyScan}
         />

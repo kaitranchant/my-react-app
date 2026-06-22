@@ -1,6 +1,10 @@
 import { Suspense } from 'react'
 
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
+import {
+  ClearPageFilters,
+  PageFilterPersistence,
+} from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { LeaderboardCategoryTabs } from '@/components/leaderboards/leaderboard-category-tabs'
 import { LeaderboardFormulaTabs } from '@/components/leaderboards/leaderboard-formula-tabs'
@@ -121,7 +125,34 @@ export default async function LeaderboardsPage({
       />
 
       <Suspense fallback={null}>
-        <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+        <PageFilterPersistence
+          pageKey="leaderboards"
+          filterKeys={[
+            'scope',
+            'team',
+            'metric',
+            'period',
+            'exercise',
+            'formula',
+            'class',
+          ]}
+          defaultValues={{ metric: 'strength', period: 'month', formula: 'dots' }}
+        />
+        <div className="space-y-3">
+          <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+          <ClearPageFilters
+            pageKey="leaderboards"
+            filterKeys={[
+              'scope',
+              'team',
+              'metric',
+              'period',
+              'exercise',
+              'formula',
+              'class',
+            ]}
+          />
+        </div>
       </Suspense>
 
       <Suspense fallback={null}>

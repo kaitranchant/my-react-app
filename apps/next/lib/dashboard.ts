@@ -19,7 +19,11 @@ export type ActivityItem = {
   formReviewTitle?: string | null
   status?: ClientScheduledWorkout['status']
   timestamp: string
+  groupedCount?: number
+  groupedClientIds?: string[]
 }
+
+const ACTIVITY_GROUP_WINDOW_MS = 15 * 60 * 1000
 
 export type ActionItem = {
   id: string
@@ -241,23 +245,146 @@ export function mergeActivityFeed(
 ): ActivityItem[] {
   const limit = 8
 
-  return feeds
+  const sorted = feeds
     .flat()
     .sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
-    .slice(0, limit)
+
+  return groupRapidActivityItems(sorted).slice(0, limit)
+}
+
+function getActivityGroupKey(item: ActivityItem): string {
+  if (item.kind === 'workout') {
+    return `workout:${item.status ?? 'unknown'}`
+  }
+
+  return item.kind
+}
+
+function formatGroupedClientNames(names: string[]): string {
+  const uniqueNames = [...new Set(names)]
+
+  if (uniqueNames.length === 1) {
+    return uniqueNames[0]!
+  }
+
+  if (uniqueNames.length === 2) {
+    return `${uniqueNames[0]} and ${uniqueNames[1]}`
+  }
+
+  return `${uniqueNames.slice(0, -1).join(', ')}, and ${uniqueNames.at(-1)}`
+}
+
+function createGroupedActivityItem(cluster: ActivityItem[]): ActivityItem {
+  const newest = cluster[0]!
+  const groupedClientIds = [...new Set(cluster.map((item) => item.clientId))]
+
+  return {
+    ...newest,
+    id: `group-${newest.kind}-${cluster.map((item) => item.id).join('-')}`,
+    clientId: newest.clientId,
+    clientName: formatGroupedClientNames(cluster.map((item) => item.clientName)),
+    groupedCount: cluster.length,
+    groupedClientIds,
+    timestamp: newest.timestamp,
+  }
+}
+
+export function groupRapidActivityItems(items: ActivityItem[]): ActivityItem[] {
+  if (items.length < 2) {
+    return items
+  }
+
+  const grouped: ActivityItem[] = []
+  let index = 0
+
+  while (index < items.length) {
+    const cluster = [items[index]!]
+    const clusterStart = new Date(items[index]!.timestamp).getTime()
+    const groupKey = getActivityGroupKey(items[index]!)
+    let nextIndex = index + 1
+
+    while (nextIndex < items.length) {
+      const candidate = items[nextIndex]!
+      const elapsed = clusterStart - new Date(candidate.timestamp).getTime()
+
+      if (
+        getActivityGroupKey(candidate) === groupKey &&
+        elapsed <= ACTIVITY_GROUP_WINDOW_MS
+      ) {
+        cluster.push(candidate)
+        nextIndex += 1
+        continue
+      }
+
+      break
+    }
+
+    grouped.push(
+      cluster.length === 1 ? cluster[0]! : createGroupedActivityItem(cluster)
+    )
+    index = nextIndex
+  }
+
+  return grouped
 }
 
 export function formatActivityMessage(item: ActivityItem): string {
+  const groupedCount = item.groupedCount ?? 1
+  const groupedClientCount = item.groupedClientIds?.length ?? 1
+  const isGrouped = groupedCount > 1
+
   if (item.kind === 'check_in') {
-    return 'submitted a check-in'
+    if (!isGrouped) {
+      return 'submitted a check-in'
+    }
+
+    if (groupedClientCount === 1) {
+      return `submitted ${groupedCount} check-ins`
+    }
+
+    return 'each submitted a check-in'
   }
 
   if (item.kind === 'form_review') {
-    const title = item.formReviewTitle?.trim()
-    return title ? `submitted form review: ${title}` : 'submitted a form review'
+    if (!isGrouped) {
+      const title = item.formReviewTitle?.trim()
+      return title ? `submitted form review: ${title}` : 'submitted a form review'
+    }
+
+    if (groupedClientCount === 1) {
+      return `submitted ${groupedCount} form reviews`
+    }
+
+    return 'each submitted a form review'
+  }
+
+  if (isGrouped) {
+    if (groupedClientCount === 1) {
+      switch (item.status) {
+        case 'completed':
+          return `completed ${groupedCount} workouts`
+        case 'in_progress':
+          return `started ${groupedCount} workouts`
+        case 'skipped':
+          return `skipped ${groupedCount} workouts`
+        default:
+          return `updated ${groupedCount} workouts`
+      }
+    }
+
+    switch (item.status) {
+      case 'completed':
+        return 'each completed a workout'
+      case 'in_progress':
+        return 'each started a workout'
+      case 'skipped':
+        return 'each skipped a workout'
+      default:
+        return 'each updated a workout'
+    }
   }
 
   switch (item.status) {
@@ -273,12 +400,22 @@ export function formatActivityMessage(item: ActivityItem): string {
 }
 
 export function getActivityHref(item: ActivityItem): string {
+  const isGrouped = (item.groupedCount ?? 1) > 1
+
   if (item.kind === 'check_in') {
-    return `/clients/${item.clientId}?tab=progress&section=check-ins`
+    return isGrouped
+      ? '/check-ins'
+      : `/clients/${item.clientId}?tab=progress&section=check-ins`
   }
+
   if (item.kind === 'form_review') {
     return '/form-review'
   }
+
+  if (isGrouped) {
+    return '/clients'
+  }
+
   return `/clients/${item.clientId}`
 }
 

@@ -44,7 +44,7 @@ export default async function PortalWorkoutsPage({
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Workouts</h1>
+        <h1 className="page-title">Workouts</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Tap a day to view your session, then log sets when you are ready.
         </p>

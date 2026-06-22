@@ -112,3 +112,32 @@ export async function markAllClientsPresent(
   revalidateAttendance()
   return { success: true }
 }
+
+type AttendanceSnapshot = {
+  clientId: string
+  status: 'present' | 'late' | 'absent' | 'excused' | null
+  notes?: string | null
+  coachingType?: 'online' | 'in_person' | 'hybrid' | 'none' | null
+}
+
+export async function restoreClientDailyAttendanceBatch(
+  date: string,
+  snapshots: AttendanceSnapshot[]
+): Promise<ActionResult> {
+  for (const snapshot of snapshots) {
+    const result = await updateClientDailyAttendance(
+      snapshot.clientId,
+      date,
+      snapshot.status,
+      {
+        notes: snapshot.notes,
+        coachingType: snapshot.coachingType,
+      }
+    )
+    if (!result.success) {
+      return result
+    }
+  }
+
+  return { success: true }
+}

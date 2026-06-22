@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { Medal, Trophy } from 'lucide-react'
+import { Medal, Trophy, Users } from 'lucide-react'
 
-import { ClientAvatar } from '@/components/clients/client-avatar'
 import { LeaderboardSparkline } from '@/components/leaderboards/leaderboard-sparkline'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PersonRow } from '@/components/ui/person-row'
 import {
   Card,
   CardContent,
@@ -25,6 +25,7 @@ import {
   getTopThreeRowClassName,
   type LeaderboardRow,
 } from '@/lib/leaderboard'
+import { getRankChangeBadgeClass } from '@/lib/status-colors'
 import type { LeaderboardMetric } from '@/lib/validations/leaderboard'
 import { cn } from '@/lib/utils'
 
@@ -92,10 +93,7 @@ function RankChangeBadge({
       variant="outline"
       className={cn(
         'ml-2 text-[10px] font-semibold tracking-wide',
-        rankChange === 'new' && 'border-brand/30 text-brand',
-        rankChange === 'up' && 'border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
-        rankChange === 'down' && 'border-red-500/30 text-red-700 dark:text-red-300',
-        rankChange === 'same' && 'text-muted-foreground'
+        getRankChangeBadgeClass(rankChange)
       )}
     >
       {label}
@@ -130,16 +128,73 @@ export function LeaderboardTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="px-0 pb-0 sm:px-0">
         {rows.length === 0 ? (
-          <div className="text-muted-foreground px-6 pb-6 text-sm">
-            No active clients in this scope yet.
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No athletes ranked yet"
+            description={
+              readOnly
+                ? 'Log workouts and PRs to appear on the leaderboard once your coach enables rankings.'
+                : 'Add active clients and log workouts or PRs to populate this leaderboard.'
+            }
+            action={
+              readOnly
+                ? { label: 'Log a workout', href: '/portal/workouts' }
+                : { label: 'View clients', href: '/clients' }
+            }
+            className="px-6 pb-6"
+          />
         ) : (
-          <Table>
+          <>
+            <div className="space-y-3 px-4 pb-4 md:hidden">
+              {rows.map((row) => (
+                <Card key={row.clientId} className="py-0 shadow-none">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <RankBadge rank={row.rank} />
+                      <RankChangeBadge
+                        rankChange={row.rankChange}
+                        rankDelta={row.rankDelta}
+                      />
+                    </div>
+                    <PersonRow
+                      name={row.clientName}
+                      avatarUrl={row.avatarUrl}
+                      href={readOnly ? undefined : `/clients/${row.clientId}`}
+                    />
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        {showWeightClass && row.weightClass ? (
+                          <Badge variant="secondary" className="mb-2">
+                            {row.weightClass}
+                          </Badge>
+                        ) : null}
+                        <p className="text-muted-foreground text-xs">
+                          {metricConfig.valueLabel}
+                        </p>
+                        <p className="text-lg font-semibold tabular-nums">
+                          {row.displayValue}
+                        </p>
+                      </div>
+                      {metric === 'strength' || metric === 'relative_strength'
+                        ? row.trendValues.length > 0 && (
+                            <LeaderboardSparkline values={row.trendValues} />
+                          )
+                        : null}
+                    </div>
+                    {row.detail ? (
+                      <p className="text-muted-foreground text-sm">{row.detail}</p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Table className="hidden md:table">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
                 <TableHead className="w-16 pl-6">Rank</TableHead>
@@ -165,28 +220,11 @@ export function LeaderboardTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {readOnly ? (
-                      <div className="inline-flex items-center gap-3">
-                        <ClientAvatar
-                          name={row.clientName}
-                          avatarUrl={row.avatarUrl}
-                          size="sm"
-                        />
-                        <span className="font-medium">{row.clientName}</span>
-                      </div>
-                    ) : (
-                      <Link
-                        href={`/clients/${row.clientId}`}
-                        className="hover:text-brand inline-flex items-center gap-3 transition-colors"
-                      >
-                        <ClientAvatar
-                          name={row.clientName}
-                          avatarUrl={row.avatarUrl}
-                          size="sm"
-                        />
-                        <span className="font-medium">{row.clientName}</span>
-                      </Link>
-                    )}
+                    <PersonRow
+                      name={row.clientName}
+                      avatarUrl={row.avatarUrl}
+                      href={readOnly ? undefined : `/clients/${row.clientId}`}
+                    />
                   </TableCell>
                   {showWeightClass ? (
                     <TableCell>
@@ -218,6 +256,7 @@ export function LeaderboardTable({
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </CardContent>
     </Card>

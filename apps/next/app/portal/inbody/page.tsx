@@ -32,7 +32,7 @@ export default async function PortalInbodyPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">InBody results</h1>
+        <h1 className="page-title">InBody results</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Log your InBody scan data and track weight, muscle mass, and body fat
           over time.

@@ -2,14 +2,16 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Target, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
   createClientGoal,
   deleteClientGoal,
+  restoreClientGoal,
   updateClientGoal,
 } from '@/app/(dashboard)/clients/[clientId]/goals/actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import {
   CollapsibleGoalForm,
   CompositionGoalFields,
@@ -29,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { sortClientGoals } from '@/lib/goal-progress'
 import {
   clientGoalToFormValues,
@@ -193,20 +196,27 @@ function GoalListItem({
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {categoryLabel ? (
           <Badge variant="secondary" className="shrink-0">
-            {categoryLabel}
+            {goal.category === 'composition' ? (
+              <>
+                <span className="sm:hidden">Body comp</span>
+                <span className="hidden sm:inline">{categoryLabel}</span>
+              </>
+            ) : (
+              categoryLabel
+            )}
           </Badge>
         ) : null}
-        <p className="text-sm font-medium">{label}</p>
+        <p className="text-sm font-medium leading-snug">{label}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center">
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          className="size-10 sm:size-9"
           onClick={() => setIsEditing(true)}
           disabled={isDeleting || isSubmitting}
           aria-label="Edit goal"
@@ -216,7 +226,7 @@ function GoalListItem({
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          className="size-10 sm:size-9"
           onClick={() => void onDelete(goal.id)}
           disabled={isDeleting || isSubmitting}
           aria-label="Delete goal"
@@ -334,12 +344,23 @@ export function ClientGoalsEditor({
   }
 
   async function handleDelete(goalId: string) {
+    const goal = goals.find((item) => item.id === goalId)
+    if (!goal) return
+
     setDeletingId(goalId)
     const result = await deleteClientGoal(goalId)
     setDeletingId(null)
 
     if (result.success) {
-      toast.success('Goal removed')
+      toastSuccessWithUndo('Goal removed', async () => {
+        const undoResult = await restoreClientGoal(goal)
+        if (undoResult.success) {
+          toast.success('Goal restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)
@@ -358,44 +379,47 @@ export function ClientGoalsEditor({
   return (
     <div className="grid gap-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daily targets</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle>Daily targets</CardTitle>
           <CardDescription>
-            Set daily expectations your client will see as reminders on their
-            Goals page.
+            Reminders your client sees every day.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="flex flex-wrap gap-2">
-            {DAILY_GOAL_PRESETS.map((preset) => (
+        <CardContent className="grid gap-4 px-4 sm:px-6">
+          <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="inline-flex w-max flex-nowrap gap-2 sm:flex-wrap sm:w-auto">
+              {DAILY_GOAL_PRESETS.map((preset) => (
+                <Button
+                  key={`${preset.title}-${preset.unit}`}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setDailyValues(preset)}
+                  disabled={isSubmitting}
+                >
+                  {preset.title}
+                </Button>
+              ))}
               <Button
-                key={`${preset.title}-${preset.unit}`}
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setDailyValues(preset)}
+                className="shrink-0"
+                onClick={() =>
+                  setDailyValues({
+                    category: 'daily',
+                    title: '',
+                    targetValue: 1,
+                    comparison: 'at_least',
+                    unit: '',
+                  })
+                }
                 disabled={isSubmitting}
               >
-                {preset.title}
+                Custom
               </Button>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setDailyValues({
-                  category: 'daily',
-                  title: '',
-                  targetValue: 1,
-                  comparison: 'at_least',
-                  unit: '',
-                })
-              }
-              disabled={isSubmitting}
-            >
-              Custom
-            </Button>
+            </div>
           </div>
 
           <CollapsibleGoalForm
@@ -415,15 +439,13 @@ export function ClientGoalsEditor({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Goals</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle>Goals</CardTitle>
           <CardDescription>
-            Set progress-tracked goals for body composition, performance, habits,
-            and milestones. Progress updates automatically from workouts,
-            check-ins, and scans.
+            Progress updates automatically from workouts, check-ins, and scans.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-4 px-4 sm:px-6">
           <CollapsibleGoalForm
             addLabel="Add goal"
             onSubmit={() => void handleCreate(addGoalValues)}
@@ -447,9 +469,11 @@ export function ClientGoalsEditor({
           </CollapsibleGoalForm>
 
           {trackableGoals.length === 0 ? (
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              No goals yet. Add one to start tracking progress.
-            </p>
+            <EmptyState
+              icon={Target}
+              title="No goals yet"
+              description="Add a goal above to start tracking progress from workouts, check-ins, and scans."
+            />
           ) : (
             <GoalList goals={trackableGoals} {...listProps} />
           )}

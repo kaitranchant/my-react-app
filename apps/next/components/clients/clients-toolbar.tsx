@@ -2,9 +2,8 @@
 
 import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -13,13 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AddClientDialog } from '@/components/clients/add-client-dialog'
 
-export function ClientsToolbar({
-  gyms = [],
-}: {
-  gyms?: { id: string; name: string }[]
-}) {
+export function ClientsToolbar() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -52,42 +46,30 @@ export function ClientsToolbar({
   }, [query])
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search clients…"
-            className="pl-9"
-          />
-        </div>
-        <Select
-          value={status}
-          onValueChange={(value) => updateParams({ status: value })}
-        >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="relative w-full sm:max-w-xs">
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search clients…"
+          className="pl-9"
+        />
       </div>
-
-      <AddClientDialog
-        gyms={gyms}
-        trigger={
-          <Button>
-            <Plus className="size-4" />
-            Add client
-          </Button>
-        }
-      />
+      <Select
+        value={status}
+        onValueChange={(value) => updateParams({ status: value })}
+      >
+        <SelectTrigger className="w-full sm:w-40">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All statuses</SelectItem>
+          <SelectItem value="active">Active</SelectItem>
+          <SelectItem value="paused">Paused</SelectItem>
+          <SelectItem value="archived">Archived</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   )
 }

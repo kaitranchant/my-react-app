@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Textarea } from '@/components/ui/textarea'
 import { formatMessageTimestamp } from '@/lib/messages'
 import { cn } from '@/lib/utils'
@@ -67,6 +68,7 @@ export function ClientMessagesPanel({
     setIsSending(false)
 
     if (result.success) {
+      toast.success('Message sent')
       setBody('')
       router.refresh()
     } else {
@@ -99,7 +101,7 @@ export function ClientMessagesPanel({
     <Card className={cn('gap-0 overflow-hidden py-0', className)}>
       {showHeader && (
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">Messages</CardTitle>
+          <CardTitle className="text-muted-foreground">Messages</CardTitle>
           <CardDescription>{subtitle}</CardDescription>
         </CardHeader>
       )}
@@ -110,10 +112,16 @@ export function ClientMessagesPanel({
           className="flex max-h-[min(28rem,55vh)] min-h-64 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4"
         >
           {messages.length === 0 ? (
-            <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center text-sm">
-              <MessageSquare className="size-8 opacity-40" />
-              <p>No messages yet. Start the conversation below.</p>
-            </div>
+            <EmptyState
+              icon={MessageSquare}
+              title="No messages yet"
+              description={
+                variant === 'coach'
+                  ? `Send ${clientName} a note to start the conversation.`
+                  : 'Send your coach a question, update, or feedback.'
+              }
+              className="flex-1 py-10"
+            />
           ) : (
             messages.map((message) => {
               const isOwn = message.sender_role === variant

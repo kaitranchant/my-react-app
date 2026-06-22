@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterPills } from '@/components/ui/filter-pills'
 
 type GymTab = {
   id: string
@@ -34,21 +34,15 @@ export function GymScopeTabs({ gyms }: { gyms: GymTab[] }) {
   }
 
   return (
-    <Tabs value={selectedGymId} onValueChange={handleGymChange} className="min-w-0">
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <TabsList className="inline-flex h-10 w-max gap-1">
-          {gyms.map((gym) => (
-            <TabsTrigger
-              key={gym.id}
-              value={gym.id}
-              title={gym.name}
-              className="flex-none px-4"
-            >
-              {gym.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-    </Tabs>
+    <FilterPills
+      label="Gym"
+      value={selectedGymId}
+      onChange={handleGymChange}
+      options={gyms.map((gym) => ({
+        value: gym.id,
+        label: gym.name,
+        title: gym.name,
+      }))}
+    />
   )
 }

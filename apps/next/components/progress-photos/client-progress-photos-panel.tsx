@@ -3,13 +3,14 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, Trash2, X } from 'lucide-react'
+import { Loader2, Camera, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteCoachProgressPhoto } from '@/app/(dashboard)/progress-photos/actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -31,6 +32,7 @@ type ClientProgressPhotosPanelProps = {
 }
 
 export function ClientProgressPhotosPanel({
+  clientId,
   clientName,
   photos,
 }: ClientProgressPhotosPanelProps) {
@@ -55,13 +57,17 @@ export function ClientProgressPhotosPanel({
   if (photos.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Progress photos</CardTitle>
-          <CardDescription>
-            {clientName} has not uploaded any progress photos yet. Photos appear
-            here when attached to check-ins in the client portal.
-          </CardDescription>
-        </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={Camera}
+            title="No progress photos yet"
+            description={`Photos uploaded during check-ins will appear here. Ask ${clientName} to add photos on their next check-in.`}
+            action={{
+              label: 'View check-ins',
+              href: `/clients/${clientId}?tab=progress&section=check-ins`,
+            }}
+          />
+        </CardContent>
       </Card>
     )
   }
@@ -72,7 +78,7 @@ export function ClientProgressPhotosPanel({
         {groupedPhotos.map(({ date, photos: datePhotos }) => (
           <Card key={date}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">{formatCheckInDate(date)}</CardTitle>
+              <CardTitle>{formatCheckInDate(date)}</CardTitle>
               <CardDescription>
                 {datePhotos.length} photo{datePhotos.length === 1 ? '' : 's'}
               </CardDescription>
@@ -190,8 +196,13 @@ export function ProgressPhotosFeed({ photos }: ProgressPhotosFeedProps) {
   if (photos.length === 0) {
     return (
       <Card>
-        <CardContent className="text-muted-foreground py-10 text-center text-sm">
-          No progress photos uploaded yet.
+        <CardContent>
+          <EmptyState
+            icon={Camera}
+            title="No progress photos yet"
+            description="Photos uploaded during client check-ins will appear here."
+            action={{ label: 'View check-ins', href: '/check-ins' }}
+          />
         </CardContent>
       </Card>
     )

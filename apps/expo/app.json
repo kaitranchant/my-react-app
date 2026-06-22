@@ -1,16 +1,51 @@
 {
   "expo": {
-    "name": "solito-blank",
-    "slug": "solito-blank",
+    "name": "Coaching App",
+    "slug": "coaching-app",
     "version": "1.0.0",
-    "scheme": "solito-blank",
-    "platforms": ["ios", "android"],
+    "scheme": "coaching-app",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
-      "bundleIdentifier": "com.solito.blank"
+      "bundleIdentifier": "com.coachingapp.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ]
+      }
     },
     "newArchEnabled": true,
     "experiments": {
       "reactCanary": true
-    }
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Coaching App reads your steps, sleep, and heart rate so your coach can monitor recovery and training load.",
+          "NSHealthUpdateUsageDescription": "Coaching App does not write health data to Apple Health.",
+          "background": true
+        }
+      ],
+      [
+        "expo-background-fetch",
+        {
+          "backgroundFetchInterval": 3600
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
+      "apiUrl": "http://localhost:3000",
+      "eas": {
+        "projectId": "8bc970b7-3e16-46a4-b555-78ee5160922c"
+      }
+    },
+    "owner": "kaitranchant"
   }
 }

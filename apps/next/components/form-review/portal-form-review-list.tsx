@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Camera, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteClientFormReview } from '@/app/portal/form-review-actions'
@@ -10,6 +10,7 @@ import {
   FormReviewMedia,
   FormReviewMediaUnavailable,
 } from '@/components/form-review/form-review-media'
+import { FormReviewAnnotatedVideo } from '@/components/form-review/form-review-annotated-video'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,11 +20,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   formatFormReviewDate,
   formatFormReviewFileSize,
   getFormReviewTitle,
+  isFormReviewImage,
   isFormReviewPending,
+  parseCoachAnnotations,
 } from '@/lib/form-reviews'
 import type { ClientFormReviewWithUrl } from 'app/types/database'
 
@@ -56,11 +60,19 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Your submissions</CardTitle>
+          <CardTitle>Your submissions</CardTitle>
           <CardDescription>
             Uploaded photos, videos, and coach feedback will appear here.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={Camera}
+            title="No form reviews yet"
+            description="Upload a photo or video of your lift above and your coach will leave feedback here."
+            className="py-4"
+          />
+        </CardContent>
       </Card>
     )
   }
@@ -77,6 +89,8 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
       {reviews.map((review) => {
         const pending = isFormReviewPending(review)
         const title = getFormReviewTitle(review)
+        const annotations = parseCoachAnnotations(review.coach_annotations)
+        const isVideo = !isFormReviewImage(review.content_type)
 
         return (
           <Card key={review.id}>
@@ -115,11 +129,20 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
               </div>
 
               {review.signedUrl ? (
-                <FormReviewMedia
-                  signedUrl={review.signedUrl}
-                  contentType={review.content_type}
-                  title={title}
-                />
+                isVideo ? (
+                  <FormReviewAnnotatedVideo
+                    signedUrl={review.signedUrl}
+                    title={title}
+                    annotations={annotations}
+                    readOnly
+                  />
+                ) : (
+                  <FormReviewMedia
+                    signedUrl={review.signedUrl}
+                    contentType={review.content_type}
+                    title={title}
+                  />
+                )
               ) : (
                 <FormReviewMediaUnavailable />
               )}
@@ -135,7 +158,7 @@ export function PortalFormReviewList({ reviews }: PortalFormReviewListProps) {
 
               {review.coach_feedback ? (
                 <div className="bg-muted/40 space-y-1 rounded-lg border p-3">
-                  <p className="text-xs font-medium">Coach feedback</p>
+                  <p className="text-xs font-medium">Overall feedback</p>
                   <p className="text-sm leading-relaxed">{review.coach_feedback}</p>
                 </div>
               ) : null}

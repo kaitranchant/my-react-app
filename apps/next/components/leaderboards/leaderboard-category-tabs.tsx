@@ -48,8 +48,8 @@ export function LeaderboardCategoryTabs() {
             className={cn(
               'min-w-0 rounded-xl border p-2.5 text-left transition-colors',
               active
-                ? 'border-brand/40 bg-brand/5 shadow-sm'
-                : 'bg-card hover:border-brand/20 hover:bg-muted/30'
+                ? 'border-brand bg-brand text-brand-foreground shadow-sm'
+                : 'bg-card hover:border-brand/30 hover:bg-muted/30'
             )}
           >
             <div className="mb-1.5 flex items-center gap-1.5">
@@ -57,17 +57,27 @@ export function LeaderboardCategoryTabs() {
                 className={cn(
                   'inline-flex size-6 shrink-0 items-center justify-center rounded-md',
                   active
-                    ? 'bg-brand/15 text-brand'
+                    ? 'bg-brand-foreground/15 text-brand-foreground'
                     : 'bg-muted text-muted-foreground'
                 )}
               >
                 <Icon className="size-3.5" />
               </span>
-              <span className="text-xs font-semibold leading-tight">
+              <span
+                className={cn(
+                  'text-xs leading-tight',
+                  active ? 'font-semibold' : 'font-medium'
+                )}
+              >
                 {entry.shortLabel}
               </span>
             </div>
-            <p className="text-muted-foreground line-clamp-3 text-[11px] leading-snug">
+            <p
+              className={cn(
+                'line-clamp-3 text-[11px] leading-snug',
+                active ? 'text-brand-foreground/80' : 'text-muted-foreground'
+              )}
+            >
               {entry.description}
             </p>
           </button>

@@ -30,11 +30,15 @@ test.describe('Gyms', () => {
     })
 
     await page.goto(`/clients/${E2E_CLIENT_ID}`)
+    await page.getByRole('button', { name: 'More actions' }).click()
     await page
-      .getByRole('button', { name: new RegExp(`Add to ${gymName}`) })
+      .getByRole('menuitem', { name: new RegExp(`Add to ${gymName}`) })
       .click()
+    await page.getByRole('button', { name: 'More actions' }).click()
     await expect(
-      page.getByRole('button', { name: new RegExp(`Remove from ${gymName}`) })
+      page.getByRole('menuitem', {
+        name: new RegExp(`Remove from ${gymName}`),
+      })
     ).toBeVisible({ timeout: 15_000 })
 
     await page.goto('/gym')
@@ -42,7 +46,7 @@ test.describe('Gyms', () => {
     await page.getByLabel('Email').fill(E2E_GYM_COACH_EMAIL)
     await page
       .getByRole('dialog')
-      .getByRole('button', { name: 'Send invite' })
+      .getByRole('button', { name: 'Create invite link' })
       .click()
 
     const signupLink = page.getByRole('dialog').getByText(/gym_invite=/)

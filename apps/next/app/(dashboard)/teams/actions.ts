@@ -573,6 +573,42 @@ export type ShareAllTeamsResult =
   | { success: true; count: number }
   | { success: false; error: string }
 
+export async function shareTeamsWithGym(
+  gymId: string,
+  teamIds: string[]
+): Promise<ShareAllTeamsResult> {
+  const uniqueIds = [...new Set(teamIds)]
+
+  if (uniqueIds.length === 0) {
+    return { success: false, error: 'Select at least one team.' }
+  }
+
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return {
+      success: false,
+      error: 'You must be a member of this gym to add teams.',
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('teams')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('coach_id', user.id)
+    .in('id', uniqueIds)
+    .select('id')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeams()
+  revalidatePath('/gym')
+  return { success: true, count: data?.length ?? 0 }
+}
+
 export async function shareAllTeamsWithGym(
   gymId: string
 ): Promise<ShareAllTeamsResult> {

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Video } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -15,8 +15,10 @@ import {
   FormReviewMedia,
   FormReviewMediaUnavailable,
 } from '@/components/form-review/form-review-media'
+import { FormReviewAnnotatedVideo } from '@/components/form-review/form-review-annotated-video'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -29,9 +31,15 @@ import {
   formatFormReviewDate,
   formatFormReviewFileSize,
   getFormReviewTitle,
+  isFormReviewImage,
   isFormReviewPending,
+  parseCoachAnnotations,
+  sortFormReviewAnnotations,
 } from '@/lib/form-reviews'
-import type { ClientFormReviewWithClient } from 'app/types/database'
+import type {
+  ClientFormReviewWithClient,
+  FormReviewAnnotation,
+} from 'app/types/database'
 
 type FormReviewReviewCardProps = {
   review: ClientFormReviewWithClient
@@ -45,17 +53,22 @@ export function FormReviewReviewCard({
   const router = useRouter()
   const [expanded, setExpanded] = React.useState(defaultExpanded)
   const [feedback, setFeedback] = React.useState(review.coach_feedback ?? '')
+  const [annotations, setAnnotations] = React.useState<FormReviewAnnotation[]>(() =>
+    parseCoachAnnotations(review.coach_annotations)
+  )
   const [pending, setPending] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
 
   React.useEffect(() => {
     setFeedback(review.coach_feedback ?? '')
-  }, [review.coach_feedback])
+    setAnnotations(parseCoachAnnotations(review.coach_annotations))
+  }, [review.coach_feedback, review.coach_annotations])
 
   async function handleSaveFeedback() {
     setPending(true)
     const result = await updateFormReviewFeedback(review.id, {
       coachFeedback: feedback.trim() || null,
+      coachAnnotations: sortFormReviewAnnotations(annotations),
     })
     setPending(false)
 
@@ -82,6 +95,7 @@ export function FormReviewReviewCard({
 
   const title = getFormReviewTitle(review)
   const pendingReview = isFormReviewPending(review)
+  const isVideo = !isFormReviewImage(review.content_type)
 
   return (
     <Card>
@@ -106,7 +120,7 @@ export function FormReviewReviewCard({
               ) : (
                 <p className="text-sm font-medium">Unknown client</p>
               )}
-              <CardTitle className="text-base">{title}</CardTitle>
+              <CardTitle>{title}</CardTitle>
               <CardDescription>
                 {formatFormReviewDate(review.created_at)} ·{' '}
                 {formatFormReviewFileSize(review.file_size_bytes)}
@@ -134,13 +148,24 @@ export function FormReviewReviewCard({
       {expanded ? (
         <CardContent className="space-y-4 border-t pt-4">
           {review.signedUrl ? (
-            <FormReviewMedia
-              signedUrl={review.signedUrl}
-              contentType={review.content_type}
-              title={title}
-              videoClassName="max-h-[480px]"
-              imageClassName="max-h-[480px]"
-            />
+            isVideo ? (
+              <FormReviewAnnotatedVideo
+                signedUrl={review.signedUrl}
+                title={title}
+                annotations={annotations}
+                onAnnotationsChange={setAnnotations}
+                disabled={pending || deleting}
+                videoClassName="max-h-[480px]"
+              />
+            ) : (
+              <FormReviewMedia
+                signedUrl={review.signedUrl}
+                contentType={review.content_type}
+                title={title}
+                videoClassName="max-h-[480px]"
+                imageClassName="max-h-[480px]"
+              />
+            )
           ) : (
             <FormReviewMediaUnavailable className="h-48" />
           )}
@@ -155,11 +180,11 @@ export function FormReviewReviewCard({
           ) : null}
 
           <div className="space-y-2">
-            <p className="text-xs font-medium">Coach feedback</p>
+            <p className="text-xs font-medium">Overall feedback</p>
             <Textarea
               value={feedback}
               onChange={(event) => setFeedback(event.target.value)}
-              placeholder="Share cues, corrections, or encouragement…"
+              placeholder="Share general cues, corrections, or encouragement…"
               rows={4}
               maxLength={2000}
               disabled={pending || deleting}
@@ -206,8 +231,13 @@ export function FormReviewFeed({ reviews, emptyMessage }: FormReviewFeedProps) {
   if (reviews.length === 0) {
     return (
       <Card>
-        <CardContent className="text-muted-foreground py-10 text-center text-sm">
-          {emptyMessage}
+        <CardContent>
+          <EmptyState
+            icon={Video}
+            title={emptyMessage.replace(/\.$/, '')}
+            description="Clients submit form videos from their portal. Share the link or message them to get started."
+            action={{ label: 'View clients', href: '/clients' }}
+          />
         </CardContent>
       </Card>
     )
@@ -239,7 +269,7 @@ export function ClientFormReviewsPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Form review</CardTitle>
+          <CardTitle>Form review</CardTitle>
           <CardDescription>
             {clientName} has not submitted any form photos or videos yet. Submissions
             here when uploaded from the client portal.

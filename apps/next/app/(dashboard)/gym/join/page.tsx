@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 
 import { createClient } from '@/lib/supabase/server'
 import { GymJoinClient } from '@/components/gym/gym-join-client'
+import { GymJoinBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 
 export const metadata = {
   title: 'Join gym — Coaching App',
@@ -19,9 +20,14 @@ export default async function GymJoinPage({
 
   if (!invite || !INVITE_TOKEN_PATTERN.test(invite)) {
     return (
-      <Suspense fallback={null}>
-        <GymJoinClient invalid />
-      </Suspense>
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
+        <Suspense fallback={null}>
+          <GymJoinBreadcrumbs />
+        </Suspense>
+        <Suspense fallback={null}>
+          <GymJoinClient invalid />
+        </Suspense>
+      </div>
     )
   }
 
@@ -34,14 +40,22 @@ export default async function GymJoinPage({
 
   if (error || !row?.email) {
     return (
-      <Suspense fallback={null}>
-        <GymJoinClient invalid token={invite} />
-      </Suspense>
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
+        <Suspense fallback={null}>
+          <GymJoinBreadcrumbs />
+        </Suspense>
+        <Suspense fallback={null}>
+          <GymJoinClient invalid token={invite} />
+        </Suspense>
+      </div>
     )
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8 py-8">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
+      <Suspense fallback={null}>
+        <GymJoinBreadcrumbs gymName={row.gym_name} />
+      </Suspense>
       <Suspense fallback={null}>
         <GymJoinClient
           gymName={row.gym_name}

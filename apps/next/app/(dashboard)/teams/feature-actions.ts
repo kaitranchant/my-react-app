@@ -14,6 +14,7 @@ import {
   type TeamPowerliftingExercisesValues,
   type UpdateTeamEventMemberStatusValues,
 } from '@/lib/validations/team'
+import type { TeamAnnouncement } from 'app/types/database'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
@@ -113,6 +114,37 @@ export async function deleteTeamAnnouncement(
     .eq('id', announcementId)
     .eq('team_id', teamId)
     .eq('coach_id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateTeam(teamId)
+  return { success: true }
+}
+
+export async function restoreTeamAnnouncement(
+  teamId: string,
+  announcement: TeamAnnouncement
+): Promise<ActionResult> {
+  const { supabase, user, team, error: teamError } = await getTeamForCoach(teamId)
+  if (teamError || !team) {
+    return { success: false, error: teamError ?? 'Team not found.' }
+  }
+
+  if (announcement.team_id !== teamId || announcement.coach_id !== user.id) {
+    return { success: false, error: 'Announcement not found.' }
+  }
+
+  const { error } = await supabase.from('team_announcements').insert({
+    id: announcement.id,
+    team_id: announcement.team_id,
+    coach_id: announcement.coach_id,
+    content: announcement.content,
+    pinned: announcement.pinned,
+    created_at: announcement.created_at,
+    updated_at: announcement.updated_at,
+  })
 
   if (error) {
     return { success: false, error: error.message }
@@ -294,6 +326,62 @@ export async function markAllTeamEventPresent(
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  revalidateTeam(teamId)
+  return { success: true }
+}
+
+type TeamEventAttendanceSnapshot = {
+  clientId: string
+  attendanceStatus: import('app/types/database').TeamEventAttendanceStatus | null
+  hadStatusRow: boolean
+}
+
+export async function restoreTeamEventAttendanceBatch(
+  teamId: string,
+  eventId: string,
+  snapshots: TeamEventAttendanceSnapshot[]
+): Promise<ActionResult> {
+  const { supabase, user, team, error: teamError } = await getTeamForCoach(teamId)
+  if (teamError || !team) {
+    return { success: false, error: teamError ?? 'Team not found.' }
+  }
+
+  const { data: event } = await supabase
+    .from('team_events')
+    .select('id')
+    .eq('id', eventId)
+    .eq('team_id', teamId)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (!event) {
+    return { success: false, error: 'Event not found.' }
+  }
+
+  for (const snapshot of snapshots) {
+    if (!snapshot.hadStatusRow) {
+      const { error } = await supabase
+        .from('team_event_member_status')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('client_id', snapshot.clientId)
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+      continue
+    }
+
+    const result = await updateTeamEventMemberStatus(teamId, eventId, {
+      clientId: snapshot.clientId,
+      attendanceStatus: snapshot.attendanceStatus,
+    })
+
+    if (!result.success) {
+      return result
+    }
   }
 
   revalidateTeam(teamId)

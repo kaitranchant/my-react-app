@@ -13,7 +13,7 @@ export function SchemaSetupNotice({ tables, sqlFile }: SchemaSetupNoticeProps) {
   return (
     <Card className="border-dashed">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Database setup required</CardTitle>
+        <CardTitle>Database setup required</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm leading-relaxed">
         <p className="text-muted-foreground">

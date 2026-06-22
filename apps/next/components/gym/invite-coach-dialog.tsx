@@ -57,7 +57,7 @@ export function InviteCoachDialog({ gymId }: { gymId: string }) {
     }
 
     setInviteUrl(result.inviteUrl)
-    toast.success('Invite created. Copy the link for new coaches, or they can sign up with this email.')
+    toast.success('Invite link created. Copy it and send it to the coach.')
     router.refresh()
   }
 
@@ -79,8 +79,10 @@ export function InviteCoachDialog({ gymId }: { gymId: string }) {
         <DialogHeader>
           <DialogTitle>Invite a coach</DialogTitle>
           <DialogDescription>
-            Send an invite link to another coach. They will join your gym as a
-            coach and can access gym member clients.
+            Enter the coach&apos;s email to generate a one-time invite link. No
+            email is sent automatically — copy the link and share it yourself
+            (message, email, etc.). They must sign up or log in with that email
+            to join your gym.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -121,7 +123,11 @@ export function InviteCoachDialog({ gymId }: { gymId: string }) {
             ) : null}
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Sending…' : 'Send invite'}
+                {form.formState.isSubmitting
+                  ? 'Creating…'
+                  : inviteUrl
+                    ? 'Create another link'
+                    : 'Create invite link'}
               </Button>
             </DialogFooter>
           </form>

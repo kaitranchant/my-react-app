@@ -42,6 +42,15 @@
   --sidebar-ring: oklch(0.42 0.11 275);
   --shadow-card: 0 1px 3px oklch(0.22 0.025 280 / 0.04), 0 1px 2px oklch(0.22 0.025 280 / 0.02);
   --shadow-elevated: 0 4px 16px oklch(0.22 0.025 280 / 0.06), 0 2px 4px oklch(0.22 0.025 280 / 0.03);
+  /* Semantic status colors — green = good, amber = caution, red = problem, gray = neutral */
+  --status-success: oklch(0.55 0.14 155);
+  --status-success-foreground: oklch(0.35 0.1 155);
+  --status-warning: oklch(0.72 0.14 75);
+  --status-warning-foreground: oklch(0.45 0.1 75);
+  --status-danger: oklch(0.577 0.245 27.325);
+  --status-danger-foreground: oklch(0.45 0.18 27);
+  --status-neutral: oklch(0.955 0.006 280);
+  --status-neutral-foreground: oklch(0.5 0.025 280);
 }
 
 .dark {
@@ -76,6 +85,14 @@
   --sidebar-ring: oklch(0.62 0.12 275);
   --shadow-card: 0 1px 3px oklch(0 0 0 / 0.2), 0 1px 2px oklch(0 0 0 / 0.12);
   --shadow-elevated: 0 4px 16px oklch(0 0 0 / 0.25), 0 2px 4px oklch(0 0 0 / 0.15);
+  --status-success: oklch(0.65 0.14 155);
+  --status-success-foreground: oklch(0.85 0.08 155);
+  --status-warning: oklch(0.78 0.12 75);
+  --status-warning-foreground: oklch(0.9 0.06 75);
+  --status-danger: oklch(0.704 0.191 22.216);
+  --status-danger-foreground: oklch(0.9 0.04 22);
+  --status-neutral: oklch(0.26 0.02 280);
+  --status-neutral-foreground: oklch(0.65 0.025 280);
 }
 
 @theme inline {
@@ -113,6 +130,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-status-success: var(--status-success);
+  --color-status-success-foreground: var(--status-success-foreground);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-foreground: var(--status-danger-foreground);
+  --color-status-neutral: var(--status-neutral);
+  --color-status-neutral-foreground: var(--status-neutral-foreground);
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -185,10 +210,36 @@
     box-shadow: var(--shadow-card);
   }
 
-  .section-label {
-    font-size: 0.75rem;
+  .page-title {
+    font-size: 1.375rem;
     font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+  }
+
+  .section-header {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .body-text {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .helper-text {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
     color: var(--muted-foreground);
+  }
+
+  .section-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
   }
 
   .filter-pill {
@@ -204,11 +255,15 @@
   .filter-pill-active {
     background-color: var(--brand);
     color: var(--brand-foreground);
+    font-weight: 600;
+    border: 1px solid transparent;
   }
 
   .filter-pill-inactive {
     color: var(--muted-foreground);
+    font-weight: 500;
     border: 1px solid var(--border);
+    background-color: transparent;
   }
 
   .filter-pill-inactive:hover {

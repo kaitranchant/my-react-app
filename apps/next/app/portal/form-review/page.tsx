@@ -38,7 +38,7 @@ export default async function PortalFormReviewPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Form Review</h1>
+        <h1 className="page-title">Form Review</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Upload lift photos or videos for your coach to review technique and leave
           feedback.

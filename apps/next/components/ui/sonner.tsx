@@ -9,6 +9,8 @@ function Toaster({ ...props }: ToasterProps) {
   return (
     <Sonner
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      position="bottom-right"
+      duration={3000}
       className="toaster group"
       toastOptions={{
         classNames: {

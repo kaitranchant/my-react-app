@@ -64,7 +64,18 @@ function toRow(values: ClientFormValues) {
       : null,
     goal: values.goal ? values.goal : null,
     notes: values.notes ? values.notes : null,
+    biological_sex:
+      values.biologicalSex && values.biologicalSex !== 'none'
+        ? values.biologicalSex
+        : null,
+    leaderboard_opt_out: values.leaderboardOptOut ?? false,
   }
+}
+
+function biologicalSexFromForm(
+  value: ClientFormValues['biologicalSex'] | InviteClientValues['biologicalSex']
+): 'male' | 'female' | null {
+  return value && value !== 'none' ? value : null
 }
 
 async function resolveGymIdForCreate(
@@ -147,7 +158,22 @@ export async function createClientRecord(
     return { success: false, error: error?.message ?? 'Could not create client.' }
   }
 
+  const row = toRow(parsed.data)
+  const { error: profileError } = await supabase
+    .from('clients')
+    .update({
+      biological_sex: row.biological_sex,
+      leaderboard_opt_out: row.leaderboard_opt_out,
+    })
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
+
+  if (profileError) {
+    return { success: false, error: profileError.message }
+  }
+
   revalidateClients()
+  revalidatePath('/leaderboards')
   return { success: true, clientId }
 }
 
@@ -177,6 +203,8 @@ export async function updateClientRecord(
 
   revalidateClients()
   revalidatePath(`/clients/${id}`)
+  revalidatePath('/leaderboards')
+  revalidatePath('/portal/leaderboards')
   return { success: true }
 }
 
@@ -256,6 +284,8 @@ export async function inviteClientRecord(
       invite_status: 'pending',
       invite_token: token,
       invite_expires_at: inviteExpiresAt(),
+      biological_sex: biologicalSexFromForm(parsed.data.biologicalSex),
+      leaderboard_opt_out: parsed.data.leaderboardOptOut ?? false,
     })
     .select('id')
     .single()
@@ -265,6 +295,7 @@ export async function inviteClientRecord(
   }
 
   revalidateClients()
+  revalidatePath('/leaderboards')
   const origin = await getOrigin()
   return {
     success: true,
@@ -386,48 +417,81 @@ export async function updateClientNotes(
   return { success: true }
 }
 
-export async function updateClientLeaderboardOptOut(
-  clientId: string,
-  optOut: boolean
+export async function updateClientProfileField(
+  id: string,
+  field: 'goal' | 'phone',
+  value: string
 ): Promise<ActionResult> {
-  const { supabase, user } = await requireUser()
+  const trimmed = value.trim()
+
+  if (field === 'goal' && trimmed.length > 500) {
+    return { success: false, error: 'Goal is too long.' }
+  }
+
+  if (field === 'phone' && trimmed.length > 40) {
+    return { success: false, error: 'Phone is too long.' }
+  }
+
+  const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked) {
+    return blocked
+  }
+
+  const nextValue = trimmed ? trimmed : null
+  const updatePayload =
+    field === 'goal'
+      ? { goal: nextValue }
+      : { phone: nextValue }
 
   const { error } = await supabase
     .from('clients')
-    .update({ leaderboard_opt_out: optOut })
-    .eq('id', clientId)
-    .eq('coach_id', user.id)
+    .update(updatePayload)
+    .eq('id', id)
 
   if (error) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/leaderboards')
-  revalidatePath('/portal/leaderboards')
+  revalidateClients()
+  revalidatePath(`/clients/${id}`)
   return { success: true }
 }
 
-export async function updateClientBiologicalSex(
-  clientId: string,
-  biologicalSex: 'male' | 'female' | null
-): Promise<ActionResult> {
+export async function bulkSetClientStatus(
+  clientIds: string[],
+  status: ClientStatus
+): Promise<ActionResult & { count?: number }> {
+  const uniqueIds = Array.from(new Set(clientIds))
+
+  if (uniqueIds.length === 0) {
+    return { success: false, error: 'Select at least one client.' }
+  }
+
+  if (!clientStatuses.includes(status)) {
+    return { success: false, error: 'Invalid status.' }
+  }
+
   const { supabase, user } = await requireUser()
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('clients')
-    .update({ biological_sex: biologicalSex })
-    .eq('id', clientId)
+    .update({ status })
     .eq('coach_id', user.id)
+    .eq('is_coach_self', false)
+    .in('id', uniqueIds)
+    .select('id')
 
   if (error) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/clients/${clientId}`)
-  revalidatePath('/leaderboards')
-  revalidatePath('/portal/leaderboards')
-  return { success: true }
+  revalidateClients()
+  for (const client of data ?? []) {
+    revalidatePath(`/clients/${client.id}`)
+  }
+
+  return { success: true, count: data?.length ?? 0 }
 }
 
 export async function sendClientPasswordResetEmail(
@@ -661,6 +725,42 @@ export async function unshareClientFromGym(clientId: string): Promise<ActionResu
 export type ShareAllClientsResult =
   | { success: true; count: number }
   | { success: false; error: string }
+
+export async function shareClientsWithGym(
+  gymId: string,
+  clientIds: string[]
+): Promise<ShareAllClientsResult> {
+  const uniqueIds = [...new Set(clientIds)]
+
+  if (uniqueIds.length === 0) {
+    return { success: false, error: 'Select at least one client.' }
+  }
+
+  const { supabase, user } = await requireUser()
+  const gymContext = await getGymMembershipForCoach(user.id, gymId)
+
+  if (!gymContext) {
+    return { success: false, error: 'You must be a member of this gym to add clients.' }
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ gym_id: gymContext.gym.id })
+    .eq('coach_id', user.id)
+    .eq('is_coach_self', false)
+    .in('id', uniqueIds)
+    .select('id')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClients()
+  for (const client of data ?? []) {
+    revalidatePath(`/clients/${client.id}`)
+  }
+  return { success: true, count: data?.length ?? 0 }
+}
 
 export async function shareAllClientsWithGym(
   gymId: string

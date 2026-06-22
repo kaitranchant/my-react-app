@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   ClientFormReview,
   ClientFormReviewWithUrl,
+  FormReviewAnnotation,
 } from 'app/types/database'
 
 export const FORM_REVIEWS_BUCKET = 'form-reviews'
@@ -119,6 +120,63 @@ export function formatFormReviewFileSize(bytes: number | null | undefined): stri
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+export function formatFormReviewTimestamp(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(totalSeconds / 60)
+  const remainingSeconds = totalSeconds % 60
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+export function parseCoachAnnotations(value: unknown): FormReviewAnnotation[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const annotations: FormReviewAnnotation[] = []
+
+  for (const item of value) {
+    if (
+      item &&
+      typeof item === 'object' &&
+      typeof (item as FormReviewAnnotation).id === 'string' &&
+      typeof (item as FormReviewAnnotation).timestampSeconds === 'number' &&
+      typeof (item as FormReviewAnnotation).text === 'string'
+    ) {
+      const annotation = item as FormReviewAnnotation
+      const text = annotation.text.trim()
+      if (!text) continue
+
+      annotations.push({
+        id: annotation.id,
+        timestampSeconds: Math.max(0, annotation.timestampSeconds),
+        text,
+      })
+    }
+  }
+
+  return annotations.sort(
+    (left, right) => left.timestampSeconds - right.timestampSeconds
+  )
+}
+
+export function hasFormReviewCoachReply(
+  review: Pick<ClientFormReview, 'coach_feedback' | 'coach_annotations'>
+): boolean {
+  if (review.coach_feedback?.trim()) {
+    return true
+  }
+
+  return parseCoachAnnotations(review.coach_annotations).length > 0
+}
+
+export function sortFormReviewAnnotations(
+  annotations: FormReviewAnnotation[]
+): FormReviewAnnotation[] {
+  return [...annotations].sort(
+    (left, right) => left.timestampSeconds - right.timestampSeconds
+  )
+}
+
 export async function attachSignedUrlsToFormReviews(
   supabase: SupabaseClient,
   reviews: ClientFormReview[]
@@ -155,4 +213,22 @@ export function getFormReviewTitle(
     return review.exercise.name
   }
   return 'Form review'
+}
+
+export function formatFormReviewCoachReplyMessage(
+  review: Pick<ClientFormReview, 'title' | 'content_type'> & {
+    exercise?: { name: string } | null
+  }
+): string {
+  const mediaLabel = isFormReviewImage(review.content_type) ? 'photo' : 'video'
+
+  if (review.title?.trim()) {
+    return `Coach replied to "${review.title.trim()}"`
+  }
+
+  if (review.exercise?.name) {
+    return `Coach replied to your ${review.exercise.name.toLowerCase()} ${mediaLabel}`
+  }
+
+  return `Coach replied to your ${mediaLabel}`
 }

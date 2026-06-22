@@ -18,6 +18,7 @@ import {
   deleteClientRecord,
   setClientStatus,
 } from '@/app/(dashboard)/clients/actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import type { Client } from 'app/types/database'
 
 export function ClientRowActions({ client }: { client: Client }) {
@@ -33,7 +34,19 @@ export function ClientRowActions({ client }: { client: Client }) {
     )
     setPending(false)
     if (result.success) {
-      toast.success(archive ? 'Client archived' : 'Client restored')
+      if (archive) {
+        toastSuccessWithUndo('Client archived', async () => {
+          const undoResult = await setClientStatus(client.id, 'active')
+          if (undoResult.success) {
+            toast.success('Client restored')
+            router.refresh()
+          } else {
+            toast.error(undoResult.error)
+          }
+        })
+      } else {
+        toast.success('Client restored')
+      }
       router.refresh()
     } else {
       toast.error(result.error)

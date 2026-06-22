@@ -172,7 +172,7 @@ export function ExerciseCatalogBrowser({
     return (
       <Card className="border-dashed">
         <CardHeader>
-          <CardTitle className="text-base">Connect ExerciseDB</CardTitle>
+          <CardTitle>Connect ExerciseDB</CardTitle>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-3 text-sm leading-relaxed">
           <p>
@@ -213,7 +213,7 @@ export function ExerciseCatalogBrowser({
     <div className="space-y-4">
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             Search ExerciseDB
           </CardTitle>
         </CardHeader>
@@ -283,7 +283,7 @@ export function ExerciseCatalogBrowser({
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {loadingResults ? 'Searching…' : `${results.length} result${results.length === 1 ? '' : 's'}`}
           </CardTitle>
         </CardHeader>

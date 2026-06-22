@@ -2,42 +2,36 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { MoreHorizontal, UserMinus, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
   shareAllClientsWithGym,
+  shareClientsWithGym,
   shareClientWithGym,
   unshareClientFromGym,
 } from '@/app/(dashboard)/clients/actions'
+import { GymMembershipPickerDialog } from '@/components/gym/gym-membership-picker-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { Client, Gym } from 'app/types/database'
 
-export function ClientGymSharePanel({
-  client,
-  gyms,
-  isPrimaryCoach,
-}: {
-  client: Pick<Client, 'id' | 'gym_id'>
+function useClientGymShareActions(
+  client: Pick<Client, 'id' | 'gym_id'>,
   gyms: Pick<Gym, 'id' | 'name'>[]
-  isPrimaryCoach: boolean
-}) {
+) {
   const router = useRouter()
   const [pendingGymId, setPendingGymId] = React.useState<string | null>(null)
-
-  if (gyms.length === 0) {
-    return null
-  }
 
   const memberGym = client.gym_id
     ? gyms.find((gym) => gym.id === client.gym_id)
     : null
-
-  if (!isPrimaryCoach) {
-    return memberGym ? (
-      <Badge variant="secondary">{memberGym.name} member</Badge>
-    ) : null
-  }
 
   async function addToGym(gymId: string) {
     setPendingGymId(gymId)
@@ -67,80 +61,116 @@ export function ClientGymSharePanel({
     router.refresh()
   }
 
-  if (memberGym) {
-    return (
-      <Button
-        variant="secondary"
-        disabled={pendingGymId !== null}
-        onClick={removeFromGym}
-      >
-        {pendingGymId === 'remove'
-          ? 'Saving…'
-          : `Remove from ${memberGym.name}`}
-      </Button>
-    )
+  return {
+    memberGym,
+    pendingGymId,
+    addToGym,
+    removeFromGym,
+  }
+}
+
+export function ClientGymMemberBadge({
+  client,
+  gyms,
+}: {
+  client: Pick<Client, 'gym_id'>
+  gyms: Pick<Gym, 'id' | 'name'>[]
+}) {
+  const memberGym = client.gym_id
+    ? gyms.find((gym) => gym.id === client.gym_id)
+    : null
+
+  if (!memberGym) {
+    return null
   }
 
-  if (gyms.length === 1) {
-    const gym = gyms[0]
-    return (
-      <Button
-        variant="outline"
-        disabled={pendingGymId !== null}
-        onClick={() => addToGym(gym.id)}
-      >
-        {pendingGymId === gym.id ? 'Saving…' : `Add to ${gym.name}`}
-      </Button>
-    )
+  return <Badge variant="secondary">{memberGym.name} member</Badge>
+}
+
+export function ClientGymShareMenu({
+  client,
+  gyms,
+  isPrimaryCoach,
+}: {
+  client: Pick<Client, 'id' | 'gym_id'>
+  gyms: Pick<Gym, 'id' | 'name'>[]
+  isPrimaryCoach: boolean
+}) {
+  const { memberGym, pendingGymId, addToGym, removeFromGym } =
+    useClientGymShareActions(client, gyms)
+
+  if (gyms.length === 0 || !isPrimaryCoach) {
+    return null
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {gyms.map((gym) => (
-        <Button
-          key={gym.id}
-          variant="outline"
-          disabled={pendingGymId !== null}
-          onClick={() => addToGym(gym.id)}
-        >
-          {pendingGymId === gym.id ? 'Saving…' : `Add to ${gym.name}`}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" disabled={pendingGymId !== null}>
+          <MoreHorizontal className="size-4" />
+          <span className="sr-only">More actions</span>
         </Button>
-      ))}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {memberGym ? (
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={pendingGymId !== null}
+            onSelect={removeFromGym}
+          >
+            <UserMinus className="size-4" />
+            {pendingGymId === 'remove'
+              ? 'Saving…'
+              : `Remove from ${memberGym.name}`}
+          </DropdownMenuItem>
+        ) : (
+          gyms.map((gym) => (
+            <DropdownMenuItem
+              key={gym.id}
+              disabled={pendingGymId !== null}
+              onSelect={() => addToGym(gym.id)}
+            >
+              <UserPlus className="size-4" />
+              {pendingGymId === gym.id ? 'Saving…' : `Add to ${gym.name}`}
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
-export function ShareAllClientsButton({ gymId }: { gymId: string }) {
-  const router = useRouter()
-  const [pending, setPending] = React.useState(false)
+type AddClientsPreview = {
+  id: string
+  full_name: string
+  gym_id: string | null
+}
 
-  async function handleAddAll() {
-    if (
-      !window.confirm(
-        'Add all of your clients as members of this gym? Other gym coaches will be able to view and manage them.'
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
-    const result = await shareAllClientsWithGym(gymId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success(
-      `Added ${result.count} client${result.count === 1 ? '' : 's'} as gym members.`
-    )
-    router.refresh()
-  }
-
+export function AddClientsButton({
+  gymId,
+  gymName,
+  clients,
+}: {
+  gymId: string
+  gymName: string
+  clients: AddClientsPreview[]
+}) {
   return (
-    <Button variant="outline" disabled={pending} onClick={handleAddAll}>
-      {pending ? 'Adding…' : 'Add all my clients as members'}
-    </Button>
+    <GymMembershipPickerDialog
+      gymId={gymId}
+      gymName={gymName}
+      items={clients.map((client) => ({
+        id: client.id,
+        name: client.full_name,
+        gym_id: client.gym_id,
+      }))}
+      triggerLabel="Add clients"
+      title={`Add clients to ${gymName}`}
+      description="Select clients to add, or add all at once. Other coaches in this gym will be able to view and manage them."
+      itemLabelSingular="client"
+      itemLabelPlural="clients"
+      onAddSelected={(clientIds) => shareClientsWithGym(gymId, clientIds)}
+      onAddAll={() => shareAllClientsWithGym(gymId)}
+    />
   )
 }

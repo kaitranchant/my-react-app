@@ -12,10 +12,21 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    ...devices['Desktop Chrome'],
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
   },
+  projects: [
+    {
+      name: 'desktop-chrome',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: '**/mobile-smoke.spec.ts',
+    },
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 14'] },
+      testMatch: '**/mobile-smoke.spec.ts',
+    },
+  ],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
     : {

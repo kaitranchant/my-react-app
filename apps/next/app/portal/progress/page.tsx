@@ -1,12 +1,8 @@
-import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
-
 import { PortalProgressGallery } from '@/components/portal/portal-progress-gallery'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
 import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
 import { PortalStatCard } from '@/components/portal/portal-stat-cards'
 import { VolumeBarChart } from '@/components/load/volume-bar-chart'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -44,7 +40,7 @@ export default async function PortalProgressPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        <h1 className="page-title">Progress</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Track training volume, personal records, and progress photos over time.
         </p>
@@ -110,7 +106,7 @@ export default async function PortalProgressPage() {
             progressData.loadMetrics.acwrLabel !== '—' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Training load balance</CardTitle>
+                  <CardTitle>Training load balance</CardTitle>
                   <CardDescription>
                     ACWR compares your recent training volume to your usual
                     baseline. A ratio between 0.8 and 1.3 is generally
@@ -130,7 +126,7 @@ export default async function PortalProgressPage() {
             ) && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">8-week volume</CardTitle>
+                  <CardTitle>8-week volume</CardTitle>
                   <CardDescription>
                     Total weight moved each week (lbs × reps). ACWR is
                     calculated from this tonnage.
@@ -150,27 +146,7 @@ export default async function PortalProgressPage() {
               </Card>
             )}
 
-          <PortalRecentPrs recentPrs={progressData.recentPrs} />
-
-          {progressData.recentPrs.length === 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Personal records</CardTitle>
-                <CardDescription>
-                  PRs appear here when you beat your previous best on a logged
-                  set.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/portal/workouts">
-                    Log a workout
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <PortalRecentPrs recentPrs={progressData.recentPrs} showViewAll />
 
           <PortalProgressGallery photos={progressData.progressPhotos} />
         </>

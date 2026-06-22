@@ -123,6 +123,56 @@ export function getPreSessionInsight(
   }
 }
 
+type SessionReadinessInput = {
+  label: string
+  variant: 'success' | 'warning' | 'danger' | 'secondary'
+  flags: string[]
+}
+
+export function getSessionReadinessInsight(readiness: SessionReadinessInput): {
+  badge: string
+  variant: 'success' | 'warning' | 'secondary' | 'outline'
+  message: string
+} {
+  if (readiness.label === 'Low' || readiness.variant === 'danger') {
+    return {
+      badge: 'Check before training',
+      variant: 'warning',
+      message:
+        readiness.flags.length > 0
+          ? `Recent check-in flags: ${readiness.flags.join(', ').toLowerCase()}. Review before today's session.`
+          : 'Readiness is low — review recovery and check-in notes before training.',
+    }
+  }
+
+  if (readiness.variant === 'warning' || readiness.flags.length > 0) {
+    return {
+      badge: 'Monitor readiness',
+      variant: 'warning',
+      message:
+        readiness.flags.length > 0
+          ? `Watch for ${readiness.flags.join(', ').toLowerCase()} — adjust volume or intensity if needed.`
+          : 'Readiness is moderate — confirm how they feel before pushing intensity.',
+    }
+  }
+
+  if (readiness.label === 'No data') {
+    return {
+      badge: 'Review metrics',
+      variant: 'secondary',
+      message:
+        'Not enough recent activity — ask for a check-in before your next session.',
+    }
+  }
+
+  return {
+    badge: 'Ready to train',
+    variant: 'success',
+    message:
+      'Workouts scheduled and readiness looks good — review the week before your next session.',
+  }
+}
+
 export function getWeekDays(): { label: string; isToday: boolean }[] {
   const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
   const today = new Date()

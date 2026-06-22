@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Mail, UserPlus } from 'lucide-react'
@@ -15,6 +15,7 @@ import { uploadPendingClientAvatar, setClientAvatarPreset } from '@/app/(dashboa
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
 import { ClientGymField } from '@/components/clients/client-gym-field'
+import { ClientLeaderboardProfileFields } from '@/components/clients/client-leaderboard-profile-fields'
 import type { ClientAvatarPresetId } from '@/lib/client-avatar-presets'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,15 +57,29 @@ import {
 type AddClientDialogProps = {
   trigger?: React.ReactNode
   gyms?: { id: string; name: string }[]
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 async function copyInviteUrl(url: string) {
   await navigator.clipboard.writeText(url)
 }
 
-export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
+export function AddClientDialog({
+  trigger,
+  gyms = [],
+  open: controlledOpen,
+  onOpenChange,
+}: AddClientDialogProps) {
   const router = useRouter()
-  const [open, setOpen] = React.useState(false)
+  const searchParams = useSearchParams()
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+  const setOpen = isControlled
+    ? (next: boolean) => onOpenChange?.(next)
+    : setUncontrolledOpen
+  const handledAddShortcutRef = React.useRef(false)
   const [mode, setMode] = React.useState<'invite' | 'manual'>('invite')
   const [lastInviteUrl, setLastInviteUrl] = React.useState<string | null>(null)
   const [pendingAvatar, setPendingAvatar] = React.useState<File | null>(null)
@@ -80,6 +95,19 @@ export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
     resolver: zodResolver(clientFormSchema),
     defaultValues: clientFormDefaults,
   })
+
+  React.useEffect(() => {
+    if (handledAddShortcutRef.current) return
+    if (searchParams.get('add') !== '1') return
+
+    handledAddShortcutRef.current = true
+    setOpen(true)
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('add')
+    const query = params.toString()
+    router.replace(query ? `/clients?${query}` : '/clients', { scroll: false })
+  }, [router, searchParams, setOpen])
 
   React.useEffect(() => {
     if (open) {
@@ -144,7 +172,7 @@ export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-semibold tracking-tight">Add client</DialogTitle>
           <DialogDescription>
@@ -279,6 +307,11 @@ export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                  <ClientLeaderboardProfileFields
+                    control={inviteForm.control}
+                    biologicalSexName="biologicalSex"
+                    leaderboardOptOutName="leaderboardOptOut"
                   />
                   <DialogFooter className="mt-2">
                     <Button
@@ -430,6 +463,11 @@ export function AddClientDialog({ trigger, gyms = [] }: AddClientDialogProps) {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+                <ClientLeaderboardProfileFields
+                  control={manualForm.control}
+                  biologicalSexName="biologicalSex"
+                  leaderboardOptOutName="leaderboardOptOut"
                 />
                 <DialogFooter className="mt-2">
                   <Button

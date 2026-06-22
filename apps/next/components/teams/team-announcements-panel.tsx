@@ -10,8 +10,10 @@ import { toast } from 'sonner'
 import {
   createTeamAnnouncement,
   deleteTeamAnnouncement,
+  restoreTeamAnnouncement,
   toggleTeamAnnouncementPin,
 } from '@/app/(dashboard)/teams/feature-actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -66,12 +68,22 @@ export function TeamAnnouncementsPanel({
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Delete this announcement?')) return
+    const announcement = announcements.find((item) => item.id === id)
+    if (!announcement) return
+
     setPending(true)
     const result = await deleteTeamAnnouncement(teamId, id)
     setPending(false)
     if (result.success) {
-      toast.success('Announcement deleted')
+      toastSuccessWithUndo('Announcement deleted', async () => {
+        const undoResult = await restoreTeamAnnouncement(teamId, announcement)
+        if (undoResult.success) {
+          toast.success('Announcement restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)
@@ -83,6 +95,7 @@ export function TeamAnnouncementsPanel({
     const result = await toggleTeamAnnouncementPin(teamId, id, !pinned)
     setPending(false)
     if (result.success) {
+      toast.success(pinned ? 'Announcement unpinned' : 'Announcement pinned')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -97,7 +110,7 @@ export function TeamAnnouncementsPanel({
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="border-b bg-muted/30 px-5 py-4">
-        <CardTitle className="text-sm font-medium">Announcements</CardTitle>
+        <CardTitle className="text-muted-foreground">Announcements</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 px-5 py-5">
         <Form {...form}>

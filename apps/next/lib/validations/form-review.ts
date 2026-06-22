@@ -35,8 +35,16 @@ export const formReviewUploadSchema = z.object({
 
 export type FormReviewUploadValues = z.infer<typeof formReviewUploadSchema>
 
-export const formReviewFeedbackSchema = z.object({
-  coachFeedback: optionalText(2000),
+export const formReviewAnnotationSchema = z.object({
+  id: z.string().uuid(),
+  timestampSeconds: z.number().min(0).max(86_400),
+  text: z.string().trim().min(1).max(500),
 })
 
+export const formReviewFeedbackSchema = z.object({
+  coachFeedback: optionalText(2000),
+  coachAnnotations: z.array(formReviewAnnotationSchema).max(50).optional().default([]),
+})
+
+export type FormReviewAnnotationValues = z.infer<typeof formReviewAnnotationSchema>
 export type FormReviewFeedbackValues = z.infer<typeof formReviewFeedbackSchema>

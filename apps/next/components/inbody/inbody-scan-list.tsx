@@ -2,12 +2,13 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Scale, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { InbodyScanForm } from '@/components/inbody/inbody-scan-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -27,6 +28,7 @@ import type { ClientInbodyScan } from 'app/types/database'
 type InbodyScanListProps = {
   scans: ClientInbodyScan[]
   emptyMessage?: string
+  emptyAction?: { label: string; href?: string; onClick?: () => void }
   canEdit?: (scan: ClientInbodyScan) => boolean
   onUpdate: (
     scanId: string,
@@ -113,7 +115,7 @@ function ScanRow({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">
+            <CardTitle>
               {formatInbodyScanDateTime(scan.scan_date)}
             </CardTitle>
             <CardDescription>
@@ -170,6 +172,7 @@ function ScanRow({
 export function InbodyScanList({
   scans,
   emptyMessage = 'No InBody scans logged yet.',
+  emptyAction,
   canEdit = () => true,
   onUpdate,
   onDelete,
@@ -177,8 +180,13 @@ export function InbodyScanList({
   if (scans.length === 0) {
     return (
       <Card>
-        <CardContent className="text-muted-foreground py-8 text-center text-sm">
-          {emptyMessage}
+        <CardContent>
+          <EmptyState
+            icon={Scale}
+            title={emptyMessage.replace(/\.$/, '')}
+            description="Log a scan to track body composition alongside check-ins and goals."
+            action={emptyAction}
+          />
         </CardContent>
       </Card>
     )

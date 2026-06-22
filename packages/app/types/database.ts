@@ -1409,6 +1409,7 @@ export type Database = {
           title: string | null
           client_notes: string | null
           coach_feedback: string | null
+          coach_annotations: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at: string | null
           scheduled_workout_id: string | null
@@ -1427,6 +1428,7 @@ export type Database = {
           title?: string | null
           client_notes?: string | null
           coach_feedback?: string | null
+          coach_annotations?: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at?: string | null
           scheduled_workout_id?: string | null
@@ -1445,6 +1447,7 @@ export type Database = {
           title?: string | null
           client_notes?: string | null
           coach_feedback?: string | null
+          coach_annotations?: Json
           uploaded_by?: CheckInSubmittedBy
           reviewed_at?: string | null
           scheduled_workout_id?: string | null
@@ -2417,6 +2420,12 @@ export type ClientFormReviewInsert =
   Database['public']['Tables']['client_form_reviews']['Insert']
 export type ClientFormReviewUpdate =
   Database['public']['Tables']['client_form_reviews']['Update']
+
+export type FormReviewAnnotation = {
+  id: string
+  timestampSeconds: number
+  text: string
+}
 
 export type ClientFormReviewWithUrl = ClientFormReview & {
   signedUrl: string | null

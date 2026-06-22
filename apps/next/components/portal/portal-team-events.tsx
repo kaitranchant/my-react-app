@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { ClientTeamEvent } from '@/lib/portal-teams'
 import {
   formatTeamEventDate,
@@ -133,16 +134,19 @@ export function PortalTeamEvents({ teamId, events }: PortalTeamEventsProps) {
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="border-b bg-muted/30 px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 text-muted-foreground">
           <CalendarClock className="size-4" />
           Events
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 px-5 py-5">
         {upcoming.length === 0 && past.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No team events scheduled yet.
-          </p>
+          <EmptyState
+            icon={CalendarClock}
+            title="No team events scheduled"
+            description="Your coach will add practices, meets, and team sessions here."
+            className="py-4"
+          />
         ) : (
           <>
             {upcoming.length > 0 && (

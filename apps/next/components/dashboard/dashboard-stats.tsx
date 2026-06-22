@@ -6,6 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  getCompletionRateStatusLevel,
+  statusTextClass,
+} from '@/lib/status-colors'
 import { cn } from '@/lib/utils'
 
 type DashboardStatsProps = {
@@ -29,19 +33,38 @@ export function DashboardStats({
     weekWorkoutCount > 0
       ? `${weekWorkoutCount} session${weekWorkoutCount === 1 ? '' : 's'} scheduled this week`
       : 'No sessions scheduled this week'
+  const completionStatus = getCompletionRateStatusLevel(
+    completionRate,
+    weekWorkoutCount
+  )
+  const completionValueClass =
+    completionStatus === 'warning'
+      ? statusTextClass.warning
+      : completionStatus === 'success'
+        ? statusTextClass.success
+        : 'text-brand'
+  const completionBarClass =
+    completionStatus === 'warning'
+      ? 'bg-status-warning'
+      : completionStatus === 'success'
+        ? 'bg-status-success'
+        : 'bg-brand'
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Card className="border-brand/15 from-brand/5 gap-0 bg-gradient-to-br to-transparent py-0 sm:col-span-2 lg:col-span-2">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 px-5 pt-5 pb-3">
           <div className="space-y-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Session completion
-            </CardTitle>
-            <div className="text-brand text-4xl font-semibold tracking-tight sm:text-5xl">
+            <CardTitle className="text-muted-foreground">Session completion</CardTitle>
+            <div
+              className={cn(
+                'text-4xl font-semibold tracking-tight sm:text-5xl',
+                completionValueClass
+              )}
+            >
               {completionDisplay}
             </div>
-            <p className="text-muted-foreground text-xs">{completionHint}</p>
+            <p className="helper-text">{completionHint}</p>
           </div>
           <div className="bg-brand/10 text-brand flex size-11 items-center justify-center rounded-xl">
             <TrendingUp className="size-5" />
@@ -51,7 +74,7 @@ export function DashboardStats({
           <CardContent className="px-5 pb-5">
             <div className="bg-muted h-1.5 overflow-hidden rounded-full">
               <div
-                className="bg-brand h-full rounded-full transition-all"
+                className={cn('h-full rounded-full transition-all', completionBarClass)}
                 style={{ width: `${completionRate}%` }}
               />
             </div>
@@ -62,15 +85,11 @@ export function DashboardStats({
       <Card className="gap-0 py-0">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 px-5 pt-5 pb-5">
           <div className="space-y-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Active clients
-            </CardTitle>
+            <CardTitle className="text-muted-foreground">Active clients</CardTitle>
             <div className="text-3xl font-semibold tracking-tight">
               {activeClients}
             </div>
-            <p className="text-muted-foreground text-xs">
-              Currently in your care
-            </p>
+            <p className="helper-text">Currently in your care</p>
           </div>
           <div className="bg-brand/10 text-brand flex size-10 items-center justify-center rounded-xl">
             <Activity className="size-[18px]" />
@@ -82,7 +101,7 @@ export function DashboardStats({
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-4 pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-muted-foreground text-xs font-medium">
+              <CardTitle className="helper-text font-medium">
                 Total clients
               </CardTitle>
               <div className="text-2xl font-semibold tracking-tight">
@@ -98,9 +117,7 @@ export function DashboardStats({
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-4 pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-muted-foreground text-xs font-medium">
-                On pause
-              </CardTitle>
+              <CardTitle className="helper-text font-medium">On pause</CardTitle>
               <div className="text-muted-foreground text-2xl font-semibold tracking-tight">
                 {pausedClients}
               </div>

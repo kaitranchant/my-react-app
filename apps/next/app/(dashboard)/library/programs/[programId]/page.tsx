@@ -1,8 +1,8 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { Suspense } from 'react'
 
 import { createClient } from '@/lib/supabase/server'
+import { ProgramDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { ProgramCalendarPanel } from '@/components/programs/program-calendar-panel'
 import { AssignProgramDialog } from '@/components/programs/assign-program-dialog'
 import { ProgramFormDialog } from '@/components/programs/program-form-dialog'
@@ -128,12 +128,9 @@ export default async function ProgramDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
-          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
-            <Link href="/library/programs">
-              <ArrowLeft className="size-4" />
-              Back to programs
-            </Link>
-          </Button>
+          <Suspense fallback={null}>
+            <ProgramDetailBreadcrumbs programName={program.name} />
+          </Suspense>
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold tracking-tight">

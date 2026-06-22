@@ -16,6 +16,7 @@ export function NavigationProvider({
             initialRouteName: 'home',
             screens: {
               home: '',
+              'apple-health': 'wearables/apple-health',
               'user-detail': 'users/:id',
             },
           },

@@ -95,7 +95,6 @@ import {
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
-  formatPreviousPerformance,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
   getLogFieldsForExercise,
@@ -114,6 +113,7 @@ import {
   workoutHasProgress,
   type WorkoutLogSetDraft,
 } from '@/lib/workout-log'
+import { getWorkoutToneBadgeClass } from '@/lib/status-colors'
 import type { ExercisePreviousSets } from 'app/types/database'
 import { cn } from '@/lib/utils'
 import {
@@ -226,12 +226,7 @@ function WorkoutStatusBadge({
   return (
     <Badge
       variant="secondary"
-      className={cn(
-        'gap-1.5 font-medium',
-        tone === 'active' && 'border-brand/30 bg-brand/10 text-brand',
-        tone === 'success' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
-        tone === 'warning' && 'border-amber-500/30 bg-amber-500/10 text-amber-700'
-      )}
+      className={cn('gap-1.5 font-medium', getWorkoutToneBadgeClass(tone))}
     >
       {status === 'completed' ? (
         <Check className="size-3" />
@@ -344,15 +339,15 @@ function WorkoutLogExercise({
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
   const setGridCols = fields.completionOnly
     ? canRemoveSet
-      ? 'grid-cols-[2.5rem_1fr_2.5rem_2rem]'
-      : 'grid-cols-[2.5rem_1fr_2.5rem]'
+      ? 'grid-cols-[1.5rem_minmax(0,1fr)_2rem_1.5rem]'
+      : 'grid-cols-[1.5rem_minmax(0,1fr)_2rem]'
     : fields.showWeight && fields.showReps
       ? canRemoveSet
-        ? 'grid-cols-[2.5rem_4.5rem_1fr_1fr_2.5rem_2rem]'
-        : 'grid-cols-[2.5rem_4.5rem_1fr_1fr_2.5rem]'
+        ? 'grid-cols-[1.5rem_3.75rem_3.5rem_3.5rem_2rem_1.5rem]'
+        : 'grid-cols-[1.5rem_3.75rem_3.5rem_3.5rem_2rem]'
       : canRemoveSet
-        ? 'grid-cols-[2.5rem_4.5rem_1fr_2.5rem_2rem]'
-        : 'grid-cols-[2.5rem_4.5rem_1fr_2.5rem]'
+        ? 'grid-cols-[1.5rem_3.75rem_minmax(3.5rem,1fr)_2rem_1.5rem]'
+        : 'grid-cols-[1.5rem_3.75rem_minmax(3.5rem,1fr)_2rem]'
 
   const activeSetNumber =
     sets.find((set) => !set.completed)?.setNumber ?? null
@@ -563,7 +558,7 @@ function WorkoutLogExercise({
                 </span>
               )}
               {isLivePr && (
-                <Badge className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700">
+                <Badge variant="warning-soft" className="gap-1">
                   <Trophy className="size-3" />
                   PR pace
                 </Badge>
@@ -597,14 +592,15 @@ function WorkoutLogExercise({
                 </p>
               )}
             </div>
+          </div>
+        </div>
 
+        <div className="mt-3 space-y-3">
             {showSetTable ? (
               <div className="bg-muted/25 overflow-hidden rounded-xl border">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[320px]">
                     <div
                       className={cn(
-                        'text-muted-foreground grid gap-2 border-b px-3 py-2 text-[11px] font-semibold tracking-wide uppercase',
+                        'text-muted-foreground grid gap-1.5 border-b px-2 py-2 text-[11px] font-semibold tracking-wide uppercase sm:gap-2 sm:px-3',
                         setGridCols
                       )}
                     >
@@ -634,9 +630,9 @@ function WorkoutLogExercise({
                         <div
                           key={set.setNumber}
                           className={cn(
-                            'relative grid items-center gap-2 border-b px-3 py-2 last:border-b-0',
+                            'relative grid items-center gap-1.5 border-b px-2 py-2 last:border-b-0 sm:gap-2 sm:px-3',
                             setGridCols,
-                            set.completed && 'bg-emerald-500/5',
+                            set.completed && 'bg-status-success/5',
                             set.predicted &&
                               !set.completed &&
                               'bg-brand/5',
@@ -657,16 +653,13 @@ function WorkoutLogExercise({
                           </span>
 
                           {fields.completionOnly ? (
-                            <span className="text-muted-foreground text-sm">
+                            <span className="text-muted-foreground min-w-0 truncate text-sm">
                               {set.targetLabel ?? '—'}
                             </span>
                           ) : (
-                            <span className="bg-background/80 text-muted-foreground rounded-md px-2 py-2 text-center text-xs">
+                            <span className="bg-background/80 text-muted-foreground min-w-0 truncate rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-xs">
                               {previous
-                                ? formatPreviousPerformance(
-                                    previous.weight,
-                                    previous.reps
-                                  )
+                                ? `${previous.weight}x${previous.reps}`
                                 : '—'}
                             </span>
                           )}
@@ -685,7 +678,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
                               aria-label={`Set ${set.setNumber} weight`}
                             />
                           )}
@@ -703,7 +696,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
                               aria-label={`Set ${set.setNumber} reps`}
                             />
                           )}
@@ -721,7 +714,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-10 rounded-lg text-center text-sm font-medium"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
                               aria-label={`Set ${set.setNumber} duration`}
                             />
                           )}
@@ -732,9 +725,9 @@ function WorkoutLogExercise({
                               disabled={readOnly || !canConfirmSet(set)}
                               onClick={() => handleSetToggle(set)}
                               className={cn(
-                                'flex size-8 items-center justify-center rounded-full border-2 transition-all',
+                                'flex size-7 items-center justify-center rounded-full border-2 transition-all sm:size-8',
                                 set.completed
-                                  ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
+                                  ? 'border-status-success bg-status-success text-white shadow-sm'
                                   : isActive
                                     ? 'border-brand hover:bg-brand/10'
                                     : set.predicted
@@ -769,8 +762,6 @@ function WorkoutLogExercise({
                         </div>
                       )
                     })}
-                  </div>
-                </div>
 
                 {!readOnly && (
                   <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
@@ -857,7 +848,6 @@ function WorkoutLogExercise({
             </div>
           )}
         </div>
-      </div>
       </CardContent>
 
       <ExerciseMediaDialog
@@ -1418,22 +1408,22 @@ export function WorkoutLogModal({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
         <RestTimerProvider>
-        <div className="shrink-0 border-b px-5 py-4 pr-14">
+        <div className="shrink-0 border-b px-4 py-3 pr-12 sm:px-5 sm:py-4 sm:pr-14">
           <DialogTitle className="sr-only">Log workout</DialogTitle>
           <DialogDescription className="sr-only">
             Log sets for {formatDayHeader(selectedDate)}
           </DialogDescription>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
                 <p className="text-muted-foreground text-xs font-medium">
                   {formatDayHeader(selectedDate)}
                 </p>
-                <h2 className="text-xl font-semibold tracking-tight">
+                <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
                   {data?.name ?? 'Workout'}
                 </h2>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 sm:gap-2 sm:pt-1">
                   <WorkoutStatusBadge status={status} hasProgress={hasProgress} />
                   <WorkoutElapsedTimer
                     startedAt={data?.started_at ?? null}
@@ -1456,7 +1446,7 @@ export function WorkoutLogModal({
               />
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&_button]:w-full sm:[&_button]:w-auto">
               {!readOnly && !isActive && (
                 <Button
                   type="button"
@@ -1469,7 +1459,12 @@ export function WorkoutLogModal({
                   ) : (
                     <Play className="size-4" />
                   )}
-                  {isPaused ? 'Resume workout' : 'Start workout'}
+                  <span className="hidden sm:inline">
+                    {isPaused ? 'Resume workout' : 'Start workout'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isPaused ? 'Resume' : 'Start'}
+                  </span>
                 </Button>
               )}
               {!readOnly && isActive && (
@@ -1485,7 +1480,7 @@ export function WorkoutLogModal({
                   ) : (
                     <Pause className="size-4" />
                   )}
-                  Stop workout
+                  Stop
                 </Button>
               )}
               {!readOnly && allowPrescriptionEdits && (
@@ -1504,7 +1499,7 @@ export function WorkoutLogModal({
                     disabled={pending || loading}
                     onClick={() => void handleCompleteWorkout()}
                   >
-                    Complete workout
+                    Complete
                   </Button>
                   <Button
                     type="button"
@@ -1523,6 +1518,7 @@ export function WorkoutLogModal({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="col-span-2 sm:col-span-1"
                   disabled={pending || loading}
                   onClick={handleReopenWorkout}
                 >
@@ -1530,26 +1526,36 @@ export function WorkoutLogModal({
                 </Button>
               )}
             </div>
-          </div>
 
-          {sections.length > 1 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {sections.map((section, index) => (
-                <Button
-                  key={section.label + index}
-                  type="button"
-                  size="sm"
-                  variant={index === activeSectionIndex ? 'default' : 'outline'}
-                  onClick={() => setActiveSectionIndex(index)}
-                >
-                  {section.label}
-                  <span className="text-muted-foreground ml-1.5 text-xs">
-                    {section.exercises.length}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          )}
+            {sections.length > 1 && (
+              <div className="-mx-1 overflow-x-auto px-1 pb-0.5">
+                <div className="inline-flex gap-1.5">
+                  {sections.map((section, index) => (
+                    <Button
+                      key={section.label + index}
+                      type="button"
+                      size="sm"
+                      variant={index === activeSectionIndex ? 'default' : 'outline'}
+                      className="h-8 shrink-0 px-3 text-xs"
+                      onClick={() => setActiveSectionIndex(index)}
+                    >
+                      {section.label}
+                      <span
+                        className={cn(
+                          'ml-1 text-xs',
+                          index === activeSectionIndex
+                            ? 'text-primary-foreground/80'
+                            : 'text-muted-foreground'
+                        )}
+                      >
+                        {section.exercises.length}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-6">

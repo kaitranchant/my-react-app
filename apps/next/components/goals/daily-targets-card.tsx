@@ -1,3 +1,5 @@
+import { Target } from 'lucide-react'
+
 import {
   Card,
   CardContent,
@@ -5,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   formatDailyTargetLabel,
   getDailyTargetCheckInHint,
@@ -25,14 +28,17 @@ export function DailyTargetsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Daily targets</CardTitle>
+        <CardTitle>Daily targets</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {goals.length === 0 ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            No daily targets yet.
-          </p>
+          <EmptyState
+            icon={Target}
+            title="No daily targets yet"
+            description="Your coach can set daily reminders like water intake, steps, or sleep here."
+            className="py-4"
+          />
         ) : (
           <ul className="grid gap-3">
             {goals.map((goal) => {

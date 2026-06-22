@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { Users } from 'lucide-react'
+import { Plus, Users } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getGymsForCoach } from '@/lib/gym-access'
@@ -11,25 +10,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { ClientsList } from '@/components/clients/clients-list'
 import { ClientsToolbar } from '@/components/clients/clients-toolbar'
 import { ClientsScopeTabs } from '@/components/clients/clients-scope-tabs'
+import {
+  ClearPageFilters,
+  PageFilterPersistence,
+} from '@/components/filters/page-filter-persistence'
 import { ClientsPagination } from '@/components/clients/clients-pagination'
-import { ClientRowActions } from '@/components/clients/client-row-actions'
-import { ClientAvatar } from '@/components/clients/client-avatar'
-import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
-import { ClientTeamBadges } from '@/components/teams/client-team-badges'
-import { ClientGymBadge } from '@/components/gym/client-gym-badge'
-import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
-import { StatusBadge } from '@/components/clients/status-badge'
+import { AddClientDialog } from '@/components/clients/add-client-dialog'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { Button } from '@/components/ui/button'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
 import { clientStatuses } from '@/lib/validations/client'
 import type { Client, ClientStatus, ClientTeamMembership } from 'app/types/database'
@@ -172,34 +163,61 @@ export default async function ClientsPage({
     }
   }
 
+  const teamsByClientIdRecord = Object.fromEntries(teamsByClientId) as Record<
+    string,
+    ClientTeamMembership[]
+  >
+  const gymNamesByIdRecord = Object.fromEntries(gymNamesById) as Record<
+    string,
+    string
+  >
+  const coachNamesByIdRecord = Object.fromEntries(coachNamesById) as Record<
+    string,
+    string
+  >
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <PageHeader
         title="Clients"
         description="Manage your clients, their programs, and progress in one place."
-      />
+      >
+        <Suspense fallback={null}>
+          <AddClientDialog
+            gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+            trigger={
+              <Button variant="brand">
+                <Plus className="size-4" />
+                Add client
+              </Button>
+            }
+          />
+        </Suspense>
+      </PageHeader>
 
       {coachGyms.length > 0 ? (
         <Suspense fallback={null}>
-          <ClientsScopeTabs
-            gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
-          />
+          <PageFilterPersistence pageKey="clients" filterKeys={['scope']} />
+          <div className="space-y-3">
+            <ClientsScopeTabs
+              gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+            />
+            <ClearPageFilters pageKey="clients" filterKeys={['scope']} />
+          </div>
         </Suspense>
       ) : null}
 
-      <ClientsToolbar
-        gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
-      />
+      <ClientsToolbar />
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {totalCount} client{totalCount === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {error ? (
-            <p className="text-destructive p-6 text-sm">
+            <p className="text-destructive body-text p-6">
               Could not load clients: {error.message}
             </p>
           ) : clients.length === 0 ? (
@@ -208,8 +226,8 @@ export default async function ClientsPage({
                 <Users className="size-7" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium">No clients found</p>
-                <p className="text-muted-foreground max-w-sm text-sm">
+                <p className="section-header">No clients found</p>
+                <p className="helper-text max-w-sm">
                   {q || status || scope !== 'all'
                     ? 'Try adjusting your search or filters.'
                     : 'Add your first client to get started.'}
@@ -217,79 +235,13 @@ export default async function ClientsPage({
               </div>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="pl-5">Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Teams</TableHead>
-                  <TableHead>Goal</TableHead>
-                  <TableHead className="w-12 pr-5" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clients.map((client) => (
-                  <TableRow key={client.id} className="group">
-                    <TableCell className="pl-5 font-medium">
-                      <Link
-                        href={`/clients/${client.id}`}
-                        className="text-foreground hover:text-brand flex items-center gap-3 font-medium transition-colors"
-                      >
-                        <ClientAvatar
-                          name={client.full_name}
-                          avatarUrl={client.avatar_url}
-                          size="sm"
-                        />
-                        <div className="min-w-0">
-                          <span className="block truncate">{client.full_name}</span>
-                          {client.gym_id ? (
-                            <ClientGymBadge
-                              gymName={gymNamesById.get(client.gym_id)}
-                              isOwnClient={user?.id === client.coach_id}
-                              primaryCoachName={coachNamesById.get(client.coach_id)}
-                            />
-                          ) : null}
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {client.email ?? '—'}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={client.status} />
-                    </TableCell>
-                    <TableCell>
-                      <ClientInviteStatusBadge status={client.invite_status} />
-                    </TableCell>
-                    <TableCell>
-                      {client.coaching_type ? (
-                        <ClientCoachingTypeBadge coachingType={client.coaching_type} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {(teamsByClientId.get(client.id) ?? []).length > 0 ? (
-                        <ClientTeamBadges
-                          memberships={teamsByClientId.get(client.id) ?? []}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[16rem] truncate">
-                      {client.goal ?? '—'}
-                    </TableCell>
-                    <TableCell className="pr-5">
-                      <ClientRowActions client={client} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ClientsList
+              clients={clients}
+              teamsByClientId={teamsByClientIdRecord}
+              gymNamesById={gymNamesByIdRecord}
+              coachNamesById={coachNamesByIdRecord}
+              currentCoachId={user?.id}
+            />
           )}
           {!error && totalCount > 0 && (
             <ClientsPagination

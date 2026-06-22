@@ -5,6 +5,10 @@ import { AttendanceDateNav } from '@/components/attendance/attendance-date-nav'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import { AttendanceTeamEventsSection } from '@/components/attendance/attendance-team-events-section'
 import { AttendanceWeeklyGrid } from '@/components/attendance/attendance-weekly-grid'
+import {
+  ClearPageFilters,
+  PageFilterPersistence,
+} from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { computeClientAttendanceStats } from '@/lib/attendance-stats'
 import {
@@ -167,7 +171,17 @@ export default async function AttendancePage({
       />
 
       <Suspense fallback={null}>
-        <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+        <PageFilterPersistence
+          pageKey="attendance"
+          filterKeys={['scope', 'team', 'view']}
+        />
+        <div className="space-y-3">
+          <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+          <ClearPageFilters
+            pageKey="attendance"
+            filterKeys={['scope', 'team']}
+          />
+        </div>
       </Suspense>
 
       {view === 'weekly' ? (

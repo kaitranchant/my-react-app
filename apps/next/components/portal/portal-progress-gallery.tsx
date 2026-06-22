@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Trash2, X } from 'lucide-react'
+import { Camera, Loader2, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteClientProgressPhoto } from '@/app/portal/progress-photo-actions'
@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { formatCheckInDate } from '@/lib/check-ins'
 import {
   groupPhotosByDate,
@@ -49,11 +50,20 @@ export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Progress photos</CardTitle>
+          <CardTitle>Progress photos</CardTitle>
           <CardDescription>
             Upload front, side, and back photos when you submit a check-in.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={Camera}
+            title="No progress photos yet"
+            description="Add front, side, and back photos when you submit your next check-in."
+            action={{ label: 'Submit check-in', href: '/portal/check-in' }}
+            className="py-4"
+          />
+        </CardContent>
       </Card>
     )
   }
@@ -64,7 +74,7 @@ export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
         {groupedPhotos.map(({ date, photos: datePhotos }) => (
           <Card key={date}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">{formatCheckInDate(date)}</CardTitle>
+              <CardTitle>{formatCheckInDate(date)}</CardTitle>
               <CardDescription>
                 {datePhotos.length} photo{datePhotos.length === 1 ? '' : 's'}
               </CardDescription>

@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
@@ -17,15 +16,18 @@ import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountBanner } from '@/components/clients/client-account-banner'
-import { ClientLeaderboardProfileCard } from '@/components/clients/client-leaderboard-profile-card'
 import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
-import { ClientGymSharePanel } from '@/components/gym/client-gym-share-toggle'
+import {
+  ClientGymMemberBadge,
+  ClientGymShareMenu,
+} from '@/components/gym/client-gym-share-toggle'
 import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
+import { ClientDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import type {
   CalendarDaySummary,
   Client,
@@ -284,13 +286,12 @@ export default async function ClientDetailPage({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <Link
-        href="/clients"
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        Back to clients
-      </Link>
+      <Suspense fallback={null}>
+        <ClientDetailBreadcrumbs
+          clientId={clientId}
+          clientName={client.full_name}
+        />
+      </Suspense>
 
       <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
@@ -303,19 +304,22 @@ export default async function ClientDetailPage({
             />
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                <h1 className="page-title">
                   {client.full_name}
                 </h1>
                 <StatusBadge status={client.status} />
               </div>
               {client.email && (
-                <p className="text-muted-foreground text-sm">{client.email}</p>
+                <p className="helper-text">{client.email}</p>
               )}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 {client.coaching_type && (
                   <ClientCoachingTypeBadge coachingType={client.coaching_type} />
                 )}
                 <ClientTeamBadges memberships={teamMemberships} />
+                {!viewerIsPrimaryCoach && coachGyms.length > 0 ? (
+                  <ClientGymMemberBadge client={client} gyms={coachGyms} />
+                ) : null}
               </div>
             </div>
           </div>
@@ -330,6 +334,13 @@ export default async function ClientDetailPage({
                 </Button>
               }
             />
+            {coachGyms.length > 0 ? (
+              <ClientGymShareMenu
+                client={client}
+                gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+                isPrimaryCoach={viewerIsPrimaryCoach}
+              />
+            ) : null}
           </div>
         </div>
       </section>
@@ -338,23 +349,7 @@ export default async function ClientDetailPage({
         <ClientSharedBanner primaryCoachName={primaryCoachName} />
       ) : null}
 
-      {coachGyms.length > 0 ? (
-        <ClientGymSharePanel
-          client={client}
-          gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
-          isPrimaryCoach={viewerIsPrimaryCoach}
-        />
-      ) : null}
-
       <ClientAccountBanner client={client} />
-
-      {viewerIsPrimaryCoach ? (
-        <ClientLeaderboardProfileCard
-          clientId={client.id}
-          defaultOptOut={client.leaderboard_opt_out ?? false}
-          defaultBiologicalSex={client.biological_sex ?? null}
-        />
-      ) : null}
 
       <Suspense fallback={null}>
         <ClientDetailTabs

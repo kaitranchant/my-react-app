@@ -25,6 +25,25 @@ import { cn } from '@/lib/utils'
 import type { CheckInFormValues } from '@/lib/validations/check-in'
 import type { Client, ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
 
+function FormSection({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section className={cn('grid gap-2', className)}>
+      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+        {title}
+      </p>
+      <div className="grid gap-4 rounded-xl border p-4">{children}</div>
+    </section>
+  )
+}
+
 function NumberField({
   id,
   label,
@@ -53,39 +72,34 @@ function NumberField({
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type="number"
-          inputMode="decimal"
-          step={step}
-          min="0"
-          max={max}
-          placeholder="Optional"
-          value={value ?? ''}
-          onChange={(event) => onChange(parseOptionalNumber(event.target.value))}
-          disabled={disabled}
-          className="pr-14"
-        />
-        <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium">
-          {unit}
-        </span>
-      </div>
+      <Label htmlFor={id}>
+        {label}{' '}
+        <span className="text-muted-foreground font-normal">({unit})</span>
+      </Label>
+      <Input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        step={step}
+        min="0"
+        max={max}
+        placeholder="Optional"
+        value={value ?? ''}
+        onChange={(event) => onChange(parseOptionalNumber(event.target.value))}
+        disabled={disabled}
+      />
     </div>
   )
 }
 
 function GradedLevelSelector({
   label,
-  hint,
   value,
   onChange,
   disabled,
   scale,
 }: {
   label: string
-  hint?: string
   value: number | null
   onChange: (value: number | null) => void
   disabled?: boolean
@@ -93,10 +107,7 @@ function GradedLevelSelector({
 }) {
   return (
     <div className="grid gap-2">
-      <div className="space-y-0.5">
-        <Label>{label}</Label>
-        {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-      </div>
+      <Label>{label}</Label>
       <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
         {[1, 2, 3, 4, 5].map((level) => {
           const selected = value === level
@@ -107,17 +118,18 @@ function GradedLevelSelector({
               disabled={disabled}
               onClick={() => onChange(selected ? null : level)}
               className={cn(
-                'flex min-h-14 flex-col items-center justify-center rounded-lg border px-1 py-2 text-center transition-colors disabled:opacity-50',
+                'flex min-h-11 items-center justify-center rounded-lg border text-center transition-colors disabled:opacity-50 sm:min-h-12',
                 gradedScaleButtonClass(level, selected, scale.tone)
               )}
             >
               <span className="text-sm font-semibold">{level}</span>
-              <span className="mt-1 hidden text-[10px] leading-tight sm:block">
-                {scale.labels[level - 1]}
-              </span>
             </button>
           )
         })}
+      </div>
+      <div className="text-muted-foreground flex justify-between px-0.5 text-[10px] leading-tight sm:text-xs">
+        <span>{scale.labels[0]}</span>
+        <span>{scale.labels[4]}</span>
       </div>
     </div>
   )
@@ -133,11 +145,9 @@ function CoachResponseField({
   disabled?: boolean
 }) {
   return (
-    <div className="border-brand/20 bg-brand/5 rounded-xl border-2 p-4">
-      <div className="mb-3 space-y-1">
-        <Label htmlFor="check-in-coach-notes" className="text-brand text-sm">
-          Coach response
-        </Label>
+    <div className="grid gap-2">
+      <div className="space-y-1">
+        <Label htmlFor="check-in-coach-notes">Coach response</Label>
         <p className="text-muted-foreground text-xs leading-relaxed">
           Your dedicated coaching moment — feedback the client will see after review.
         </p>
@@ -149,7 +159,6 @@ function CoachResponseField({
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value || null)}
         disabled={disabled}
-        className="bg-background border-brand/20"
       />
     </div>
   )
@@ -227,110 +236,105 @@ export function CheckInForm({
 
   const form = (
     <div className="grid gap-5">
-      {showClientPicker && (
+      <FormSection title="Client & date">
+        {showClientPicker ? (
+          <div className="grid gap-2">
+            <Label htmlFor="check-in-client">Client</Label>
+            <Select
+              value={selectedClientId}
+              onValueChange={onClientChange}
+              disabled={disabled || isSubmitting}
+            >
+              <SelectTrigger id="check-in-client">
+                <SelectValue placeholder="Select a client" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
         <div className="grid gap-2">
-          <Label htmlFor="check-in-client">Client</Label>
-          <Select
-            value={selectedClientId}
-            onValueChange={onClientChange}
+          <Label htmlFor="check-in-date">Date</Label>
+          <Input
+            id="check-in-date"
+            type="date"
+            value={values.checkInDate}
+            onChange={(event) => updateField('checkInDate', event.target.value)}
             disabled={disabled || isSubmitting}
-          >
-            <SelectTrigger id="check-in-client">
-              <SelectValue placeholder="Select a client" />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((client) => (
-                <SelectItem key={client.id} value={client.id}>
-                  {client.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
-      )}
 
-      <div className="grid gap-2">
-        <Label htmlFor="check-in-date">Date</Label>
-        <Input
-          id="check-in-date"
-          type="date"
-          value={values.checkInDate}
-          onChange={(event) => updateField('checkInDate', event.target.value)}
-          disabled={disabled || isSubmitting}
-        />
-      </div>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            id="check-in-weight"
+            label="Weight"
+            unit={weightUnit}
+            value={values.weight}
+            onChange={(value) => updateField('weight', value)}
+            disabled={disabled || isSubmitting}
+          />
+          <NumberField
+            id="check-in-sleep"
+            label="Sleep duration"
+            unit="hrs"
+            step="0.5"
+            max={24}
+            value={values.sleepHours}
+            onChange={(value) => updateField('sleepHours', value)}
+            disabled={disabled || isSubmitting}
+          />
+        </div>
+      </FormSection>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <NumberField
-          id="check-in-weight"
-          label="Weight"
-          unit={weightUnit}
-          value={values.weight}
-          onChange={(value) => updateField('weight', value)}
-          disabled={disabled || isSubmitting}
-        />
-        <NumberField
-          id="check-in-sleep"
-          label="Sleep duration"
-          unit="hrs"
-          step="0.5"
-          max={24}
-          value={values.sleepHours}
-          onChange={(value) => updateField('sleepHours', value)}
-          disabled={disabled || isSubmitting}
-        />
-      </div>
+      <FormSection title="Wellness">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+          <GradedLevelSelector
+            label="Sleep quality"
+            value={values.sleepQuality}
+            onChange={(value) => updateField('sleepQuality', value)}
+            disabled={disabled || isSubmitting}
+            scale={CHECK_IN_SCALES.sleepQuality}
+          />
+          <GradedLevelSelector
+            label="Stress level"
+            value={values.calmLevel}
+            onChange={(value) => updateField('calmLevel', value)}
+            disabled={disabled || isSubmitting}
+            scale={CHECK_IN_SCALES.calm}
+          />
+          <GradedLevelSelector
+            label="Energy"
+            value={values.energyLevel}
+            onChange={(value) => updateField('energyLevel', value)}
+            disabled={disabled || isSubmitting}
+            scale={CHECK_IN_SCALES.energy}
+          />
+          <GradedLevelSelector
+            label="Motivation to train"
+            value={values.motivationLevel}
+            onChange={(value) => updateField('motivationLevel', value)}
+            disabled={disabled || isSubmitting}
+            scale={CHECK_IN_SCALES.motivation}
+          />
+        </div>
+      </FormSection>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <FormSection title="Training readiness">
         <GradedLevelSelector
-          label="Sleep quality"
-          hint="How rested did you feel?"
-          value={values.sleepQuality}
-          onChange={(value) => updateField('sleepQuality', value)}
+          label="Nutrition adherence"
+          value={values.nutritionAdherence}
+          onChange={(value) => updateField('nutritionAdherence', value)}
           disabled={disabled || isSubmitting}
-          scale={CHECK_IN_SCALES.sleepQuality}
+          scale={CHECK_IN_SCALES.nutrition}
         />
-        <GradedLevelSelector
-          label="Calm / stress"
-          hint="1 = very stressed, 5 = very calm"
-          value={values.calmLevel}
-          onChange={(value) => updateField('calmLevel', value)}
-          disabled={disabled || isSubmitting}
-          scale={CHECK_IN_SCALES.calm}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <GradedLevelSelector
-          label="Energy"
-          hint="1 = exhausted, 5 = high energy"
-          value={values.energyLevel}
-          onChange={(value) => updateField('energyLevel', value)}
-          disabled={disabled || isSubmitting}
-          scale={CHECK_IN_SCALES.energy}
-        />
-        <GradedLevelSelector
-          label="Motivation to train"
-          value={values.motivationLevel}
-          onChange={(value) => updateField('motivationLevel', value)}
-          disabled={disabled || isSubmitting}
-          scale={CHECK_IN_SCALES.motivation}
-        />
-      </div>
-
-      <GradedLevelSelector
-        label="Nutrition adherence"
-        hint="How well did you stick to your nutrition plan?"
-        value={values.nutritionAdherence}
-        onChange={(value) => updateField('nutritionAdherence', value)}
-        disabled={disabled || isSubmitting}
-        scale={CHECK_IN_SCALES.nutrition}
-      />
-
-      <div className="grid gap-4">
         <GradedLevelSelector
           label="Muscle soreness"
-          hint="1 = none, 5 = severe"
           value={values.sorenessLevel}
           onChange={(value) => updateField('sorenessLevel', value)}
           disabled={disabled || isSubmitting}
@@ -341,7 +345,7 @@ export function CheckInForm({
           <Textarea
             id="check-in-soreness-notes"
             rows={2}
-            placeholder="Which muscle groups are sore? Any lingering tightness?"
+            placeholder="Which muscle groups? Any tightness?"
             value={values.sorenessNotes ?? ''}
             onChange={(event) =>
               updateField('sorenessNotes', event.target.value || null)
@@ -349,56 +353,62 @@ export function CheckInForm({
             disabled={disabled || isSubmitting}
           />
         </div>
-      </div>
 
-      <div className="grid gap-3 rounded-lg border p-4">
-        <div className="space-y-1">
-          <Label>Injury or pain</Label>
-          <p className="text-muted-foreground text-xs">
-            Flag anything your coach should know about before your next session.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={values.hasPain ? 'outline' : 'default'}
-            className={!values.hasPain ? 'bg-brand hover:bg-brand/90' : undefined}
-            onClick={() => {
-              updateField('hasPain', false)
-              updateField('painNotes', null)
-            }}
-            disabled={disabled || isSubmitting}
-          >
-            No pain
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={values.hasPain ? 'default' : 'outline'}
-            className={values.hasPain ? 'bg-red-600 hover:bg-red-600/90' : undefined}
-            onClick={() => updateField('hasPain', true)}
-            disabled={disabled || isSubmitting}
-          >
-            Pain or injury
-          </Button>
-        </div>
-        {values.hasPain && (
-          <div className="grid gap-2">
-            <Label htmlFor="check-in-pain-notes">Pain details</Label>
-            <Textarea
-              id="check-in-pain-notes"
-              rows={3}
-              placeholder="Where does it hurt? What movements aggravate it?"
-              value={values.painNotes ?? ''}
-              onChange={(event) =>
-                updateField('painNotes', event.target.value || null)
-              }
-              disabled={disabled || isSubmitting}
-            />
+        <div className="grid gap-3">
+          <div className="space-y-1">
+            <Label>Injury or pain</Label>
+            <p className="text-muted-foreground text-xs">
+              Flag anything before the next session.
+            </p>
           </div>
-        )}
-      </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={values.hasPain ? 'outline' : 'default'}
+              className={cn(
+                'h-10',
+                !values.hasPain ? 'bg-brand hover:bg-brand/90' : undefined
+              )}
+              onClick={() => {
+                updateField('hasPain', false)
+                updateField('painNotes', null)
+              }}
+              disabled={disabled || isSubmitting}
+            >
+              No pain
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={values.hasPain ? 'default' : 'outline'}
+              className={cn(
+                'h-10',
+                values.hasPain ? 'bg-red-600 hover:bg-red-600/90' : undefined
+              )}
+              onClick={() => updateField('hasPain', true)}
+              disabled={disabled || isSubmitting}
+            >
+              Pain or injury
+            </Button>
+          </div>
+          {values.hasPain ? (
+            <div className="grid gap-2">
+              <Label htmlFor="check-in-pain-notes">Pain details</Label>
+              <Textarea
+                id="check-in-pain-notes"
+                rows={3}
+                placeholder="Where does it hurt? What movements aggravate it?"
+                value={values.painNotes ?? ''}
+                onChange={(event) =>
+                  updateField('painNotes', event.target.value || null)
+                }
+                disabled={disabled || isSubmitting}
+              />
+            </div>
+          ) : null}
+        </div>
+      </FormSection>
 
       {(variant === 'client' || checkInId) && (
         <ProgressPhotoUpload
@@ -410,52 +420,62 @@ export function CheckInForm({
       )}
 
       {variant === 'coach' && !checkInId && (
-        <div className="rounded-lg border border-dashed p-4">
+        <div className="rounded-xl border border-dashed p-4">
           <p className="text-muted-foreground text-xs leading-relaxed">
             Save the check-in first to view client progress photos here.
           </p>
         </div>
       )}
 
-      <div className="grid gap-2">
-        <Label htmlFor="check-in-client-notes">
-          {variant === 'client'
-            ? 'Notes for your coach'
-            : "Client's reported feedback"}
-        </Label>
-        <Textarea
-          id="check-in-client-notes"
-          rows={4}
-          placeholder={
-            variant === 'client'
-              ? 'How did the week go? Any wins or challenges?'
-              : 'Record what the client reported — their words, not your coaching notes.'
-          }
-          value={values.clientNotes ?? ''}
-          onChange={(event) =>
-            updateField('clientNotes', event.target.value || null)
-          }
-          disabled={disabled || isSubmitting}
-        />
-      </div>
+      <FormSection title={variant === 'client' ? 'Your notes' : 'Coach notes'}>
+        <div className="grid gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="check-in-client-notes">
+              {variant === 'client'
+                ? 'Notes for your coach'
+                : "Client's reported feedback"}
+            </Label>
+            {variant === 'coach' ? (
+              <p className="text-muted-foreground text-xs">
+                Their words, not your coaching notes.
+              </p>
+            ) : null}
+          </div>
+          <Textarea
+            id="check-in-client-notes"
+            rows={4}
+            placeholder={
+              variant === 'client'
+                ? 'How did the week go? Any wins or challenges?'
+                : "What did the client say about how they're feeling?"
+            }
+            value={values.clientNotes ?? ''}
+            onChange={(event) =>
+              updateField('clientNotes', event.target.value || null)
+            }
+            disabled={disabled || isSubmitting}
+          />
+        </div>
 
-      {variant === 'coach' && (
-        <CoachResponseField
-          value={values.coachNotes}
-          onChange={(value) => updateField('coachNotes', value)}
-          disabled={disabled || isSubmitting}
-        />
-      )}
+        {variant === 'coach' ? (
+          <CoachResponseField
+            value={values.coachNotes}
+            onChange={(value) => updateField('coachNotes', value)}
+            disabled={disabled || isSubmitting}
+          />
+        ) : null}
+      </FormSection>
 
       {validationError && (
         <p className="text-destructive text-sm">{validationError}</p>
       )}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
             type="button"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={onCancel}
             disabled={isSubmitting}
           >
@@ -464,6 +484,7 @@ export function CheckInForm({
         )}
         <Button
           type="submit"
+          className="w-full sm:w-auto"
           disabled={
             disabled ||
             isSubmitting ||
@@ -481,7 +502,7 @@ export function CheckInForm({
   return (
     <form onSubmit={handleSubmit}>
       {recentCheckIns.length > 0 ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
           {form}
           <CheckInHistoryPanel checkIns={recentCheckIns} />
         </div>

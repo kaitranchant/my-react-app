@@ -4,7 +4,8 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { removeTeamMember } from '@/app/(dashboard)/teams/actions'
+import { addTeamMember, removeTeamMember } from '@/app/(dashboard)/teams/actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -59,7 +60,19 @@ export function RemoveTeamMemberDialog({
     setPending(false)
 
     if (result.success) {
-      toast.success(`${clientName} removed from team`)
+      if (programAction === 'keep') {
+        toastSuccessWithUndo(`${clientName} removed from team`, async () => {
+          const undoResult = await addTeamMember(teamId, { clientId })
+          if (undoResult.success) {
+            toast.success('Team membership restored')
+            router.refresh()
+          } else {
+            toast.error(undoResult.error)
+          }
+        })
+      } else {
+        toast.success(`${clientName} removed from team`)
+      }
       onOpenChange(false)
       router.refresh()
       return

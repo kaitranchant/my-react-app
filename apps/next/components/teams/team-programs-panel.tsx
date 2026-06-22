@@ -159,7 +159,7 @@ export function TeamProgramsPanel({
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 border-b bg-muted/30 px-5 py-4">
             <div className="space-y-1">
-              <CardTitle className="text-base font-semibold">
+              <CardTitle>
                 {activeProgram.name}
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2">
@@ -229,7 +229,7 @@ export function TeamProgramsPanel({
 
       <Card className="gap-0 py-0">
         <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {activeProgram ? 'Change program' : 'Assign program'}
           </CardTitle>
           {activeProgram && (
@@ -309,7 +309,7 @@ export function TeamProgramsPanel({
       {programHistory.length > 0 && (
         <Card className="gap-0 py-0">
           <CardHeader className="border-b bg-muted/30 px-5 py-4">
-            <CardTitle className="text-sm font-medium">Program history</CardTitle>
+            <CardTitle className="text-muted-foreground">Program history</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">

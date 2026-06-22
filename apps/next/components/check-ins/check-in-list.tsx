@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera } from 'lucide-react'
+import { Camera, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Textarea } from '@/components/ui/textarea'
 import {
   checkInToFormValues,
@@ -158,7 +159,7 @@ function CheckInRow({
               />
             )}
             <div className="space-y-1">
-              <CardTitle className="text-base">
+              <CardTitle>
                 {showClient && checkIn.client ? (
                   <Link
                     href={`/clients/${checkIn.client.id}?tab=progress&section=check-ins`}
@@ -284,8 +285,24 @@ export function CheckInList({
   if (checkIns.length === 0) {
     return (
       <Card>
-        <CardContent className="text-muted-foreground py-10 text-center text-sm">
-          {emptyMessage}
+        <CardContent>
+          <EmptyState
+            icon={ClipboardList}
+            title={emptyMessage.replace(/\.$/, '')}
+            description={
+              clientId
+                ? 'Send a reminder or log a check-in to start tracking progress.'
+                : 'Log a check-in or review pending submissions from your clients.'
+            }
+            action={
+              clientId
+                ? {
+                    label: 'Message client',
+                    href: `/clients/${clientId}?tab=messages`,
+                  }
+                : { label: 'Log a check-in', href: '/check-ins?tab=log' }
+            }
+          />
         </CardContent>
       </Card>
     )
@@ -364,13 +381,13 @@ export function CoachLogCheckInCard({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Log check-in</CardTitle>
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle>Log check-in</CardTitle>
         <CardDescription>
           Record metrics on behalf of a client or backfill a past date.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <CheckInForm
           variant="coach"
           initialValues={initialValues}

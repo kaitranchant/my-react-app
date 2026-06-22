@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { fetchTeamActivityFeed } from '@/lib/team-activity'
@@ -15,6 +14,7 @@ import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { TeamCompetitionLink } from '@/components/teams/team-competition-link'
 import { TeamDetailTabs } from '@/components/teams/team-detail-tabs'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
+import { TeamDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { getGymsForCoach, isPrimaryTeamCoach } from '@/lib/gym-access'
 import type {
   Client,
@@ -210,20 +210,16 @@ export default async function TeamDetailPage({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <Link
-        href="/teams"
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        Back to teams
-      </Link>
+      <Suspense fallback={null}>
+        <TeamDetailBreadcrumbs teamId={teamId} teamName={team.name} />
+      </Suspense>
 
       <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h1 className="page-title">
                 {team.name}
               </h1>
               {team.next_competition_name && team.next_competition_date && (
@@ -235,7 +231,7 @@ export default async function TeamDetailPage({
               )}
             </div>
             {team.description && (
-              <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="helper-text max-w-2xl leading-relaxed whitespace-pre-wrap">
                 {team.description}
               </p>
             )}

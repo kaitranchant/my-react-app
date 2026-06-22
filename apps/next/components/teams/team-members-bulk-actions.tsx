@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation'
 import { CalendarCheck, ClipboardList, Dumbbell } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { markAllTeamEventPresent } from '@/app/(dashboard)/teams/feature-actions'
+import {
+  markAllTeamEventPresent,
+  restoreTeamEventAttendanceBatch,
+} from '@/app/(dashboard)/teams/feature-actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
+import { buildTeamEventAttendanceSnapshot } from '@/lib/team-event-attendance-snapshot'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,22 +24,42 @@ import type { TeamEventWithMemberStatus } from 'app/types/database'
 type TeamMembersBulkActionsProps = {
   teamId: string
   nextEvent: TeamEventWithMemberStatus | null
+  memberClientIds: string[]
 }
 
 export function TeamMembersBulkActions({
   teamId,
   nextEvent,
+  memberClientIds,
 }: TeamMembersBulkActionsProps) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
 
   async function handleMarkAllPresent() {
     if (!nextEvent) return
+
+    const snapshot = buildTeamEventAttendanceSnapshot(
+      memberClientIds,
+      nextEvent.memberStatuses
+    )
+
     setPending(true)
     const result = await markAllTeamEventPresent(teamId, nextEvent.id)
     setPending(false)
     if (result.success) {
-      toast.success('All members marked present')
+      toastSuccessWithUndo('All members marked present', async () => {
+        const undoResult = await restoreTeamEventAttendanceBatch(
+          teamId,
+          nextEvent.id,
+          snapshot
+        )
+        if (undoResult.success) {
+          toast.success('Attendance restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)

@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterPills } from '@/components/ui/filter-pills'
 import { addDaysToDateKey, getWeekStartDateKey, parseDateKey } from '@/lib/calendar'
 import type { AttendanceViewMode } from '@/lib/validations/attendance'
 import type { WeekStartsOn } from 'app/types/database'
@@ -132,21 +132,15 @@ export function AttendanceDateNav({
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        <Tabs
+        <FilterPills
           value={view}
-          onValueChange={(value) =>
-            handleViewChange(value as AttendanceViewMode)
-          }
-        >
-          <TabsList className="h-9">
-            <TabsTrigger value="daily" className="px-3 text-sm">
-              Daily
-            </TabsTrigger>
-            <TabsTrigger value="weekly" className="px-3 text-sm">
-              Weekly
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+          onChange={(value) => handleViewChange(value as AttendanceViewMode)}
+          size="sm"
+          options={[
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+          ]}
+        />
       </div>
       <p className="text-sm font-medium">
         {view === 'weekly'

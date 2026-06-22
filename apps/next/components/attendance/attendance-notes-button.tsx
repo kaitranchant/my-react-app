@@ -57,6 +57,7 @@ export function AttendanceNotesButton({
     setPending(false)
 
     if (result.success) {
+      toast.success('Notes saved')
       setOpen(false)
       onSaved?.()
     } else {

@@ -52,13 +52,14 @@ export function ClientNotesEditor({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Coach notes</CardTitle>
+    <Card className="gap-0 py-0 md:gap-6 md:py-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 pb-0 md:px-6 md:pt-6">
+        <CardTitle className="text-base md:text-lg">Coach notes</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-3 px-4 pb-4 md:gap-4 md:px-6 md:pb-6">
         <Textarea
-          rows={8}
+          rows={3}
+          className="min-h-[5.5rem] resize-none md:min-h-[12rem] md:resize-y"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Injuries, preferences, context…"

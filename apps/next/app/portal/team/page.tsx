@@ -34,7 +34,7 @@ export default async function PortalTeamPage({
     return (
       <div className="flex flex-col gap-6">
         <section className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <h1 className="page-title">Team</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Team announcements and events from your coach.
           </p>
@@ -56,7 +56,7 @@ export default async function PortalTeamPage({
     return (
       <div className="flex flex-col gap-6">
         <section className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <h1 className="page-title">Team</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Team announcements and events from your coach.
           </p>
@@ -87,7 +87,7 @@ export default async function PortalTeamPage({
             <Flag className="size-5" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="page-title">
               {activeTeam.name}
             </h1>
             {activeTeam.description && (

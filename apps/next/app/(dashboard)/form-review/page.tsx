@@ -1,8 +1,8 @@
 import { fetchCoachFormReviews } from '@/app/(dashboard)/form-review/actions'
-import { FormReviewFeed } from '@/components/form-review/form-review-review-card'
+import { FormReviewTabs } from '@/components/form-review/form-review-tabs'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { isFormReviewPending } from '@/lib/form-reviews'
+import { Suspense } from 'react'
 
 export const metadata = {
   title: 'Form Review — Coaching App',
@@ -26,29 +26,13 @@ export default async function FormReviewPage({
         description="Review lift photos and videos submitted by clients and leave technique feedback."
       />
 
-      <Tabs defaultValue={defaultTab}>
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending
-            {pendingReviews.length > 0 && ` (${pendingReviews.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="mt-4">
-          <FormReviewFeed
-            reviews={pendingReviews}
-            emptyMessage="No videos waiting for review."
-          />
-        </TabsContent>
-
-        <TabsContent value="all" className="mt-4">
-          <FormReviewFeed
-            reviews={reviews}
-            emptyMessage="No form review submissions yet."
-          />
-        </TabsContent>
-      </Tabs>
+      <Suspense fallback={null}>
+        <FormReviewTabs
+          reviews={reviews}
+          pendingReviews={pendingReviews}
+          defaultTab={defaultTab}
+        />
+      </Suspense>
     </div>
   )
 }

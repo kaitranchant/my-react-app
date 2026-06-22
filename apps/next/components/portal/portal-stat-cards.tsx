@@ -20,7 +20,7 @@ export function PortalStatCard({
       )}
     >
       <CardContent className="space-y-1 px-4 py-4 sm:px-5 sm:py-5">
-        <p className="text-muted-foreground text-sm font-medium">{label}</p>
+        <p className="section-header text-muted-foreground">{label}</p>
         <p
           className={cn(
             'text-2xl font-semibold tracking-tight sm:text-3xl',
@@ -29,7 +29,7 @@ export function PortalStatCard({
         >
           {value}
         </p>
-        <p className="text-muted-foreground text-xs">{hint}</p>
+        <p className="helper-text">{hint}</p>
       </CardContent>
     </Card>
   )

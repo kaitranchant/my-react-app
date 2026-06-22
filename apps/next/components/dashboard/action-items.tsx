@@ -34,22 +34,20 @@ export function ActionItems({ items }: ActionItemsProps) {
   return (
     <Card className="h-full">
       <CardHeader className="border-b pb-4">
-        <CardTitle className="text-base font-semibold">
-          Needs your attention
-        </CardTitle>
+        <CardTitle>Needs your attention</CardTitle>
         <CardDescription>
           Follow up on these items to keep clients on track
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-5">
         {items.length === 0 ? (
-          <div className="text-muted-foreground flex flex-col items-center gap-3 py-10 text-center text-sm">
+          <div className="body-text flex flex-col items-center gap-3 py-10 text-center text-muted-foreground">
             <div className="bg-brand/10 text-brand flex size-12 items-center justify-center rounded-xl">
               <CheckCircle2 className="size-5" />
             </div>
             <div className="space-y-1">
-              <p className="font-medium text-foreground">You&apos;re all caught up</p>
-              <p className="text-xs leading-relaxed">
+              <p className="section-header text-foreground">You&apos;re all caught up</p>
+              <p className="helper-text leading-relaxed">
                 No pending items right now. Check back as your clients progress.
               </p>
             </div>
@@ -63,7 +61,7 @@ export function ActionItems({ items }: ActionItemsProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg border-l-[3px] py-3 pr-3 pl-4 text-sm transition-colors',
+                      'body-text flex items-center gap-3 rounded-lg border-l-[3px] py-3 pr-3 pl-4 transition-colors',
                       style.border,
                       style.bg
                     )}

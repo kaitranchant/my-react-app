@@ -34,7 +34,7 @@ export default async function PortalMessagesPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
+        <h1 className="page-title">Messages</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Chat with your coach about training, scheduling, or anything else.
         </p>

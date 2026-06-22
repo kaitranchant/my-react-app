@@ -122,4 +122,8 @@ buck-out/
 web-build/
 dist/
 
+# Local env (never commit)
+.env
+.env.local
+
 # @end expo-cli

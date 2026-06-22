@@ -8,15 +8,17 @@ import { toast } from 'sonner'
 
 import {
   markAllClientsPresent,
+  restoreClientDailyAttendanceBatch,
   updateClientDailyAttendance,
 } from '@/app/(dashboard)/attendance/actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import { AttendanceCoachingTypeSelect } from '@/components/attendance/attendance-coaching-type-select'
 import { AttendanceNotesButton } from '@/components/attendance/attendance-notes-button'
 import { AttendanceStatusSelect } from '@/components/attendance/attendance-status-select'
-import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PersonRow } from '@/components/ui/person-row'
 import {
   Card,
   CardContent,
@@ -93,6 +95,7 @@ export function AttendanceDailyRollCall({
     })
     setPending(false)
     if (result.success) {
+      toast.success(status ? 'Attendance marked' : 'Attendance cleared')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -121,6 +124,7 @@ export function AttendanceDailyRollCall({
     )
     setPending(false)
     if (result.success) {
+      toast.success('Training type updated')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -129,6 +133,17 @@ export function AttendanceDailyRollCall({
 
   async function handleMarkAllPresent() {
     if (clients.length === 0) return
+
+    const snapshot = clients.map((client) => {
+      const record = attendanceByClientId[client.id]
+      return {
+        clientId: client.id,
+        status: record?.status ?? null,
+        notes: record?.notes ?? null,
+        coachingType: record?.coaching_type ?? null,
+      }
+    })
+
     setPending(true)
     const result = await markAllClientsPresent(
       date,
@@ -136,7 +151,15 @@ export function AttendanceDailyRollCall({
     )
     setPending(false)
     if (result.success) {
-      toast.success('All clients marked present')
+      toastSuccessWithUndo('All clients marked present', async () => {
+        const undoResult = await restoreClientDailyAttendanceBatch(date, snapshot)
+        if (undoResult.success) {
+          toast.success('Attendance restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)
@@ -148,7 +171,7 @@ export function AttendanceDailyRollCall({
       <CardHeader className="border-b pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="text-base font-semibold">
+            <CardTitle>
               Daily roll call
             </CardTitle>
             <CardDescription>
@@ -160,7 +183,7 @@ export function AttendanceDailyRollCall({
           <Button
             type="button"
             size="sm"
-            variant="secondary"
+            variant="brand"
             disabled={pending || clients.length === 0}
             onClick={handleMarkAllPresent}
           >
@@ -216,25 +239,14 @@ export function AttendanceDailyRollCall({
               const rsvpHint = rsvpHintsByClientId[client.id]
 
               return (
-                <li
-                  key={client.id}
-                  className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-                >
-                  <div className="flex min-w-0 items-start gap-3 sm:flex-1">
-                    <ClientAvatar
-                      name={client.full_name}
-                      avatarUrl={client.avatar_url}
-                      size="sm"
-                      className="mt-0.5 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <Link
-                          href={`/clients/${client.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {client.full_name}
-                        </Link>
+                <li key={client.id} className="py-3">
+                  <PersonRow
+                    as="div"
+                    name={client.full_name}
+                    avatarUrl={client.avatar_url}
+                    href={`/clients/${client.id}`}
+                    badges={
+                      <>
                         {stats.alertKind === 'consecutive_absences' && (
                           <Badge variant="destructive" className="text-[10px]">
                             {stats.consecutiveAbsences} missed
@@ -245,47 +257,50 @@ export function AttendanceDailyRollCall({
                             Low attendance
                           </Badge>
                         )}
-                      </div>
-                      <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      </>
+                    }
+                    meta={
+                      <>
                         <span>{formatMonthAttendanceSummary(stats)}</span>
                         {!teamName && client.memberships.length > 0 && (
                           <ClientTeamBadges memberships={client.memberships} />
                         )}
-                      </div>
-                      {rsvpHint && (
-                        <p className="text-muted-foreground mt-1 text-xs">
-                          RSVP: {teamEventRsvpLabels[rsvpHint.rsvpStatus]} ·{' '}
-                          {rsvpHint.eventTitle}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 pl-11 sm:shrink-0 sm:pl-0">
-                    <AttendanceStatusSelect
-                      value={record?.status ?? null}
-                      onValueChange={(status) =>
-                        handleStatusChange(client.id, status)
-                      }
-                      disabled={pending}
-                    />
-                    <AttendanceCoachingTypeSelect
-                      value={record?.coaching_type ?? null}
-                      defaultCoachingType={client.coaching_type}
-                      onValueChange={(coachingType) =>
-                        handleCoachingTypeChange(client.id, coachingType)
-                      }
-                      disabled={pending}
-                    />
-                    <AttendanceNotesButton
-                      clientId={client.id}
-                      date={date}
-                      notes={record?.notes ?? null}
-                      status={record?.status ?? null}
-                      disabled={pending}
-                      onSaved={() => router.refresh()}
-                    />
-                  </div>
+                        {rsvpHint ? (
+                          <span>
+                            RSVP: {teamEventRsvpLabels[rsvpHint.rsvpStatus]} ·{' '}
+                            {rsvpHint.eventTitle}
+                          </span>
+                        ) : null}
+                      </>
+                    }
+                    trailing={
+                      <>
+                        <AttendanceStatusSelect
+                          value={record?.status ?? null}
+                          onValueChange={(status) =>
+                            handleStatusChange(client.id, status)
+                          }
+                          disabled={pending}
+                        />
+                        <AttendanceCoachingTypeSelect
+                          value={record?.coaching_type ?? null}
+                          defaultCoachingType={client.coaching_type}
+                          onValueChange={(coachingType) =>
+                            handleCoachingTypeChange(client.id, coachingType)
+                          }
+                          disabled={pending}
+                        />
+                        <AttendanceNotesButton
+                          clientId={client.id}
+                          date={date}
+                          notes={record?.notes ?? null}
+                          status={record?.status ?? null}
+                          disabled={pending}
+                          onSaved={() => router.refresh()}
+                        />
+                      </>
+                    }
+                  />
                 </li>
               )
             })}

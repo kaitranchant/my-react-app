@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { Flag } from 'lucide-react'
+import { Flag, Plus } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getGymsForCoach } from '@/lib/gym-access'
@@ -21,8 +21,10 @@ import {
 import { PageHeader } from '@/components/dashboard/page-header'
 import { ClientsScopeTabs } from '@/components/clients/clients-scope-tabs'
 import { ClientGymBadge } from '@/components/gym/client-gym-badge'
+import { TeamFormDialog } from '@/components/teams/team-form-dialog'
 import { TeamsToolbar } from '@/components/teams/teams-toolbar'
 import { TeamRowActions } from '@/components/teams/team-row-actions'
+import { Button } from '@/components/ui/button'
 import type { Program, Team, TeamWithProgram } from 'app/types/database'
 
 export const metadata = {
@@ -166,9 +168,19 @@ export default async function TeamsPage({
       <PageHeader
         title="Teams"
         description="Group clients who share the same workout program and calendar."
-      />
+      >
+        <TeamFormDialog
+          gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+          trigger={
+            <Button variant="brand">
+              <Plus className="size-4" />
+              Create team
+            </Button>
+          }
+        />
+      </PageHeader>
 
-      <TeamsToolbar gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))} />
+      <TeamsToolbar />
 
       {coachGyms.length > 0 ? (
         <Suspense fallback={null}>
@@ -178,7 +190,7 @@ export default async function TeamsPage({
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {teamsWithMeta.length} team{teamsWithMeta.length === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>
@@ -202,7 +214,67 @@ export default async function TeamsPage({
               </div>
             </div>
           ) : (
-            <Table>
+            <>
+              <div className="space-y-3 p-4 md:hidden">
+                {teamsWithMeta.map((team) => {
+                  const isOwnTeam = user ? team.coach_id === user.id : true
+                  const gymName = team.gym_id
+                    ? gymNamesById.get(team.gym_id)
+                    : null
+
+                  return (
+                    <Card key={team.id} className="py-0">
+                      <CardContent className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={`/teams/${team.id}`}
+                              className="text-foreground hover:text-brand font-medium transition-colors"
+                            >
+                              {team.name}
+                            </Link>
+                            {team.description ? (
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                {team.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          <TeamRowActions
+                            team={team}
+                            isPrimaryCoach={isOwnTeam}
+                            gyms={coachGyms.map((gym) => ({
+                              id: gym.id,
+                              name: gym.name,
+                            }))}
+                          />
+                        </div>
+                        {team.gym_id ? (
+                          <ClientGymBadge
+                            gymName={gymName}
+                            primaryCoachName={
+                              isOwnTeam
+                                ? null
+                                : coachNamesById.get(team.coach_id)
+                            }
+                            isOwnClient={isOwnTeam}
+                          />
+                        ) : null}
+                        <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                          <span>
+                            {team.member_count} member
+                            {team.member_count === 1 ? '' : 's'}
+                          </span>
+                          <span>
+                            Program: {team.program?.name ?? '—'}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              <Table className="hidden md:table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-5">Name</TableHead>
@@ -267,6 +339,7 @@ export default async function TeamsPage({
                 })}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>

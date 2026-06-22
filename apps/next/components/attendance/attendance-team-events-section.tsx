@@ -8,8 +8,11 @@ import { toast } from 'sonner'
 
 import {
   markAllTeamEventPresent,
+  restoreTeamEventAttendanceBatch,
   updateTeamEventMemberStatus,
 } from '@/app/(dashboard)/teams/feature-actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
+import { buildTeamEventAttendanceSnapshot } from '@/lib/team-event-attendance-snapshot'
 import { AttendanceStatusSelect } from '@/components/attendance/attendance-status-select'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { Badge } from '@/components/ui/badge'
@@ -87,18 +90,45 @@ export function AttendanceTeamEventsSection({
     })
     setPending(false)
     if (result.success) {
+      toast.success(
+        updates.attendanceStatus !== undefined
+          ? 'Attendance marked'
+          : 'RSVP updated'
+      )
       router.refresh()
     } else {
       toast.error(result.error)
     }
   }
 
-  async function handleMarkAllPresent(teamId: string, eventId: string) {
+  async function handleMarkAllPresent(
+    teamId: string,
+    eventId: string,
+    memberClientIds: string[],
+    memberStatuses: TeamEventWithTeamContext['memberStatuses']
+  ) {
+    const snapshot = buildTeamEventAttendanceSnapshot(
+      memberClientIds,
+      memberStatuses
+    )
+
     setPending(true)
     const result = await markAllTeamEventPresent(teamId, eventId)
     setPending(false)
     if (result.success) {
-      toast.success('All members marked present')
+      toastSuccessWithUndo('All members marked present', async () => {
+        const undoResult = await restoreTeamEventAttendanceBatch(
+          teamId,
+          eventId,
+          snapshot
+        )
+        if (undoResult.success) {
+          toast.success('Attendance restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)
@@ -108,7 +138,7 @@ export function AttendanceTeamEventsSection({
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle className="text-base font-semibold">Team events</CardTitle>
+        <CardTitle>Team events</CardTitle>
         <CardDescription>
           {teamName
             ? `Roll call for ${teamName} events scheduled on this day.`
@@ -204,7 +234,12 @@ export function AttendanceTeamEventsSection({
                           variant="secondary"
                           disabled={pending || members.length === 0}
                           onClick={() =>
-                            handleMarkAllPresent(event.team_id, event.id)
+                            handleMarkAllPresent(
+                              event.team_id,
+                              event.id,
+                              members.map((member) => member.client_id),
+                              event.memberStatuses
+                            )
                           }
                         >
                           Mark all present

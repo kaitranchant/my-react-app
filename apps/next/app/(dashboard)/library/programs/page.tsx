@@ -112,7 +112,7 @@ export default async function LibraryProgramsPage({
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {programs.length} program{programs.length === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>

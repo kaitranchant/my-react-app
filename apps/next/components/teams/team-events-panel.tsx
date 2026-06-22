@@ -8,8 +8,11 @@ import { toast } from 'sonner'
 import {
   deleteTeamEvent,
   markAllTeamEventPresent,
+  restoreTeamEventAttendanceBatch,
   updateTeamEventMemberStatus,
 } from '@/app/(dashboard)/teams/feature-actions'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
+import { buildTeamEventAttendanceSnapshot } from '@/lib/team-event-attendance-snapshot'
 import { CreateTeamEventDialog } from '@/components/teams/create-team-event-dialog'
 import { TeamEventsCalendar } from '@/components/teams/team-events-calendar'
 import { ClientAvatar } from '@/components/clients/client-avatar'
@@ -102,12 +105,30 @@ export function TeamEventsPanel({
     }
   }
 
-  async function handleMarkAllPresent(eventId: string) {
+  async function handleMarkAllPresent(event: TeamEventWithMemberStatus) {
+    const memberClientIds = members.map((member) => member.client_id)
+    const snapshot = buildTeamEventAttendanceSnapshot(
+      memberClientIds,
+      event.memberStatuses
+    )
+
     setPending(true)
-    const result = await markAllTeamEventPresent(teamId, eventId)
+    const result = await markAllTeamEventPresent(teamId, event.id)
     setPending(false)
     if (result.success) {
-      toast.success('All members marked present')
+      toastSuccessWithUndo('All members marked present', async () => {
+        const undoResult = await restoreTeamEventAttendanceBatch(
+          teamId,
+          event.id,
+          snapshot
+        )
+        if (undoResult.success) {
+          toast.success('Attendance restored')
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
     } else {
       toast.error(result.error)
@@ -130,6 +151,11 @@ export function TeamEventsPanel({
     })
     setPending(false)
     if (result.success) {
+      toast.success(
+        updates.attendanceStatus !== undefined
+          ? 'Attendance marked'
+          : 'RSVP updated'
+      )
       router.refresh()
     } else {
       toast.error(result.error)
@@ -220,7 +246,7 @@ export function TeamEventsPanel({
                         size="sm"
                         variant="secondary"
                         disabled={pending || members.length === 0}
-                        onClick={() => handleMarkAllPresent(event.id)}
+                        onClick={() => handleMarkAllPresent(event)}
                       >
                         Mark all present
                       </Button>
@@ -319,7 +345,7 @@ export function TeamEventsPanel({
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-4">
-        <CardTitle className="text-sm font-medium">Team schedule</CardTitle>
+        <CardTitle className="text-muted-foreground">Team schedule</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <div className="bg-muted flex rounded-md p-0.5">
             <Button

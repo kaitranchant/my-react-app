@@ -30,7 +30,7 @@ export function PortalNextTeamEventCard({
     <Link href={`/portal/team?team=${teamId}`} className="group block">
       <Card className="h-full transition-colors group-hover:border-brand/40">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between gap-2 text-base font-semibold">
+          <CardTitle className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
               <CalendarClock className="text-brand size-5" />
               Team event

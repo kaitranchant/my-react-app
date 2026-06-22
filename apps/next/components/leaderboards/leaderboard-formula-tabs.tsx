@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterPills } from '@/components/ui/filter-pills'
 import {
   parseLeaderboardFormula,
   parseLeaderboardMetric,
@@ -32,22 +32,15 @@ export function LeaderboardFormulaTabs() {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-        Formula
-      </p>
-      <Tabs value={formula} onValueChange={handleChange} className="min-w-0">
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <TabsList className="inline-flex h-9 w-max gap-1 bg-muted/50">
-            <TabsTrigger value="dots" className="flex-none px-3 text-sm">
-              DOTS
-            </TabsTrigger>
-            <TabsTrigger value="wilks" className="flex-none px-3 text-sm">
-              Wilks
-            </TabsTrigger>
-          </TabsList>
-        </div>
-      </Tabs>
-    </div>
+    <FilterPills
+      label="Formula"
+      value={formula}
+      onChange={handleChange}
+      size="sm"
+      options={[
+        { value: 'dots', label: 'DOTS' },
+        { value: 'wilks', label: 'Wilks' },
+      ]}
+    />
   )
 }

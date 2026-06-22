@@ -40,10 +40,17 @@ export function TrackableGoalCard({
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-base">{title}</CardTitle>
+              <CardTitle>{title}</CardTitle>
               <GoalStatusBadge status={progress.status} />
             </div>
-            <CardDescription>{progress.detailLine}</CardDescription>
+            <div className="space-y-1">
+              <CardDescription>{progress.detailLine}</CardDescription>
+              {isNegative && progress.hint ? (
+                <p className="text-destructive text-sm leading-relaxed">
+                  {progress.hint}
+                </p>
+              ) : null}
+            </div>
           </div>
           <span
             className={cn(
@@ -60,13 +67,8 @@ export function TrackableGoalCard({
           value={progress.percent}
           barClassName={isNegative ? 'bg-destructive' : undefined}
         />
-        {progress.hint ? (
-          <p
-            className={cn(
-              'text-xs leading-relaxed',
-              isNegative ? 'text-destructive' : 'text-muted-foreground'
-            )}
-          >
+        {progress.hint && !isNegative ? (
+          <p className="text-muted-foreground text-xs leading-relaxed">
             {progress.hint}
           </p>
         ) : null}

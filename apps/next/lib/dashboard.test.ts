@@ -5,6 +5,7 @@ import {
   buildActionItems,
   buildFormReviewActivityFeed,
   formatActivityMessage,
+  groupRapidActivityItems,
   mergeActivityFeed,
 } from './dashboard'
 import { isAcwrLoadAlert } from './load-analytics'
@@ -68,6 +69,65 @@ test('mergeActivityFeed combines and sorts activity by timestamp', () => {
 
   assert.equal(merged[0]?.kind, 'check_in')
   assert.equal(merged[1]?.kind, 'workout')
+})
+
+test('groupRapidActivityItems groups same-kind events within 15 minutes', () => {
+  const grouped = groupRapidActivityItems([
+    {
+      id: 'ci1',
+      clientId: 'c1',
+      clientName: 'Kai Tester',
+      kind: 'check_in',
+      timestamp: '2026-06-21T08:13:00.000Z',
+    },
+    {
+      id: 'ci2',
+      clientId: 'c2',
+      clientName: 'Jordan Smith',
+      kind: 'check_in',
+      timestamp: '2026-06-21T08:12:00.000Z',
+    },
+    {
+      id: 'ci3',
+      clientId: 'c1',
+      clientName: 'Kai Tester',
+      kind: 'check_in',
+      timestamp: '2026-06-21T08:11:00.000Z',
+    },
+    {
+      id: 'ci4',
+      clientId: 'c2',
+      clientName: 'Jordan Smith',
+      kind: 'check_in',
+      timestamp: '2026-06-21T08:00:00.000Z',
+    },
+  ])
+
+  assert.equal(grouped.length, 1)
+  assert.equal(grouped[0]?.clientName, 'Kai Tester and Jordan Smith')
+  assert.equal(formatActivityMessage(grouped[0]!), 'each submitted a check-in')
+  assert.equal(grouped[0]?.groupedCount, 4)
+})
+
+test('groupRapidActivityItems keeps spaced events separate', () => {
+  const grouped = groupRapidActivityItems([
+    {
+      id: 'ci1',
+      clientId: 'c1',
+      clientName: 'Kai Tester',
+      kind: 'check_in',
+      timestamp: '2026-06-21T09:00:00.000Z',
+    },
+    {
+      id: 'ci2',
+      clientId: 'c2',
+      clientName: 'Jordan Smith',
+      kind: 'check_in',
+      timestamp: '2026-06-21T08:00:00.000Z',
+    },
+  ])
+
+  assert.equal(grouped.length, 2)
 })
 
 test('buildFormReviewActivityFeed formats review activity', () => {

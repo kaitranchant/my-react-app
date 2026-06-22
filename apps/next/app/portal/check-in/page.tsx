@@ -70,7 +70,7 @@ export default async function PortalCheckInPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Check-in</h1>
+        <h1 className="page-title">Check-in</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Share how you are feeling so your coach can adjust your program.
         </p>

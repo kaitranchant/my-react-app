@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Flame,
   Minus,
+  Moon,
   PlayCircle,
   SkipForward,
   TrendingUp,
@@ -19,36 +20,47 @@ import {
   CardContent,
   CardHeader,
 } from '@/components/ui/card'
+import { CheckInTrendsChart, CheckInTrendsSummary } from '@/components/check-ins/check-in-trends-chart'
 import {
   buildClientActivityItems,
   calcClientCompletionRate,
   calcWorkoutStreak,
+  getBlendedReadinessLevel,
   getDaysSinceLastSession,
   getLastActiveLabel,
-  getReadinessLevel,
   hasFlaggedNotes,
   isClientSetupComplete,
   type ClientWorkoutActivity,
 } from '@/lib/client-metrics'
+import { buildCheckInTrendPoints } from '@/lib/check-in-trends'
 import { formatVolume } from '@/lib/coach-preferences'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import {
   formatRelativeUpdated,
   getPreSessionInsight,
+  getSessionReadinessInsight,
 } from '@/lib/client-overview'
-import { formatRelativeTime } from '@/lib/dashboard'
+import { InlineEditableField } from '@/components/clients/inline-editable-field'
+import { LiveRelativeTime } from '@/components/ui/live-relative-time'
 import { getWeekDayLabels } from '@/lib/calendar'
+import {
+  getCompletionRateStatusLevel,
+  getWorkoutActivityIconClass,
+  statusTextClass,
+  type WorkoutActivityStatus,
+} from '@/lib/status-colors'
 import { cn } from '@/lib/utils'
 import type {
   CalendarDaySummary,
   Client,
+  ClientCheckIn,
   ClientProgramAssignment,
   ClientScheduledWorkout,
 } from 'app/types/database'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="section-label">{children}</p>
+  return <p className="section-header">{children}</p>
 }
 
 function StatCard({
@@ -56,25 +68,66 @@ function StatCard({
   value,
   hint,
   accent,
+  valueTone = accent ? 'brand' : 'default',
 }: {
   label: string
   value: string
   hint: string
   accent?: boolean
+  valueTone?: 'brand' | 'warning' | 'success' | 'default'
 }) {
+  const valueClass =
+    valueTone === 'brand'
+      ? 'text-brand'
+      : valueTone === 'warning'
+        ? statusTextClass.warning
+        : valueTone === 'success'
+          ? statusTextClass.success
+          : undefined
+
   return (
     <Card className={cn('gap-0 py-0', accent && 'border-brand/15 from-brand/5 bg-gradient-to-br to-transparent')}>
-      <CardContent className="space-y-1 px-5 py-5">
-        <p className="text-muted-foreground text-sm font-medium">{label}</p>
-        <p className={cn('text-3xl font-semibold tracking-tight', accent && 'text-brand')}>
+      <CardContent className="space-y-0.5 px-3 py-3 sm:space-y-1 sm:px-5 sm:py-5">
+        <p className="section-header text-muted-foreground text-[10px] sm:text-xs">{label}</p>
+        <p className={cn('text-2xl font-semibold tracking-tight sm:text-3xl', valueClass)}>
           {value}
         </p>
-        <p className="text-muted-foreground text-xs">{hint}</p>
+        <p className="helper-text line-clamp-2 text-[11px] leading-snug sm:line-clamp-none sm:text-sm">
+          {hint}
+        </p>
       </CardContent>
     </Card>
   )
 }
 
+function OverviewSectionCard({
+  title,
+  action,
+  children,
+}: {
+  title: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <Card className="gap-0 py-0">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 pb-0">
+        <SectionLabel>{title}</SectionLabel>
+        {action}
+      </CardHeader>
+      <CardContent className="px-4 pb-4">{children}</CardContent>
+    </Card>
+  )
+}
+
+function metricValueTone(
+  variant: string
+): 'warning' | 'success' | 'danger' | 'default' {
+  if (variant === 'danger') return 'danger'
+  if (variant === 'warning') return 'warning'
+  if (variant === 'success') return 'success'
+  return 'default'
+}
 function DetailRow({
   label,
   value,
@@ -86,11 +139,11 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b py-3 last:border-b-0">
-      <span className="text-muted-foreground shrink-0 text-sm">{label}</span>
+      <span className="text-muted-foreground body-text shrink-0">{label}</span>
       <span
         className={cn(
-          'text-right text-sm',
-          emphasize && 'font-semibold',
+          'body-text text-right',
+          emphasize && 'font-medium',
           value === '—' && 'text-muted-foreground'
         )}
       >
@@ -123,7 +176,7 @@ function ChecklistRow({
       </span>
       <span
         className={cn(
-          'text-sm leading-snug',
+          'body-text leading-snug',
           muted ? 'text-muted-foreground' : 'text-foreground'
         )}
       >
@@ -133,20 +186,37 @@ function ChecklistRow({
   )
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
+function MetricRow({
+  label,
+  value,
+  valueTone = 'default',
+}: {
+  label: string
+  value: string
+  valueTone?: 'warning' | 'success' | 'danger' | 'default'
+}) {
+  const valueClass =
+    valueTone === 'warning'
+      ? statusTextClass.warning
+      : valueTone === 'danger'
+        ? statusTextClass.danger
+        : valueTone === 'success'
+          ? statusTextClass.success
+          : undefined
+
   return (
     <div className="flex items-center justify-between gap-4 py-2">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+      <span className="text-muted-foreground body-text">{label}</span>
+      <span className={cn('body-text font-medium', valueClass)}>{value}</span>
     </div>
   )
 }
 
 const activityIcons = {
-  completed: { icon: CheckCircle2, className: 'text-brand bg-brand/10' },
-  in_progress: { icon: PlayCircle, className: 'text-amber-600 bg-amber-50' },
-  skipped: { icon: SkipForward, className: 'text-muted-foreground bg-muted' },
-  scheduled: { icon: Zap, className: 'text-muted-foreground bg-muted' },
+  completed: CheckCircle2,
+  in_progress: PlayCircle,
+  skipped: SkipForward,
+  scheduled: Zap,
 } as const
 
 type ClientOverviewProps = {
@@ -155,6 +225,7 @@ type ClientOverviewProps = {
   weekSessions?: CalendarDaySummary[]
   recentWorkouts?: ClientWorkoutActivity[]
   streakWorkouts?: ClientWorkoutActivity[]
+  checkIns?: ClientCheckIn[]
   loadMetrics?: {
     thisWeekVolume: number
     volumeDeltaLabel: string
@@ -165,6 +236,8 @@ type ClientOverviewProps = {
   weekStartsOn?: CoachPreferences['weekStartsOn']
   weightUnit?: CoachPreferences['weightUnit']
   onOpenCalendar?: () => void
+  onOpenCheckIns?: () => void
+  onOpenPrograms?: () => void
 }
 
 export function ClientOverview({
@@ -173,11 +246,14 @@ export function ClientOverview({
   weekSessions = [],
   recentWorkouts = [],
   streakWorkouts = [],
+  checkIns = [],
   loadMetrics,
   recentPrs = [],
   weekStartsOn = 'monday',
   weightUnit = 'lbs',
   onOpenCalendar,
+  onOpenCheckIns,
+  onOpenPrograms,
 }: ClientOverviewProps) {
   const weekDays = getWeekDayLabels(weekStartsOn)
   const sessionsByDate = new Map(
@@ -196,12 +272,31 @@ export function ClientOverview({
     hasProgram,
     hasScheduledWorkouts
   )
-  const insight = getPreSessionInsight(client, hasProgram, hasScheduledWorkouts)
+  const preSessionInsight = getPreSessionInsight(
+    client,
+    hasProgram,
+    hasScheduledWorkouts
+  )
 
   const completionRate = calcClientCompletionRate(weekSessions)
+  const completionStatus = getCompletionRateStatusLevel(
+    completionRate,
+    weekSessions.length
+  )
+  const completionValueTone =
+    completionStatus === 'warning'
+      ? 'warning'
+      : completionStatus === 'success'
+        ? 'success'
+        : 'brand'
   const streak = calcWorkoutStreak(streakWorkouts)
   const lastActive = getLastActiveLabel(recentWorkouts)
-  const readiness = getReadinessLevel(recentWorkouts)
+  const latestCheckIn = checkIns[0] ?? null
+  const readiness = getBlendedReadinessLevel(recentWorkouts, latestCheckIn)
+  const insight = setupComplete
+    ? getSessionReadinessInsight(readiness)
+    : preSessionInsight
+  const checkInTrendPoints = buildCheckInTrendPoints(checkIns)
   const daysSinceSession = getDaysSinceLastSession(recentWorkouts)
   const flaggedNotes = hasFlaggedNotes(client.notes)
   const activityItems = buildClientActivityItems(recentWorkouts)
@@ -214,9 +309,210 @@ export function ClientOverview({
         new Date(a.completed_at!).getTime()
     )[0]
 
+  const lastWorkoutLabel = lastWorkout
+    ? `${lastWorkout.name} · ${new Date(lastWorkout.completed_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : 'None yet'
+  const readinessTone = metricValueTone(readiness.variant)
+  const checkInFlagsValue =
+    readiness.flags.length > 0 ? readiness.flags.join(', ') : '—'
+
+  const viewAllCheckInsAction = onOpenCheckIns ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="text-muted-foreground h-8 gap-1 px-2 text-xs"
+      onClick={onOpenCheckIns}
+    >
+      View all
+      <ArrowRight className="size-3.5" />
+    </Button>
+  ) : null
+
+  const openCalendarAction = onOpenCalendar ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="text-muted-foreground h-8 gap-1 px-2 text-xs"
+      onClick={onOpenCalendar}
+    >
+      Open calendar
+      <ArrowRight className="size-3.5" />
+    </Button>
+  ) : null
+
+  function renderWeekStrip() {
+    return (
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
+        {weekDays.map(({ label, dateKey, isToday }) => {
+          const session = sessionsByDate.get(dateKey)
+          const boxClassName = cn(
+            'flex size-9 flex-col items-center justify-center rounded-lg border transition-colors sm:size-11',
+            isToday
+              ? 'border-brand bg-brand text-brand-foreground'
+              : session
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:border-emerald-500/60'
+                : 'border-border bg-muted/40 text-muted-foreground',
+            session && 'hover:opacity-90'
+          )
+          const boxContent = session ? (
+            <span className="max-w-full truncate px-0.5 text-[9px] font-semibold sm:text-[10px]">
+              {session.name.length > 8
+                ? `${session.name.slice(0, 7)}…`
+                : session.name}
+            </span>
+          ) : (
+            <Minus className="size-3.5 sm:size-4" strokeWidth={2.5} />
+          )
+
+          return (
+            <div key={dateKey} className="flex flex-col items-center gap-1.5 sm:gap-2">
+              {session ? (
+                <Link
+                  href={`/clients/${client.id}?tab=training&action=log&date=${dateKey}`}
+                  title={session.name}
+                  aria-label={`Open ${session.name} workout log`}
+                  className={boxClassName}
+                >
+                  {boxContent}
+                </Link>
+              ) : (
+                <div className={boxClassName} aria-hidden>
+                  {boxContent}
+                </div>
+              )}
+              <span
+                className={cn(
+                  'text-[11px] font-medium sm:text-xs',
+                  isToday ? 'text-foreground' : 'text-muted-foreground'
+                )}
+              >
+                {label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <>
+      <div className="space-y-3 md:hidden">
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard
+            label="Completion rate"
+            value={completionRate !== null ? `${completionRate}%` : '—'}
+            hint={
+              weekSessions.length > 0
+                ? `${weekSessions.length} session${weekSessions.length === 1 ? '' : 's'} this week`
+                : 'No sessions this week'
+            }
+            accent
+            valueTone={completionValueTone}
+          />
+          <StatCard
+            label="This week volume"
+            value={
+              loadMetrics ? formatVolume(loadMetrics.thisWeekVolume, weightUnit) : '—'
+            }
+            hint={loadMetrics?.volumeDeltaLabel ?? 'Log workouts to track load'}
+          />
+          <StatCard
+            label="Current streak"
+            value={streak > 0 ? `${streak} day${streak === 1 ? '' : 's'}` : '—'}
+            hint={streak > 0 ? 'Consecutive workout days' : 'No workouts yet'}
+          />
+          <StatCard
+            label="Last active"
+            value={lastActive}
+            hint="Most recent session"
+          />
+        </div>
+
+        <OverviewSectionCard
+          title={setupComplete ? 'Session readiness' : 'Pre-session snapshot'}
+          action={<Badge variant={insight.variant}>{insight.badge}</Badge>}
+        >
+          {setupComplete ? (
+            <div className="divide-y">
+              <MetricRow
+                label="Readiness"
+                value={readiness.label}
+                valueTone={readinessTone}
+              />
+              <MetricRow
+                label="Check-in flags"
+                value={checkInFlagsValue}
+                valueTone={readiness.flags.length > 0 ? 'warning' : 'default'}
+              />
+              <MetricRow label="Last workout" value={lastWorkoutLabel} />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <p className="helper-text mb-2 leading-relaxed">{insight.message}</p>
+              <ChecklistRow
+                done={hasGoal}
+                label={hasGoal ? `Goal set: ${client.goal!.trim()}` : 'Add a goal'}
+              />
+              <ChecklistRow
+                done={hasProgram}
+                label={
+                  hasProgram
+                    ? `Program: ${activeAssignment!.program.name}`
+                    : 'Assign a program'
+                }
+              />
+              <ChecklistRow
+                done={hasScheduledWorkouts}
+                label={
+                  hasScheduledWorkouts
+                    ? `${weekSessions.length} workout${weekSessions.length === 1 ? '' : 's'} this week`
+                    : 'Schedule workouts'
+                }
+              />
+            </div>
+          )}
+        </OverviewSectionCard>
+
+        {checkInTrendPoints.length > 0 && (
+          <OverviewSectionCard
+            title="Check-in trends"
+            action={viewAllCheckInsAction}
+          >
+            <CheckInTrendsSummary points={checkInTrendPoints} />
+          </OverviewSectionCard>
+        )}
+
+        {recentPrs.length > 0 && (
+          <OverviewSectionCard title="Recent PRs">
+            <ul className="divide-y">
+              {recentPrs.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-sm">
+                    <Flame className="size-4 shrink-0 text-amber-500" />
+                    <span className="truncate font-medium">{item.exerciseName}</span>
+                  </span>
+                  <span className="text-muted-foreground shrink-0 text-xs">
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </OverviewSectionCard>
+        )}
+
+        <OverviewSectionCard title="This week" action={openCalendarAction}>
+          {renderWeekStrip()}
+        </OverviewSectionCard>
+      </div>
+
+      <div className="hidden space-y-4 md:block">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Completion rate"
           value={completionRate !== null ? `${completionRate}%` : '—'}
@@ -226,6 +522,7 @@ export function ClientOverview({
               : 'No sessions scheduled this week'
           }
           accent
+          valueTone={completionValueTone}
         />
         <StatCard
           label="This week volume"
@@ -260,26 +557,65 @@ export function ClientOverview({
           value={lastActive}
           hint="Most recent session activity"
         />
-      </div>
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 md:gap-4">
         <Card className="gap-0 py-0">
           <CardHeader className="px-5 pt-5 pb-0">
             <SectionLabel>Client profile</SectionLabel>
           </CardHeader>
           <CardContent className="px-5 pb-5">
-            <DetailRow
-              label="Primary goal"
-              value={client.goal?.trim() || '—'}
-              emphasize={hasGoal}
-            />
+            <div className="flex items-baseline justify-between gap-4 border-b py-3">
+              <span className="text-muted-foreground body-text shrink-0">
+                Primary goal
+              </span>
+              <InlineEditableField
+                clientId={client.id}
+                field="goal"
+                value={client.goal ?? ''}
+                placeholder="Add a goal"
+                emphasize={hasGoal}
+              />
+            </div>
             <DetailRow label="Email" value={client.email?.trim() || '—'} />
-            <DetailRow label="Phone" value={client.phone?.trim() || '—'} />
-            <DetailRow
-              label="Current program"
-              value={activeAssignment?.program.name ?? 'Not assigned yet'}
-              emphasize={Boolean(activeAssignment)}
-            />
+            <div className="flex items-baseline justify-between gap-4 border-b py-3">
+              <span className="text-muted-foreground body-text shrink-0">
+                Phone
+              </span>
+              <InlineEditableField
+                clientId={client.id}
+                field="phone"
+                value={client.phone ?? ''}
+                placeholder="Add phone"
+              />
+            </div>
+            <div className="flex items-baseline justify-between gap-4 border-b py-3">
+              <span className="text-muted-foreground body-text shrink-0">
+                Current program
+              </span>
+              {onOpenPrograms ? (
+                <button
+                  type="button"
+                  onClick={onOpenPrograms}
+                  className={cn(
+                    'body-text hover:text-brand text-right transition-colors focus-visible:text-brand focus-visible:outline-none',
+                    activeAssignment && 'font-medium'
+                  )}
+                >
+                  {activeAssignment?.program.name ?? 'Not assigned yet'}
+                </button>
+              ) : (
+                <span
+                  className={cn(
+                    'body-text text-right',
+                    activeAssignment && 'font-medium',
+                    !activeAssignment && 'text-muted-foreground'
+                  )}
+                >
+                  {activeAssignment?.program.name ?? 'Not assigned yet'}
+                </span>
+              )}
+            </div>
             <DetailRow
               label="Next session"
               value={
@@ -301,22 +637,24 @@ export function ClientOverview({
           <CardContent className="space-y-4 px-5 pb-5">
             {setupComplete ? (
               <>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {insight.message}
-                </p>
+                <p className="helper-text leading-relaxed">{insight.message}</p>
                 <div className="border-t pt-2">
                   <MetricRow
                     label="Last workout logged"
-                    value={
-                      lastWorkout
-                        ? `${lastWorkout.name} · ${new Date(lastWorkout.completed_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                        : 'None yet'
-                    }
+                    value={lastWorkoutLabel}
                   />
                   <MetricRow
                     label="Readiness"
                     value={readiness.label}
+                    valueTone={readinessTone}
                   />
+                  {readiness.flags.length > 0 && (
+                    <MetricRow
+                      label="Check-in flags"
+                      value={readiness.flags.join(', ')}
+                      valueTone="warning"
+                    />
+                  )}
                   <MetricRow
                     label="Days since last session"
                     value={
@@ -334,9 +672,7 @@ export function ClientOverview({
               </>
             ) : (
               <>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {insight.message}
-                </p>
+                <p className="helper-text leading-relaxed">{insight.message}</p>
                 <div className="border-t pt-2">
                   <ChecklistRow
                     done={hasGoal}
@@ -381,12 +717,38 @@ export function ClientOverview({
                 </div>
               </>
             )}
-            <p className="text-muted-foreground text-xs">
+            <p className="helper-text">
               {formatRelativeUpdated(client.updated_at)}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {checkInTrendPoints.length > 0 && (
+        <Card className="gap-0 py-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
+            <div className="flex items-center gap-2">
+              <Moon className="text-brand size-4" />
+              <SectionLabel>Check-in trends</SectionLabel>
+            </div>
+            {onOpenCheckIns && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-8 gap-1 px-2 text-xs"
+                onClick={onOpenCheckIns}
+              >
+                View check-ins
+                <ArrowRight className="size-3.5" />
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <CheckInTrendsChart points={checkInTrendPoints} />
+          </CardContent>
+        </Card>
+      )}
 
       {recentPrs.length > 0 && (
         <Card className="gap-0 py-0">
@@ -417,7 +779,7 @@ export function ClientOverview({
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 md:gap-4">
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
             <SectionLabel>This week</SectionLabel>
@@ -435,56 +797,7 @@ export function ClientOverview({
             )}
           </CardHeader>
           <CardContent className="px-5 pb-5">
-            <div className="grid grid-cols-7 gap-2 sm:gap-3">
-              {weekDays.map(({ label, dateKey, isToday }) => {
-                const session = sessionsByDate.get(dateKey)
-                const boxClassName = cn(
-                  'flex size-10 flex-col items-center justify-center rounded-lg border transition-colors sm:size-11',
-                  isToday
-                    ? 'border-brand bg-brand text-brand-foreground'
-                    : session
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:border-emerald-500/60'
-                      : 'border-border bg-muted/40 text-muted-foreground',
-                  session && 'hover:opacity-90'
-                )
-                const boxContent = session ? (
-                  <span className="max-w-full truncate px-0.5 text-[9px] font-semibold sm:text-[10px]">
-                    {session.name.length > 8
-                      ? `${session.name.slice(0, 7)}…`
-                      : session.name}
-                  </span>
-                ) : (
-                  <Minus className="size-4" strokeWidth={2.5} />
-                )
-
-                return (
-                  <div key={dateKey} className="flex flex-col items-center gap-2">
-                    {session ? (
-                      <Link
-                        href={`/clients/${client.id}?tab=training&action=log&date=${dateKey}`}
-                        title={session.name}
-                        aria-label={`Open ${session.name} workout log`}
-                        className={boxClassName}
-                      >
-                        {boxContent}
-                      </Link>
-                    ) : (
-                      <div className={boxClassName} aria-hidden>
-                        {boxContent}
-                      </div>
-                    )}
-                    <span
-                      className={cn(
-                        'text-xs font-medium',
-                        isToday ? 'text-foreground' : 'text-muted-foreground'
-                      )}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+            {renderWeekStrip()}
             <p className="text-muted-foreground mt-4 text-xs">
               {hasScheduledWorkouts
                 ? 'Click a day to open its workout log.'
@@ -506,10 +819,9 @@ export function ClientOverview({
             ) : (
               <ul>
                 {activityItems.map((item, index) => {
-                  const config =
-                    activityIcons[item.status as keyof typeof activityIcons] ??
-                    activityIcons.scheduled
-                  const Icon = config.icon
+                  const status = item.status as WorkoutActivityStatus
+                  const Icon = activityIcons[status] ?? activityIcons.scheduled
+                  const iconClassName = getWorkoutActivityIconClass(status)
                   const statusLabel: Record<
                     ClientScheduledWorkout['status'],
                     string
@@ -531,7 +843,7 @@ export function ClientOverview({
                       <div
                         className={cn(
                           'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg',
-                          config.className
+                          iconClassName
                         )}
                       >
                         <Icon className="size-3.5" />
@@ -544,7 +856,7 @@ export function ClientOverview({
                           </span>
                         </p>
                         <p className="text-muted-foreground mt-0.5 text-xs">
-                          {formatRelativeTime(item.timestamp)}
+                          <LiveRelativeTime iso={item.timestamp} />
                         </p>
                       </div>
                     </li>
@@ -555,7 +867,7 @@ export function ClientOverview({
           </CardContent>
         </Card>
       </div>
-
-    </div>
+      </div>
+    </>
   )
 }

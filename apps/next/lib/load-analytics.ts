@@ -4,6 +4,11 @@ import {
 } from '@/lib/coach-preferences'
 import { parseTrackingOptions } from '@/lib/scheduled-exercise'
 import {
+  statusDotClass,
+  statusSoftBadgeClass,
+  type StatusLevel,
+} from '@/lib/status-colors'
+import {
   calculateE1rm,
   getBestE1rmFromDrafts,
 } from '@/lib/workout-log'
@@ -305,32 +310,28 @@ export function classifyAcwrRisk(ratio: number | null): AcwrRiskLevel {
 }
 
 export function getAcwrBadgeClass(riskLevel: AcwrRiskLevel): string {
+  let level: StatusLevel = 'neutral'
   switch (riskLevel) {
     case 'optimal':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+      level = 'success'
+      break
     case 'borderline':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-700'
+      level = 'warning'
+      break
     case 'undertraining':
     case 'overreaching':
-      return 'border-red-500/30 bg-red-500/10 text-red-700'
-    default:
-      return ''
+      level = 'danger'
+      break
   }
+  return statusSoftBadgeClass[level]
 }
 
 export function getReadinessDotClass(
   variant: 'success' | 'warning' | 'danger' | 'secondary'
 ): string {
-  switch (variant) {
-    case 'success':
-      return 'bg-emerald-500'
-    case 'warning':
-      return 'bg-amber-500'
-    case 'danger':
-      return 'bg-red-500'
-    default:
-      return 'bg-muted-foreground/40'
-  }
+  const level: StatusLevel =
+    variant === 'secondary' ? 'neutral' : variant
+  return statusDotClass[level]
 }
 
 export function getCheckInReadiness(checkIn: {

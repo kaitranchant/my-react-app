@@ -135,7 +135,7 @@ export default async function LibraryExercisesPage({
 
           <Card className="overflow-hidden py-0">
             <CardHeader className="border-b bg-muted/30 px-5 py-4">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-muted-foreground">
                 {exercises.length} exercise{exercises.length === 1 ? '' : 's'}
               </CardTitle>
             </CardHeader>
@@ -168,7 +168,41 @@ export default async function LibraryExercisesPage({
                   )}
                 </div>
               ) : (
-                <Table>
+                <>
+                  <div className="space-y-3 p-4 md:hidden">
+                    {exercises.map((exercise) => (
+                      <Card key={exercise.id} className="py-0">
+                        <CardContent className="space-y-2 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">{exercise.name}</p>
+                                <ExerciseSourceBadge source={exercise.source} />
+                              </div>
+                              {exercise.instructions ? (
+                                <p className="text-muted-foreground text-xs">
+                                  {exercise.instructions}
+                                </p>
+                              ) : null}
+                            </div>
+                            <ExerciseRowActions exercise={exercise} />
+                          </div>
+                          <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            <span>{exercise.muscle_group ?? '—'}</span>
+                            <span>{exercise.equipment ?? '—'}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ExerciseStatusBadge status={exercise.status} />
+                            <span className="text-muted-foreground text-xs">
+                              Updated {formatDate(exercise.updated_at)}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <Table className="hidden md:table">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="pl-5">Name</TableHead>
@@ -214,6 +248,7 @@ export default async function LibraryExercisesPage({
                     ))}
                   </TableBody>
                 </Table>
+                </>
               )}
             </CardContent>
           </Card>

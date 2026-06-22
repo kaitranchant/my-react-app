@@ -56,7 +56,7 @@ export function PortalLeaderboardProfileCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Your leaderboard profile</CardTitle>
+        <CardTitle>Your leaderboard profile</CardTitle>
         <CardDescription>
           Wilks / DOTS scoring needs biological sex and a recent bodyweight from
           check-ins or InBody scans.

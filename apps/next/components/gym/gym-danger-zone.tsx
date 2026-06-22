@@ -16,16 +16,38 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export function GymDangerZone({
   gymId,
+  gymName,
   isOwner,
 }: {
   gymId: string
+  gymName: string
   isOwner: boolean
 }) {
   const router = useRouter()
-  const [pending, setPending] = React.useState(false)
+  const [leavePending, setLeavePending] = React.useState(false)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
+  const [deletePending, setDeletePending] = React.useState(false)
+  const [confirmation, setConfirmation] = React.useState('')
+
+  React.useEffect(() => {
+    if (!deleteOpen) {
+      setConfirmation('')
+    }
+  }, [deleteOpen])
 
   async function handleLeave() {
     if (
@@ -36,9 +58,9 @@ export function GymDangerZone({
       return
     }
 
-    setPending(true)
+    setLeavePending(true)
     const result = await leaveGym(gymId)
-    setPending(false)
+    setLeavePending(false)
 
     if (!result.success) {
       toast.error(result.error)
@@ -50,17 +72,9 @@ export function GymDangerZone({
   }
 
   async function handleDelete() {
-    if (
-      !window.confirm(
-        'Delete this gym permanently? All coach members will be removed and client memberships will be cleared.'
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
+    setDeletePending(true)
     const result = await deleteGymRecord(gymId)
-    setPending(false)
+    setDeletePending(false)
 
     if (!result.success) {
       toast.error(result.error)
@@ -68,13 +82,16 @@ export function GymDangerZone({
     }
 
     toast.success('Gym deleted.')
+    setDeleteOpen(false)
     router.refresh()
   }
+
+  const deleteConfirmed = confirmation === gymName
 
   return (
     <Card className="border-destructive/30">
       <CardHeader>
-        <CardTitle className="text-base">Danger zone</CardTitle>
+        <CardTitle>Danger zone</CardTitle>
         <CardDescription>
           {isOwner
             ? 'Delete the gym for all members.'
@@ -83,12 +100,58 @@ export function GymDangerZone({
       </CardHeader>
       <CardContent>
         {isOwner ? (
-          <Button variant="destructive" disabled={pending} onClick={handleDelete}>
-            {pending ? 'Deleting…' : 'Delete gym'}
-          </Button>
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive">Delete gym</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Delete {gymName}?</DialogTitle>
+                <DialogDescription>
+                  This permanently deletes the gym for all coaches and clears
+                  client memberships tied to it. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-gym-confirmation">
+                  Type <span className="font-medium">{gymName}</span> to confirm
+                </Label>
+                <Input
+                  id="delete-gym-confirmation"
+                  autoComplete="off"
+                  value={confirmation}
+                  onChange={(event) => setConfirmation(event.target.value)}
+                  placeholder={gymName}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deletePending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={!deleteConfirmed || deletePending}
+                  onClick={handleDelete}
+                >
+                  {deletePending ? 'Deleting…' : 'Delete gym'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         ) : (
-          <Button variant="destructive" disabled={pending} onClick={handleLeave}>
-            {pending ? 'Leaving…' : 'Leave gym'}
+          <Button
+            variant="destructive"
+            disabled={leavePending}
+            onClick={handleLeave}
+          >
+            {leavePending ? 'Leaving…' : 'Leave gym'}
           </Button>
         )}
       </CardContent>

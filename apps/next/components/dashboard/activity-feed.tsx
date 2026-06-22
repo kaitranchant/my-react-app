@@ -16,26 +16,31 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   formatActivityMessage,
-  formatRelativeTime,
   getActivityHref,
   type ActivityItem,
 } from '@/lib/dashboard'
+import { LiveRelativeTime } from '@/components/ui/live-relative-time'
+import {
+  getWorkoutActivityIconClass,
+  type WorkoutActivityStatus,
+} from '@/lib/status-colors'
 import { cn } from '@/lib/utils'
 
 const workoutStatusIcons = {
-  completed: { icon: CheckCircle2, className: 'text-brand bg-brand/10' },
-  in_progress: { icon: PlayCircle, className: 'text-amber-600 bg-amber-50' },
-  skipped: { icon: SkipForward, className: 'text-muted-foreground bg-muted' },
-  scheduled: { icon: Zap, className: 'text-muted-foreground bg-muted' },
+  completed: CheckCircle2,
+  in_progress: PlayCircle,
+  skipped: SkipForward,
+  scheduled: Zap,
 } as const
 
 function getActivityIcon(item: ActivityItem) {
   if (item.kind === 'check_in') {
     return {
       icon: CalendarCheck,
-      className: 'text-brand bg-brand/10',
+      className: 'text-status-success bg-status-success/10',
     }
   }
 
@@ -46,8 +51,11 @@ function getActivityIcon(item: ActivityItem) {
     }
   }
 
-  const status = item.status ?? 'scheduled'
-  return workoutStatusIcons[status]
+  const status = (item.status ?? 'scheduled') as WorkoutActivityStatus
+  return {
+    icon: workoutStatusIcons[status],
+    className: getWorkoutActivityIconClass(status),
+  }
 }
 
 type ActivityFeedProps = {
@@ -58,24 +66,19 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle className="text-base font-semibold">Recent activity</CardTitle>
+        <CardTitle>Recent activity</CardTitle>
         <CardDescription>
           Latest session, check-in, and form review updates from your clients
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-2">
         {items.length === 0 ? (
-          <div className="text-muted-foreground flex flex-col items-center gap-3 py-10 text-center text-sm">
-            <div className="bg-muted flex size-12 items-center justify-center rounded-xl">
-              <Zap className="text-muted-foreground/60 size-5" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">No activity yet</p>
-              <p className="text-xs leading-relaxed">
-                Updates will appear here when clients complete or start their sessions.
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={Zap}
+            title="No activity yet"
+            description="Updates will appear here when clients complete or start their sessions."
+            action={{ label: 'View clients', href: '/clients' }}
+          />
         ) : (
           <ul className="space-y-3">
             {items.map((item) => {
@@ -85,6 +88,8 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               const isCheckIn = item.kind === 'check_in'
               const isFormReview = item.kind === 'form_review'
               const isHighlighted = isCheckIn || isFormReview
+
+              const isGrouped = (item.groupedCount ?? 1) > 1
 
               return (
                 <li key={`${item.kind}-${item.id}`}>
@@ -105,14 +110,14 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                           <Icon className="size-3.5" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm leading-snug">
+                          <p className="body-text leading-snug">
                             <span className="font-medium">{item.clientName}</span>{' '}
                             <span className="text-muted-foreground">
                               {formatActivityMessage(item)}
                             </span>
                           </p>
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {formatRelativeTime(item.timestamp)}
+                          <p className="helper-text mt-1">
+                            <LiveRelativeTime iso={item.timestamp} />
                           </p>
                         </div>
                       </div>
@@ -122,7 +127,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                           href={href}
                           className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
                         >
-                          View check-in
+                          {isGrouped ? 'View check-ins' : 'View check-in'}
                           <ChevronRight className="size-4" />
                         </Link>
                       ) : isFormReview ? (
@@ -130,7 +135,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                           href={href}
                           className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
                         >
-                          Review submission
+                          {isGrouped ? 'View submissions' : 'Review submission'}
                           <ChevronRight className="size-4" />
                         </Link>
                       ) : (

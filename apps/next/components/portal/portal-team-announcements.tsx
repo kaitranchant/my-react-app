@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { TeamAnnouncement } from 'app/types/database'
 
 type PortalTeamAnnouncementsProps = {
@@ -23,16 +24,19 @@ export function PortalTeamAnnouncements({
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="border-b bg-muted/30 px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 text-muted-foreground">
           <Megaphone className="size-4" />
           Announcements
         </CardTitle>
       </CardHeader>
       <CardContent className="px-5 py-5">
         {sorted.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No announcements yet. Your coach will post team updates here.
-          </p>
+          <EmptyState
+            icon={Megaphone}
+            title="No announcements yet"
+            description="Your coach will post team updates and reminders here."
+            className="py-4"
+          />
         ) : (
           <ul className="space-y-3">
             {sorted.map((announcement) => (

@@ -4,6 +4,8 @@ export const clientStatuses = ['active', 'paused', 'archived'] as const
 
 export const clientCoachingTypes = ['online', 'in_person', 'hybrid'] as const
 
+export const clientBiologicalSexOptions = ['male', 'female'] as const
+
 export const clientGymIdSchema = z.union([z.string().uuid(), z.literal('none')])
 
 export const clientFormSchema = z.object({
@@ -23,6 +25,10 @@ export const clientFormSchema = z.object({
   gymId: clientGymIdSchema.optional(),
   goal: z.string().trim().max(500, 'Goal is too long').optional(),
   notes: z.string().trim().max(2000, 'Notes are too long').optional(),
+  biologicalSex: z
+    .union([z.enum(clientBiologicalSexOptions), z.literal('none')])
+    .optional(),
+  leaderboardOptOut: z.boolean().optional(),
 })
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>
@@ -41,6 +47,8 @@ export const clientFormDefaults: ClientFormValues = {
   gymId: 'none',
   goal: '',
   notes: '',
+  biologicalSex: 'none',
+  leaderboardOptOut: false,
 }
 
 export const inviteClientSchema = z.object({
@@ -55,6 +63,10 @@ export const inviteClientSchema = z.object({
     .optional(),
   gymId: clientGymIdSchema.optional(),
   goal: z.string().trim().max(500, 'Goal is too long').optional(),
+  biologicalSex: z
+    .union([z.enum(clientBiologicalSexOptions), z.literal('none')])
+    .optional(),
+  leaderboardOptOut: z.boolean().optional(),
 })
 
 export type InviteClientValues = z.infer<typeof inviteClientSchema>
@@ -65,4 +77,6 @@ export const inviteClientDefaults: InviteClientValues = {
   coachingType: 'none',
   gymId: 'none',
   goal: '',
+  biologicalSex: 'none',
+  leaderboardOptOut: false,
 }

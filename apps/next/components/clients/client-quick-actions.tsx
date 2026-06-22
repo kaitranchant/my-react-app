@@ -1,11 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  CalendarPlus,
-  ClipboardCheck,
-  MessageSquare,
-} from 'lucide-react'
+import { CalendarPlus, ClipboardCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
@@ -16,34 +12,20 @@ type ClientQuickActionsProps = {
 export function ClientQuickActions({ clientId }: ClientQuickActionsProps) {
   const base = `/clients/${clientId}`
 
-  const actions = [
-    {
-      label: 'Log session',
-      icon: ClipboardCheck,
-      href: `${base}?tab=training&action=log`,
-    },
-    {
-      label: 'Schedule workout',
-      icon: CalendarPlus,
-      href: `${base}?tab=training&action=schedule`,
-    },
-    {
-      label: 'Message',
-      icon: MessageSquare,
-      href: `${base}?tab=messages`,
-    },
-  ] as const
-
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {actions.map(({ label, icon: Icon, href }) => (
-        <Button key={label} variant="outline" size="sm" asChild title={label}>
-          <Link href={href}>
-            <Icon className="size-4" />
-            <span className="hidden sm:inline">{label}</span>
-          </Link>
-        </Button>
-      ))}
+      <Button variant="brand" size="sm" asChild>
+        <Link href={`${base}?tab=training&action=log`}>
+          <ClipboardCheck className="size-4" />
+          <span className="hidden sm:inline">Log session</span>
+        </Link>
+      </Button>
+      <Button variant="outline" size="sm" asChild>
+        <Link href={`${base}?tab=training&action=schedule`}>
+          <CalendarPlus className="size-4" />
+          <span className="hidden sm:inline">Schedule workout</span>
+        </Link>
+      </Button>
     </div>
   )
 }

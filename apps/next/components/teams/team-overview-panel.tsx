@@ -39,9 +39,9 @@ function StatCard({
   return (
     <Card className="gap-0 py-0">
       <CardContent className="px-4 py-4">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        <p className="helper-text font-medium">{label}</p>
         <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-        <p className="text-muted-foreground mt-1 text-xs">{hint}</p>
+        <p className="helper-text mt-1">{hint}</p>
       </CardContent>
     </Card>
   )
@@ -111,11 +111,11 @@ export function TeamOverviewPanel({
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">Recent activity</CardTitle>
+          <CardTitle className="text-muted-foreground">Recent activity</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {activity.length === 0 ? (
-            <p className="text-muted-foreground px-5 py-6 text-sm">
+            <p className="helper-text px-5 py-6">
               Team activity will appear here when members log workouts, submit
               check-ins, or hit PRs.
             </p>
@@ -126,7 +126,7 @@ export function TeamOverviewPanel({
                 return (
                   <li
                     key={item.id}
-                    className="flex items-start gap-3 px-5 py-3 text-sm"
+                    className="body-text flex items-start gap-3 px-5 py-3"
                   >
                     <Icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -139,7 +139,7 @@ export function TeamOverviewPanel({
                         </Link>{' '}
                         <span className="text-muted-foreground">{item.label}</span>
                       </p>
-                      <p className="text-muted-foreground text-xs">
+                      <p className="helper-text">
                         {new Date(item.timestamp).toLocaleString(undefined, {
                           month: 'short',
                           day: 'numeric',
@@ -159,7 +159,7 @@ export function TeamOverviewPanel({
       {performance.members.length > 0 && (
         <Card className="gap-0 py-0">
           <CardHeader className="border-b bg-muted/30 px-5 py-4">
-            <CardTitle className="text-sm font-medium">Member status</CardTitle>
+            <CardTitle className="text-muted-foreground">Member status</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">

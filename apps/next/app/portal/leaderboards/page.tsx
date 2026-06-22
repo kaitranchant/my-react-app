@@ -58,7 +58,7 @@ export default async function PortalLeaderboardsPage({
     return (
       <div className="flex flex-col gap-6">
         <section className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Leaderboards</h1>
+          <h1 className="page-title">Leaderboards</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             See how you rank against teammates.
           </p>
@@ -77,7 +77,7 @@ export default async function PortalLeaderboardsPage({
     return (
       <div className="flex flex-col gap-6">
         <section className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Leaderboards</h1>
+          <h1 className="page-title">Leaderboards</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Team rankings are hidden for your profile.
           </p>
@@ -113,7 +113,7 @@ export default async function PortalLeaderboardsPage({
     return (
       <div className="flex flex-col gap-6">
         <section className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Leaderboards</h1>
+          <h1 className="page-title">Leaderboards</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Compete with teammates on strength, consistency, and improvement.
           </p>
@@ -166,7 +166,7 @@ export default async function PortalLeaderboardsPage({
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Leaderboards</h1>
+        <h1 className="page-title">Leaderboards</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           {selectedTeam.name} rankings — strength, Wilks/DOTS, consistency,
           volume, and improvement.

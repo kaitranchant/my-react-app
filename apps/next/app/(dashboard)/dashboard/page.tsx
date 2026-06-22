@@ -285,15 +285,11 @@ export default async function DashboardPage() {
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
         <div className="relative space-y-5">
           <div className="space-y-2">
-            <p className="text-muted-foreground text-sm font-medium">
-              {todayLabel}
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <p className="section-header text-muted-foreground">{todayLabel}</p>
+            <h1 className="page-title">
               {greeting}, {firstName}
             </h1>
-            <p className="text-muted-foreground max-w-lg text-sm leading-relaxed">
-              {summary}
-            </p>
+            <p className="helper-text max-w-lg leading-relaxed">{summary}</p>
           </div>
           <QuickActions
             clients={activeClients}

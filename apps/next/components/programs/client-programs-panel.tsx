@@ -130,7 +130,7 @@ export function ClientProgramsPanel({
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 border-b bg-muted/30 px-5 py-4">
             <div className="space-y-1">
-              <CardTitle className="text-base font-semibold">
+              <CardTitle>
                 {activeAssignment.program.name}
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2">
@@ -194,7 +194,7 @@ export function ClientProgramsPanel({
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {activeAssignment
               ? personalMode
                 ? 'Change your program'

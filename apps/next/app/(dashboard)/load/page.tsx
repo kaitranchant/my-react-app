@@ -25,12 +25,15 @@ export default async function LoadPage({
 
   const { data: clientsData } = await supabase
     .from('clients')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url')
     .eq('status', 'active')
     .eq('is_coach_self', false)
     .order('full_name', { ascending: true })
 
-  const clients = (clientsData ?? []) as Pick<Client, 'id' | 'full_name'>[]
+  const clients = (clientsData ?? []) as Pick<
+    Client,
+    'id' | 'full_name' | 'avatar_url'
+  >[]
   const summaries = await fetchCoachLoadSummaries(supabase, clients)
 
   return (

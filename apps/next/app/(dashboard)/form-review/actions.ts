@@ -59,6 +59,7 @@ export async function updateFormReviewFeedback(
     .from('client_form_reviews')
     .update({
       coach_feedback: parsed.data.coachFeedback,
+      coach_annotations: parsed.data.coachAnnotations,
       reviewed_at: new Date().toISOString(),
     })
     .eq('id', reviewId)

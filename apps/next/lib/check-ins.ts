@@ -174,7 +174,7 @@ export const CHECK_IN_SCALES = {
   },
   energy: {
     tone: 'positive',
-    labels: ['Exhausted', 'Low', 'Moderate', 'Good', 'High'],
+    labels: ['Exhausted', 'Low', 'Moderate', 'Good', 'High energy'],
   },
   sleepQuality: {
     tone: 'positive',
@@ -182,11 +182,11 @@ export const CHECK_IN_SCALES = {
   },
   motivation: {
     tone: 'positive',
-    labels: ['None', 'Low', 'Moderate', 'Strong', 'Very high'],
+    labels: ['None', 'Low', 'Moderate', 'Strong', 'Fired up'],
   },
   nutrition: {
     tone: 'positive',
-    labels: ['Off plan', 'Mostly off', 'Mixed', 'Mostly on', 'On plan'],
+    labels: ['Off plan', 'Mostly off', 'Mixed', 'Mostly on', 'Perfect'],
   },
   soreness: {
     tone: 'negative',

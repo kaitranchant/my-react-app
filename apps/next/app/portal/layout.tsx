@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
 import { UserMenu } from '@/components/dashboard/user-menu'
+import { PortalMobileMenu } from '@/components/portal/portal-mobile-menu'
 import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
 import { PortalSidebar } from '@/components/portal/portal-sidebar'
 import { getPortalClientContext } from '@/lib/portal-client'
@@ -49,11 +50,12 @@ export default async function PortalLayout({
       <AppShellScrollLock />
       <PortalSidebar showTeamNav={showTeamNav} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-4 border-b px-4 backdrop-blur-sm sm:px-6">
-          <div className="md:hidden">
+        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6">
+          <PortalMobileMenu showTeamNav={showTeamNav} />
+          <div className="min-w-0 flex-1 md:hidden">
             <BrandLogo />
           </div>
-          <div className="ml-auto">
+          <div className="shrink-0">
             <UserMenu
               name={name}
               email={user.email ?? ''}

@@ -139,6 +139,37 @@ test('computeCompositionProgress handles wrong-direction movement', () => {
   const progress = computeCompositionProgress(makeCompositionGoal(), scans)
   assert.equal(progress.percent, 0)
   assert.equal(progress.status, 'off_track')
+  assert.match(progress.hint ?? '', /Weight has increased 2\.0 lbs since starting/)
+})
+
+test('computeCompositionProgress explains body fat setbacks in plain language', () => {
+  const goal = makeCompositionGoal({
+    metric: 'percent_body_fat',
+    direction: 'decrease',
+    target_amount: 5,
+    unit: '%',
+  })
+  const scans = [
+    makeScan({
+      id: 'baseline',
+      scan_date: '2026-01-01T00:00:00.000Z',
+      weight_lbs: 180,
+      percent_body_fat: 20,
+    }),
+    makeScan({
+      id: 'current',
+      scan_date: '2026-02-01T00:00:00.000Z',
+      weight_lbs: 181,
+      percent_body_fat: 20.5,
+    }),
+  ]
+
+  const progress = computeCompositionProgress(goal, scans)
+  assert.equal(progress.status, 'off_track')
+  assert.match(
+    progress.hint ?? '',
+    /Body fat has increased 0\.5% since starting/
+  )
 })
 
 test('computeCompositionProgress calculates increase goal percentage', () => {

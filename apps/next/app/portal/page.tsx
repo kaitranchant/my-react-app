@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { ArrowRight, CalendarCheck, CalendarDays } from 'lucide-react'
 
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
+import { PortalActiveGoalsCard } from '@/components/portal/portal-active-goals-card'
+import { PortalFormReviewStatusCard } from '@/components/portal/portal-form-review-status-card'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
 import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
@@ -19,6 +21,10 @@ import {
 import { getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { formatVolume } from '@/lib/load-analytics'
+import {
+  fetchPortalFormReviewHighlight,
+  fetchPortalHomeGoalHighlights,
+} from '@/lib/portal-home-highlights'
 import { fetchPortalHomeData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { fetchClientNextTeamEvent } from '@/lib/portal-teams'
@@ -85,6 +91,12 @@ export default async function PortalPage() {
   let homeData = null
   let todayWorkout: CalendarDaySummary | null = null
   let nextTeamEvent = null
+  let goalHighlights: Awaited<
+    ReturnType<typeof fetchPortalHomeGoalHighlights>
+  > = []
+  let formReviewHighlight: Awaited<
+    ReturnType<typeof fetchPortalFormReviewHighlight>
+  > = null
 
   let coachPreferences = null
 
@@ -93,23 +105,31 @@ export default async function PortalPage() {
     coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
     const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
 
-    const [assignmentResult, homeDataResult, todayWorkoutResult, nextTeamEventResult] =
-      await Promise.all([
-        supabase
-          .from('program_assignments')
-          .select('start_date, program:programs(name, description)')
-          .eq('client_id', clientRecord.id)
-          .eq('status', 'active')
-          .maybeSingle(),
-        fetchPortalHomeData(supabase, clientRecord.id, coachPreferences),
-        supabase
-          .from('client_scheduled_workouts')
-          .select('id, scheduled_date, name, status, started_at')
-          .eq('client_id', clientRecord.id)
-          .eq('scheduled_date', coachTodayKey)
-          .maybeSingle(),
-        fetchClientNextTeamEvent(supabase, clientRecord.id),
-      ])
+    const [
+      assignmentResult,
+      homeDataResult,
+      todayWorkoutResult,
+      nextTeamEventResult,
+      goalHighlightsResult,
+      formReviewHighlightResult,
+    ] = await Promise.all([
+      supabase
+        .from('program_assignments')
+        .select('start_date, program:programs(name, description)')
+        .eq('client_id', clientRecord.id)
+        .eq('status', 'active')
+        .maybeSingle(),
+      fetchPortalHomeData(supabase, clientRecord.id, coachPreferences),
+      supabase
+        .from('client_scheduled_workouts')
+        .select('id, scheduled_date, name, status, started_at')
+        .eq('client_id', clientRecord.id)
+        .eq('scheduled_date', coachTodayKey)
+        .maybeSingle(),
+      fetchClientNextTeamEvent(supabase, clientRecord.id),
+      fetchPortalHomeGoalHighlights(supabase, clientRecord.id, coachPreferences),
+      fetchPortalFormReviewHighlight(supabase, clientRecord.id),
+    ])
 
     if (
       assignmentResult.data?.program &&
@@ -125,6 +145,8 @@ export default async function PortalPage() {
     homeData = homeDataResult
     todayWorkout = (todayWorkoutResult.data as CalendarDaySummary | null) ?? null
     nextTeamEvent = nextTeamEventResult
+    goalHighlights = goalHighlightsResult
+    formReviewHighlight = formReviewHighlightResult
   }
 
   const name =
@@ -159,13 +181,13 @@ export default async function PortalPage() {
             size="md"
           />
           <div className="space-y-2">
-            <p className="text-muted-foreground text-sm font-medium">
+            <p className="section-header text-muted-foreground">
               {todayLabel}
             </p>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="page-title">
               Welcome, {name}
             </h1>
-            <p className="text-muted-foreground text-sm leading-relaxed">
+            <p className="helper-text leading-relaxed">
               Your dashboard for workouts, check-ins, and progress.
             </p>
           </div>
@@ -175,19 +197,19 @@ export default async function PortalPage() {
       {activeProgram && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
+            <CardTitle>
               Your program
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm leading-relaxed">
-            <p className="font-medium">{activeProgram.name}</p>
+          <CardContent className="body-text space-y-2 leading-relaxed">
+            <p className="section-header">{activeProgram.name}</p>
             {activeProgram.description && (
-              <p className="text-muted-foreground whitespace-pre-wrap">
+              <p className="helper-text whitespace-pre-wrap">
                 {activeProgram.description}
               </p>
             )}
             {activeProgram.start_date && (
-              <p className="text-muted-foreground text-xs">
+              <p className="helper-text">
                 Started{' '}
                 {new Date(`${activeProgram.start_date}T12:00:00`).toLocaleDateString(
                   undefined,
@@ -201,7 +223,7 @@ export default async function PortalPage() {
 
       {!clientRecord ? (
         <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
+          <CardContent className="helper-text py-8 text-center leading-relaxed">
             Your account is not linked to a client profile yet. Ask your coach
             to send you an invite link so you can see your schedule and log
             workouts.
@@ -251,7 +273,7 @@ export default async function PortalPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
-                <CardTitle className="text-base font-semibold">This week</CardTitle>
+                <CardTitle>This week</CardTitle>
                 <CardDescription>Tap a day to open your workout.</CardDescription>
               </div>
               <Button
@@ -281,7 +303,7 @@ export default async function PortalPage() {
             >
               <Card className="h-full transition-colors group-hover:border-brand/40">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <CardTitle className="flex items-center gap-2">
                     <CalendarDays className="text-brand size-5" />
                     Workouts
                   </CardTitle>
@@ -324,7 +346,7 @@ export default async function PortalPage() {
             <Link href="/portal/check-in" className="group block">
               <Card className="h-full transition-colors group-hover:border-brand/40">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between gap-2 text-base font-semibold">
+                  <CardTitle className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
                       <CalendarCheck className="text-brand size-5" />
                       Check-in
@@ -350,6 +372,10 @@ export default async function PortalPage() {
                 </CardContent>
               </Card>
             </Link>
+
+            <PortalActiveGoalsCard goals={goalHighlights} />
+
+            <PortalFormReviewStatusCard highlight={formReviewHighlight} />
           </section>
 
           <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
@@ -357,7 +383,7 @@ export default async function PortalPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
-                <CardTitle className="text-base font-semibold">
+                <CardTitle>
                   Training history
                 </CardTitle>
                 <CardDescription>

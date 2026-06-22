@@ -44,7 +44,7 @@ export function PortalInbodyPanel({ scans }: PortalInbodyPanelProps) {
       <TabsContent value="log" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Log InBody scan</CardTitle>
+            <CardTitle>Log InBody scan</CardTitle>
             <CardDescription>
               Enter the values from your InBody printout. Weight, skeletal muscle
               mass, and percent body fat are required.
@@ -71,7 +71,7 @@ export function PortalInbodyPanel({ scans }: PortalInbodyPanelProps) {
       <TabsContent value="graphs" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Body composition history</CardTitle>
+            <CardTitle>Body composition history</CardTitle>
             <CardDescription>
               Track every logged metric across your scans.
             </CardDescription>
@@ -85,7 +85,11 @@ export function PortalInbodyPanel({ scans }: PortalInbodyPanelProps) {
       <TabsContent value="history" className="mt-4">
         <InbodyScanList
           scans={scans}
-          emptyMessage="No InBody scans logged yet. Add your first scan to start tracking."
+          emptyMessage="No InBody scans logged yet"
+          emptyAction={{
+            label: 'Log first scan',
+            onClick: () => setTab('log'),
+          }}
           canEdit={(scan) => scan.submitted_by === 'client'}
           onUpdate={updateClientInbodyScan}
           onDelete={deleteClientInbodyScan}

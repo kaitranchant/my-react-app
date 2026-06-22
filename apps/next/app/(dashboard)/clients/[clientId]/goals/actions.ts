@@ -378,3 +378,21 @@ export async function deleteClientGoal(goalId: string): Promise<ActionResult> {
   revalidateGoalPaths(existing.client_id)
   return { success: true }
 }
+
+export async function restoreClientGoal(
+  goal: ClientGoalInsert & { id: string }
+): Promise<ActionResult> {
+  const ctx = await requireClientAccess(goal.client_id)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await ctx.supabase.from('client_goals').insert(goal)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateGoalPaths(goal.client_id)
+  return { success: true }
+}

@@ -103,7 +103,7 @@ export default async function LibraryWorkoutsPage({
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-muted-foreground">
             {workouts.length} workout{workouts.length === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>
@@ -130,7 +130,34 @@ export default async function LibraryWorkoutsPage({
               )}
             </div>
           ) : (
-            <Table>
+            <>
+              <div className="space-y-3 p-4 md:hidden">
+                {workouts.map((workout) => (
+                  <Card key={workout.id} className="py-0">
+                    <CardContent className="space-y-2 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="font-medium">{workout.name}</p>
+                          {workout.description ? (
+                            <p className="text-muted-foreground text-xs">
+                              {workout.description}
+                            </p>
+                          ) : null}
+                        </div>
+                        <WorkoutRowActions workout={workout} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <WorkoutStatusBadge status={workout.status} />
+                        <span className="text-muted-foreground text-xs">
+                          Updated {formatDate(workout.updated_at)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <Table className="hidden md:table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-5">Name</TableHead>
@@ -165,6 +192,7 @@ export default async function LibraryWorkoutsPage({
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>

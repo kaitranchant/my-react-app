@@ -117,7 +117,7 @@ export function TeamPowerliftingExercisesCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Leaderboard lifts</CardTitle>
+        <CardTitle>Leaderboard lifts</CardTitle>
         <CardDescription>
           Map squat, bench, and deadlift for Wilks / DOTS powerlifting totals.
           Unset lifts fall back to exercise name matching.
