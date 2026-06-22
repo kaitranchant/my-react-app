@@ -264,7 +264,7 @@ function getActivityGroupKey(item: ActivityItem): string {
 }
 
 function formatGroupedClientNames(names: string[]): string {
-  const uniqueNames = [...new Set(names)]
+  const uniqueNames = Array.from(new Set(names))
 
   if (uniqueNames.length === 1) {
     return uniqueNames[0]!
@@ -279,7 +279,7 @@ function formatGroupedClientNames(names: string[]): string {
 
 function createGroupedActivityItem(cluster: ActivityItem[]): ActivityItem {
   const newest = cluster[0]!
-  const groupedClientIds = [...new Set(cluster.map((item) => item.clientId))]
+  const groupedClientIds = Array.from(new Set(cluster.map((item) => item.clientId)))
 
   return {
     ...newest,

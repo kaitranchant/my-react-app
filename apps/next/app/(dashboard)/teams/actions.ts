@@ -577,7 +577,7 @@ export async function shareTeamsWithGym(
   gymId: string,
   teamIds: string[]
 ): Promise<ShareAllTeamsResult> {
-  const uniqueIds = [...new Set(teamIds)]
+  const uniqueIds = Array.from(new Set(teamIds))
 
   if (uniqueIds.length === 0) {
     return { success: false, error: 'Select at least one team.' }

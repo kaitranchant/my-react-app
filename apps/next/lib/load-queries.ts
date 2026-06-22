@@ -3,6 +3,7 @@ import {
   getBlendedReadinessLevel,
   getDaysSinceLastSession,
   isRecentCheckIn,
+  type CheckInReadinessInput,
 } from '@/lib/client-metrics'
 import {
   aggregateWeeklyMetric,
@@ -46,13 +47,7 @@ type WorkoutRow = Pick<
   'id' | 'scheduled_date' | 'status' | 'completed_at'
 >
 
-type CheckInRow = {
-  check_in_date: string
-  energy_level: number | null
-  calm_level: number | null
-  soreness_level: number | null
-  has_pain: boolean
-}
+type CheckInRow = CheckInReadinessInput
 
 export type ClientLoadSummary = {
   clientId: string
@@ -200,7 +195,7 @@ export async function fetchLatestCheckIn(
   const { data, error } = await supabase
     .from('client_check_ins')
     .select(
-      'check_in_date, energy_level, calm_level, soreness_level, has_pain'
+      'check_in_date, sleep_hours, sleep_quality, energy_level, calm_level, soreness_level, has_pain'
     )
     .eq('client_id', clientId)
     .order('check_in_date', { ascending: false })

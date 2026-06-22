@@ -730,7 +730,7 @@ export async function shareClientsWithGym(
   gymId: string,
   clientIds: string[]
 ): Promise<ShareAllClientsResult> {
-  const uniqueIds = [...new Set(clientIds)]
+  const uniqueIds = Array.from(new Set(clientIds))
 
   if (uniqueIds.length === 0) {
     return { success: false, error: 'Select at least one client.' }

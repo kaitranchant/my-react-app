@@ -86,7 +86,7 @@ function RankChangeBadge({
   rankDelta: LeaderboardRow['rankDelta']
 }) {
   const label = formatRankChangeLabel(rankChange, rankDelta)
-  if (!label) return null
+  if (!label || rankChange == null) return null
 
   return (
     <Badge
