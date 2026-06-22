@@ -38,7 +38,7 @@ test.describe('Client portal logging', () => {
       await viewLogButton.click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      await expect(dialog.getByRole('button', { name: 'Reopen' })).toBeVisible({
+      await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({
         timeout: 15_000,
       })
       await dialog.getByRole('button', { name: 'Close' }).click()
@@ -61,10 +61,10 @@ test.describe('Client portal logging', () => {
     await dialog.getByLabel(/Set 1 reps/i).fill('10')
     await ensureSetLogged(dialog, 1)
 
-    await dialog.getByRole('button', { name: 'Complete workout' }).click()
-    await expect(dialog.getByRole('button', { name: 'Reopen' })).toBeVisible({
+    await expect(page.getByText(/Workout complete!/i).first()).toBeVisible({
       timeout: 15_000,
     })
+    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled()
 
     await dialog.getByRole('button', { name: 'Close' }).click()
     await expect(dialog).toBeHidden()

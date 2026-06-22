@@ -9,6 +9,7 @@ import {
 } from '@/lib/pr-records'
 import { fetchExerciseHistory } from '@/lib/scheduled-workout-queries'
 import {
+  exerciseLogNotesSchema,
   saveWorkoutLogSetsSchema,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
@@ -474,6 +475,58 @@ export async function skipWorkoutLog(
       completed_at: new Date().toISOString(),
     })
     .eq('id', workoutId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClientCalendar(clientId)
+  return { success: true }
+}
+
+export async function updateScheduledExerciseCoachNotes(
+  clientId: string,
+  exerciseRowId: string,
+  notes: string
+): Promise<ActionResult> {
+  const parsed = exerciseLogNotesSchema.safeParse({ notes })
+  if (!parsed.success) {
+    return { success: false, error: 'Notes must be 500 characters or fewer.' }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase } = ctx
+
+  const { data: row, error: rowError } = await supabase
+    .from('scheduled_workout_exercises')
+    .select('id, scheduled_workout_id')
+    .eq('id', exerciseRowId)
+    .maybeSingle()
+
+  if (rowError || !row) {
+    return { success: false, error: 'Exercise not found.' }
+  }
+
+  const { data: workout } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id')
+    .eq('id', row.scheduled_workout_id)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (!workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  const trimmed = parsed.data.notes
+  const { error } = await supabase
+    .from('scheduled_workout_exercises')
+    .update({ workout_notes: trimmed ? trimmed : null })
+    .eq('id', exerciseRowId)
 
   if (error) {
     return { success: false, error: error.message }

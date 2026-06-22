@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -32,6 +33,8 @@ import { WorkoutBuilderModal } from '@/components/calendar/workout-builder-modal
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/lib/hooks/use-is-mobile'
+import { openWorkoutLog } from '@/lib/open-workout-log'
 import {
   Dialog,
   DialogContent,
@@ -119,6 +122,8 @@ export function ClientCalendarPanel({
   personalMode = false,
   weightUnit = 'lbs',
 }: ClientCalendarPanelProps) {
+  const router = useRouter()
+  const isMobile = useIsMobile()
   const [year, setYear] = React.useState(initialYear)
   const [month, setMonth] = React.useState(initialMonth)
   const [selectedDate, setSelectedDate] = React.useState(initialSelectedDate)
@@ -152,6 +157,23 @@ export function ClientCalendarPanel({
   const [templatesLoading, setTemplatesLoading] = React.useState(false)
   const [templatesError, setTemplatesError] = React.useState<string | null>(null)
   const handledActionRef = React.useRef<string | null>(null)
+
+  function openLogWorkout(
+    workoutToLog: ClientScheduledWorkoutWithExercises | null = workout
+  ) {
+    if (!workoutToLog) return
+
+    openWorkoutLog({
+      router,
+      isMobile,
+      workoutId: workoutToLog.id,
+      selectedDate,
+      context: personalMode
+        ? { variant: 'coach', clientId, personalMode: true }
+        : { variant: 'coach', clientId },
+      openModal: () => setLogOpen(true),
+    })
+  }
 
   const defaultWorkoutName = personalMode
     ? 'My Workout'
@@ -378,7 +400,7 @@ export function ClientCalendarPanel({
 
       if (initialAction === 'log') {
         if (loadedWorkout) {
-          setLogOpen(true)
+          openLogWorkout(loadedWorkout)
         } else {
           toast.error(
             `No workout scheduled for ${formatDayHeader(dateKey)}.`
@@ -611,13 +633,13 @@ export function ClientCalendarPanel({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setLogOpen(true)}
+                onClick={() => openLogWorkout()}
               >
                 <ClipboardList className="size-4" />
                 {workout.status === 'completed'
                   ? 'View log'
                   : workout.status === 'skipped'
-                    ? 'Undo skip'
+                    ? 'View workout'
                     : workout.status === 'in_progress'
                       ? 'Continue log'
                       : workout.started_at
@@ -703,17 +725,19 @@ export function ClientCalendarPanel({
             onChanged={() => refreshCalendar()}
             onCopy={openCopyDialog}
           />
-          <WorkoutLogModal
-            open={logOpen}
-            onOpenChange={setLogOpen}
-            clientId={clientId}
-            selectedDate={selectedDate}
-            workoutId={workout.id}
-            initialStatus={workout.status}
-            exercises={exercises}
-            onChanged={() => refreshCalendar()}
-            weightUnit={weightUnit}
-          />
+          {!isMobile && (
+            <WorkoutLogModal
+              open={logOpen}
+              onOpenChange={setLogOpen}
+              clientId={clientId}
+              selectedDate={selectedDate}
+              workoutId={workout.id}
+              initialStatus={workout.status}
+              exercises={exercises}
+              onChanged={() => refreshCalendar()}
+              weightUnit={weightUnit}
+            />
+          )}
         </>
       )}
 

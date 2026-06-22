@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { ClipboardList, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -10,6 +11,8 @@ import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { Button } from '@/components/ui/button'
 import { coerceDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
+import { useIsMobile } from '@/lib/hooks/use-is-mobile'
+import { openWorkoutLog } from '@/lib/open-workout-log'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import type {
   CalendarDaySummary,
@@ -39,6 +42,8 @@ export function PortalCalendarPanel({
   initialActionDate = null,
   onActionConsumed,
 }: PortalCalendarPanelProps) {
+  const router = useRouter()
+  const isMobile = useIsMobile()
   const [year, setYear] = React.useState(initialYear)
   const [month, setMonth] = React.useState(initialMonth)
   const [selectedDate, setSelectedDate] = React.useState(initialSelectedDate)
@@ -48,6 +53,21 @@ export function PortalCalendarPanel({
   const [loading, setLoading] = React.useState(false)
   const [logOpen, setLogOpen] = React.useState(false)
   const handledActionRef = React.useRef<string | null>(null)
+
+  function openLogWorkout(
+    workoutToLog: ClientScheduledWorkoutWithExercises | null = workout
+  ) {
+    if (!workoutToLog) return
+
+    openWorkoutLog({
+      router,
+      isMobile,
+      workoutId: workoutToLog.id,
+      selectedDate,
+      context: { variant: 'client' },
+      openModal: () => setLogOpen(true),
+    })
+  }
 
   async function refreshCalendar(
     nextYear = year,
@@ -106,7 +126,7 @@ export function PortalCalendarPanel({
 
       if (initialAction === 'log') {
         if (loadedWorkout) {
-          setLogOpen(true)
+          openLogWorkout(loadedWorkout)
         } else {
           toast.error(`No workout scheduled for ${formatDayHeader(dateKey)}.`)
         }
@@ -126,7 +146,7 @@ export function PortalCalendarPanel({
   function getLogButtonLabel() {
     if (!workout) return 'Log workout'
     if (workout.status === 'completed') return 'View log'
-    if (workout.status === 'skipped') return 'Undo skip'
+    if (workout.status === 'skipped') return 'View workout'
     if (workout.status === 'in_progress') return 'Continue log'
     if (workout.started_at) return 'Resume workout'
     return 'Log workout'
@@ -160,7 +180,7 @@ export function PortalCalendarPanel({
 
         {workout && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" onClick={() => setLogOpen(true)}>
+            <Button type="button" size="sm" onClick={() => openLogWorkout()}>
               <ClipboardList className="size-4" />
               {getLogButtonLabel()}
             </Button>
@@ -194,7 +214,7 @@ export function PortalCalendarPanel({
         </p>
       )}
 
-      {workout && (
+      {workout && !isMobile && (
         <WorkoutLogModal
           open={logOpen}
           onOpenChange={setLogOpen}

@@ -543,6 +543,7 @@ async function fetchProgramWorkoutWithExercises(
     exercises = exerciseRows.map((row) => ({
       ...row,
       scheduled_workout_id: row.program_scheduled_workout_id,
+      client_notes: null,
     }))
   } else if (
     exercisesError &&
@@ -572,6 +573,7 @@ async function fetchProgramWorkoutWithExercises(
           return {
             ...row,
             scheduled_workout_id: row.program_scheduled_workout_id,
+            client_notes: null,
             exercise,
           }
         })

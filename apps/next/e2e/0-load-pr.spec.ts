@@ -53,10 +53,10 @@ test.describe('PR tracking', () => {
     await dialog.getByLabel(/Set 1 reps/i).fill('5')
     await ensureSetLogged(dialog, 1)
 
-    await dialog.getByRole('button', { name: 'Complete workout' }).click()
-    await expect(page.getByText(/New PR/i).first()).toBeVisible({ timeout: 15_000 })
-    await expect(dialog.getByRole('button', { name: 'Reopen' })).toBeVisible({
+    await expect(page.getByText(/Workout complete!/i).first()).toBeVisible({
       timeout: 15_000,
     })
+    await expect(page.getByText(/New PR/i).first()).toBeVisible({ timeout: 15_000 })
+    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled()
   })
 })

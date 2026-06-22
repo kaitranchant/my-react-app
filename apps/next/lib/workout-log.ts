@@ -483,8 +483,55 @@ export function getLogFieldsForExercise(
   }
 }
 
+export type WorkoutLogFieldFlags = ReturnType<typeof getLogFieldsForExercise>
+
+export function getWorkoutLogSetGridTemplate(
+  fields: WorkoutLogFieldFlags,
+  canRemoveSet: boolean
+): string {
+  if (fields.completionOnly) {
+    return canRemoveSet
+      ? '1.5rem minmax(0, 1fr) 2rem 1.5rem'
+      : '1.5rem minmax(0, 1fr) 2rem'
+  }
+
+  const inputCount =
+    Number(fields.showWeight) +
+    Number(fields.showReps) +
+    Number(fields.showDuration)
+
+  const parts = ['1.5rem', '3.25rem']
+
+  if (inputCount === 1) {
+    parts.push('minmax(4rem, 1fr)')
+  } else if (inputCount === 2) {
+    parts.push('minmax(3rem, 1fr)', 'minmax(3rem, 1fr)')
+  } else {
+    parts.push('3.5rem', '3.5rem', '3.5rem')
+  }
+
+  parts.push('2rem')
+  if (canRemoveSet) {
+    parts.push('1.5rem')
+  }
+
+  return parts.join(' ')
+}
+
 export function countCompletedSets(logSets: WorkoutLogSet[]): number {
   return logSets.filter((row) => row.completed).length
+}
+
+export function isWorkoutFullyLogged(
+  exercises: ScheduledWorkoutExerciseWithDetails[],
+  exerciseState: Record<string, WorkoutLogSetDraft[]>
+): boolean {
+  if (exercises.length === 0) return false
+
+  return exercises.every((exercise) => {
+    const sets = exerciseState[exercise.id] ?? []
+    return sets.length > 0 && sets.every((set) => set.completed)
+  })
 }
 
 export function countTotalSetsForWorkout(

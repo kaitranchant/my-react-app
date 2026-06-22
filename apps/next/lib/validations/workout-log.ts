@@ -20,3 +20,9 @@ export const saveWorkoutLogSetsSchema = z.object({
 })
 
 export type SaveWorkoutLogSetsValues = z.infer<typeof saveWorkoutLogSetsSchema>
+
+export const exerciseLogNotesSchema = z.object({
+  notes: z.string().trim().max(500),
+})
+
+export type ExerciseLogNotesValues = z.infer<typeof exerciseLogNotesSchema>

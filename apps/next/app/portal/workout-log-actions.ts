@@ -15,6 +15,7 @@ import {
   fetchWorkoutWithExercises,
 } from '@/lib/scheduled-workout-queries'
 import {
+  exerciseLogNotesSchema,
   saveWorkoutLogSetsSchema,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
@@ -345,6 +346,41 @@ export async function reopenPortalWorkoutLog(
       ...(hasLoggedSets || workout.started_at ? {} : { started_at: null }),
     })
     .eq('id', workout.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortal()
+  return { success: true }
+}
+
+export async function updatePortalExerciseClientNotes(
+  workoutId: string,
+  exerciseRowId: string,
+  notes: string
+): Promise<ActionResult> {
+  const parsed = exerciseLogNotesSchema.safeParse({ notes })
+  if (!parsed.success) {
+    return { success: false, error: 'Notes must be 500 characters or fewer.' }
+  }
+
+  const ctx = await requirePortalWorkout(workoutId)
+  if (isPortalWorkoutError(ctx)) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { supabase, workout } = ctx
+  const exercise = workout.exercises.find((row) => row.id === exerciseRowId)
+  if (!exercise) {
+    return { success: false, error: 'Exercise not found.' }
+  }
+
+  const trimmed = parsed.data.notes
+  const { error } = await supabase
+    .from('scheduled_workout_exercises')
+    .update({ client_notes: trimmed ? trimmed : null })
+    .eq('id', exerciseRowId)
 
   if (error) {
     return { success: false, error: error.message }

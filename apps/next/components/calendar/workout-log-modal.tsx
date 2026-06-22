@@ -2,27 +2,27 @@
 
 import * as React from 'react'
 import {
+  ArrowLeft,
   Check,
   Circle,
   CircleDot,
   Dumbbell,
   Loader2,
   MoreVertical,
-  Pause,
-  Play,
   PlayCircle,
   Plus,
+  StickyNote,
   Trash2,
   Trophy,
   Video,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { removeScheduledExercise } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import {
   completeWorkoutLog,
   getWorkoutLogData,
-  reopenWorkoutLog,
   saveWorkoutLogSets,
   skipWorkoutLog,
   startWorkoutLog,
@@ -31,7 +31,6 @@ import {
 import {
   completePortalWorkoutLog,
   getPortalWorkoutLogData,
-  reopenPortalWorkoutLog,
   savePortalWorkoutLogSets,
   skipPortalWorkoutLog,
   startPortalWorkoutLog,
@@ -43,6 +42,7 @@ import {
   ExerciseHistoryDialog,
 } from '@/components/calendar/exercise-history-dialog'
 import { EditScheduledExerciseDialog } from '@/components/calendar/edit-scheduled-exercise-dialog'
+import { ExerciseLogNotesDialog } from '@/components/calendar/exercise-log-notes-dialog'
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
@@ -95,9 +95,11 @@ import {
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
+  isWorkoutFullyLogged,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
   getLogFieldsForExercise,
+  getWorkoutLogSetGridTemplate,
   getSupersetColor,
   getWorkoutDisplayStatus,
   groupExercisesBySection,
@@ -130,9 +132,7 @@ import type {
 } from 'app/types/database'
 import type { WeightUnit } from 'app/types/database'
 
-type WorkoutLogModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+type WorkoutLogBaseProps = {
   clientId: string
   selectedDate: string
   workoutId: string
@@ -141,6 +141,18 @@ type WorkoutLogModalProps = {
   onChanged: () => void
   variant?: 'coach' | 'client'
   weightUnit?: WeightUnit
+}
+
+export type WorkoutLogScreenProps = WorkoutLogBaseProps & {
+  presentation: 'modal' | 'page'
+  active: boolean
+  onClose?: () => void
+  returnHref?: string
+}
+
+type WorkoutLogModalProps = WorkoutLogBaseProps & {
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
@@ -261,6 +273,7 @@ type WorkoutLogExerciseProps = {
   onEdit: () => void
   onReplace: () => void
   onDelete: () => void
+  onNotesChanged: () => void
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
 }
@@ -283,12 +296,14 @@ function WorkoutLogExercise({
   onEdit,
   onReplace,
   onDelete,
+  onNotesChanged,
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [formReviewOpen, setFormReviewOpen] = React.useState(false)
+  const [notesOpen, setNotesOpen] = React.useState(false)
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -337,17 +352,10 @@ function WorkoutLogExercise({
     fields.showReps ||
     fields.showDuration
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
-  const setGridCols = fields.completionOnly
-    ? canRemoveSet
-      ? 'grid-cols-[1.5rem_minmax(0,1fr)_2rem_1.5rem]'
-      : 'grid-cols-[1.5rem_minmax(0,1fr)_2rem]'
-    : fields.showWeight && fields.showReps
-      ? canRemoveSet
-        ? 'grid-cols-[1.5rem_3.75rem_3.5rem_3.5rem_2rem_1.5rem]'
-        : 'grid-cols-[1.5rem_3.75rem_3.5rem_3.5rem_2rem]'
-      : canRemoveSet
-        ? 'grid-cols-[1.5rem_3.75rem_minmax(3.5rem,1fr)_2rem_1.5rem]'
-        : 'grid-cols-[1.5rem_3.75rem_minmax(3.5rem,1fr)_2rem]'
+  const hasExerciseNotes = Boolean(
+    exercise.workout_notes?.trim() || exercise.client_notes?.trim()
+  )
+  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, canRemoveSet)
 
   const activeSetNumber =
     sets.find((set) => !set.completed)?.setNumber ?? null
@@ -486,20 +494,27 @@ function WorkoutLogExercise({
                     Submit form
                   </Button>
                 )}
-                {!readOnly && (allowPrescriptionEdits || showMedia || variant === 'client') && (
+                {!readOnly && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="size-8 shrink-0"
+                        className="relative size-8 shrink-0"
                         aria-label={`Actions for ${exercise.exercise.name}`}
                       >
                         <MoreVertical className="size-4" />
+                        {hasExerciseNotes && (
+                          <span className="bg-brand absolute top-1 right-1 size-1.5 rounded-full" />
+                        )}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setNotesOpen(true)}>
+                        <StickyNote className="size-4" />
+                        {hasExerciseNotes ? 'Edit notes' : 'Add notes'}
+                      </DropdownMenuItem>
                       {variant === 'client' && (
                         <DropdownMenuItem onSelect={() => setFormReviewOpen(true)}>
                           Submit form photo/video
@@ -512,6 +527,7 @@ function WorkoutLogExercise({
                       )}
                       {allowPrescriptionEdits && (
                         <>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={onEdit}>
                             Edit prescription
                           </DropdownMenuItem>
@@ -566,10 +582,29 @@ function WorkoutLogExercise({
             </div>
 
             <div>
-              {exercise.workout_notes?.trim() && (
-                <p className="text-muted-foreground text-sm leading-snug">
-                  {exercise.workout_notes.trim()}
-                </p>
+              {(exercise.workout_notes?.trim() || exercise.client_notes?.trim()) && (
+                <div className="space-y-2">
+                  {exercise.workout_notes?.trim() && (
+                    <div className="bg-muted/40 rounded-lg px-3 py-2">
+                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                        Coach notes
+                      </p>
+                      <p className="text-sm leading-snug">
+                        {exercise.workout_notes.trim()}
+                      </p>
+                    </div>
+                  )}
+                  {exercise.client_notes?.trim() && (
+                    <div className="bg-muted/40 rounded-lg px-3 py-2">
+                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                        {variant === 'client' ? 'Your notes' : 'Client notes'}
+                      </p>
+                      <p className="text-sm leading-snug">
+                        {exercise.client_notes.trim()}
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
               {(previousE1rm != null || allTimeE1rm != null) && (
                 <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -599,10 +634,8 @@ function WorkoutLogExercise({
             {showSetTable ? (
               <div className="bg-muted/25 overflow-hidden rounded-xl border">
                     <div
-                      className={cn(
-                        'text-muted-foreground grid gap-1.5 border-b px-2 py-2 text-[11px] font-semibold tracking-wide uppercase sm:gap-2 sm:px-3',
-                        setGridCols
-                      )}
+                      className="text-muted-foreground grid gap-1.5 border-b px-2 py-2 text-[11px] font-semibold tracking-wide uppercase sm:gap-2 sm:px-3"
+                      style={{ gridTemplateColumns: setGridTemplate }}
                     >
                       <span>Set</span>
                       {fields.completionOnly ? (
@@ -631,13 +664,13 @@ function WorkoutLogExercise({
                           key={set.setNumber}
                           className={cn(
                             'relative grid items-center gap-1.5 border-b px-2 py-2 last:border-b-0 sm:gap-2 sm:px-3',
-                            setGridCols,
                             set.completed && 'bg-status-success/5',
                             set.predicted &&
                               !set.completed &&
                               'bg-brand/5',
                             isActive && 'bg-brand/8'
                           )}
+                          style={{ gridTemplateColumns: setGridTemplate }}
                         >
                           {isActive && (
                             <span className="bg-brand absolute inset-y-1 left-0 w-1 rounded-r-full" />
@@ -876,13 +909,28 @@ function WorkoutLogExercise({
           scheduledExerciseId={exercise.id}
         />
       )}
+
+      <ExerciseLogNotesDialog
+        open={notesOpen}
+        onOpenChange={setNotesOpen}
+        exerciseName={exercise.exercise.name}
+        exerciseRowId={exercise.id}
+        clientId={clientId}
+        workoutId={workoutId}
+        variant={variant}
+        coachNotes={exercise.workout_notes}
+        clientNotes={exercise.client_notes ?? null}
+        onSaved={onNotesChanged}
+      />
     </Card>
   )
 }
 
-export function WorkoutLogModal({
-  open,
-  onOpenChange,
+export function WorkoutLogScreen({
+  presentation,
+  active,
+  onClose,
+  returnHref,
   clientId,
   selectedDate,
   workoutId,
@@ -891,7 +939,9 @@ export function WorkoutLogModal({
   onChanged,
   variant = 'coach',
   weightUnit = 'lbs',
-}: WorkoutLogModalProps) {
+}: WorkoutLogScreenProps) {
+  const router = useRouter()
+  const isPage = presentation === 'page'
   const isClientPortal = variant === 'client'
   const allowPrescriptionEdits = !isClientPortal
   const [loading, setLoading] = React.useState(false)
@@ -914,8 +964,19 @@ export function WorkoutLogModal({
   const autoSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveInFlightRef = React.useRef(false)
   const queuedSaveRef = React.useRef(false)
+  const autoCompletingRef = React.useRef(false)
+  const wasLoggingActiveRef = React.useRef(false)
   const onChangedRef = React.useRef(onChanged)
   onChangedRef.current = onChanged
+
+  const dataRef = React.useRef(data)
+  dataRef.current = data
+
+  const readOnly = data?.status === 'skipped'
+  const isCompleted = data?.status === 'completed'
+  const canEditPrescription = allowPrescriptionEdits && !isCompleted && !readOnly
+  const canSkip =
+    data?.status === 'scheduled' || data?.status === 'in_progress'
 
   const AUTO_SAVE_DELAY_MS = 600
 
@@ -1025,6 +1086,61 @@ export function WorkoutLogModal({
   const persistSetsRef = React.useRef(persistSets)
   persistSetsRef.current = persistSets
 
+  const pauseWorkout = React.useCallback(async () => {
+    if (autoCompletingRef.current) return
+    if (dataRef.current?.status !== 'in_progress') return
+
+    const result = isClientPortal
+      ? await stopPortalWorkoutLog(workoutId)
+      : await stopWorkoutLog(clientId, workoutId)
+
+    if (result.success) {
+      onChangedRef.current()
+    }
+  }, [clientId, isClientPortal, workoutId])
+
+  const completeWorkout = React.useCallback(async () => {
+    autoCompletingRef.current = true
+
+    const saved = await persistSetsRef.current(exerciseStateRef.current, {
+      silent: true,
+      reload: false,
+      notifyParent: false,
+      blockUi: false,
+      revalidate: true,
+    })
+
+    if (!saved) {
+      autoCompletingRef.current = false
+      return
+    }
+
+    const result = isClientPortal
+      ? await completePortalWorkoutLog(workoutId)
+      : await completeWorkoutLog(clientId, workoutId)
+
+    autoCompletingRef.current = false
+
+    if (result.success) {
+      toast.success('Workout complete!')
+      for (const pr of result.newPrs) {
+        toast.success(
+          `New PR — ${pr.exerciseName} · ${formatPrLabel(
+            pr.recordType,
+            pr.e1rm,
+            pr.weight,
+            pr.reps
+          )}`
+        )
+      }
+      await loadData()
+      onChangedRef.current()
+      return
+    }
+
+    toast.error(result.error)
+  }, [clientId, isClientPortal, loadData, workoutId])
+
   const runAutoSave = React.useCallback(async () => {
     if (saveInFlightRef.current) {
       queuedSaveRef.current = true
@@ -1054,9 +1170,74 @@ export function WorkoutLogModal({
   }, [])
 
   React.useEffect(() => {
-    if (!open) return
+    if (!active) return
     void loadData()
-  }, [open, loadData])
+  }, [active, loadData])
+
+  React.useEffect(() => {
+    if (!active || readOnly || !data) return
+    if (data.status === 'completed' || data.status === 'skipped') return
+    if (data.status === 'in_progress') return
+
+    let cancelled = false
+
+    async function autoStart() {
+      const result = isClientPortal
+        ? await startPortalWorkoutLog(workoutId)
+        : await startWorkoutLog(clientId, workoutId)
+
+      if (cancelled) return
+
+      if (result.success) {
+        await loadData()
+        onChangedRef.current()
+        return
+      }
+
+      if (isWorkoutLogSchemaError(result.error)) {
+        setSchemaError(result.error)
+        return
+      }
+
+      toast.error(result.error)
+    }
+
+    void autoStart()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    active,
+    readOnly,
+    data,
+    clientId,
+    isClientPortal,
+    loadData,
+    workoutId,
+  ])
+
+  React.useEffect(() => {
+    if (active) {
+      wasLoggingActiveRef.current = true
+      return () => {
+        void pauseWorkout()
+      }
+    }
+
+    if (wasLoggingActiveRef.current) {
+      wasLoggingActiveRef.current = false
+      void pauseWorkout()
+    }
+  }, [active, pauseWorkout])
+
+  React.useEffect(() => {
+    if (!active || readOnly || !data || autoCompletingRef.current) return
+    if (data.status === 'completed') return
+    if (!isWorkoutFullyLogged(data.exercises, exerciseState)) return
+
+    void completeWorkout()
+  }, [active, readOnly, data, exerciseState, completeWorkout])
 
   const sections = React.useMemo(
     () => (data ? groupExercisesBySection(data.exercises) : []),
@@ -1064,11 +1245,9 @@ export function WorkoutLogModal({
   )
 
   const activeSection = sections[activeSectionIndex] ?? sections[0]
-  const readOnly =
-    data?.status === 'completed' || data?.status === 'skipped'
 
   React.useEffect(() => {
-    if (!open || readOnly || !data) return
+    if (!active || readOnly || !data) return
 
     if (skipAutoSaveRef.current) {
       skipAutoSaveRef.current = false
@@ -1107,30 +1286,47 @@ export function WorkoutLogModal({
         clearTimeout(autoSaveTimerRef.current)
       }
     }
-  }, [exerciseState, open, readOnly, data])
+  }, [exerciseState, active, readOnly, data])
+
+  async function flushOnClose() {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    if (active && !readOnly && data) {
+      const state = exerciseStateRef.current
+      if (
+        serializeExerciseStateForSave(state) !== lastPersistedStateRef.current
+      ) {
+        await persistSetsRef.current(state, {
+          silent: true,
+          reload: false,
+          notifyParent: true,
+          blockUi: false,
+          revalidate: true,
+        })
+      }
+    }
+    await pauseWorkout()
+  }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current)
-        autoSaveTimerRef.current = null
-      }
-      if (open && !readOnly && data) {
-        const state = exerciseStateRef.current
-        if (
-          serializeExerciseStateForSave(state) !== lastPersistedStateRef.current
-        ) {
-          void persistSetsRef.current(state, {
-            silent: true,
-            reload: false,
-            notifyParent: true,
-            blockUi: false,
-            revalidate: true,
-          })
-        }
-      }
+      void flushOnClose()
     }
-    onOpenChange(nextOpen)
+    if (!nextOpen) {
+      onClose?.()
+    }
+  }
+
+  function handleBack() {
+    void flushOnClose().then(() => {
+      if (returnHref) {
+        router.push(returnHref)
+        return
+      }
+      router.back()
+    })
   }
 
   const completedSetCount = React.useMemo(() => {
@@ -1253,72 +1449,6 @@ export function WorkoutLogModal({
     onChanged()
   }
 
-  async function handleStartWorkout() {
-    setPending(true)
-    const result = isClientPortal
-      ? await startPortalWorkoutLog(workoutId)
-      : await startWorkoutLog(clientId, workoutId)
-    setPending(false)
-
-    if (result.success) {
-      const resuming = Boolean(
-        data &&
-          data.status === 'scheduled' &&
-          workoutHasProgress(data, data.logSets)
-      )
-      toast.success(resuming ? 'Workout resumed.' : 'Workout started.')
-      await loadData()
-      onChanged()
-      return
-    }
-
-    if (isWorkoutLogSchemaError(result.error)) {
-      setSchemaError(result.error)
-      return
-    }
-
-    toast.error(result.error)
-  }
-
-  async function handleSaveSets(options?: { silent?: boolean }) {
-    return persistSets(exerciseStateRef.current, {
-      silent: options?.silent,
-      reload: true,
-      notifyParent: true,
-      blockUi: true,
-    })
-  }
-
-  async function handleCompleteWorkout() {
-    const saved = await handleSaveSets({ silent: true })
-    if (!saved) return
-
-    setPending(true)
-    const result = isClientPortal
-      ? await completePortalWorkoutLog(workoutId)
-      : await completeWorkoutLog(clientId, workoutId)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout marked complete.')
-      for (const pr of result.newPrs) {
-        toast.success(
-          `New PR — ${pr.exerciseName} · ${formatPrLabel(
-            pr.recordType,
-            pr.e1rm,
-            pr.weight,
-            pr.reps
-          )}`
-        )
-      }
-      await loadData()
-      onChanged()
-      return
-    }
-
-    toast.error(result.error)
-  }
-
   async function handleSkipWorkout() {
     if (!window.confirm('Mark this workout as skipped?')) return
 
@@ -1338,81 +1468,49 @@ export function WorkoutLogModal({
     toast.error(result.error)
   }
 
-  async function handleReopenWorkout() {
-    const wasSkipped = (data?.status ?? initialStatus) === 'skipped'
-
-    setPending(true)
-    const result = isClientPortal
-      ? await reopenPortalWorkoutLog(workoutId)
-      : await reopenWorkoutLog(clientId, workoutId)
-    setPending(false)
-
-    if (result.success) {
-      toast.success(
-        wasSkipped ? 'Workout restored — you can log it now.' : 'Workout reopened for logging.'
-      )
-      await loadData()
-      onChanged()
-      return
-    }
-
-    if (isWorkoutLogSchemaError(result.error)) {
-      setSchemaError(result.error)
-      return
-    }
-
-    toast.error(result.error)
-  }
-
   const status = data?.status ?? initialStatus
   const hasProgress = data
     ? workoutHasProgress(data, data.logSets)
     : false
-  const isPaused = status === 'scheduled' && hasProgress
-  const isActive = status === 'in_progress'
+  const isLoggingActive = active && data?.status === 'in_progress'
 
-  async function handleStopWorkout() {
-    const saved = await handleSaveSets({ silent: true })
-    if (
-      !saved &&
-      data &&
-      Object.values(exerciseState)
-        .flat()
-        .some((set) => set.weight || set.reps || set.completed)
-    ) {
-      return
-    }
+  const logContent = (
+    <RestTimerProvider>
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col gap-0 overflow-hidden',
+          isPage && 'h-full'
+        )}
+      >
+        <div
+          className={cn(
+            'shrink-0 border-b px-4 py-3 sm:px-5 sm:py-4',
+            isPage ? 'pr-4 sm:pr-5' : 'pr-12 sm:pr-14'
+          )}
+        >
+          {!isPage && (
+            <>
+              <DialogTitle className="sr-only">Log workout</DialogTitle>
+              <DialogDescription className="sr-only">
+                Log sets for {formatDayHeader(selectedDate)}
+              </DialogDescription>
+            </>
+          )}
 
-    setPending(true)
-    const result = isClientPortal
-      ? await stopPortalWorkoutLog(workoutId)
-      : await stopWorkoutLog(clientId, workoutId)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout stopped. Progress saved — resume anytime.')
-      await loadData()
-      onChanged()
-      return
-    }
-
-    if (isWorkoutLogSchemaError(result.error)) {
-      setSchemaError(result.error)
-      return
-    }
-
-    toast.error(result.error)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
-        <RestTimerProvider>
-        <div className="shrink-0 border-b px-4 py-3 pr-12 sm:px-5 sm:py-4 sm:pr-14">
-          <DialogTitle className="sr-only">Log workout</DialogTitle>
-          <DialogDescription className="sr-only">
-            Log sets for {formatDayHeader(selectedDate)}
-          </DialogDescription>
+          {isPage && (
+            <div className="mb-3 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2"
+                onClick={handleBack}
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </Button>
+            </div>
+          )}
 
           <div className="space-y-2.5">
             <div className="flex items-start justify-between gap-3">
@@ -1427,7 +1525,7 @@ export function WorkoutLogModal({
                   <WorkoutStatusBadge status={status} hasProgress={hasProgress} />
                   <WorkoutElapsedTimer
                     startedAt={data?.started_at ?? null}
-                    active={isActive}
+                    active={isLoggingActive}
                   />
                   {totalSetCount > 0 && (
                     <span className="text-muted-foreground text-sm">
@@ -1446,61 +1544,17 @@ export function WorkoutLogModal({
               />
             )}
 
-            <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&_button]:w-full sm:[&_button]:w-auto">
-              {!readOnly && !isActive && (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={pending || loading}
-                  onClick={handleStartWorkout}
-                >
-                  {pending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Play className="size-4" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {isPaused ? 'Resume workout' : 'Start workout'}
-                  </span>
-                  <span className="sm:hidden">
-                    {isPaused ? 'Resume' : 'Start'}
-                  </span>
-                </Button>
-              )}
-              {!readOnly && isActive && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={pending || loading}
-                  onClick={() => void handleStopWorkout()}
-                >
-                  {pending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Pause className="size-4" />
-                  )}
-                  Stop
-                </Button>
-              )}
-              {!readOnly && allowPrescriptionEdits && (
-                <AddExerciseDialog
-                  clientId={clientId}
-                  workoutId={workoutId}
-                  exercises={exercises}
-                  onAdded={handleExerciseStructureChanged}
-                />
-              )}
-              {!readOnly && (
-                <>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={pending || loading}
-                    onClick={() => void handleCompleteWorkout()}
-                  >
-                    Complete
-                  </Button>
+            {(canEditPrescription || canSkip) && (
+              <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&_button]:w-full sm:[&_button]:w-auto">
+                {canEditPrescription && (
+                  <AddExerciseDialog
+                    clientId={clientId}
+                    workoutId={workoutId}
+                    exercises={exercises}
+                    onAdded={handleExerciseStructureChanged}
+                  />
+                )}
+                {canSkip && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -1511,21 +1565,9 @@ export function WorkoutLogModal({
                   >
                     Skip
                   </Button>
-                </>
-              )}
-              {readOnly && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="col-span-2 sm:col-span-1"
-                  disabled={pending || loading}
-                  onClick={handleReopenWorkout}
-                >
-                  {status === 'skipped' ? 'Undo skip' : 'Reopen'}
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {sections.length > 1 && (
               <div className="-mx-1 overflow-x-auto px-1 pb-0.5">
@@ -1576,10 +1618,6 @@ export function WorkoutLogModal({
           ) : status === 'skipped' ? (
             <div className="py-8 text-center">
               <p className="font-medium">This workout was skipped.</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Use <span className="text-foreground font-medium">Undo skip</span>{' '}
-                above to restore it and log exercises.
-              </p>
             </div>
           ) : data.exercises.length === 0 ? (
             <div className="py-12 text-center">
@@ -1588,7 +1626,7 @@ export function WorkoutLogModal({
                   ? 'Add exercises to this workout before logging.'
                   : 'Your coach has not added exercises to this session yet.'}
               </p>
-              {!readOnly && allowPrescriptionEdits && (
+              {canEditPrescription && (
                 <div className="mt-4 flex justify-center">
                   <AddExerciseDialog
                     clientId={clientId}
@@ -1634,7 +1672,7 @@ export function WorkoutLogModal({
                     data.personalBestsByExerciseId[exercise.exercise_id] ?? null
                   }
                   readOnly={readOnly}
-                  isWorkoutActive={isActive}
+                  isWorkoutActive={isLoggingActive}
                   clientId={clientId}
                   workoutId={workoutId}
                   variant={variant}
@@ -1648,7 +1686,8 @@ export function WorkoutLogModal({
                   onEdit={() => setEditingExercise(exercise)}
                   onReplace={() => setReplacingExercise(exercise)}
                   onDelete={() => void handleRemoveExercise(exercise)}
-                  allowPrescriptionEdits={allowPrescriptionEdits}
+                  onNotesChanged={() => void loadData()}
+                  allowPrescriptionEdits={canEditPrescription}
                   weightUnit={weightUnit}
                 />
               ))}
@@ -1656,7 +1695,7 @@ export function WorkoutLogModal({
           )}
         </div>
 
-        {allowPrescriptionEdits && editingExercise && (
+        {canEditPrescription && editingExercise && (
           <EditScheduledExerciseDialog
             clientId={clientId}
             row={editingExercise}
@@ -1672,7 +1711,7 @@ export function WorkoutLogModal({
           />
         )}
 
-        {allowPrescriptionEdits && replacingExercise && (
+        {canEditPrescription && replacingExercise && (
           <ReplaceExerciseDialog
             open
             onOpenChange={(next) => {
@@ -1688,9 +1727,38 @@ export function WorkoutLogModal({
             }}
           />
         )}
+      </div>
+    </RestTimerProvider>
+  )
 
-        </RestTimerProvider>
+  if (isPage) {
+    return (
+      <div className="bg-background fixed inset-0 z-50 flex flex-col md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border">
+        {logContent}
+      </div>
+    )
+  }
+
+  return (
+    <Dialog open={active} onOpenChange={handleDialogOpenChange}>
+      <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
+        {logContent}
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function WorkoutLogModal({
+  open,
+  onOpenChange,
+  ...props
+}: WorkoutLogModalProps) {
+  return (
+    <WorkoutLogScreen
+      {...props}
+      presentation="modal"
+      active={open}
+      onClose={() => onOpenChange(false)}
+    />
   )
 }
