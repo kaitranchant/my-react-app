@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 const priorityStyles = {
   high: {
     border: 'border-l-amber-400',
-    bg: 'hover:bg-amber-50/50',
+    bg: 'hover:bg-amber-50/50 dark:hover:bg-amber-500/5',
   },
   medium: {
     border: 'border-l-brand',
@@ -32,16 +32,16 @@ type ActionItemsProps = {
 
 export function ActionItems({ items }: ActionItemsProps) {
   return (
-    <Card className="h-full">
-      <CardHeader className="border-b pb-4">
+    <Card className="h-full gap-0 py-0">
+      <CardHeader className="border-b px-4 py-4 sm:px-6 sm:pb-4">
         <CardTitle>Needs your attention</CardTitle>
         <CardDescription>
-          Follow up on these items to keep clients on track
+          Follow up to keep clients on track
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-5">
+      <CardContent className="px-0 py-0 sm:px-6 sm:pt-5">
         {items.length === 0 ? (
-          <div className="body-text flex flex-col items-center gap-3 py-10 text-center text-muted-foreground">
+          <div className="body-text flex flex-col items-center gap-3 px-4 py-10 text-center text-muted-foreground sm:px-0">
             <div className="bg-brand/10 text-brand flex size-12 items-center justify-center rounded-xl">
               <CheckCircle2 className="size-5" />
             </div>
@@ -53,7 +53,7 @@ export function ActionItems({ items }: ActionItemsProps) {
             </div>
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y">
             {items.map((item) => {
               const style = priorityStyles[item.priority]
               return (
@@ -61,7 +61,7 @@ export function ActionItems({ items }: ActionItemsProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      'body-text flex items-center gap-3 rounded-lg border-l-[3px] py-3 pr-3 pl-4 transition-colors',
+                      'body-text flex items-center gap-3 border-l-[3px] py-3.5 pr-4 pl-4 transition-colors sm:rounded-lg sm:border-l-[3px] sm:py-3 sm:pr-3 sm:pl-4',
                       style.border,
                       style.bg
                     )}

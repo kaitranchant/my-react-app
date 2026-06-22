@@ -280,13 +280,15 @@ export default async function DashboardPage() {
         : 'Welcome! Add your first client to start building their program.'
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
-        <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
-        <div className="relative space-y-5">
-          <div className="space-y-2">
-            <p className="section-header text-muted-foreground">{todayLabel}</p>
-            <h1 className="page-title">
+    <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:gap-8">
+      <section className="space-y-4 sm:relative sm:overflow-hidden sm:rounded-2xl sm:border sm:bg-card sm:p-8 sm:shadow-card">
+        <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 hidden bg-gradient-to-br via-transparent sm:block" />
+        <div className="relative space-y-4 sm:space-y-5">
+          <div className="space-y-1.5 sm:space-y-2">
+            <p className="helper-text sm:section-header text-muted-foreground">
+              {todayLabel}
+            </p>
+            <h1 className="page-title text-xl sm:text-[1.375rem]">
               {greeting}, {firstName}
             </h1>
             <p className="helper-text max-w-lg leading-relaxed">{summary}</p>
@@ -306,7 +308,7 @@ export default async function DashboardPage() {
         weekWorkoutCount={weekWorkoutList.length}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
         <TodaysSchedule sessions={sessions} />
         <ActionItems items={actionItems} />
       </div>

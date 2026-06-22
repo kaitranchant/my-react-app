@@ -64,23 +64,25 @@ type ActivityFeedProps = {
 
 export function ActivityFeed({ items }: ActivityFeedProps) {
   return (
-    <Card>
-      <CardHeader className="border-b pb-4">
+    <Card className="gap-0 py-0">
+      <CardHeader className="border-b px-4 py-4 sm:px-6 sm:pb-4">
         <CardTitle>Recent activity</CardTitle>
         <CardDescription>
-          Latest session, check-in, and form review updates from your clients
+          Sessions, check-ins, and form reviews
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-2">
+      <CardContent className="px-0 py-0 sm:px-6 sm:pt-2">
         {items.length === 0 ? (
-          <EmptyState
-            icon={Zap}
-            title="No activity yet"
-            description="Updates will appear here when clients complete or start their sessions."
-            action={{ label: 'View clients', href: '/clients' }}
-          />
+          <div className="px-4 sm:px-0">
+            <EmptyState
+              icon={Zap}
+              title="No activity yet"
+              description="Updates will appear here when clients complete or start their sessions."
+              action={{ label: 'View clients', href: '/clients' }}
+            />
+          </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y sm:space-y-3 sm:divide-y-0">
             {items.map((item) => {
               const config = getActivityIcon(item)
               const Icon = config.icon
@@ -88,66 +90,66 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               const isCheckIn = item.kind === 'check_in'
               const isFormReview = item.kind === 'form_review'
               const isHighlighted = isCheckIn || isFormReview
-
-              const isGrouped = (item.groupedCount ?? 1) > 1
+              const mobileActionLabel = isFormReview ? 'Review' : 'View'
 
               return (
                 <li key={`${item.kind}-${item.id}`}>
                   <div
                     className={cn(
-                      'rounded-lg border bg-card p-4',
-                      isHighlighted && 'border-brand/20 bg-brand/[0.02]'
+                      'flex items-center gap-3 px-4 py-3.5 sm:rounded-lg sm:border sm:bg-card sm:p-4',
+                      isHighlighted && 'sm:border-brand/20 sm:bg-brand/[0.02]'
                     )}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div
-                          className={cn(
-                            'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
-                            config.className
-                          )}
-                        >
-                          <Icon className="size-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="body-text leading-snug">
-                            <span className="font-medium">{item.clientName}</span>{' '}
-                            <span className="text-muted-foreground">
-                              {formatActivityMessage(item)}
-                            </span>
-                          </p>
-                          <p className="helper-text mt-1">
-                            <LiveRelativeTime iso={item.timestamp} />
-                          </p>
-                        </div>
-                      </div>
-
-                      {isCheckIn ? (
-                        <Link
-                          href={href}
-                          className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
-                        >
-                          {isGrouped ? 'View check-ins' : 'View check-in'}
-                          <ChevronRight className="size-4" />
-                        </Link>
-                      ) : isFormReview ? (
-                        <Link
-                          href={href}
-                          className="bg-brand hover:bg-brand/90 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-colors sm:w-auto sm:min-w-[148px]"
-                        >
-                          {isGrouped ? 'View submissions' : 'Review submission'}
-                          <ChevronRight className="size-4" />
-                        </Link>
-                      ) : (
-                        <Link
-                          href={href}
-                          className="text-brand hover:text-brand/80 inline-flex w-full items-center justify-center gap-1 text-sm font-medium transition-colors sm:w-auto sm:justify-end"
-                        >
-                          View client
-                          <ChevronRight className="size-4" />
-                        </Link>
+                    <div
+                      className={cn(
+                        'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                        config.className
                       )}
+                    >
+                      <Icon className="size-3.5" />
                     </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="body-text truncate leading-snug">
+                        <span className="font-medium">{item.clientName}</span>{' '}
+                        <span className="text-muted-foreground">
+                          {formatActivityMessage(item)}
+                        </span>
+                      </p>
+                      <p className="helper-text mt-0.5">
+                        <LiveRelativeTime iso={item.timestamp} />
+                      </p>
+                    </div>
+
+                    {isCheckIn || isFormReview ? (
+                      <Link
+                        href={href}
+                        className="text-brand inline-flex shrink-0 items-center gap-0.5 text-sm font-medium sm:gap-1.5 sm:rounded-md sm:bg-brand sm:px-4 sm:py-2.5 sm:font-semibold sm:text-white sm:hover:bg-brand/90"
+                      >
+                        <span className="sm:hidden">
+                          {mobileActionLabel}
+                          <span aria-hidden> →</span>
+                        </span>
+                        <span className="hidden sm:inline">
+                          {isCheckIn
+                            ? (item.groupedCount ?? 1) > 1
+                              ? 'View check-ins'
+                              : 'View check-in'
+                            : (item.groupedCount ?? 1) > 1
+                              ? 'View submissions'
+                              : 'Review submission'}
+                        </span>
+                        <ChevronRight className="hidden size-4 sm:block" />
+                      </Link>
+                    ) : (
+                      <Link
+                        href={href}
+                        className="text-brand inline-flex shrink-0 items-center gap-0.5 text-sm font-medium sm:gap-1"
+                      >
+                        View
+                        <span aria-hidden> →</span>
+                      </Link>
+                    )}
                   </div>
                 </li>
               )

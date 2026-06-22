@@ -53,29 +53,41 @@ export function TodaysSchedule({ sessions }: TodaysScheduleProps) {
   })
 
   return (
-    <Card className="h-full">
-      <CardHeader className="border-b pb-4">
+    <Card className="h-full gap-0 py-0">
+      <CardHeader className="border-b px-4 py-4 sm:px-6 sm:pb-4">
         <div className="flex items-center justify-between gap-2">
           <div>
             <CardTitle>Today&apos;s schedule</CardTitle>
-            <CardDescription>{todayLabel}</CardDescription>
+            <CardDescription className="hidden sm:block">{todayLabel}</CardDescription>
           </div>
-          <Badge
-            variant="secondary"
-            className="shrink-0 font-normal"
-          >
+          <Badge variant="secondary" className="shrink-0 font-normal">
             {sessions.length} session{sessions.length === 1 ? '' : 's'}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-5">
+      <CardContent className="px-4 py-4 sm:px-6 sm:pt-5">
         {sessions.length === 0 ? (
-          <EmptyState
-            icon={Calendar}
-            title="Nothing scheduled"
-            description="Assign a session from a client's calendar when you're ready."
-            action={{ label: 'Schedule a workout', href: '/clients' }}
-          />
+          <>
+            <div className="space-y-4 sm:hidden">
+              <p className="helper-text">Nothing scheduled today</p>
+              <div className="flex justify-end">
+                <Link
+                  href="/clients"
+                  className="text-brand inline-flex items-center gap-1 text-sm font-medium"
+                >
+                  Schedule
+                  <span aria-hidden>→</span>
+                </Link>
+              </div>
+            </div>
+            <EmptyState
+              className="hidden sm:flex"
+              icon={Calendar}
+              title="Nothing scheduled"
+              description="Assign a session from a client's calendar when you're ready."
+              action={{ label: 'Schedule a workout', href: '/clients' }}
+            />
+          </>
         ) : (
           <ol className="space-y-1">
             {sessions.map((session) => {
