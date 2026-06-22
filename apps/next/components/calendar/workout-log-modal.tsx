@@ -711,7 +711,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
                               aria-label={`Set ${set.setNumber} weight`}
                             />
                           )}
@@ -729,7 +729,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
                               aria-label={`Set ${set.setNumber} reps`}
                             />
                           )}
@@ -747,7 +747,7 @@ function WorkoutLogExercise({
                                 })
                               }
                               placeholder="—"
-                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center text-xs font-medium sm:h-10 sm:px-2 sm:text-sm"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
                               aria-label={`Set ${set.setNumber} duration`}
                             />
                           )}
