@@ -966,6 +966,7 @@ export function WorkoutLogScreen({
   const queuedSaveRef = React.useRef(false)
   const autoCompletingRef = React.useRef(false)
   const wasLoggingActiveRef = React.useRef(false)
+  const leavingPageRef = React.useRef(false)
   const onChangedRef = React.useRef(onChanged)
   onChangedRef.current = onChanged
 
@@ -1221,13 +1222,17 @@ export function WorkoutLogScreen({
     if (active) {
       wasLoggingActiveRef.current = true
       return () => {
-        void pauseWorkout()
+        if (!leavingPageRef.current) {
+          void pauseWorkout()
+        }
       }
     }
 
     if (wasLoggingActiveRef.current) {
       wasLoggingActiveRef.current = false
-      void pauseWorkout()
+      if (!leavingPageRef.current) {
+        void pauseWorkout()
+      }
     }
   }, [active, pauseWorkout])
 
@@ -1288,7 +1293,7 @@ export function WorkoutLogScreen({
     }
   }, [exerciseState, active, readOnly, data])
 
-  async function flushOnClose() {
+  async function flushOnClose(options?: { notifyParent?: boolean }) {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
@@ -1301,7 +1306,7 @@ export function WorkoutLogScreen({
         await persistSetsRef.current(state, {
           silent: true,
           reload: false,
-          notifyParent: true,
+          notifyParent: options?.notifyParent ?? true,
           blockUi: false,
           revalidate: true,
         })
@@ -1320,13 +1325,13 @@ export function WorkoutLogScreen({
   }
 
   function handleBack() {
-    void flushOnClose().then(() => {
-      if (returnHref) {
-        router.push(returnHref)
-        return
-      }
-      router.back()
-    })
+    leavingPageRef.current = true
+    void flushOnClose({ notifyParent: false })
+    if (returnHref) {
+      router.push(returnHref)
+      return
+    }
+    router.back()
   }
 
   const completedSetCount = React.useMemo(() => {
