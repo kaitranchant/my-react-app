@@ -8,6 +8,7 @@ import { MoreHorizontal } from 'lucide-react'
 import {
   getPortalOverflowMobileNavItems,
   getPortalPrimaryMobileNavItems,
+  type PortalNavItem,
 } from '@/components/portal/portal-nav'
 import {
   Sheet,
@@ -17,8 +18,14 @@ import {
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 
+export type PortalNavBadges = {
+  unreadMessages: number
+  pendingFormReviews: number
+}
+
 type PortalMobileNavProps = {
   showTeamNav?: boolean
+  badges?: PortalNavBadges
 }
 
 function isNavItemActive(pathname: string, href: string) {
@@ -27,7 +34,48 @@ function isNavItemActive(pathname: string, href: string) {
     : pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
+function getNavBadgeCount(
+  href: string,
+  badges: PortalNavBadges
+): number {
+  if (href === '/portal/messages') return badges.unreadMessages
+  if (href === '/portal/form-review') return badges.pendingFormReviews
+  return 0
+}
+
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+
+  return (
+    <span className="bg-brand text-brand-foreground absolute -top-1 -right-1 flex min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none">
+      {count > 9 ? '9+' : count}
+    </span>
+  )
+}
+
+function NavIcon({
+  item,
+  active,
+  badgeCount,
+}: {
+  item: PortalNavItem
+  active: boolean
+  badgeCount: number
+}) {
+  const Icon = item.icon
+
+  return (
+    <span className="relative">
+      <Icon className={cn('size-5', active && 'text-brand')} />
+      <NavBadge count={badgeCount} />
+    </span>
+  )
+}
+
+export function PortalMobileNav({
+  showTeamNav = false,
+  badges = { unreadMessages: 0, pendingFormReviews: 0 },
+}: PortalMobileNavProps) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const primaryItems = getPortalPrimaryMobileNavItems(showTeamNav)
@@ -35,14 +83,18 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
   const overflowActive = overflowItems.some((item) =>
     isNavItemActive(pathname, item.href)
   )
+  const overflowBadgeCount = overflowItems.reduce(
+    (total, item) => total + getNavBadgeCount(item.href, badges),
+    0
+  )
 
   return (
     <>
       <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
-            const Icon = item.icon
             const active = isNavItemActive(pathname, item.href)
+            const badgeCount = getNavBadgeCount(item.href, badges)
 
             return (
               <Link
@@ -55,7 +107,7 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Icon className={cn('size-5', active && 'text-brand')} />
+                <NavIcon item={item} active={active} badgeCount={badgeCount} />
                 <span className="truncate">{item.label}</span>
               </Link>
             )
@@ -72,12 +124,15 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
             )}
             aria-label="More navigation"
           >
-            <MoreHorizontal
-              className={cn(
-                'size-5',
-                (overflowActive || moreOpen) && 'text-brand'
-              )}
-            />
+            <span className="relative">
+              <MoreHorizontal
+                className={cn(
+                  'size-5',
+                  (overflowActive || moreOpen) && 'text-brand'
+                )}
+              />
+              <NavBadge count={overflowBadgeCount} />
+            </span>
             <span>More</span>
           </button>
         </div>
@@ -95,6 +150,7 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
             {overflowItems.map((item) => {
               const Icon = item.icon
               const active = isNavItemActive(pathname, item.href)
+              const badgeCount = getNavBadgeCount(item.href, badges)
 
               return (
                 <Link
@@ -108,7 +164,10 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
-                  <Icon className={cn('size-5 shrink-0', active && 'text-brand')} />
+                  <span className="relative shrink-0">
+                    <Icon className={cn('size-5', active && 'text-brand')} />
+                    <NavBadge count={badgeCount} />
+                  </span>
                   <span>{item.label}</span>
                 </Link>
               )

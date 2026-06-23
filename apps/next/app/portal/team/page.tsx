@@ -4,6 +4,7 @@ import { Flag } from 'lucide-react'
 import { PortalTeamAnnouncements } from '@/components/portal/portal-team-announcements'
 import { PortalTeamChallenges } from '@/components/portal/portal-team-challenges'
 import { PortalTeamEvents } from '@/components/portal/portal-team-events'
+import { PortalSectionSkeleton } from '@/components/portal/portal-page-skeletons'
 import { PortalTeamSwitcher } from '@/components/portal/portal-team-switcher'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -119,7 +120,7 @@ export default async function PortalTeamPage({
             )}
           </div>
         </div>
-        <Suspense fallback={null}>
+        <Suspense fallback={<PortalSectionSkeleton rows={1} />}>
           <PortalTeamSwitcher teams={teams} activeTeamId={activeTeam.id} />
         </Suspense>
       </section>

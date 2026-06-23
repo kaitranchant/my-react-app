@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0052.
+ * Verify hosted Supabase schema through migration 0060.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -504,6 +504,29 @@ await checkRestTable(
   '/rest/v1/team_challenges?select=id,team_id,coach_id,name,metric,start_date,end_date,status&limit=1'
 )
 
+// Migration 0059 — portal coach display name RPC
+await check('get_portal_coach_display_name RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/get_portal_coach_display_name`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+  const data = await res.json()
+  if (typeof data !== 'string') {
+    throw new Error('Expected text response from get_portal_coach_display_name')
+  }
+})
+
+// Migration 0060 — portal program progress (RLS policy on program_scheduled_workouts;
+// table already verified above; policy cannot be checked via anon REST)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -517,7 +540,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0058 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0060 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -555,6 +578,8 @@ if (failed) {
   console.error('       supabase/apply-progressive-overload.sql        (0056 progressive overload)')
   console.error('       supabase/apply-notify-prs.sql                  (0057 PR notifications)')
   console.error('       supabase/apply-team-challenges.sql             (0058 team challenges)')
+  console.error('       supabase/apply-portal-coach-display-name.sql   (0059 portal coach name)')
+  console.error('       supabase/apply-portal-program-progress.sql     (0060 portal program progress)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -562,7 +587,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0058 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, progressive overload, team challenges).'
+  '\nSchema looks good — migrations through 0060 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, progressive overload, team challenges, portal coach name, portal program progress).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

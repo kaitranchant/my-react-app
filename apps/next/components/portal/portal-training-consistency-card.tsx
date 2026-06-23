@@ -32,7 +32,8 @@ export function PortalTrainingConsistencyCard({
         <div className="space-y-1">
           <CardTitle className="text-base">Training consistency</CardTitle>
           <CardDescription className="text-xs lg:hidden">
-            Last 12 weeks
+            Last 12 weeks · {heatmap.totalSessions} sessions ·{' '}
+            {heatmap.activeDays} active days
           </CardDescription>
           <CardDescription className="hidden text-xs lg:block">
             Last 12 weeks · {heatmap.totalSessions} sessions ·{' '}
@@ -41,25 +42,25 @@ export function PortalTrainingConsistencyCard({
         </div>
         <Link
           href="/portal/progress"
-          className="text-brand hidden shrink-0 items-center gap-1 text-xs font-medium lg:flex"
+          className="text-brand inline-flex shrink-0 items-center gap-1 text-xs font-medium"
         >
-          Full year
+          <span className="hidden lg:inline">Full year</span>
+          <span className="lg:hidden">View all</span>
           <ArrowRight className="size-3.5" />
         </Link>
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         <div className="lg:hidden">
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Sessions: {heatmap.totalSessions} · Active days: {heatmap.activeDays}{' '}
-            · Longest streak: {longestStreakLabel}
+          <PortalTrainingConsistencyHeatmap
+            heatmap={heatmap}
+            weekStartsOn={weekStartsOn}
+            compact
+            achievementColors
+            hideMissedLegend
+          />
+          <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+            Longest streak: {longestStreakLabel}
           </p>
-          <Link
-            href="/portal/progress"
-            className="text-brand mt-2 inline-flex items-center gap-1 text-xs font-medium"
-          >
-            View full history
-            <ArrowRight className="size-3.5" />
-          </Link>
         </div>
         <div className="hidden lg:block">
           <PortalTrainingConsistencyHeatmap

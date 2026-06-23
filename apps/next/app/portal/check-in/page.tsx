@@ -1,7 +1,9 @@
 import { PortalCheckInPanel } from '@/components/portal/portal-check-in-panel'
+import { PortalCheckInTrendsCard } from '@/components/portal/portal-check-in-trends-card'
 import { attachSignedUrlsToPhotos } from '@/lib/progress-photos'
 import { Card, CardContent } from '@/components/ui/card'
 import { getCheckInPeriodBounds } from '@/lib/check-in-cadence'
+import { buildCheckInTrendPoints } from '@/lib/check-in-trends'
 import { getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { getPortalClientContext } from '@/lib/portal-client'
@@ -19,6 +21,7 @@ export default async function PortalCheckInPage() {
 
   let periodCheckIn: ClientCheckIn | null = null
   let recentCheckIns: ClientCheckIn[] = []
+  let trendCheckIns: ClientCheckIn[] = []
   let todayPhotos: ClientProgressPhotoWithUrl[] = []
   let coachPreferences = null
 
@@ -31,27 +34,35 @@ export default async function PortalCheckInPage() {
       coachPreferences.timezone
     )
 
-    const [periodCheckInResult, recentCheckInsResult] = await Promise.all([
-      supabase
-        .from('client_check_ins')
-        .select('*')
-        .eq('client_id', clientRecord.id)
-        .gte('check_in_date', periodStart)
-        .lte('check_in_date', periodEnd)
-        .order('check_in_date', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('client_check_ins')
-        .select('*')
-        .eq('client_id', clientRecord.id)
-        .neq('check_in_date', coachTodayKey)
-        .order('check_in_date', { ascending: false })
-        .limit(3),
-    ])
+    const [periodCheckInResult, recentCheckInsResult, trendCheckInsResult] =
+      await Promise.all([
+        supabase
+          .from('client_check_ins')
+          .select('*')
+          .eq('client_id', clientRecord.id)
+          .gte('check_in_date', periodStart)
+          .lte('check_in_date', periodEnd)
+          .order('check_in_date', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('client_check_ins')
+          .select('*')
+          .eq('client_id', clientRecord.id)
+          .neq('check_in_date', coachTodayKey)
+          .order('check_in_date', { ascending: false })
+          .limit(3),
+        supabase
+          .from('client_check_ins')
+          .select('*')
+          .eq('client_id', clientRecord.id)
+          .order('check_in_date', { ascending: false })
+          .limit(12),
+      ])
 
     periodCheckIn = (periodCheckInResult.data as ClientCheckIn | null) ?? null
     recentCheckIns = (recentCheckInsResult.data ?? []) as ClientCheckIn[]
+    trendCheckIns = (trendCheckInsResult.data ?? []) as ClientCheckIn[]
 
     if (periodCheckIn?.id) {
       const { data: photoData } = await supabase
@@ -66,6 +77,8 @@ export default async function PortalCheckInPage() {
       )
     }
   }
+
+  const checkInTrendPoints = buildCheckInTrendPoints(trendCheckIns, 12)
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,12 +97,15 @@ export default async function PortalCheckInPage() {
           </CardContent>
         </Card>
       ) : (
-        <PortalCheckInPanel
-          periodCheckIn={periodCheckIn}
-          recentCheckIns={recentCheckIns}
-          periodPhotos={todayPhotos}
-          coachPreferences={coachPreferences}
-        />
+        <>
+          <PortalCheckInTrendsCard points={checkInTrendPoints} />
+          <PortalCheckInPanel
+            periodCheckIn={periodCheckIn}
+            recentCheckIns={recentCheckIns}
+            periodPhotos={todayPhotos}
+            coachPreferences={coachPreferences}
+          />
+        </>
       )}
     </div>
   )

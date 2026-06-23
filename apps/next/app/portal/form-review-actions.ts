@@ -9,6 +9,7 @@ import {
   getFormReviewMaxUploadBytes,
   resolveFormReviewContentType,
 } from '@/lib/form-reviews'
+import { notifyCoachOfFormReviewSubmission } from '@/lib/notifications/notify-coach-form-reviews'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -208,6 +209,19 @@ export async function uploadClientFormReview(
     data as ClientFormReview,
   ])
   await revalidateFormReviewPaths(client.id)
+
+  void notifyCoachOfFormReviewSubmission({
+    coachId: client.coach_id,
+    clientId: client.id,
+    clientName: client.full_name?.trim() || 'Client',
+    review: {
+      title: data.title,
+      content_type: data.content_type,
+      client_notes: data.client_notes,
+      scheduled_workout_id: data.scheduled_workout_id,
+      exercise_id: data.exercise_id,
+    },
+  }).catch(() => undefined)
 
   return { success: true, data: withUrl }
 }

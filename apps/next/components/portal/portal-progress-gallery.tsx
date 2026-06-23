@@ -1,8 +1,9 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Trash2, X } from 'lucide-react'
+import { ArrowRight, Camera, Loader2, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteClientProgressPhoto } from '@/app/portal/progress-photo-actions'
@@ -19,15 +20,28 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { formatCheckInDate } from '@/lib/check-ins'
 import {
   groupPhotosByDate,
+  PROGRESS_PHOTO_POSES,
   PROGRESS_PHOTO_POSE_LABELS,
 } from '@/lib/progress-photos'
 import type { ClientProgressPhotoWithUrl } from 'app/types/database'
 
 type PortalProgressGalleryProps = {
   photos: ClientProgressPhotoWithUrl[]
+  presentation?: 'default' | 'portal'
 }
 
-export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
+function MobileSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+      {children}
+    </p>
+  )
+}
+
+export function PortalProgressGallery({
+  photos,
+  presentation = 'default',
+}: PortalProgressGalleryProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null)
@@ -47,6 +61,40 @@ export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
   }
 
   if (photos.length === 0) {
+    if (presentation === 'portal') {
+      return (
+        <section className="space-y-3">
+          <MobileSectionLabel>Progress photos</MobileSectionLabel>
+          <Card>
+            <CardContent className="space-y-4 py-4">
+              <div className="grid grid-cols-3 gap-2">
+                {PROGRESS_PHOTO_POSES.map((pose) => (
+                  <div
+                    key={pose}
+                    className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-3"
+                  >
+                    <Camera className="text-muted-foreground size-4" />
+                    <span className="text-muted-foreground text-[11px] font-medium">
+                      {PROGRESS_PHOTO_POSE_LABELS[pose]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                Photos are added when you submit a check-in
+              </p>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/portal/check-in">
+                  Submit a check-in to add photos
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      )
+    }
+
     return (
       <Card>
         <CardHeader>
@@ -68,8 +116,11 @@ export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
     )
   }
 
-  return (
+  const gallery = (
     <>
+      {presentation === 'portal' ? (
+        <MobileSectionLabel>Progress photos</MobileSectionLabel>
+      ) : null}
       <div className="grid gap-6">
         {groupedPhotos.map(({ date, photos: datePhotos }) => (
           <Card key={date}>
@@ -136,6 +187,16 @@ export function PortalProgressGallery({ photos }: PortalProgressGalleryProps) {
           </Card>
         ))}
       </div>
+    </>
+  )
+
+  return (
+    <>
+      {presentation === 'portal' ? (
+        <section className="space-y-3">{gallery}</section>
+      ) : (
+        gallery
+      )}
 
       {lightboxUrl && (
         <div

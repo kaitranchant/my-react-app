@@ -47,7 +47,7 @@ export const portalBaseNavItems: PortalNavItem[] = [
 const portalPrimaryMobileHrefs = new Set([
   '/portal',
   '/portal/workouts',
-  '/portal/check-in',
+  '/portal/progress',
   '/portal/messages',
 ])
 

@@ -1,3 +1,5 @@
+import { Zap } from 'lucide-react'
+
 import {
   Card,
   CardContent,
@@ -9,7 +11,9 @@ import { GoalStatusBadge } from '@/components/goals/goal-status-badge'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { cn } from '@/lib/utils'
 import {
+  formatCompactGoalDetailLine,
   formatGoalTargetDateLabel,
+  getGoalProgressBarClassName,
   isNegativeGoalStatus,
   type GoalProgressBase,
 } from '@/lib/goal-progress'
@@ -19,6 +23,7 @@ type TrackableGoalCardProps = {
   progress: GoalProgressBase
   targetDate?: string | null
   percentHidden?: boolean
+  presentation?: 'default' | 'portal'
 }
 
 export function TrackableGoalCard({
@@ -26,13 +31,20 @@ export function TrackableGoalCard({
   progress,
   targetDate = null,
   percentHidden = false,
+  presentation = 'default',
 }: TrackableGoalCardProps) {
+  const isPortal = presentation === 'portal'
   const isNegative = isNegativeGoalStatus(progress.status)
   const showPercent =
     !percentHidden &&
     progress.status !== 'awaiting_scan' &&
     progress.status !== 'awaiting_data'
   const targetDateLabel = formatGoalTargetDateLabel(targetDate)
+  const compactDetailLine = formatCompactGoalDetailLine(
+    progress.detailLine,
+    targetDate
+  )
+  const progressBarClassName = getGoalProgressBarClassName(progress.status)
 
   return (
     <Card>
@@ -44,10 +56,29 @@ export function TrackableGoalCard({
               <GoalStatusBadge status={progress.status} />
             </div>
             <div className="space-y-1">
-              <CardDescription>{progress.detailLine}</CardDescription>
+              {isPortal ? (
+                <>
+                  <CardDescription className="md:hidden">
+                    {compactDetailLine}
+                  </CardDescription>
+                  <CardDescription className="hidden md:block">
+                    {progress.detailLine}
+                  </CardDescription>
+                </>
+              ) : (
+                <CardDescription>{progress.detailLine}</CardDescription>
+              )}
               {isNegative && progress.hint ? (
-                <p className="text-destructive text-sm leading-relaxed">
-                  {progress.hint}
+                <p
+                  className={cn(
+                    'flex items-start gap-1.5 text-sm leading-relaxed',
+                    isPortal ? 'text-status-warning' : 'text-destructive'
+                  )}
+                >
+                  {isPortal ? (
+                    <Zap className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  ) : null}
+                  <span>{progress.hint}</span>
                 </p>
               ) : null}
             </div>
@@ -55,7 +86,7 @@ export function TrackableGoalCard({
           <span
             className={cn(
               'shrink-0 text-2xl font-semibold tabular-nums',
-              isNegative ? 'text-destructive' : 'text-brand'
+              isPortal || !isNegative ? 'text-brand' : 'text-destructive'
             )}
           >
             {showPercent ? `${progress.percent}%` : '—'}
@@ -65,14 +96,20 @@ export function TrackableGoalCard({
       <CardContent className="space-y-2">
         <ProgressBar
           value={progress.percent}
-          barClassName={isNegative ? 'bg-destructive' : undefined}
+          barClassName={
+            isPortal
+              ? progressBarClassName
+              : isNegative
+                ? 'bg-destructive'
+                : undefined
+          }
         />
         {progress.hint && !isNegative ? (
           <p className="text-muted-foreground text-xs leading-relaxed">
             {progress.hint}
           </p>
         ) : null}
-        {targetDateLabel ? (
+        {targetDateLabel && !(isPortal && compactDetailLine.includes('Due ')) ? (
           <p className="text-muted-foreground text-xs leading-relaxed">
             Target date: {targetDateLabel}
           </p>

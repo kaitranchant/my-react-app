@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, MessageSquare, Video } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -53,7 +54,25 @@ export function PortalFromCoachSection({
     latestMessage != null || coachReply != null || pendingFormReviews > 0
 
   if (!hasContent) {
-    return null
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">From your coach</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {coachName} is here when you need them. Send a message with
+            questions, updates, or how you&apos;re feeling.
+          </p>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/portal/messages">
+              <MessageSquare className="size-4" />
+              Message {coachName}
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

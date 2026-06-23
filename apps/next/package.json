@@ -13,7 +13,7 @@
     "backfill:prs": "tsx scripts/backfill-pr-records.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:unit": "tsx --test lib/load-analytics.test.ts lib/workout-log-prescription.test.ts lib/workout-log-guided.test.ts lib/superset-groups.test.ts lib/goal-progress.test.ts lib/apple-health/sync.test.ts lib/notification-preferences.test.ts lib/dashboard.test.ts lib/form-review-annotations.test.ts lib/training-consistency.test.ts"
+    "test:unit": "tsx --test lib/load-analytics.test.ts lib/workout-log-prescription.test.ts lib/workout-log-guided.test.ts lib/superset-groups.test.ts lib/goal-progress.test.ts lib/apple-health/sync.test.ts lib/notification-preferences.test.ts lib/dashboard.test.ts lib/form-review-annotations.test.ts lib/email/form-review-notification.test.ts lib/training-consistency.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

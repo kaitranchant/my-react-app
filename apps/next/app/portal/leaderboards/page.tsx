@@ -6,6 +6,7 @@ import { LeaderboardPeriodTabs } from '@/components/leaderboards/leaderboard-per
 import { LeaderboardTable } from '@/components/leaderboards/leaderboard-table'
 import { LeaderboardToolbar } from '@/components/leaderboards/leaderboard-toolbar'
 import { LeaderboardWeightClassFilter } from '@/components/leaderboards/leaderboard-weight-class-filter'
+import { PortalSectionSkeleton } from '@/components/portal/portal-page-skeletons'
 import { PortalLeaderboardProfileCard } from '@/components/portal/portal-leaderboard-profile-card'
 import {
   Card,
@@ -177,23 +178,23 @@ export default async function PortalLeaderboardsPage({
         defaultBiologicalSex={clientRecord.biological_sex ?? null}
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PortalSectionSkeleton rows={1} />}>
         <LeaderboardCategoryTabs />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PortalSectionSkeleton rows={1} />}>
         <LeaderboardPeriodTabs />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PortalSectionSkeleton rows={1} />}>
         <LeaderboardFormulaTabs />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PortalSectionSkeleton rows={1} />}>
         <LeaderboardWeightClassFilter weightClasses={availableWeightClasses} />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PortalSectionSkeleton rows={4} />}>
         <LeaderboardToolbar
           exercises={exercises}
           resolvedExerciseId={resolvedExerciseId}

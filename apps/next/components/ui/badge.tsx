@@ -26,6 +26,8 @@ const badgeVariants = cva(
           'border-status-warning/30 bg-status-warning/10 text-status-warning [a&]:hover:bg-status-warning/15',
         'danger-soft':
           'border-status-danger/30 bg-status-danger/10 text-status-danger [a&]:hover:bg-status-danger/15',
+        'brand-soft':
+          'border-brand/30 bg-brand/10 text-brand [a&]:hover:bg-brand/15',
         neutral:
           'border-status-neutral/30 bg-status-neutral text-status-neutral-foreground [a&]:hover:bg-status-neutral/80',
       },

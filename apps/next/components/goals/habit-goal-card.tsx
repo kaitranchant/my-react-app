@@ -8,12 +8,14 @@ type HabitGoalCardProps = {
   goal: ClientGoal
   context: Pick<GoalProgressContext, 'workouts' | 'checkIns'>
   coachPreferences?: Pick<CoachPreferences, 'weekStartsOn' | 'timezone'>
+  presentation?: 'default' | 'portal'
 }
 
 export function HabitGoalCard({
   goal,
   context,
   coachPreferences,
+  presentation = 'default',
 }: HabitGoalCardProps) {
   const progress = computeHabitProgress(
     goal,
@@ -28,6 +30,7 @@ export function HabitGoalCard({
       title={label}
       progress={progress}
       targetDate={goal.target_date}
+      presentation={presentation}
     />
   )
 }

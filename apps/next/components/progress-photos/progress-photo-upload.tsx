@@ -109,7 +109,7 @@ export function ProgressPhotoUpload({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {PROGRESS_PHOTO_POSES.map((pose) => {
             const photo = photosByPose.get(pose)
             const isUploading = uploadingPose === pose
@@ -117,10 +117,12 @@ export function ProgressPhotoUpload({
             return (
               <div
                 key={pose}
-                className="bg-muted/20 flex flex-col gap-2 rounded-lg border p-3"
+                className="bg-muted/20 flex min-w-0 flex-col gap-1.5 rounded-lg border p-2 sm:gap-2 sm:p-3"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium">{PROGRESS_PHOTO_POSE_LABELS[pose]}</p>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                  <p className="text-[11px] font-medium sm:text-xs">
+                    {PROGRESS_PHOTO_POSE_LABELS[pose]}
+                  </p>
                   {canUpload && (
                     <>
                       <input
@@ -139,7 +141,7 @@ export function ProgressPhotoUpload({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="h-7 w-full px-2 text-xs sm:w-auto"
                         disabled={isUploading || Boolean(deletingId)}
                         onClick={() => fileInputRefs.current[pose]?.click()}
                       >
@@ -148,7 +150,9 @@ export function ProgressPhotoUpload({
                         ) : (
                           <>
                             <Camera className="size-3.5" />
-                            {photo ? 'Replace' : 'Upload'}
+                            <span className="hidden sm:inline">
+                              {photo ? 'Replace' : 'Upload'}
+                            </span>
                           </>
                         )}
                       </Button>
@@ -167,7 +171,7 @@ export function ProgressPhotoUpload({
                       <img
                         src={photo.signedUrl}
                         alt={`${PROGRESS_PHOTO_POSE_LABELS[pose]} progress photo`}
-                        className="aspect-[3/4] w-full object-cover"
+                        className="aspect-square w-full object-cover sm:aspect-[3/4]"
                       />
                     </button>
                     {canUpload && (
@@ -175,7 +179,7 @@ export function ProgressPhotoUpload({
                         type="button"
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 size-7 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute top-1 right-1 size-6 opacity-100 sm:top-2 sm:right-2 sm:size-7 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
                         disabled={deletingId === photo.id}
                         onClick={() => void handleDelete(photo.id)}
                       >
@@ -187,13 +191,13 @@ export function ProgressPhotoUpload({
                       </Button>
                     )}
                     {photo.caption && (
-                      <p className="text-muted-foreground border-t px-2 py-1.5 text-[11px] leading-relaxed">
+                      <p className="text-muted-foreground border-t px-1.5 py-1 text-[10px] leading-relaxed sm:px-2 sm:py-1.5 sm:text-[11px]">
                         {photo.caption}
                       </p>
                     )}
                   </div>
                 ) : (
-                  <div className="text-muted-foreground flex aspect-[3/4] items-center justify-center rounded-md border border-dashed text-xs">
+                  <div className="text-muted-foreground flex aspect-square items-center justify-center rounded-md border border-dashed text-[10px] sm:aspect-[3/4] sm:text-xs">
                     No photo
                   </div>
                 )}

@@ -18,13 +18,45 @@ type DailyTargetsCardProps = {
   goals: ClientGoal[]
   checkIns?: ClientCheckIn[]
   description?: string
+  compact?: boolean
 }
 
 export function DailyTargetsCard({
   goals,
   checkIns = [],
   description = 'Daily targets set by your coach.',
+  compact = false,
 }: DailyTargetsCardProps) {
+  if (compact) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">
+            Daily targets from your coach
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {goals.length === 0 ? (
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              No daily targets yet.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {goals.map((goal) => (
+                <span
+                  key={goal.id}
+                  className="border-border bg-muted/40 text-foreground inline-flex rounded-full border px-3 py-1.5 text-sm font-medium"
+                >
+                  {formatDailyTargetLabel(goal)}
+                </span>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>

@@ -27,7 +27,8 @@ const notificationOptions: NotificationOption[] = [
     key: 'notifyFormReviews',
     label: 'New form review submissions',
     description:
-      'Show form review submissions on your dashboard and in the activity feed.',
+      'Email and dashboard alerts when a client submits a photo or video for form review.',
+    email: true,
   },
   {
     key: 'notifyWorkoutCompletions',

@@ -7,6 +7,10 @@ import { PortalMobileMenu } from '@/components/portal/portal-mobile-menu'
 import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
 import { PortalSidebar } from '@/components/portal/portal-sidebar'
 import { getPortalClientContext } from '@/lib/portal-client'
+import {
+  fetchPortalFormReviewHighlight,
+  fetchPortalMessageHighlight,
+} from '@/lib/portal-home-highlights'
 import { clientHasTeamMembership } from '@/lib/portal-teams'
 import { createClient } from '@/lib/supabase/server'
 
@@ -38,6 +42,19 @@ export default async function PortalLayout({
   const showTeamNav = portalCtx?.client?.id
     ? await clientHasTeamMembership(supabase, portalCtx.client.id)
     : false
+
+  let navBadges = { unreadMessages: 0, pendingFormReviews: 0 }
+  if (portalCtx?.client?.id) {
+    const [messageHighlight, formReviewHighlight] = await Promise.all([
+      fetchPortalMessageHighlight(supabase, portalCtx.client.id),
+      fetchPortalFormReviewHighlight(supabase, portalCtx.client.id),
+    ])
+    navBadges = {
+      unreadMessages: messageHighlight?.unreadCount ?? 0,
+      pendingFormReviews: formReviewHighlight?.pendingCount ?? 0,
+    }
+  }
+
   const name =
     portalCtx?.client.full_name?.trim() ||
     profile?.full_name?.trim() ||
@@ -67,7 +84,7 @@ export default async function PortalLayout({
         <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
-        <PortalMobileNav showTeamNav={showTeamNav} />
+        <PortalMobileNav showTeamNav={showTeamNav} badges={navBadges} />
       </div>
     </div>
   )

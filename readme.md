@@ -34,11 +34,13 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Team challenges: time-boxed team competitions on the team **Challenges** tab; published challenges and standings on the client portal team page
 - Weekly summary email: Sunday morning digest for coaches (requires `RESEND_API_KEY` and cron)
 - PR email notifications: optional coach email when a client hits a new PR (Settings → Notifications)
+- Form review email notifications: optional coach email when a client submits a form review (Settings → Notifications)
 - Per-exercise client notes: athletes can add notes per exercise during workout logging for coach review
+- Portal home dashboard: coach display name, program week/completion progress, training consistency heatmap, week strip with workout status colors, mobile bottom nav with Progress tab and unread badges, loading skeletons, and check-in wellness trends
 
 ## What's coming
 
-Wearables appear in the coach sidebar but are not yet implemented.
+Wearables integrations are scaffolded (Whoop, Apple Health) but not yet live — see `apps/next/lib/wearables-feature.ts`.
 
 ## Deployment
 
@@ -53,13 +55,13 @@ Wearables appear in the coach sidebar but are not yet implemented.
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0058**). For one-off patches without the CLI, see the apply scripts below.
-4. Verify schema: `yarn db:check` (checks tables through migration 0058)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0060**). For one-off patches without the CLI, see the apply scripts below.
+4. Verify schema: `yarn db:check` (checks tables through migration 0060)
 5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0058 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0060 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -117,6 +119,8 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-progressive-overload.sql` | Progressive overload approval workflow (0056) |
 | `apply-notify-prs.sql` | PR notification preference on profiles (0057) |
 | `apply-team-challenges.sql` | Team challenges and portal standings (0058) |
+| `apply-portal-coach-display-name.sql` | Portal coach display name RPC (0059) |
+| `apply-portal-program-progress.sql` | Portal program week progress RLS (0060) |
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 
@@ -222,7 +226,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema (migrations through 0058) |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0060) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |

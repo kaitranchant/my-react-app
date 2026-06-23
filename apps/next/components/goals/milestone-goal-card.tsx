@@ -12,9 +12,14 @@ type MilestoneGoalCardProps = {
     GoalProgressContext,
     'workouts' | 'programDayOffsets' | 'activeAssignment'
   >
+  presentation?: 'default' | 'portal'
 }
 
-export function MilestoneGoalCard({ goal, context }: MilestoneGoalCardProps) {
+export function MilestoneGoalCard({
+  goal,
+  context,
+  presentation = 'default',
+}: MilestoneGoalCardProps) {
   const programId = goal.program_id ?? context.activeAssignment?.program_id ?? null
   const assignmentStart =
     goal.milestone_type === 'program_completion' &&
@@ -36,6 +41,7 @@ export function MilestoneGoalCard({ goal, context }: MilestoneGoalCardProps) {
       title={label}
       progress={progress}
       targetDate={goal.target_date}
+      presentation={presentation}
     />
   )
 }

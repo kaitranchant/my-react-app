@@ -19,6 +19,8 @@ type TrainingConsistencyHeatmapProps = {
   className?: string
   /** Use green achievement colors (client portal) instead of brand purple */
   achievementColors?: boolean
+  hideMissedLegend?: boolean
+  portalFooter?: boolean
 }
 
 const BRAND_LEVEL_CLASS: Record<TrainingConsistencyLevel, string> = {
@@ -70,6 +72,8 @@ export function TrainingConsistencyHeatmap({
   displayWeeks,
   className,
   achievementColors = false,
+  hideMissedLegend = false,
+  portalFooter = false,
 }: TrainingConsistencyHeatmapProps) {
   const levelClass = achievementColors
     ? ACHIEVEMENT_LEVEL_CLASS
@@ -101,7 +105,7 @@ export function TrainingConsistencyHeatmap({
           <p className="text-muted-foreground text-xs">Active days</p>
           <p className="font-semibold tabular-nums">{heatmap.activeDays}</p>
         </div>
-        {!compact && heatmap.missedDays > 0 ? (
+        {!compact && !achievementColors && heatmap.missedDays > 0 ? (
           <div>
             <p className="text-muted-foreground text-xs">Missed days</p>
             <p className="font-semibold tabular-nums">{heatmap.missedDays}</p>
@@ -185,38 +189,49 @@ export function TrainingConsistencyHeatmap({
       <div
         className={cn(
           'flex flex-wrap items-center justify-between gap-3',
-          compact && 'gap-2'
+          compact && 'gap-2',
+          portalFooter && !hasActivity && 'justify-center'
         )}
       >
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          {hasActivity
-            ? compact
-              ? achievementColors
-                ? 'Recent training activity. Green squares are completed sessions.'
-                : 'Recent training activity. Darker squares mean more completed sessions.'
-              : 'Each square is a day. Darker squares mean more completed sessions. Outlined squares are missed sessions.'
-            : 'Complete workouts to start building training history.'}
-        </p>
+        {portalFooter ? (
+          !hasActivity ? (
+            <p className="text-muted-foreground w-full text-center text-xs leading-relaxed">
+              Complete workouts to build your training history
+            </p>
+          ) : null
+        ) : (
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {hasActivity
+              ? compact
+                ? achievementColors
+                  ? 'Recent training activity. Green squares are completed sessions.'
+                  : 'Recent training activity. Darker squares mean more completed sessions.'
+                : 'Each square is a day. Darker squares mean more completed sessions. Outlined squares are missed sessions.'
+              : 'Complete workouts to start building training history.'}
+          </p>
+        )}
 
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <span>Less</span>
-          {([0, 1, 2, 3, 4] as TrainingConsistencyLevel[]).map((level) => (
-            <span
-              key={level}
-              className={cn('rounded-[3px]', cellSize, levelClass[level])}
-            />
-          ))}
-          <span>More</span>
-          {!compact ? (
-            <span
-              className={cn(
-                'ml-1 rounded-[3px] border border-destructive/45 bg-destructive/10',
-                cellSize
-              )}
-              title="Missed session"
-            />
-          ) : null}
-        </div>
+        {portalFooter || hideMissedLegend ? null : (
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <span>Less</span>
+            {([0, 1, 2, 3, 4] as TrainingConsistencyLevel[]).map((level) => (
+              <span
+                key={level}
+                className={cn('rounded-[3px]', cellSize, levelClass[level])}
+              />
+            ))}
+            <span>More</span>
+            {!compact ? (
+              <span
+                className={cn(
+                  'ml-1 rounded-[3px] border border-destructive/45 bg-destructive/10',
+                  cellSize
+                )}
+                title="Missed session"
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   )

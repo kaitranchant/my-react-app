@@ -9,19 +9,32 @@ import type { RecentPrHighlight } from '@/lib/pr-records'
 type PortalRecentPrsProps = {
   recentPrs: RecentPrHighlight[]
   showViewAll?: boolean
+  presentation?: 'default' | 'portal'
+}
+
+function MobileSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+      {children}
+    </p>
+  )
 }
 
 export function PortalRecentPrs({
   recentPrs,
   showViewAll = false,
+  presentation = 'default',
 }: PortalRecentPrsProps) {
+  const isPortal = presentation === 'portal'
   if (recentPrs.length === 0) {
-    return (
+    const emptyCard = (
       <Card className="gap-0 py-0">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
           <div className="flex items-center gap-2">
-            <TrendingUp className="text-brand size-4" />
-            <p className="section-header">Recent PRs</p>
+            {!isPortal ? <TrendingUp className="text-brand size-4" /> : null}
+            <p className={isPortal ? 'text-sm font-medium' : 'section-header'}>
+              {isPortal ? 'Personal records' : 'Recent PRs'}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="px-5 pb-5">
@@ -35,14 +48,25 @@ export function PortalRecentPrs({
         </CardContent>
       </Card>
     )
+
+    return isPortal ? (
+      <section className="space-y-3">
+        <MobileSectionLabel>Recent PRs</MobileSectionLabel>
+        {emptyCard}
+      </section>
+    ) : (
+      emptyCard
+    )
   }
 
-  return (
+  const prCard = (
     <Card className="gap-0 py-0">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
         <div className="flex items-center gap-2">
-          <TrendingUp className="text-brand size-4" />
-          <p className="section-header">Recent PRs</p>
+          {!isPortal ? <TrendingUp className="text-brand size-4" /> : null}
+          <p className={isPortal ? 'text-sm font-medium' : 'section-header'}>
+            {isPortal ? 'Personal records' : 'Recent PRs'}
+          </p>
         </div>
         {showViewAll && (
           <Link
@@ -59,7 +83,7 @@ export function PortalRecentPrs({
           {recentPrs.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-4 text-sm"
+              className="flex items-center justify-between gap-4 border-b py-2 text-sm last:border-b-0"
             >
               <span className="flex items-center gap-2">
                 <Flame className="text-amber-500 size-4 shrink-0" />
@@ -73,5 +97,14 @@ export function PortalRecentPrs({
         </ul>
       </CardContent>
     </Card>
+  )
+
+  return isPortal ? (
+    <section className="space-y-3">
+      <MobileSectionLabel>Recent PRs</MobileSectionLabel>
+      {prCard}
+    </section>
+  ) : (
+    prCard
   )
 }

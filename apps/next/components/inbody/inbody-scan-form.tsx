@@ -1,18 +1,24 @@
 'use client'
 
 import * as React from 'react'
+import { ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createEmptyInbodyScanValues } from '@/lib/inbody-scans'
+import { cn } from '@/lib/utils'
 import type { InbodyScanFormValues } from '@/lib/validations/inbody-scan'
+
+const OPTIONAL_METRIC_COUNT = 7
 
 function NumberField({
   id,
   label,
+  shortLabel,
   unit,
   value,
   onChange,
@@ -20,9 +26,11 @@ function NumberField({
   required = false,
   step = '0.1',
   max,
+  placeholder,
 }: {
   id: string
   label: string
+  shortLabel?: string
   unit: string
   value: number | null
   onChange: (value: number | null) => void
@@ -30,6 +38,7 @@ function NumberField({
   required?: boolean
   step?: string
   max?: number
+  placeholder?: string
 }) {
   function parseOptionalNumber(raw: string): number | null {
     const trimmed = raw.trim()
@@ -39,9 +48,10 @@ function NumberField({
   }
 
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>
-        {label}
+    <div className="grid min-w-0 gap-1 sm:gap-2">
+      <Label htmlFor={id} className="text-[11px] leading-tight sm:text-sm">
+        <span className="sm:hidden">{shortLabel ?? label}</span>
+        <span className="hidden sm:inline">{label}</span>
         {required ? ' *' : ''}
       </Label>
       <div className="relative">
@@ -52,13 +62,15 @@ function NumberField({
           step={step}
           min="0"
           max={max}
-          placeholder={required ? 'Required' : 'Optional'}
+          placeholder={
+            placeholder ?? (required ? 'Required' : 'Optional')
+          }
           value={value ?? ''}
           onChange={(event) => onChange(parseOptionalNumber(event.target.value))}
           disabled={disabled}
-          className="pr-14"
+          className="h-10 py-2 pr-10 text-sm leading-normal sm:pr-14"
         />
-        <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium">
+        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs font-medium sm:right-3">
           {unit}
         </span>
       </div>
@@ -87,6 +99,7 @@ export function InbodyScanForm({
     initialValues ?? createEmptyInbodyScanValues()
   )
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [additionalOpen, setAdditionalOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (initialValues) {
@@ -119,40 +132,52 @@ export function InbodyScanForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="scanDate">Scan date *</Label>
+    <form onSubmit={handleSubmit} className="grid gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4">
+        <div className="grid gap-1 sm:gap-2">
+          <Label htmlFor="scanDate" className="text-[11px] sm:text-sm">
+            <span className="sm:hidden">Date *</span>
+            <span className="hidden sm:inline">Scan date *</span>
+          </Label>
           <Input
             id="scanDate"
             type="date"
             value={values.scanDate}
             onChange={(event) => updateField('scanDate', event.target.value)}
             disabled={disabled || isSubmitting}
+            className="h-10 py-2 text-sm leading-normal"
             required
           />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="scanTime">Scan time *</Label>
+        <div className="grid gap-1 sm:gap-2">
+          <Label htmlFor="scanTime" className="text-[11px] sm:text-sm">
+            <span className="sm:hidden">Time *</span>
+            <span className="hidden sm:inline">Scan time *</span>
+          </Label>
           <Input
             id="scanTime"
             type="time"
             value={values.scanTime}
             onChange={(event) => updateField('scanTime', event.target.value)}
             disabled={disabled || isSubmitting}
+            className="h-10 py-2 text-sm leading-normal"
             required
           />
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div>
+      <div className="space-y-2 sm:space-y-3">
+        <div className="hidden sm:block">
           <p className="text-sm font-medium">Body composition history</p>
           <p className="text-muted-foreground text-xs">
             Enter the three metrics shown on the InBody history graph.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <p className="text-primary flex items-center gap-1.5 text-[11px] font-medium sm:hidden">
+          <span className="bg-primary size-1.5 shrink-0 rounded-full" />
+          Required field
+        </p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <NumberField
             id="weightLbs"
             label="Weight"
@@ -161,37 +186,64 @@ export function InbodyScanForm({
             onChange={(value) => updateField('weightLbs', value)}
             disabled={disabled || isSubmitting}
             required
+            placeholder="e.g. 178.5"
           />
           <NumberField
             id="skeletalMuscleMassLbs"
             label="Skeletal muscle mass"
+            shortLabel="SMM"
             unit="lbs"
             value={values.skeletalMuscleMassLbs}
             onChange={(value) => updateField('skeletalMuscleMassLbs', value)}
             disabled={disabled || isSubmitting}
             required
+            placeholder="e.g. 91.7"
           />
           <NumberField
             id="percentBodyFat"
             label="Percent body fat"
+            shortLabel="PBF"
             unit="%"
             value={values.percentBodyFat}
             onChange={(value) => updateField('percentBodyFat', value)}
             disabled={disabled || isSubmitting}
             required
             max={100}
+            placeholder="e.g. 11.0"
           />
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm font-medium">Additional metrics</p>
-          <p className="text-muted-foreground text-xs">
-            Optional values from the rest of the InBody printout.
-          </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="space-y-2 sm:space-y-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left sm:pointer-events-none sm:cursor-default sm:rounded-none sm:border-0 sm:p-0"
+          onClick={() => setAdditionalOpen((open) => !open)}
+        >
+          <div>
+            <p className="text-sm font-medium">Additional metrics</p>
+            <p className="text-muted-foreground mt-0.5 hidden text-xs sm:block">
+              Optional values from the rest of the InBody printout.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            <Badge variant="secondary" className="text-[10px] font-normal">
+              {OPTIONAL_METRIC_COUNT} optional
+            </Badge>
+            <ChevronDown
+              className={cn(
+                'text-muted-foreground size-4 transition-transform',
+                additionalOpen && 'rotate-180'
+              )}
+            />
+          </div>
+        </button>
+        <div
+          className={cn(
+            'grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3',
+            !additionalOpen && 'hidden sm:grid'
+          )}
+        >
           <NumberField
             id="totalBodyWaterLbs"
             label="Total body water"
@@ -252,21 +304,24 @@ export function InbodyScanForm({
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="notes">Notes</Label>
+      <div className="grid gap-1 sm:gap-2">
+        <Label htmlFor="notes" className="text-[11px] uppercase tracking-wide sm:text-sm sm:normal-case sm:tracking-normal">
+          Notes
+        </Label>
         <Textarea
           id="notes"
-          rows={3}
+          rows={2}
           value={values.notes ?? ''}
           onChange={(event) =>
             updateField('notes', event.target.value.trim() || null)
           }
-          placeholder="Optional context about this scan…"
+          placeholder="Optional context about this scan — how you were feeling, time of day, hydration…"
           disabled={disabled || isSubmitting}
+          className="min-h-0 text-sm sm:min-h-[5rem]"
         />
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
         {onCancel && (
           <Button
             type="button"
@@ -277,7 +332,11 @@ export function InbodyScanForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={disabled || isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full sm:w-auto"
+          disabled={disabled || isSubmitting}
+        >
           {isSubmitting ? 'Saving…' : submitLabel}
         </Button>
       </div>

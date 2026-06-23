@@ -9,15 +9,21 @@ type GoalStatusBadgeProps = {
 export function GoalStatusBadge({ status, className }: GoalStatusBadgeProps) {
   const label = getGoalStatusLabel(status)
 
-  let variant: 'success' | 'destructive' | 'warning' | 'secondary' | 'default' =
-    'secondary'
+  let variant:
+    | 'success-soft'
+    | 'warning-soft'
+    | 'brand-soft'
+    | 'secondary'
+    | 'default' = 'secondary'
 
   if (status === 'on_track' || status === 'complete' || status === 'ahead') {
-    variant = 'success'
-  } else if (status === 'off_track' || status === 'behind') {
-    variant = 'destructive'
+    variant = 'success-soft'
+  } else if (status === 'behind') {
+    variant = 'warning-soft'
+  } else if (status === 'off_track') {
+    variant = 'brand-soft'
   } else if (status === 'no_change') {
-    variant = 'warning'
+    variant = 'warning-soft'
   }
 
   return (

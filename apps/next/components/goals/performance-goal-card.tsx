@@ -13,9 +13,14 @@ type PerformanceGoalCardProps = {
     GoalProgressContext,
     'prRecords' | 'exercises' | 'bestDurationByExerciseId'
   >
+  presentation?: 'default' | 'portal'
 }
 
-export function PerformanceGoalCard({ goal, context }: PerformanceGoalCardProps) {
+export function PerformanceGoalCard({
+  goal,
+  context,
+  presentation = 'default',
+}: PerformanceGoalCardProps) {
   const progress = computePerformanceProgress(
     goal,
     context.prRecords,
@@ -29,6 +34,7 @@ export function PerformanceGoalCard({ goal, context }: PerformanceGoalCardProps)
       title={label}
       progress={progress}
       targetDate={goal.target_date}
+      presentation={presentation}
     />
   )
 }

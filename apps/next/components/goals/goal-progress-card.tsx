@@ -11,12 +11,14 @@ type GoalProgressCardProps = {
   goal: ClientGoal
   context: Pick<GoalProgressContext, 'scans' | 'checkIns'>
   coachPreferences?: Pick<CoachPreferences, 'weekStartsOn' | 'timezone'>
+  presentation?: 'default' | 'portal'
 }
 
 export function GoalProgressCard({
   goal,
   context,
   coachPreferences,
+  presentation = 'default',
 }: GoalProgressCardProps) {
   const progress = computeCompositionProgress(
     goal,
@@ -26,5 +28,12 @@ export function GoalProgressCard({
   )
   const label = formatCompositionGoalLabel(goal)
 
-  return <TrackableGoalCard title={label} progress={progress} targetDate={goal.target_date} />
+  return (
+    <TrackableGoalCard
+      title={label}
+      progress={progress}
+      targetDate={goal.target_date}
+      presentation={presentation}
+    />
+  )
 }

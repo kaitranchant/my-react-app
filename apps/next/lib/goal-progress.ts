@@ -301,7 +301,7 @@ function applyPaceToProgress<T extends GoalProgressBase>(
   }
 
   if (status === 'behind' && !hint) {
-    hint = 'Progress is behind the pace needed to hit the target date.'
+    hint = 'Slightly behind — consistent training will get you there.'
   }
 
   return {
@@ -371,6 +371,45 @@ export function formatGoalTargetDateLabel(
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+export function formatCompactGoalDueDate(
+  targetDate: string | null | undefined
+): string | null {
+  if (!targetDate?.trim()) return null
+
+  return new Date(`${targetDate.trim()}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+export function formatCompactGoalDetailLine(
+  detailLine: string,
+  targetDate: string | null | undefined
+): string {
+  const progressPart =
+    detailLine.split(' · Started at')[0]?.trim() ?? detailLine.trim()
+  const simplified = progressPart.replace(/(\d+)\.0(?=\s|$)/g, '$1')
+  const due = formatCompactGoalDueDate(targetDate)
+  return due ? `${simplified} · Due ${due}` : simplified
+}
+
+export function getGoalProgressBarClassName(
+  status: GoalProgressStatus
+): string | undefined {
+  switch (status) {
+    case 'behind':
+      return 'bg-status-warning'
+    case 'off_track':
+    case 'on_track':
+    case 'ahead':
+    case 'complete':
+      return 'bg-brand'
+    default:
+      return undefined
+  }
 }
 
 export function getDailyTargetCheckInHint(
@@ -1071,9 +1110,9 @@ export function getGoalStatusLabel(status: GoalProgressStatus): string {
     case 'on_track':
       return 'On track'
     case 'off_track':
-      return 'Off track'
+      return 'Needs focus'
     case 'behind':
-      return 'Behind'
+      return 'Behind pace'
     case 'ahead':
       return 'Ahead'
     case 'complete':

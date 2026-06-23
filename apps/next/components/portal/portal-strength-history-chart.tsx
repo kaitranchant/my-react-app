@@ -28,6 +28,7 @@ type PortalStrengthHistoryChartProps = {
   initialTrend: StrengthHistoryTrend | null
   weightUnit?: WeightUnit
   className?: string
+  presentation?: 'default' | 'portal'
 }
 
 const CHART_WIDTH = 640
@@ -103,11 +104,13 @@ function buildPlottedPoints(
 function StrengthTrendChart({
   points,
   weightUnit,
+  compact = false,
 }: {
   points: StrengthHistoryPoint[]
   weightUnit: WeightUnit
+  compact?: boolean
 }) {
-  const height = CHART_HEIGHT + CHART_AXIS_HEIGHT
+  const height = (compact ? 140 : CHART_HEIGHT) + CHART_AXIS_HEIGHT
   const values = points.map((point) => point.e1rm)
   const path = buildLinePath(
     values,
@@ -197,7 +200,9 @@ export function PortalStrengthHistoryChart({
   initialTrend,
   weightUnit = 'lbs',
   className,
+  presentation = 'default',
 }: PortalStrengthHistoryChartProps) {
+  const isPortal = presentation === 'portal'
   const [selectedExerciseId, setSelectedExerciseId] = React.useState(
     initialExerciseId ?? exercises[0]?.id ?? ''
   )
@@ -209,6 +214,12 @@ export function PortalStrengthHistoryChart({
   const selectedExercise = exercises.find(
     (exercise) => exercise.id === selectedExerciseId
   )
+  const latestPrDateLabel = selectedExercise?.latestAchievedAt
+    ? new Date(selectedExercise.latestAchievedAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })
+    : null
 
   async function handleExerciseChange(exerciseId: string) {
     setSelectedExerciseId(exerciseId)
@@ -239,15 +250,20 @@ export function PortalStrengthHistoryChart({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div
+        className={cn(
+          'flex flex-col gap-3',
+          !isPortal && 'sm:flex-row sm:items-end sm:justify-between'
+        )}
+      >
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-medium">Exercise</p>
+          {!isPortal ? <p className="text-sm font-medium">Exercise</p> : null}
           <Select
             value={selectedExerciseId}
             onValueChange={(value) => void handleExerciseChange(value)}
             disabled={loading}
           >
-            <SelectTrigger className="w-full sm:max-w-xs">
+            <SelectTrigger className={cn('w-full', !isPortal && 'sm:max-w-xs')}>
               <SelectValue placeholder="Select exercise" />
             </SelectTrigger>
             <SelectContent>
@@ -264,14 +280,30 @@ export function PortalStrengthHistoryChart({
         </div>
 
         {trend?.currentE1rm != null ? (
-          <div className="text-right">
+          <div className={cn(isPortal ? 'space-y-1' : 'text-right')}>
             <p className="text-muted-foreground text-xs">Current best</p>
-            <p className="text-lg font-semibold tabular-nums">
-              {formatStrengthE1rm(trend.currentE1rm, weightUnit)}
-            </p>
-            {trend.changeLabel ? (
-              <p className="text-muted-foreground text-xs">{trend.changeLabel}</p>
-            ) : null}
+            <div
+              className={cn(
+                'flex gap-2',
+                isPortal ? 'items-center justify-between' : 'flex-col items-end'
+              )}
+            >
+              <p
+                className={cn(
+                  'font-semibold tabular-nums',
+                  isPortal ? 'text-xl text-brand' : 'text-lg'
+                )}
+              >
+                {formatStrengthE1rm(trend.currentE1rm, weightUnit)}
+              </p>
+              {isPortal && latestPrDateLabel ? (
+                <p className="text-muted-foreground shrink-0 text-xs">
+                  <span aria-hidden>🔥</span> New PR · {latestPrDateLabel}
+                </p>
+              ) : !isPortal && trend.changeLabel ? (
+                <p className="text-muted-foreground text-xs">{trend.changeLabel}</p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>
@@ -283,7 +315,11 @@ export function PortalStrengthHistoryChart({
           </div>
         ) : null}
         {trend ? (
-          <StrengthTrendChart points={trend.points} weightUnit={weightUnit} />
+          <StrengthTrendChart
+            points={trend.points}
+            weightUnit={weightUnit}
+            compact={isPortal}
+          />
         ) : (
           <p className="text-muted-foreground py-8 text-center text-sm">
             Select an exercise to view your strength trend.
@@ -291,7 +327,7 @@ export function PortalStrengthHistoryChart({
         )}
       </div>
 
-      {selectedExercise ? (
+      {selectedExercise && !isPortal ? (
         <p className="text-muted-foreground text-xs leading-relaxed">
           Running best estimated 1RM for {selectedExercise.name} over the last 6
           months. Each point shows your peak e1RM through the end of that month.

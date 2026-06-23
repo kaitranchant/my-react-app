@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0058**)
+- `yarn db:check` passes (schema through migration **0060**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -170,6 +170,7 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Add coach feedback → **Save feedback** — item leaves the pending list
 - [ ] **All** tab shows the submission as **Reviewed**
 - [ ] Sign back in as client → `/portal/form-review` — coach feedback is visible
+- [ ] (Optional) With `RESEND_API_KEY` configured and **New form review submissions** enabled in coach Settings → Notifications, coach receives an email linking to `/form-review`
 
 ## 14. Leaderboards
 
@@ -222,6 +223,22 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Save and sign in as client → open the workout log — exercises appear grouped under **Superset A**
 - [ ] (Optional) On mobile portal workout log, switch to **Guided** view — footer shows superset position (e.g. `Superset A · 1 of 2`)
 
+## 20. Portal home and mobile UX
+
+Requires migrations **0059** and **0060** (`apply-portal-coach-display-name.sql`, `apply-portal-program-progress.sql`).
+
+- [ ] As client on `/portal` (mobile viewport ~375px): bottom nav shows **Home**, **Workouts**, **Progress**, **Messages**, and **More** (Check-in is under More)
+- [ ] Portal home shows coach name in **From your coach** (not generic "Coach") when the coach has a profile name
+- [ ] With an active program assigned: **Your program** card shows "Week X of Y" and weekly completion (e.g. "2 of 4 workouts completed"); tapping opens `/portal/workouts`
+- [ ] **This week** strip uses status colors (completed, in progress, skipped, scheduled) with a legend below
+- [ ] **Training consistency** card shows a heatmap on mobile (not text-only stats)
+- [ ] Navigate to **Progress** — mobile stats include **ACWR**; **8-week volume** chart and load-balance card are visible
+- [ ] New client with no messages: **From your coach** shows a "Message your coach" CTA instead of hiding the section
+- [ ] Coach sends a message → **Messages** tab icon shows an unread badge; open and read — badge clears on refresh
+- [ ] Submit a form review → **More** menu shows a badge on **Form Review** while pending
+- [ ] `/portal/check-in` shows **Your wellness trends** when prior check-ins exist (sleep, energy, soreness)
+- [ ] Navigate between `/portal`, `/portal/progress`, and `/portal/workouts` — loading skeletons appear briefly (not a blank page)
+
 ---
 
 ## Troubleshooting
@@ -256,6 +273,8 @@ Repeatable manual verification for the coach → client loop and recent features
 | Progressive overload inbox shows schema notice | Run [`supabase/apply-progressive-overload.sql`](../supabase/apply-progressive-overload.sql) or `yarn db:push` (0056) |
 | PR notification toggle missing or won't save | Run [`supabase/apply-notify-prs.sql`](../supabase/apply-notify-prs.sql) or `yarn db:push` (0057) |
 | Team challenges tab fails or portal standings empty | Run [`supabase/apply-team-challenges.sql`](../supabase/apply-team-challenges.sql) or `yarn db:push` (0058) |
+| Portal shows "Coach" instead of coach name | Run [`supabase/apply-portal-coach-display-name.sql`](../supabase/apply-portal-coach-display-name.sql) or `yarn db:push` (0059) |
+| Program card missing "Week X of Y" or weekly completion | Run [`supabase/apply-portal-program-progress.sql`](../supabase/apply-portal-program-progress.sql) or `yarn db:push` (0060) |
 | Wearables page shows schema notice | Run [`supabase/apply-client-wearables.sql`](../supabase/apply-client-wearables.sql) and [`supabase/apply-client-wearable-secrets.sql`](../supabase/apply-client-wearable-secrets.sql) or `yarn db:push` (0051–0052) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
