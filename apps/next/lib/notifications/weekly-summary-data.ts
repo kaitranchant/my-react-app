@@ -71,7 +71,7 @@ export async function buildWeeklySummaryForCoach(
   const { data: profile } = await admin
     .from('profiles')
     .select(
-      'full_name, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_weekly_summary'
+      'full_name, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary'
     )
     .eq('id', coachId)
     .maybeSingle()

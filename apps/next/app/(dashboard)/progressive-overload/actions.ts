@@ -121,7 +121,7 @@ export async function approveProgressiveOverloadSuggestion(
 ): Promise<ActionResult> {
   const coach = await requireCoach()
   if ('error' in coach) {
-    return { success: false, error: coach.error }
+    return { success: false as const, error: coach.error ?? 'Unauthorized.' }
   }
 
   const ownsClient = await verifyClientOwnership(
@@ -176,7 +176,7 @@ export async function dismissProgressiveOverloadSuggestion(
 ): Promise<ActionResult> {
   const coach = await requireCoach()
   if ('error' in coach) {
-    return { success: false, error: coach.error }
+    return { success: false as const, error: coach.error ?? 'Unauthorized.' }
   }
 
   const ownsClient = await verifyClientOwnership(

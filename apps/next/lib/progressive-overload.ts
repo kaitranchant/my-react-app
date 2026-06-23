@@ -81,6 +81,11 @@ export function formatTargetWeight(
   return `${rounded} ${unit}`
 }
 
+type UpcomingExerciseRow = Pick<
+  ScheduledWorkoutExerciseWithDetails,
+  'id' | 'exercise_id' | 'tracking_options' | 'weight_percent'
+>
+
 type ExerciseRow = Pick<
   ScheduledWorkoutExerciseWithDetails,
   | 'id'
@@ -116,7 +121,12 @@ function normalizeExercise(
   return Array.isArray(exercise) ? exercise[0] ?? null : exercise
 }
 
-function isEligibleForProgression(row: ExerciseRow): boolean {
+function isEligibleForProgression(
+  row: Pick<
+    ScheduledWorkoutExerciseWithDetails,
+    'tracking_options' | 'weight_percent'
+  >
+): boolean {
   const options = parseTrackingOptions(row.tracking_options)
   if (!options.autoProgressLoad) return false
   if (options.bodyweight || options.completionLift) return false
@@ -349,7 +359,7 @@ export async function fetchProgressiveOverloadSuggestions(
   const upcomingCountByClientExercise = new Map<string, number>()
   for (const workout of (upcomingData ?? []) as Array<{
     client_id: string
-    exercises: ExerciseRow[] | null
+    exercises: UpcomingExerciseRow[] | null
   }>) {
     for (const row of workout.exercises ?? []) {
       if (!isEligibleForProgression(row)) continue

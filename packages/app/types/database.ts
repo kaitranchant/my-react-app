@@ -1044,6 +1044,7 @@ export type Database = {
           tempo?: string | null
           rest_seconds?: string | null
           weight_percent?: string | null
+          target_weight?: string | null
           rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
@@ -1065,6 +1066,7 @@ export type Database = {
           tempo?: string | null
           rest_seconds?: string | null
           weight_percent?: string | null
+          target_weight?: string | null
           rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
@@ -1292,6 +1294,7 @@ export type Database = {
           tempo?: string | null
           rest_seconds?: string | null
           weight_percent?: string | null
+          target_weight?: string | null
           rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
@@ -1314,6 +1317,7 @@ export type Database = {
           tempo?: string | null
           rest_seconds?: string | null
           weight_percent?: string | null
+          target_weight?: string | null
           rpe_target?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
