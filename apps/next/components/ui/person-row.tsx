@@ -10,7 +10,10 @@ type PersonRowProps = {
   meta?: React.ReactNode
   badges?: React.ReactNode
   trailing?: React.ReactNode
+  /** Stack trailing controls below the person info on small screens. */
+  stackTrailingOnMobile?: boolean
   className?: string
+  trailingClassName?: string
   as?: 'div' | 'li'
   stopLinkPropagation?: boolean
 }
@@ -22,7 +25,9 @@ export function PersonRow({
   meta,
   badges,
   trailing,
+  stackTrailingOnMobile = false,
   className,
+  trailingClassName,
   as: Component = 'div',
   stopLinkPropagation = false,
 }: PersonRowProps) {
@@ -41,7 +46,10 @@ export function PersonRow({
   return (
     <Component
       className={cn(
-        'flex min-w-0 items-start justify-between gap-3',
+        'flex min-w-0 gap-3',
+        stackTrailingOnMobile
+          ? 'flex-col sm:flex-row sm:items-start sm:justify-between'
+          : 'items-start justify-between',
         className
       )}
     >
@@ -65,7 +73,17 @@ export function PersonRow({
         </div>
       </div>
       {trailing ? (
-        <div className="flex shrink-0 items-center gap-2">{trailing}</div>
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            stackTrailingOnMobile
+              ? 'w-full flex-wrap sm:w-auto sm:shrink-0'
+              : 'shrink-0',
+            trailingClassName
+          )}
+        >
+          {trailing}
+        </div>
       ) : null}
     </Component>
   )

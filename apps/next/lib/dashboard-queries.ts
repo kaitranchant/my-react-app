@@ -1,9 +1,12 @@
 import { fetchCoachInbox } from '@/lib/message-inbox'
+import { countPendingProgressiveOverloadSuggestions } from '@/lib/progressive-overload'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import type { createClient } from '@/lib/supabase/server'
 
 export type CoachNavBadges = {
   inboxUnread: number
   pendingFormReviews: number
+  pendingProgressiveOverload: number
 }
 
 export async function fetchPendingFormReviewCount(
@@ -27,13 +30,22 @@ export async function fetchCoachNavBadges(
   supabase: Awaited<ReturnType<typeof createClient>>,
   coachId: string
 ): Promise<CoachNavBadges> {
-  const [pendingFormReviews, inbox] = await Promise.all([
-    fetchPendingFormReviewCount(supabase, coachId),
-    fetchCoachInbox(supabase, coachId),
-  ])
+  const coachPreferences = await getCoachPreferencesForUser(coachId)
+
+  const [pendingFormReviews, inbox, pendingProgressiveOverload] =
+    await Promise.all([
+      fetchPendingFormReviewCount(supabase, coachId),
+      fetchCoachInbox(supabase, coachId),
+      countPendingProgressiveOverloadSuggestions(
+        supabase,
+        coachId,
+        coachPreferences
+      ),
+    ])
 
   return {
     pendingFormReviews,
     inboxUnread: inbox.totalUnread,
+    pendingProgressiveOverload,
   }
 }

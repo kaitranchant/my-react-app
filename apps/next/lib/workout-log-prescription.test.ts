@@ -30,6 +30,7 @@ function baseExercise(
     tempo: null,
     rest_seconds: null,
     weight_percent: null,
+    target_weight: null,
     rpe_target: null,
     tracking_options: {
       completionLift: false,

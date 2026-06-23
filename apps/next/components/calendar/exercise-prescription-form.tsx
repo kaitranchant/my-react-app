@@ -85,7 +85,7 @@ const TRACKING_TOGGLES: {
     key: 'autoProgressLoad',
     label: 'Auto progress load',
     description:
-      'Suggest a small weight increase when the client hit all targets last session.',
+      'Flag for coach review when the client hits all targets — suggested bumps appear in Progressive overload.',
   },
 ] as const
 
@@ -306,6 +306,23 @@ export function ExercisePrescriptionForm({
                   </FormControl>
                   <FieldHint>
                     Prescribe load as a percentage of the client&apos;s best e1RM.
+                  </FieldHint>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="targetWeight"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Target weight</FormLabel>
+                  <FormControl>
+                    <Input placeholder="185" {...field} />
+                  </FormControl>
+                  <FieldHint>
+                    Absolute load for this session. Overrides auto-progress suggestions.
                   </FieldHint>
                   <FormMessage />
                 </FormItem>

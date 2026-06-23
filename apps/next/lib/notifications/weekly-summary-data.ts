@@ -199,7 +199,7 @@ export async function buildWeeklySummaryForCoach(
             full_name: client.full_name,
           }))
         )
-      : { elevatedLoadCount: 0, injuryFlagCount: 0 }
+      : { elevatedLoadCount: 0, injuryFlagCount: 0, clientContexts: [] }
 
   const actionItems = filterActionItemsForNotifications(
     buildActionItems({

@@ -35,7 +35,7 @@ export function LeaderboardCategoryTabs() {
   }
 
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
       {LEADERBOARD_METRICS.map((entry) => {
         const Icon = entry.icon
         const active = metric === entry.id

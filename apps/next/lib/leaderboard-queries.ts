@@ -1050,6 +1050,8 @@ export async function fetchLeaderboardRows(
     teamId?: string
     exercises: LeaderboardExerciseOption[]
     weightClass: string | null
+    customBounds?: LeaderboardPeriodBounds
+    includeRankChanges?: boolean
   }
 ): Promise<{
   rows: LeaderboardRow[]
@@ -1081,7 +1083,10 @@ export async function fetchLeaderboardRows(
     weightClassesByClientId,
   })
 
-  const periodBounds = getLeaderboardPeriodBounds(options.period, options.weekStartsOn)
+  const periodBounds =
+    options.customBounds ??
+    getLeaderboardPeriodBounds(options.period, options.weekStartsOn)
+  const includeRankChanges = options.includeRankChanges ?? true
   const teamPowerliftingOverrides = options.teamId
     ? await fetchTeamPowerliftingExerciseIds(supabase, options.teamId)
     : null
@@ -1123,7 +1128,7 @@ export async function fetchLeaderboardRows(
 
   const [currentRowData, previousRowData] = await Promise.all([
     fetchRowsForMetric(supabase, { ...sharedOptions, bounds: periodBounds }),
-    options.metric === 'streak'
+    !includeRankChanges || options.metric === 'streak'
       ? Promise.resolve([] as LeaderboardRowData[])
       : fetchRowsForMetric(supabase, {
           ...sharedOptions,
@@ -1142,7 +1147,7 @@ export async function fetchLeaderboardRows(
 
   return {
     rows:
-      options.metric === 'streak'
+      !includeRankChanges || options.metric === 'streak'
         ? rankedRows
         : applyLeaderboardRankChanges(rankedRows, previousRankedRows),
     resolvedExerciseId,

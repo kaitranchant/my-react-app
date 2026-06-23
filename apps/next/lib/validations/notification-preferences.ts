@@ -6,6 +6,7 @@ export const notificationPreferenceKeys = [
   'notifyWorkoutCompletions',
   'notifyMissedSessions',
   'notifyInviteAccepted',
+  'notifyPrs',
   'notifyWeeklySummary',
 ] as const
 
@@ -18,6 +19,7 @@ export const notificationPreferencesSchema = z.object({
   notifyWorkoutCompletions: z.boolean(),
   notifyMissedSessions: z.boolean(),
   notifyInviteAccepted: z.boolean(),
+  notifyPrs: z.boolean(),
   notifyWeeklySummary: z.boolean(),
 })
 

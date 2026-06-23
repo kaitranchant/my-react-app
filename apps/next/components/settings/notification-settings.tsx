@@ -48,6 +48,13 @@ const notificationOptions: NotificationOption[] = [
       'Highlight pending client invites on your dashboard action items.',
   },
   {
+    key: 'notifyPrs',
+    label: 'Client personal records',
+    description:
+      'Email when a client sets a new PR during a workout.',
+    email: true,
+  },
+  {
     key: 'notifyWeeklySummary',
     label: 'Weekly summary email',
     description:

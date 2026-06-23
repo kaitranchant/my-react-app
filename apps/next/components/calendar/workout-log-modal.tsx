@@ -4,9 +4,12 @@ import * as React from 'react'
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   CircleDot,
   Dumbbell,
+  LayoutList,
   Loader2,
   MoreVertical,
   PlayCircle,
@@ -46,6 +49,7 @@ import { ExerciseLogNotesDialog } from '@/components/calendar/exercise-log-notes
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
+import { PrCelebrationDialog } from '@/components/workout/pr-celebration-dialog'
 import {
   RestTimerChip,
   RestTimerProvider,
@@ -76,7 +80,6 @@ import { Input } from '@/components/ui/input'
 import { formatDayHeader } from '@/lib/calendar'
 import {
   calcSessionVolumeForExercise,
-  formatPrLabel,
 } from '@/lib/load-analytics'
 import {
   formatVolume,
@@ -95,6 +98,9 @@ import {
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
+  findResumeExerciseIndex,
+  getSectionLabelForExercise,
+  isExerciseFullyLogged,
   isWorkoutFullyLogged,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
@@ -104,6 +110,7 @@ import {
   getWorkoutDisplayStatus,
   groupExercisesBySection,
   parseWeightPercent,
+  parseTargetWeight,
   previousSessionMetTargets,
   suggestProgressiveLoadWeight,
   MAX_LOG_SETS,
@@ -131,6 +138,7 @@ import type {
   WorkoutLogSet,
 } from 'app/types/database'
 import type { WeightUnit } from 'app/types/database'
+import type { NewPrSummary } from '@/lib/pr-records'
 
 type WorkoutLogBaseProps = {
   clientId: string
@@ -141,6 +149,7 @@ type WorkoutLogBaseProps = {
   onChanged: () => void
   variant?: 'coach' | 'client'
   weightUnit?: WeightUnit
+  athleteName?: string
 }
 
 export type WorkoutLogScreenProps = WorkoutLogBaseProps & {
@@ -276,6 +285,7 @@ type WorkoutLogExerciseProps = {
   onNotesChanged: () => void
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
+  className?: string
 }
 
 function WorkoutLogExercise({
@@ -299,6 +309,7 @@ function WorkoutLogExercise({
   onNotesChanged,
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
+  className,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -324,11 +335,15 @@ function WorkoutLogExercise({
       : null
   const allTimeE1rm = personalBest?.e1rm ?? null
   const weightPercent = parseWeightPercent(exercise.weight_percent)
+  const approvedTargetWeight = parseTargetWeight(exercise.target_weight)
   const percentTargetWeight =
-    weightPercent != null && allTimeE1rm != null
+    approvedTargetWeight == null &&
+    weightPercent != null &&
+    allTimeE1rm != null
       ? calculateWeightFromPercent(allTimeE1rm, weightPercent)
       : null
   const progressiveLoadWeight =
+    approvedTargetWeight == null &&
     trackingOptions.autoProgressLoad &&
     previousSessionMetTargets(exercise, previousSets)
       ? suggestProgressiveLoadWeight(exercise, previousSets)
@@ -400,7 +415,12 @@ function WorkoutLogExercise({
   }
 
   return (
-    <Card className="mb-4 gap-0 overflow-hidden py-0 shadow-sm">
+    <Card
+      className={cn(
+        'mb-4 gap-0 overflow-hidden py-0 shadow-sm',
+        className
+      )}
+    >
       {exercise.superset_group && (
         <div
           className={cn(
@@ -457,8 +477,18 @@ function WorkoutLogExercise({
                   {exercise.exercise.name}
                 </p>
                 <p className="text-muted-foreground text-sm">{summary}</p>
-                {(percentTargetWeight != null || progressiveLoadWeight != null) && (
+                {(approvedTargetWeight != null ||
+                  percentTargetWeight != null ||
+                  progressiveLoadWeight != null) && (
                   <div className="text-muted-foreground mt-1 space-y-0.5 text-xs">
+                    {approvedTargetWeight != null && (
+                      <p>
+                        Coach target{' '}
+                        <span className="text-foreground font-medium">
+                          {approvedTargetWeight} lb
+                        </span>
+                      </p>
+                    )}
                     {percentTargetWeight != null && allTimeE1rm != null && (
                       <p>
                         Target load{' '}
@@ -939,6 +969,7 @@ export function WorkoutLogScreen({
   onChanged,
   variant = 'coach',
   weightUnit = 'lbs',
+  athleteName,
 }: WorkoutLogScreenProps) {
   const router = useRouter()
   const isPage = presentation === 'page'
@@ -950,10 +981,17 @@ export function WorkoutLogScreen({
   const [data, setData] = React.useState<WorkoutLogData | null>(null)
   const [exerciseState, setExerciseState] = React.useState<ExerciseLogState>({})
   const [activeSectionIndex, setActiveSectionIndex] = React.useState(0)
+  const [activeExerciseIndex, setActiveExerciseIndex] = React.useState(0)
+  const [sessionViewMode, setSessionViewMode] =
+    React.useState<'guided' | 'list'>('guided')
+  const guidedAutoAdvanceRef = React.useRef(false)
+  const guidedWorkoutInitRef = React.useRef<string | null>(null)
   const [editingExercise, setEditingExercise] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const [replacingExercise, setReplacingExercise] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
+  const [celebrationPrs, setCelebrationPrs] = React.useState<NewPrSummary[]>([])
+  const [showCelebration, setShowCelebration] = React.useState(false)
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
@@ -1123,16 +1161,11 @@ export function WorkoutLogScreen({
     autoCompletingRef.current = false
 
     if (result.success) {
-      toast.success('Workout complete!')
-      for (const pr of result.newPrs) {
-        toast.success(
-          `New PR — ${pr.exerciseName} · ${formatPrLabel(
-            pr.recordType,
-            pr.e1rm,
-            pr.weight,
-            pr.reps
-          )}`
-        )
+      if (result.newPrs.length > 0) {
+        setCelebrationPrs(result.newPrs)
+        setShowCelebration(true)
+      } else {
+        toast.success('Workout complete!')
       }
       await loadData()
       onChangedRef.current()
@@ -1250,6 +1283,75 @@ export function WorkoutLogScreen({
   )
 
   const activeSection = sections[activeSectionIndex] ?? sections[0]
+  const guidedSessionEligible =
+    isClientPortal &&
+    isPage &&
+    !readOnly &&
+    !isCompleted &&
+    Boolean(data && data.exercises.length > 0)
+  const showGuidedSession =
+    guidedSessionEligible && sessionViewMode === 'guided'
+  const orderedExercises = data?.exercises ?? []
+  const activeExercise = orderedExercises[activeExerciseIndex] ?? null
+  const activeExerciseSectionLabel =
+    activeExercise != null
+      ? getSectionLabelForExercise(activeExercise, sections)
+      : null
+
+  React.useEffect(() => {
+    guidedWorkoutInitRef.current = null
+  }, [workoutId])
+
+  React.useEffect(() => {
+    if (!guidedSessionEligible || !data) return
+    if (data.exercises.length > 0 && Object.keys(exerciseState).length === 0) {
+      return
+    }
+
+    if (guidedWorkoutInitRef.current === data.id) return
+
+    guidedWorkoutInitRef.current = data.id
+    setActiveExerciseIndex(
+      findResumeExerciseIndex(data.exercises, exerciseState)
+    )
+  }, [data, exerciseState, guidedSessionEligible])
+
+  React.useEffect(() => {
+    if (!showGuidedSession || !data || !activeExercise) {
+      guidedAutoAdvanceRef.current = false
+      return
+    }
+
+    const sets = exerciseState[activeExercise.id] ?? []
+    if (!isExerciseFullyLogged(sets)) {
+      guidedAutoAdvanceRef.current = false
+      return
+    }
+
+    if (
+      guidedAutoAdvanceRef.current ||
+      activeExerciseIndex >= orderedExercises.length - 1
+    ) {
+      return
+    }
+
+    guidedAutoAdvanceRef.current = true
+    const timer = setTimeout(() => {
+      setActiveExerciseIndex((current) =>
+        Math.min(current + 1, orderedExercises.length - 1)
+      )
+      guidedAutoAdvanceRef.current = false
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [
+    activeExercise,
+    activeExerciseIndex,
+    exerciseState,
+    orderedExercises.length,
+    showGuidedSession,
+    data,
+  ])
 
   React.useEffect(() => {
     if (!active || readOnly || !data) return
@@ -1479,6 +1581,48 @@ export function WorkoutLogScreen({
     : false
   const isLoggingActive = active && data?.status === 'in_progress'
 
+  function renderWorkoutLogExercise(
+    exercise: ScheduledWorkoutExerciseWithDetails,
+    options?: { className?: string }
+  ) {
+    if (!data) return null
+
+    return (
+      <WorkoutLogExercise
+        key={exercise.id}
+        exercise={exercise}
+        libraryExercises={exercises}
+        sets={exerciseState[exercise.id] ?? []}
+        previousSets={
+          data.previousSetsByExerciseId[exercise.exercise_id] ?? {}
+        }
+        previousSessionDate={
+          data.previousSessionDateByExerciseId[exercise.exercise_id] ?? null
+        }
+        personalBest={
+          data.personalBestsByExerciseId[exercise.exercise_id] ?? null
+        }
+        readOnly={readOnly}
+        isWorkoutActive={isLoggingActive}
+        clientId={clientId}
+        workoutId={workoutId}
+        variant={variant}
+        onSetChange={(setNumber, patch) =>
+          handleSetChange(exercise, setNumber, patch)
+        }
+        onAddSet={() => handleAddSet(exercise)}
+        onRemoveSet={(setNumber) => handleRemoveSet(exercise, setNumber)}
+        onEdit={() => setEditingExercise(exercise)}
+        onReplace={() => setReplacingExercise(exercise)}
+        onDelete={() => void handleRemoveExercise(exercise)}
+        onNotesChanged={() => void loadData()}
+        allowPrescriptionEdits={canEditPrescription}
+        weightUnit={weightUnit}
+        className={options?.className}
+      />
+    )
+  }
+
   const logContent = (
     <RestTimerProvider>
       <div
@@ -1503,7 +1647,7 @@ export function WorkoutLogScreen({
           )}
 
           {isPage && (
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -1514,6 +1658,21 @@ export function WorkoutLogScreen({
                 <ArrowLeft className="size-4" />
                 Back
               </Button>
+              {guidedSessionEligible ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setSessionViewMode((current) =>
+                      current === 'guided' ? 'list' : 'guided'
+                    )
+                  }
+                >
+                  <LayoutList className="size-4" />
+                  {sessionViewMode === 'guided' ? 'List view' : 'Guided'}
+                </Button>
+              ) : null}
             </div>
           )}
 
@@ -1574,7 +1733,7 @@ export function WorkoutLogScreen({
               </div>
             )}
 
-            {sections.length > 1 && (
+            {sections.length > 1 && !showGuidedSession && (
               <div className="-mx-1 overflow-x-auto px-1 pb-0.5">
                 <div className="inline-flex gap-1.5">
                   {sections.map((section, index) => (
@@ -1642,6 +1801,20 @@ export function WorkoutLogScreen({
                 </div>
               )}
             </div>
+          ) : showGuidedSession && activeExercise ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              {activeExerciseSectionLabel && sections.length > 1 ? (
+                <div className="border-b py-3">
+                  <p className="text-muted-foreground text-xs font-medium">
+                    Section
+                  </p>
+                  <p className="font-semibold">{activeExerciseSectionLabel}</p>
+                </div>
+              ) : null}
+              {renderWorkoutLogExercise(activeExercise, {
+                className: 'mb-0 shadow-md',
+              })}
+            </div>
           ) : (
             <div>
               {sections.length > 1 && activeSection && (
@@ -1660,45 +1833,55 @@ export function WorkoutLogScreen({
               {(sections.length > 1 && activeSection
                 ? activeSection.exercises
                 : data.exercises
-              ).map((exercise) => (
-                <WorkoutLogExercise
-                  key={exercise.id}
-                  exercise={exercise}
-                  libraryExercises={exercises}
-                  sets={exerciseState[exercise.id] ?? []}
-                  previousSets={
-                    data.previousSetsByExerciseId[exercise.exercise_id] ?? {}
-                  }
-                  previousSessionDate={
-                    data.previousSessionDateByExerciseId[exercise.exercise_id] ??
-                    null
-                  }
-                  personalBest={
-                    data.personalBestsByExerciseId[exercise.exercise_id] ?? null
-                  }
-                  readOnly={readOnly}
-                  isWorkoutActive={isLoggingActive}
-                  clientId={clientId}
-                  workoutId={workoutId}
-                  variant={variant}
-                  onSetChange={(setNumber, patch) =>
-                    handleSetChange(exercise, setNumber, patch)
-                  }
-                  onAddSet={() => handleAddSet(exercise)}
-                  onRemoveSet={(setNumber) =>
-                    handleRemoveSet(exercise, setNumber)
-                  }
-                  onEdit={() => setEditingExercise(exercise)}
-                  onReplace={() => setReplacingExercise(exercise)}
-                  onDelete={() => void handleRemoveExercise(exercise)}
-                  onNotesChanged={() => void loadData()}
-                  allowPrescriptionEdits={canEditPrescription}
-                  weightUnit={weightUnit}
-                />
-              ))}
+              ).map((exercise) => renderWorkoutLogExercise(exercise))}
             </div>
           )}
         </div>
+
+        {showGuidedSession && activeExercise && !loading ? (
+          <div className="bg-card shrink-0 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={activeExerciseIndex === 0}
+                onClick={() =>
+                  setActiveExerciseIndex((current) => Math.max(0, current - 1))
+                }
+              >
+                <ChevronLeft className="size-4" />
+                <span className="hidden sm:inline">Prev</span>
+              </Button>
+              <div className="min-w-0 flex-1 text-center">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {activeExerciseSectionLabel
+                    ? `${activeExerciseSectionLabel} · `
+                    : ''}
+                  Exercise {activeExerciseIndex + 1} of {orderedExercises.length}
+                </p>
+                <p className="truncate text-sm font-semibold">
+                  {activeExercise.exercise.name}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                disabled={activeExerciseIndex >= orderedExercises.length - 1}
+                onClick={() =>
+                  setActiveExerciseIndex((current) =>
+                    Math.min(orderedExercises.length - 1, current + 1)
+                  )
+                }
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {canEditPrescription && editingExercise && (
           <EditScheduledExerciseDialog
@@ -1736,20 +1919,43 @@ export function WorkoutLogScreen({
     </RestTimerProvider>
   )
 
+  const celebrationDialog = (
+    <PrCelebrationDialog
+      open={showCelebration}
+      onOpenChange={(open) => {
+        setShowCelebration(open)
+        if (!open) {
+          setCelebrationPrs([])
+          toast.success('Workout complete!')
+        }
+      }}
+      prs={celebrationPrs}
+      workoutName={data?.name ?? 'Workout'}
+      athleteName={athleteName}
+      weightUnit={weightUnit}
+    />
+  )
+
   if (isPage) {
     return (
-      <div className="bg-background fixed inset-0 z-50 flex flex-col md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border">
-        {logContent}
-      </div>
+      <>
+        <div className="bg-background fixed inset-0 z-50 flex flex-col md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border">
+          {logContent}
+        </div>
+        {celebrationDialog}
+      </>
     )
   }
 
   return (
-    <Dialog open={active} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
-        {logContent}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={active} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
+          {logContent}
+        </DialogContent>
+      </Dialog>
+      {celebrationDialog}
+    </>
   )
 }
 

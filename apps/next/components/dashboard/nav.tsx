@@ -20,6 +20,8 @@ import {
 
   MessageSquare,
 
+  TrendingUp,
+
   Trophy,
 
   Users,
@@ -114,6 +116,12 @@ export const navGroups: NavGroup[] = [
       { label: 'Library', href: '/library', icon: LibraryBig },
 
       { label: 'Load Management', href: '/load', icon: Activity },
+
+      {
+        label: 'Progressive overload',
+        href: '/progressive-overload',
+        icon: TrendingUp,
+      },
 
     ],
 

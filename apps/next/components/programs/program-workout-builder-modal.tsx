@@ -133,7 +133,7 @@ export function ProgramWorkoutBuilderModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(92dvh,900px)] max-h-[92dvh] w-[min(96vw,1400px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
-        <div className="shrink-0 border-b px-5 py-4 pr-14">
+        <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
           <DialogDescription className="sr-only">
             Workout builder for {formatProgramDayLabel(dayOffset)}
@@ -144,8 +144,8 @@ export function ProgramWorkoutBuilderModal({
               onSubmit={form.handleSubmit((values) => handleSave(values, false))}
               className="space-y-3"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <p className="text-muted-foreground text-xs font-medium">
                     {formatProgramDayLabel(dayOffset)}
                   </p>
@@ -167,12 +167,13 @@ export function ProgramWorkoutBuilderModal({
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
                   {onCopy && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="col-span-2 sm:col-span-1"
                       onClick={onCopy}
                     >
                       <Copy className="size-4" />
@@ -197,7 +198,8 @@ export function ProgramWorkoutBuilderModal({
                     )}
                   >
                     {pending && <Loader2 className="size-4 animate-spin" />}
-                    Save & close
+                    <span className="sm:hidden">Close</span>
+                    <span className="hidden sm:inline">Save & close</span>
                   </Button>
                 </div>
               </div>

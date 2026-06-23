@@ -43,6 +43,14 @@ export type PortalFormReviewHighlight = {
   } | null
 }
 
+export type PortalMessageHighlight = {
+  latestCoachMessage: {
+    body: string
+    createdAt: string
+  } | null
+  unreadCount: number
+}
+
 const TRACKABLE_GOAL_CATEGORIES = new Set<ClientGoal['category']>([
   'habit',
   'performance',
@@ -212,4 +220,72 @@ export async function fetchPortalFormReviewHighlight(
         }
       : null,
   }
+}
+
+function truncateMessagePreview(body: string, maxLength = 120) {
+  const normalized = body.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
+}
+
+export async function fetchPortalMessageHighlight(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string
+): Promise<PortalMessageHighlight | null> {
+  const [latestResult, threadResult, unreadResult] = await Promise.all([
+    supabase
+      .from('client_messages')
+      .select('body, created_at')
+      .eq('client_id', clientId)
+      .eq('sender_role', 'coach')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('client_message_threads')
+      .select('client_last_read_at')
+      .eq('client_id', clientId)
+      .maybeSingle(),
+    supabase
+      .from('client_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+      .eq('sender_role', 'coach'),
+  ])
+
+  const schemaError =
+    latestResult.error?.message ??
+    threadResult.error?.message ??
+    unreadResult.error?.message
+
+  if (schemaError?.includes('Could not find the table')) {
+    return null
+  }
+
+  const latestCoachMessage = latestResult.data
+    ? {
+        body: truncateMessagePreview(latestResult.data.body),
+        createdAt: latestResult.data.created_at,
+      }
+    : null
+
+  const clientLastReadAt = threadResult.data?.client_last_read_at
+  let unreadCount = 0
+
+  if (clientLastReadAt) {
+    const { count, error } = await supabase
+      .from('client_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+      .eq('sender_role', 'coach')
+      .gt('created_at', clientLastReadAt)
+
+    if (!error) {
+      unreadCount = count ?? 0
+    }
+  } else if (latestCoachMessage) {
+    unreadCount = unreadResult.count ?? 1
+  }
+
+  return { latestCoachMessage, unreadCount }
 }

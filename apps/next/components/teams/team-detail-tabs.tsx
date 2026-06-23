@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-panel'
+import { TeamChallengesPanel } from '@/components/teams/team-challenges-panel'
 import { TeamEventsPanel } from '@/components/teams/team-events-panel'
 import { TeamMembersPanel } from '@/components/teams/team-members-panel'
 import { TeamOverviewPanel } from '@/components/teams/team-overview-panel'
@@ -21,6 +22,7 @@ import type {
   TeamProgramHistoryEntry,
   TeamProgramProgress,
 } from 'app/types/database'
+import type { TeamChallengeWithLeaderboard } from '@/lib/team-challenges'
 
 type TeamDetailTabsProps = {
   teamId: string
@@ -38,7 +40,10 @@ type TeamDetailTabsProps = {
   programHistory: TeamProgramHistoryEntry[]
   nextEvent: TeamEventWithMemberStatus | null
   exercises: { id: string; name: string }[]
+  weightClasses?: string[]
+  challenges?: TeamChallengeWithLeaderboard[]
   canEditLeaderboardLifts: boolean
+  canManageChallenges?: boolean
   initialTab?: string
   highlightDate?: string | null
 }
@@ -59,7 +64,10 @@ export function TeamDetailTabs({
   programHistory,
   nextEvent,
   exercises,
+  weightClasses = [],
+  challenges = [],
   canEditLeaderboardLifts,
+  canManageChallenges = false,
   initialTab,
   highlightDate,
 }: TeamDetailTabsProps) {
@@ -88,6 +96,7 @@ export function TeamDetailTabs({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="challenges">Challenges</TabsTrigger>
           <TabsTrigger value="program">Program</TabsTrigger>
         </TabsList>
       </div>
@@ -122,6 +131,17 @@ export function TeamDetailTabs({
           teamAssignedClientIds={teamAssignedClientIds}
           performanceByClientId={performanceByClientId}
           nextEvent={nextEvent}
+        />
+      </TabsContent>
+
+      <TabsContent value="challenges">
+        <TeamChallengesPanel
+          teamId={teamId}
+          teamName={team.name}
+          challenges={challenges}
+          exercises={exercises}
+          weightClasses={weightClasses}
+          canManage={canManageChallenges}
         />
       </TabsContent>
 

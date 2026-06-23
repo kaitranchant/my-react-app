@@ -18,6 +18,7 @@ type WorkoutLogPageProps = {
   variant: 'coach' | 'client'
   weightUnit?: WeightUnit
   returnHref: string
+  athleteName?: string
 }
 
 export function WorkoutLogPage({
@@ -29,6 +30,7 @@ export function WorkoutLogPage({
   variant,
   weightUnit = 'lbs',
   returnHref,
+  athleteName,
 }: WorkoutLogPageProps) {
   const router = useRouter()
 
@@ -44,6 +46,7 @@ export function WorkoutLogPage({
       variant={variant}
       weightUnit={weightUnit}
       returnHref={returnHref}
+      athleteName={athleteName}
       onChanged={() => router.refresh()}
     />
   )

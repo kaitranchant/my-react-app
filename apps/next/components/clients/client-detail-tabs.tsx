@@ -18,6 +18,7 @@ import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { coerceDateKey } from '@/lib/calendar'
 import type { GoalProgressContext } from '@/lib/goal-progress-context'
+import type { TrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type {
   CalendarDaySummary,
@@ -165,6 +166,7 @@ type ClientDetailTabsProps = {
     acwrVariant: 'success' | 'warning' | 'secondary'
   }
   recentPrs?: RecentPrHighlight[]
+  trainingConsistency?: TrainingConsistencyHeatmap | null
   coachPreferences?: CoachPreferences
   initialTab?: string
   initialSection?: string
@@ -192,6 +194,7 @@ export function ClientDetailTabs({
   photosByCheckInId = {},
   loadMetrics,
   recentPrs = [],
+  trainingConsistency = null,
   coachPreferences,
   initialTab,
   initialSection,
@@ -329,6 +332,7 @@ export function ClientDetailTabs({
           checkIns={checkIns}
           loadMetrics={loadMetrics}
           recentPrs={recentPrs}
+          trainingConsistency={trainingConsistency}
           weekStartsOn={coachPreferences?.weekStartsOn}
           weightUnit={coachPreferences?.weightUnit}
           onOpenCalendar={() => openTraining('calendar')}

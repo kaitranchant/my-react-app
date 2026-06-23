@@ -23,6 +23,7 @@ import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
+import { ProactiveAlerts } from '@/components/dashboard/proactive-alerts'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { TodaysSchedule } from '@/components/dashboard/todays-schedule'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -30,8 +31,10 @@ import {
   defaultNotificationPreferences,
   filterActionItemsForNotifications,
   filterActivityFeedForNotifications,
+  filterProactiveAlertsForNotifications,
 } from '@/lib/notification-preferences'
 import { getNotificationPreferencesForUser } from '@/lib/notification-preferences-server'
+import { buildProactiveAlerts } from '@/lib/proactive-alerts'
 import { getGymsForCoach } from '@/lib/gym-access'
 import type { Client } from 'app/types/database'
 
@@ -139,6 +142,7 @@ export default async function DashboardPage() {
         : Promise.resolve({
             inboxUnread: 0,
             pendingFormReviews: 0,
+            pendingProgressiveOverload: 0,
           }),
     ])
 
@@ -200,7 +204,15 @@ export default async function DashboardPage() {
             full_name: client.full_name,
           }))
         )
-      : { elevatedLoadCount: 0, injuryFlagCount: 0 }
+      : { elevatedLoadCount: 0, injuryFlagCount: 0, clientContexts: [] }
+
+  const proactiveAlerts = filterProactiveAlertsForNotifications(
+    buildProactiveAlerts({
+      clientContexts: loadAlerts.clientContexts,
+      pendingCheckInsCount: pendingCheckInsCount ?? 0,
+    }),
+    notificationPreferences ?? defaultNotificationPreferences
+  )
 
   const actionItems = filterActionItemsForNotifications(
     buildActionItems({
@@ -208,12 +220,12 @@ export default async function DashboardPage() {
       pendingInvites,
       clientsWithoutWorkoutThisWeek,
       skippedThisWeek,
-      pendingCheckIns: pendingCheckInsCount ?? 0,
+      pendingCheckIns: 0,
       clientsWithoutCheckInThisPeriod,
       checkInPeriodLabel,
       pendingFormReviews: navBadges.pendingFormReviews,
-      elevatedLoadClients: loadAlerts.elevatedLoadCount,
-      injuryFlagClients: loadAlerts.injuryFlagCount,
+      elevatedLoadClients: 0,
+      injuryFlagClients: 0,
       unreadMessages: navBadges.inboxUnread,
     }),
     notificationPreferences ?? defaultNotificationPreferences
@@ -307,6 +319,8 @@ export default async function DashboardPage() {
         completionRate={completionRate}
         weekWorkoutCount={weekWorkoutList.length}
       />
+
+      <ProactiveAlerts alerts={proactiveAlerts} />
 
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
         <TodaysSchedule sessions={sessions} />

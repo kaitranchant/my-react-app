@@ -1,5 +1,7 @@
 import { PortalProgressGallery } from '@/components/portal/portal-progress-gallery'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
+import { PortalStrengthHistoryChart } from '@/components/portal/portal-strength-history-chart'
+import { PortalTrainingConsistencyHeatmap } from '@/components/portal/portal-training-consistency-heatmap'
 import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
 import { PortalStatCard } from '@/components/portal/portal-stat-cards'
 import { VolumeBarChart } from '@/components/load/volume-bar-chart'
@@ -42,7 +44,8 @@ export default async function PortalProgressPage() {
       <section className="space-y-1">
         <h1 className="page-title">Progress</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Track training volume, personal records, and progress photos over time.
+          Track training volume, strength trends, personal records, and progress
+          photos over time.
         </p>
       </section>
 
@@ -120,6 +123,23 @@ export default async function PortalProgressPage() {
               </Card>
             )}
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Training consistency</CardTitle>
+              <CardDescription>
+                A year of completed sessions at a glance. Darker squares mean
+                more workouts logged that day. Outlined squares are missed
+                sessions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PortalTrainingConsistencyHeatmap
+                heatmap={progressData.trainingConsistency}
+                weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
+              />
+            </CardContent>
+          </Card>
+
           {progressData.loadMetrics &&
             progressData.loadMetrics.weeklyVolumes.some(
               (bucket) => bucket.volume > 0
@@ -145,6 +165,24 @@ export default async function PortalProgressPage() {
                 </CardContent>
               </Card>
             )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Strength history</CardTitle>
+              <CardDescription>
+                See how your estimated 1RM has progressed over the last 6 months
+                for any exercise you&apos;ve hit a PR on.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PortalStrengthHistoryChart
+                exercises={progressData.strengthHistoryExercises}
+                initialExerciseId={progressData.strengthHistoryExerciseId}
+                initialTrend={progressData.strengthHistoryTrend}
+                weightUnit={coachPreferences?.weightUnit ?? 'lbs'}
+              />
+            </CardContent>
+          </Card>
 
           <PortalRecentPrs recentPrs={progressData.recentPrs} showViewAll />
 

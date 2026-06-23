@@ -52,6 +52,7 @@ export function formatExercisePrescriptionSummary(
     | 'rest_seconds'
     | 'weight_percent'
     | 'rpe_target'
+    | 'target_weight'
     | 'superset_group'
     | 'exercise_block'
     | 'workout_notes'
@@ -78,6 +79,9 @@ export function formatExercisePrescriptionSummary(
   if (row.rest_seconds?.trim()) parts.push(`${row.rest_seconds.trim()}s rest`)
   if (row.weight_percent?.trim()) {
     parts.push(`${row.weight_percent.trim().replace(/%$/, '')}% 1RM`)
+  }
+  if (row.target_weight?.trim()) {
+    parts.push(`@ ${row.target_weight.trim()}`)
   }
   if (row.rpe_target?.trim()) parts.push(`RPE ${row.rpe_target.trim()}`)
   if (row.prescription?.trim()) parts.push(row.prescription.trim())

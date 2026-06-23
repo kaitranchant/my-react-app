@@ -12,7 +12,17 @@ import {
 } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import type { RecentPrHighlight } from '@/lib/pr-records'
+import {
+  fetchStrengthHistoryExercises,
+  fetchStrengthHistoryForExercise,
+  type StrengthHistoryExercise,
+  type StrengthHistoryTrend,
+} from '@/lib/strength-history'
 import { attachSignedUrlsToPhotos } from '@/lib/progress-photos'
+import {
+  fetchTrainingConsistencyHeatmap,
+  type TrainingConsistencyHeatmap,
+} from '@/lib/training-consistency'
 import type { createClient } from '@/lib/supabase/server'
 import type {
   CalendarDaySummary,
@@ -58,6 +68,7 @@ export type PortalHomeData = {
   completionRate: number | null
   lastActive: string
   recentPrs: RecentPrHighlight[]
+  trainingConsistency: TrainingConsistencyHeatmap
 }
 
 export type PortalProgressData = {
@@ -68,6 +79,10 @@ export type PortalProgressData = {
   recentPrs: RecentPrHighlight[]
   progressPhotos: ClientProgressPhotoWithUrl[]
   weekSessions: CalendarDaySummary[]
+  strengthHistoryExercises: StrengthHistoryExercise[]
+  strengthHistoryTrend: StrengthHistoryTrend | null
+  strengthHistoryExerciseId: string | null
+  trainingConsistency: TrainingConsistencyHeatmap
 }
 
 export async function fetchPortalHomeData(
@@ -99,6 +114,7 @@ export async function fetchPortalHomeData(
     periodCheckInResult,
     streakResult,
     recentWorkoutsResult,
+    trainingConsistency,
   ] = await Promise.all([
     fetchClientLoadMetrics(supabase, clientId).catch(() => null),
     supabase
@@ -133,6 +149,11 @@ export async function fetchPortalHomeData(
       .in('status', ['completed', 'in_progress', 'skipped'])
       .order('updated_at', { ascending: false })
       .limit(12),
+    fetchTrainingConsistencyHeatmap(
+      supabase,
+      clientId,
+      coachPreferences.weekStartsOn
+    ),
   ])
 
   const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
@@ -153,6 +174,7 @@ export async function fetchPortalHomeData(
     completionRate: calcClientCompletionRate(weekSessions),
     lastActive: getLastActiveLabel(recentWorkouts),
     recentPrs: loadMetricsResult?.recentPrs ?? [],
+    trainingConsistency,
   }
 }
 
@@ -180,6 +202,7 @@ export async function fetchPortalProgressData(
     streakResult,
     recentWorkoutsResult,
     progressPhotosResult,
+    trainingConsistency,
   ] = await Promise.all([
     fetchClientLoadMetrics(supabase, clientId).catch(() => null),
     supabase
@@ -212,6 +235,11 @@ export async function fetchPortalProgressData(
       .order('photo_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50),
+    fetchTrainingConsistencyHeatmap(
+      supabase,
+      clientId,
+      coachPreferences.weekStartsOn
+    ),
   ])
 
   const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
@@ -221,6 +249,19 @@ export async function fetchPortalProgressData(
     supabase,
     progressPhotosResult.data ?? []
   )
+  const strengthHistoryExercises = await fetchStrengthHistoryExercises(
+    supabase,
+    clientId
+  )
+  const strengthHistoryExerciseId = strengthHistoryExercises[0]?.id ?? null
+  const strengthHistoryTrend = strengthHistoryExerciseId
+    ? await fetchStrengthHistoryForExercise(
+        supabase,
+        clientId,
+        strengthHistoryExerciseId,
+        coachPreferences.weightUnit
+      )
+    : null
 
   return {
     loadMetrics: loadMetricsResult,
@@ -230,5 +271,9 @@ export async function fetchPortalProgressData(
     recentPrs: loadMetricsResult?.recentPrs ?? [],
     progressPhotos,
     weekSessions,
+    strengthHistoryExercises,
+    strengthHistoryTrend,
+    strengthHistoryExerciseId,
+    trainingConsistency,
   }
 }

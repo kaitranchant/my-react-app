@@ -10,6 +10,7 @@ export const defaultNotificationPreferences: NotificationPreferences = {
   notifyWorkoutCompletions: true,
   notifyMissedSessions: false,
   notifyInviteAccepted: true,
+  notifyPrs: true,
   notifyWeeklySummary: false,
 }
 
@@ -20,6 +21,7 @@ type ProfileNotificationRow = Pick<
   | 'notify_workout_completions'
   | 'notify_missed_sessions'
   | 'notify_invite_accepted'
+  | 'notify_prs'
   | 'notify_weekly_summary'
 >
 
@@ -40,6 +42,7 @@ export function parseNotificationPreferences(
     notifyInviteAccepted:
       row?.notify_invite_accepted ??
       defaultNotificationPreferences.notifyInviteAccepted,
+    notifyPrs: row?.notify_prs ?? defaultNotificationPreferences.notifyPrs,
     notifyWeeklySummary:
       row?.notify_weekly_summary ??
       defaultNotificationPreferences.notifyWeeklySummary,
@@ -53,6 +56,7 @@ export function notificationPreferencesToRow(values: NotificationPreferences) {
     notify_workout_completions: values.notifyWorkoutCompletions,
     notify_missed_sessions: values.notifyMissedSessions,
     notify_invite_accepted: values.notifyInviteAccepted,
+    notify_prs: values.notifyPrs,
     notify_weekly_summary: values.notifyWeeklySummary,
   }
 }
@@ -99,3 +103,23 @@ export function filterActivityFeedForNotifications(
     return true
   })
 }
+
+export function filterProactiveAlertsForNotifications<
+  T extends { kind: ProactiveAlertKind },
+>(
+  alerts: T[],
+  preferences: NotificationPreferences
+): T[] {
+  return alerts.filter((alert) => {
+    switch (alert.kind) {
+      case 'check_in':
+        return preferences.notifyCheckIns
+      case 'inactive':
+        return preferences.notifyMissedSessions
+      default:
+        return true
+    }
+  })
+}
+
+type ProactiveAlertKind = 'inactive' | 'acwr' | 'injury' | 'check_in'

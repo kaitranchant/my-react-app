@@ -181,6 +181,7 @@ export function DashboardNavContent({
   const badgeByHref: Record<string, number> = {
     '/messages': badges?.inboxUnread ?? 0,
     '/form-review': badges?.pendingFormReviews ?? 0,
+    '/progressive-overload': badges?.pendingProgressiveOverload ?? 0,
   }
 
   return (

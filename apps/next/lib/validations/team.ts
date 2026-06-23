@@ -137,3 +137,46 @@ export const unassignProgramFromTeamSchema = z.object({
 export type UnassignProgramFromTeamValues = z.infer<
   typeof unassignProgramFromTeamSchema
 >
+
+export const teamChallengeMetrics = [
+  'strength',
+  'relative_strength',
+  'consistency',
+  'volume',
+  'most_improved',
+] as const
+
+export type TeamChallengeMetricValue = (typeof teamChallengeMetrics)[number]
+
+export const teamChallengeFormSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Name is required')
+      .max(120, 'Name is too long'),
+    description: z.string().trim().max(2000, 'Description is too long').optional(),
+    metric: z.enum(teamChallengeMetrics),
+    exerciseId: z.string().uuid().or(z.literal('none')).optional(),
+    formula: z.enum(['dots', 'wilks']).optional(),
+    weightClassFilter: z.string().trim().max(80).optional(),
+    startDate: z.string().min(1, 'Start date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+  })
+  .refine((value) => value.endDate >= value.startDate, {
+    message: 'End date must be on or after the start date.',
+    path: ['endDate'],
+  })
+  .superRefine((value, ctx) => {
+    const needsExercise =
+      value.metric === 'strength' || value.metric === 'most_improved'
+    if (needsExercise && (!value.exerciseId || value.exerciseId === 'none')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select an exercise for this challenge metric.',
+        path: ['exerciseId'],
+      })
+    }
+  })
+
+export type TeamChallengeFormValues = z.infer<typeof teamChallengeFormSchema>

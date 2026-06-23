@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { notifyCoachOfClientPrs } from '@/lib/notifications/notify-coach-prs'
 import { requirePortalClientContext, type PortalClientContext } from '@/lib/portal-client'
 import {
   evaluateAndPersistWorkoutPrs,
@@ -291,6 +292,14 @@ export async function completePortalWorkoutLog(
     logSets,
     achievedAt,
   })
+
+  void notifyCoachOfClientPrs({
+    coachId: clientRow.coach_id,
+    clientId: client.id,
+    clientName: client.full_name,
+    workoutName: workout.name,
+    newPrs,
+  }).catch(() => undefined)
 
   revalidatePortal()
   return { success: true, newPrs }

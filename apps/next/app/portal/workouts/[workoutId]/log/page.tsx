@@ -48,6 +48,7 @@ export default async function PortalWorkoutLogRoute({
       initialStatus={workout.status as ScheduledWorkoutStatus}
       exercises={[]}
       variant="client"
+      athleteName={portalCtx.client.full_name}
       returnHref={getWorkoutLogReturnHref(selectedDate, { variant: 'client' })}
     />
   )

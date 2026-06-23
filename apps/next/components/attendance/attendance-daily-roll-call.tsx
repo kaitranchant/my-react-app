@@ -242,6 +242,8 @@ export function AttendanceDailyRollCall({
                 <li key={client.id} className="py-3">
                   <PersonRow
                     as="div"
+                    stackTrailingOnMobile
+                    trailingClassName="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 sm:flex sm:w-auto"
                     name={client.full_name}
                     avatarUrl={client.avatar_url}
                     href={`/clients/${client.id}`}
@@ -281,6 +283,7 @@ export function AttendanceDailyRollCall({
                             handleStatusChange(client.id, status)
                           }
                           disabled={pending}
+                          className="w-full min-w-0 sm:w-[10rem]"
                         />
                         <AttendanceCoachingTypeSelect
                           value={record?.coaching_type ?? null}
@@ -289,6 +292,7 @@ export function AttendanceDailyRollCall({
                             handleCoachingTypeChange(client.id, coachingType)
                           }
                           disabled={pending}
+                          className="w-full min-w-0 sm:w-[8.75rem]"
                         />
                         <AttendanceNotesButton
                           clientId={client.id}

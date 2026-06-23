@@ -16,6 +16,8 @@ import { TeamDetailTabs } from '@/components/teams/team-detail-tabs'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
 import { TeamDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { getGymsForCoach, isPrimaryTeamCoach } from '@/lib/gym-access'
+import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { fetchTeamChallengesWithLeaderboards } from '@/lib/team-challenges'
 import type {
   Client,
   Program,
@@ -208,6 +210,21 @@ export default async function TeamDetailPage({
   const nextEvent =
     eventsWithStatuses.find((event) => event.event_date >= todayKey) ?? null
 
+  const coachPreferences = await getCoachPreferencesForCoachId(team.coach_id)
+  const challenges = await fetchTeamChallengesWithLeaderboards(
+    supabase,
+    teamId,
+    team.coach_id,
+    coachPreferences
+  )
+  const weightClasses = Array.from(
+    new Set(
+      members
+        .map((member) => member.weight_class?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  ).sort((left, right) => left.localeCompare(right))
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <Suspense fallback={null}>
@@ -272,7 +289,10 @@ export default async function TeamDetailPage({
           programHistory={programHistory}
           nextEvent={nextEvent}
           exercises={exerciseRows ?? []}
+          weightClasses={weightClasses}
+          challenges={challenges}
           canEditLeaderboardLifts={viewerIsPrimaryCoach}
+          canManageChallenges={viewerIsPrimaryCoach}
           initialTab={initialTab}
           highlightDate={highlightDate ?? null}
         />

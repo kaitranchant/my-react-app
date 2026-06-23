@@ -197,6 +197,51 @@ function shiftDateKey(dateKey: string, days: number): string {
   return toDateKey(date)
 }
 
+function daysBetweenDateKeys(startDate: string, endDate: string): number {
+  const start = new Date(`${startDate}T12:00:00`)
+  const end = new Date(`${endDate}T12:00:00`)
+  return Math.max(
+    1,
+    Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+  )
+}
+
+export function formatChallengeDateRange(
+  startDate: string,
+  endDate: string
+): string {
+  const start = new Date(`${startDate}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+  const end = new Date(`${endDate}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  return `${start} – ${end}`
+}
+
+export function getChallengePeriodBounds(
+  startDate: string,
+  endDate: string,
+  referenceDate: Date = new Date()
+): LeaderboardPeriodBounds {
+  const today = toDateKey(referenceDate)
+  const effectiveEnd = endDate < today ? endDate : today
+  const durationDays = daysBetweenDateKeys(startDate, endDate)
+  const previousEnd = shiftDateKey(startDate, -1)
+  const previousStart = shiftDateKey(previousEnd, -(durationDays - 1))
+
+  return {
+    start: startDate,
+    end: effectiveEnd,
+    previousStart,
+    previousEnd,
+    label: formatChallengeDateRange(startDate, endDate),
+  }
+}
+
 export function rankLeaderboardRows(
   rows: LeaderboardRowData[]
 ): LeaderboardRow[] {

@@ -184,6 +184,15 @@ export function parseWeightPercent(
   return percent
 }
 
+export function parseTargetWeight(
+  value: string | null | undefined
+): number | null {
+  if (!value?.trim()) return null
+  const parsed = Number.parseFloat(value.trim())
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return parsed
+}
+
 export function roundToWeightIncrement(
   weight: number,
   increment = DEFAULT_WEIGHT_INCREMENT
@@ -271,10 +280,13 @@ export function getSuggestedLogValuesForSet(
   }
 
   if (fields.showWeight) {
+    const targetWeight = parseTargetWeight(exercise.target_weight)
     const e1rm = options.personalBest?.e1rm ?? null
     const percent = parseWeightPercent(exercise.weight_percent)
 
-    if (e1rm != null && percent != null) {
+    if (targetWeight != null) {
+      weight = String(targetWeight)
+    } else if (e1rm != null && percent != null) {
       weight = String(calculateWeightFromPercent(e1rm, percent))
     } else {
       const progressiveWeight = suggestProgressiveLoadWeight(
@@ -522,6 +534,39 @@ export function countCompletedSets(logSets: WorkoutLogSet[]): number {
   return logSets.filter((row) => row.completed).length
 }
 
+export function isExerciseFullyLogged(sets: WorkoutLogSetDraft[]): boolean {
+  return sets.length > 0 && sets.every((set) => set.completed)
+}
+
+export function findResumeExerciseIndex(
+  exercises: ScheduledWorkoutExerciseWithDetails[],
+  exerciseState: Record<string, WorkoutLogSetDraft[]>
+): number {
+  if (exercises.length === 0) return 0
+
+  const firstIncomplete = exercises.findIndex((exercise) => {
+    const sets = exerciseState[exercise.id] ?? []
+    return !isExerciseFullyLogged(sets)
+  })
+
+  return firstIncomplete === -1 ? exercises.length - 1 : firstIncomplete
+}
+
+export function getSectionLabelForExercise(
+  exercise: ScheduledWorkoutExerciseWithDetails,
+  sections: WorkoutLogSection[]
+): string | null {
+  if (sections.length <= 1) return null
+
+  for (const section of sections) {
+    if (section.exercises.some((row) => row.id === exercise.id)) {
+      return section.label
+    }
+  }
+
+  return null
+}
+
 export function isWorkoutFullyLogged(
   exercises: ScheduledWorkoutExerciseWithDetails[],
   exerciseState: Record<string, WorkoutLogSetDraft[]>
@@ -530,7 +575,7 @@ export function isWorkoutFullyLogged(
 
   return exercises.every((exercise) => {
     const sets = exerciseState[exercise.id] ?? []
-    return sets.length > 0 && sets.every((set) => set.completed)
+    return isExerciseFullyLogged(sets)
   })
 }
 

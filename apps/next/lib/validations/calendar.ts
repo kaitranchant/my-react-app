@@ -43,6 +43,7 @@ export const scheduledExercisePrescriptionSchema = z.object({
   tempo: z.string().trim().max(40).optional(),
   restSeconds: z.string().trim().max(20).optional(),
   weightPercent: z.string().trim().max(20).optional(),
+  targetWeight: z.string().trim().max(20).optional(),
   rpeTarget: z.string().trim().max(20).optional(),
   exerciseBlock: exerciseBlockSchema,
   supersetGroup: z
@@ -97,6 +98,7 @@ export const defaultPrescriptionValues: ScheduledExercisePrescriptionValues = {
   tempo: '',
   restSeconds: '',
   weightPercent: '',
+  targetWeight: '',
   rpeTarget: '',
   exerciseBlock: '',
   supersetGroup: '',
@@ -134,6 +136,9 @@ export function prescriptionValuesToDbRow(
     weight_percent: values.weightPercent?.trim()
       ? values.weightPercent.trim()
       : null,
+    target_weight: values.targetWeight?.trim()
+      ? values.targetWeight.trim()
+      : null,
     rpe_target: values.rpeTarget?.trim() ? values.rpeTarget.trim() : null,
     exercise_block:
       exerciseBlock && isScheduledExerciseBlock(exerciseBlock)
@@ -154,6 +159,7 @@ export function rowToPrescriptionValues(row: {
   tempo?: string | null
   rest_seconds?: string | null
   weight_percent?: string | null
+  target_weight?: string | null
   rpe_target?: string | null
   exercise_block?: string | null
   superset_group: string | null
@@ -169,6 +175,7 @@ export function rowToPrescriptionValues(row: {
     tempo: row.tempo ?? '',
     restSeconds: row.rest_seconds ?? '',
     weightPercent: row.weight_percent ?? '',
+    targetWeight: row.target_weight ?? '',
     rpeTarget: row.rpe_target ?? '',
     exerciseBlock: row.exercise_block ?? '',
     supersetGroup: row.superset_group ?? '',

@@ -9,6 +9,7 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
+import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import { isCoachSelfClient } from '@/lib/coach-self'
 import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
 import { fetchClientFormReviews } from '@/app/(dashboard)/form-review/actions'
@@ -282,7 +283,14 @@ export default async function ClientDetailPage({
   }, {})
   const photoCounts = countPhotosByCheckInId(progressPhotos)
   const loadMetrics = await fetchClientLoadMetrics(supabase, clientId)
-  const goalProgressContext = await fetchGoalProgressContext(supabase, clientId)
+  const [goalProgressContext, trainingConsistency] = await Promise.all([
+    fetchGoalProgressContext(supabase, clientId),
+    fetchTrainingConsistencyHeatmap(
+      supabase,
+      clientId,
+      coachPreferences.weekStartsOn
+    ),
+  ])
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -378,6 +386,7 @@ export default async function ClientDetailPage({
             acwrVariant: loadMetrics.acwrVariant,
           }}
           recentPrs={loadMetrics.recentPrs}
+          trainingConsistency={trainingConsistency}
           coachPreferences={coachPreferences}
           initialTab={initialTab}
           calendar={{

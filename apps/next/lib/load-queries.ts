@@ -225,9 +225,12 @@ function countSessionCompliance(
   return { completed, planned }
 }
 
+import type { ClientDashboardAlertContext } from '@/lib/proactive-alerts'
+
 export type CoachDashboardLoadAlerts = {
   elevatedLoadCount: number
   injuryFlagCount: number
+  clientContexts: ClientDashboardAlertContext[]
 }
 
 export async function fetchCoachDashboardLoadAlerts(
@@ -235,7 +238,7 @@ export async function fetchCoachDashboardLoadAlerts(
   clients: { id: string; full_name: string }[]
 ): Promise<CoachDashboardLoadAlerts> {
   if (clients.length === 0) {
-    return { elevatedLoadCount: 0, injuryFlagCount: 0 }
+    return { elevatedLoadCount: 0, injuryFlagCount: 0, clientContexts: [] }
   }
 
   const today = new Date()
@@ -246,8 +249,9 @@ export async function fetchCoachDashboardLoadAlerts(
 
   const results = await Promise.all(
     clients.map(async (client) => {
-      const [logRows, latestCheckIn] = await Promise.all([
+      const [logRows, workouts, latestCheckIn] = await Promise.all([
         fetchClientLogRows(supabase, client.id, startDateKey),
+        fetchClientWorkouts(supabase, client.id, startDateKey),
         fetchLatestCheckIn(supabase, client.id),
       ])
 
@@ -263,8 +267,15 @@ export async function fetchCoachDashboardLoadAlerts(
       )
 
       return {
-        elevatedLoad: isAcwrLoadAlert(acwr.riskLevel, acwr.ratio),
+        clientId: client.id,
+        clientName: client.full_name,
+        daysSinceLastSession: getDaysSinceLastSession(
+          workouts as Parameters<typeof getDaysSinceLastSession>[0]
+        ),
+        acwrRatio: acwr.ratio,
+        acwrRiskLevel: acwr.riskLevel,
         hasInjuryFlag,
+        elevatedLoad: isAcwrLoadAlert(acwr.riskLevel, acwr.ratio),
       }
     })
   )
@@ -272,6 +283,23 @@ export async function fetchCoachDashboardLoadAlerts(
   return {
     elevatedLoadCount: results.filter((result) => result.elevatedLoad).length,
     injuryFlagCount: results.filter((result) => result.hasInjuryFlag).length,
+    clientContexts: results.map(
+      ({
+        clientId,
+        clientName,
+        daysSinceLastSession,
+        acwrRatio,
+        acwrRiskLevel,
+        hasInjuryFlag,
+      }) => ({
+        clientId,
+        clientName,
+        daysSinceLastSession,
+        acwrRatio,
+        acwrRiskLevel,
+        hasInjuryFlag,
+      })
+    ),
   }
 }
 

@@ -21,6 +21,7 @@ import {
   CardHeader,
 } from '@/components/ui/card'
 import { CheckInTrendsChart, CheckInTrendsSummary } from '@/components/check-ins/check-in-trends-chart'
+import { TrainingConsistencyHeatmap } from '@/components/training/training-consistency-heatmap'
 import {
   buildClientActivityItems,
   calcClientCompletionRate,
@@ -36,6 +37,7 @@ import { buildCheckInTrendPoints } from '@/lib/check-in-trends'
 import { formatVolume } from '@/lib/coach-preferences'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { RecentPrHighlight } from '@/lib/pr-records'
+import type { TrainingConsistencyHeatmap as TrainingConsistencyHeatmapData } from '@/lib/training-consistency'
 import {
   formatRelativeUpdated,
   getPreSessionInsight,
@@ -233,6 +235,7 @@ type ClientOverviewProps = {
     acwrVariant: 'success' | 'warning' | 'secondary'
   }
   recentPrs?: RecentPrHighlight[]
+  trainingConsistency?: TrainingConsistencyHeatmapData | null
   weekStartsOn?: CoachPreferences['weekStartsOn']
   weightUnit?: CoachPreferences['weightUnit']
   onOpenCalendar?: () => void
@@ -249,6 +252,7 @@ export function ClientOverview({
   checkIns = [],
   loadMetrics,
   recentPrs = [],
+  trainingConsistency = null,
   weekStartsOn = 'monday',
   weightUnit = 'lbs',
   onOpenCalendar,
@@ -746,6 +750,35 @@ export function ClientOverview({
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <CheckInTrendsChart points={checkInTrendPoints} />
+          </CardContent>
+        </Card>
+      )}
+
+      {trainingConsistency && (
+        <Card className="gap-0 py-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 pt-5 pb-0">
+            <div className="flex items-center gap-2">
+              <Zap className="text-brand size-4" />
+              <SectionLabel>Training consistency</SectionLabel>
+            </div>
+            {onOpenCalendar && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-8 gap-1 px-2 text-xs"
+                onClick={onOpenCalendar}
+              >
+                Open calendar
+                <ArrowRight className="size-3.5" />
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <TrainingConsistencyHeatmap
+              heatmap={trainingConsistency}
+              weekStartsOn={weekStartsOn}
+            />
           </CardContent>
         </Card>
       )}

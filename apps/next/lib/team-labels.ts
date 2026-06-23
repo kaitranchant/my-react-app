@@ -109,3 +109,22 @@ export function formatCompetitionCountdown(dateKey: string, name?: string | null
   if (days === 1) return `${label} · 1 day`
   return `${label} · ${days} days`
 }
+
+export const teamChallengeStatusLabels = {
+  draft: 'Draft',
+  upcoming: 'Upcoming',
+  active: 'Active',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+} as const
+
+export const teamChallengeStatusBadgeVariant: Record<
+  keyof typeof teamChallengeStatusLabels,
+  'default' | 'secondary' | 'success' | 'warning' | 'outline'
+> = {
+  draft: 'outline',
+  upcoming: 'secondary',
+  active: 'success',
+  completed: 'secondary',
+  cancelled: 'outline',
+}

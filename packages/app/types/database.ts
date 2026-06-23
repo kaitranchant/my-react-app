@@ -19,6 +19,11 @@ export type TeamEventAttendanceStatus =
   | 'late'
   | 'absent'
   | 'excused'
+export type TeamChallengeStatus =
+  | 'draft'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
 export type ExerciseStatus = 'active' | 'archived'
 export type ExerciseSource = 'custom' | 'exercisedb'
 export type WorkoutStatus = 'draft' | 'active' | 'archived'
@@ -147,6 +152,7 @@ export type Database = {
           notify_missed_sessions: boolean
           notify_invite_accepted: boolean
           notify_form_reviews: boolean
+          notify_prs: boolean
           notify_weekly_summary: boolean
           created_at: string
           updated_at: string
@@ -166,6 +172,7 @@ export type Database = {
           notify_missed_sessions?: boolean
           notify_invite_accepted?: boolean
           notify_form_reviews?: boolean
+          notify_prs?: boolean
           notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
@@ -185,6 +192,7 @@ export type Database = {
           notify_missed_sessions?: boolean
           notify_invite_accepted?: boolean
           notify_form_reviews?: boolean
+          notify_prs?: boolean
           notify_weekly_summary?: boolean
           created_at?: string
           updated_at?: string
@@ -585,6 +593,65 @@ export type Database = {
           },
         ]
       }
+      team_challenges: {
+        Row: {
+          id: string
+          team_id: string
+          coach_id: string
+          name: string
+          description: string | null
+          metric: string
+          exercise_id: string | null
+          formula: string | null
+          weight_class_filter: string | null
+          start_date: string
+          end_date: string
+          status: TeamChallengeStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          coach_id: string
+          name: string
+          description?: string | null
+          metric: string
+          exercise_id?: string | null
+          formula?: string | null
+          weight_class_filter?: string | null
+          start_date: string
+          end_date: string
+          status?: TeamChallengeStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          coach_id?: string
+          name?: string
+          description?: string | null
+          metric?: string
+          exercise_id?: string | null
+          formula?: string | null
+          weight_class_filter?: string | null
+          start_date?: string
+          end_date?: string
+          status?: TeamChallengeStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_challenges_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       team_events: {
         Row: {
           id: string
@@ -799,6 +866,87 @@ export type Database = {
           },
         ]
       }
+      progressive_overload_decisions: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          exercise_id: string
+          source_workout_id: string
+          source_scheduled_exercise_id: string
+          source_session_date: string
+          previous_weight: number
+          suggested_weight: number
+          status: 'approved' | 'dismissed'
+          upcoming_updated_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          exercise_id: string
+          source_workout_id: string
+          source_scheduled_exercise_id: string
+          source_session_date: string
+          previous_weight: number
+          suggested_weight: number
+          status: 'approved' | 'dismissed'
+          upcoming_updated_count?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          exercise_id?: string
+          source_workout_id?: string
+          source_scheduled_exercise_id?: string
+          source_session_date?: string
+          previous_weight?: number
+          suggested_weight?: number
+          status?: 'approved' | 'dismissed'
+          upcoming_updated_count?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'progressive_overload_decisions_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'progressive_overload_decisions_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'progressive_overload_decisions_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'progressive_overload_decisions_source_workout_id_fkey'
+            columns: ['source_workout_id']
+            isOneToOne: false
+            referencedRelation: 'client_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'progressive_overload_decisions_source_scheduled_exercise_id_fkey'
+            columns: ['source_scheduled_exercise_id']
+            isOneToOne: false
+            referencedRelation: 'scheduled_workout_exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       program_scheduled_workouts: {
         Row: {
           id: string
@@ -874,6 +1022,7 @@ export type Database = {
           tempo: string | null
           rest_seconds: string | null
           weight_percent: string | null
+          target_weight: string | null
           rpe_target: string | null
           tracking_options: ScheduledExerciseTrackingOptions
           created_at: string
@@ -1120,6 +1269,7 @@ export type Database = {
           tempo: string | null
           rest_seconds: string | null
           weight_percent: string | null
+          target_weight: string | null
           rpe_target: string | null
           tracking_options: ScheduledExerciseTrackingOptions
           created_at: string
@@ -2134,6 +2284,7 @@ export type Database = {
       team_event_type: TeamEventType
       team_event_rsvp_status: TeamEventRsvpStatus
       team_event_attendance_status: TeamEventAttendanceStatus
+      team_challenge_status: TeamChallengeStatus
       exercise_status: ExerciseStatus
       exercise_source: ExerciseSource
       workout_status: WorkoutStatus
@@ -2208,6 +2359,11 @@ export type TeamMemberWithClient = TeamMember & {
 
 export type TeamAnnouncement =
   Database['public']['Tables']['team_announcements']['Row']
+export type TeamChallenge = Database['public']['Tables']['team_challenges']['Row']
+export type TeamChallengeInsert =
+  Database['public']['Tables']['team_challenges']['Insert']
+export type TeamChallengeUpdate =
+  Database['public']['Tables']['team_challenges']['Update']
 export type TeamEvent = Database['public']['Tables']['team_events']['Row']
 export type TeamEventMemberStatus =
   Database['public']['Tables']['team_event_member_status']['Row']
@@ -2285,6 +2441,12 @@ export type ProgramPhaseInsert =
   Database['public']['Tables']['program_phases']['Insert']
 export type ProgramPhaseUpdate =
   Database['public']['Tables']['program_phases']['Update']
+export type ProgressiveOverloadDecision =
+  Database['public']['Tables']['progressive_overload_decisions']['Row']
+export type ProgressiveOverloadDecisionInsert =
+  Database['public']['Tables']['progressive_overload_decisions']['Insert']
+export type ProgressiveOverloadDecisionUpdate =
+  Database['public']['Tables']['progressive_overload_decisions']['Update']
 
 export type ProgramScheduledWorkout =
   Database['public']['Tables']['program_scheduled_workouts']['Row']

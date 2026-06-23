@@ -289,6 +289,10 @@ await checkRestTable(
   'team_announcements table',
   '/rest/v1/team_announcements?select=id&limit=1'
 )
+await checkRestTable(
+  'team_challenges table',
+  '/rest/v1/team_challenges?select=id&limit=1'
+)
 await checkRestTable('team_events table', '/rest/v1/team_events?select=id&limit=1')
 await checkRestTable(
   'team_event_member_status table',
