@@ -79,6 +79,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { formatDayHeader } from '@/lib/calendar'
 import {
+  clusterExercisesBySuperset,
+  getSupersetPosition,
+} from '@/lib/superset-groups'
+import {
   calcSessionVolumeForExercise,
 } from '@/lib/load-analytics'
 import {
@@ -286,6 +290,7 @@ type WorkoutLogExerciseProps = {
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
   className?: string
+  guidedLayout?: boolean
 }
 
 function WorkoutLogExercise({
@@ -310,6 +315,7 @@ function WorkoutLogExercise({
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
   className,
+  guidedLayout = false,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -370,7 +376,11 @@ function WorkoutLogExercise({
   const hasExerciseNotes = Boolean(
     exercise.workout_notes?.trim() || exercise.client_notes?.trim()
   )
-  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, canRemoveSet)
+  const useConfirmAllButton =
+    fields.completionOnly && guidedLayout && !readOnly
+  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, canRemoveSet, {
+    hideConfirmColumn: useConfirmAllButton,
+  })
 
   const activeSetNumber =
     sets.find((set) => !set.completed)?.setNumber ?? null
@@ -396,6 +406,20 @@ function WorkoutLogExercise({
       if (!set.completed) {
         onSetChange(set.setNumber, { completed: true })
       }
+    }
+  }
+
+  function handleConfirmAll() {
+    const hadIncomplete = sets.some((set) => !set.completed)
+    handleMarkAll()
+
+    if (
+      hadIncomplete &&
+      isWorkoutActive &&
+      !readOnly &&
+      restSeconds > 0
+    ) {
+      startRestTimer(exercise.exercise.name, restSeconds)
     }
   }
 
@@ -678,7 +702,9 @@ function WorkoutLogExercise({
                           {fields.showDuration && <span>Sec</span>}
                         </>
                       )}
-                      <span className="sr-only">Done</span>
+                      {!useConfirmAllButton && (
+                        <span className="sr-only">Done</span>
+                      )}
                       {canRemoveSet && <span className="sr-only">Remove</span>}
                     </div>
 
@@ -782,33 +808,35 @@ function WorkoutLogExercise({
                             />
                           )}
 
-                          <div className="flex justify-center">
-                            <button
-                              type="button"
-                              disabled={readOnly || !canConfirmSet(set)}
-                              onClick={() => handleSetToggle(set)}
-                              className={cn(
-                                'flex size-7 items-center justify-center rounded-full border-2 transition-all sm:size-8',
-                                set.completed
-                                  ? 'border-status-success bg-status-success text-white shadow-sm'
-                                  : isActive
-                                    ? 'border-brand hover:bg-brand/10'
-                                    : set.predicted
-                                      ? 'border-brand/50 hover:bg-brand/10'
-                                      : 'border-muted-foreground/25 hover:bg-muted/50',
-                                'disabled:pointer-events-none disabled:opacity-40'
-                              )}
-                              aria-label={
-                                set.completed
-                                  ? `Mark set ${set.setNumber} incomplete`
-                                  : `Confirm set ${set.setNumber}`
-                              }
-                            >
-                              {set.completed && (
-                                <Check className="size-4" strokeWidth={3} />
-                              )}
-                            </button>
-                          </div>
+                          {!useConfirmAllButton && (
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                disabled={readOnly || !canConfirmSet(set)}
+                                onClick={() => handleSetToggle(set)}
+                                className={cn(
+                                  'flex size-7 items-center justify-center rounded-full border-2 transition-all sm:size-8',
+                                  set.completed
+                                    ? 'border-status-success bg-status-success text-white shadow-sm'
+                                    : isActive
+                                      ? 'border-brand hover:bg-brand/10'
+                                      : set.predicted
+                                        ? 'border-brand/50 hover:bg-brand/10'
+                                        : 'border-muted-foreground/25 hover:bg-muted/50',
+                                  'disabled:pointer-events-none disabled:opacity-40'
+                                )}
+                                aria-label={
+                                  set.completed
+                                    ? `Mark set ${set.setNumber} incomplete`
+                                    : `Confirm set ${set.setNumber}`
+                                }
+                              >
+                                {set.completed && (
+                                  <Check className="size-4" strokeWidth={3} />
+                                )}
+                              </button>
+                            </div>
+                          )}
 
                           {canRemoveSet && (
                             <div className="flex justify-center">
@@ -840,7 +868,7 @@ function WorkoutLogExercise({
                         Add set
                       </Button>
                     )}
-                    {!allComplete && sets.length > 0 && (
+                    {!allComplete && sets.length > 0 && !useConfirmAllButton && (
                       <Button
                         type="button"
                         variant="link"
@@ -855,6 +883,22 @@ function WorkoutLogExercise({
                 )}
               </div>
             ) : null}
+
+            {useConfirmAllButton && sets.length > 0 && !allComplete && (
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full rounded-full border-2 text-base font-semibold"
+                  onClick={handleConfirmAll}
+                >
+                  Confirm
+                </Button>
+                <p className="text-muted-foreground text-center text-xs">
+                  Press &apos;Confirm&apos; to mark all sets complete.
+                </p>
+              </div>
+            )}
 
           {(fields.showBarSpeed || fields.showPeakPower) && (
             <div className="space-y-2">
@@ -1293,6 +1337,10 @@ export function WorkoutLogScreen({
     guidedSessionEligible && sessionViewMode === 'guided'
   const orderedExercises = data?.exercises ?? []
   const activeExercise = orderedExercises[activeExerciseIndex] ?? null
+  const activeSupersetPosition =
+    activeExercise != null
+      ? getSupersetPosition(activeExercise, orderedExercises)
+      : null
   const activeExerciseSectionLabel =
     activeExercise != null
       ? getSectionLabelForExercise(activeExercise, sections)
@@ -1619,8 +1667,50 @@ export function WorkoutLogScreen({
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
         className={options?.className}
+        guidedLayout={showGuidedSession}
       />
     )
+  }
+
+  function renderClusteredExerciseList(
+    exercises: ScheduledWorkoutExerciseWithDetails[]
+  ) {
+    const clusters = clusterExercisesBySuperset(exercises)
+
+    return clusters.map((cluster, clusterIndex) => {
+      if (cluster.type === 'single') {
+        return (
+          <React.Fragment key={cluster.exercise.id}>
+            {renderWorkoutLogExercise(cluster.exercise)}
+          </React.Fragment>
+        )
+      }
+
+      return (
+        <div
+          key={`superset-${cluster.group}-${clusterIndex}`}
+          className="mb-4 overflow-hidden rounded-lg border"
+        >
+          {cluster.exercises.length > 1 && (
+            <div
+              className={cn(
+                'px-3 py-1.5 text-[10px] font-bold tracking-wide text-white uppercase',
+                getSupersetColor(cluster.group)
+              )}
+            >
+              Superset {cluster.group}
+            </div>
+          )}
+          <div className="divide-y">
+            {cluster.exercises.map((exercise) => (
+              <React.Fragment key={exercise.id}>
+                {renderWorkoutLogExercise(exercise)}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )
+    })
   }
 
   const logContent = (
@@ -1833,7 +1923,12 @@ export function WorkoutLogScreen({
               {(sections.length > 1 && activeSection
                 ? activeSection.exercises
                 : data.exercises
-              ).map((exercise) => renderWorkoutLogExercise(exercise))}
+              ).length > 0 &&
+                renderClusteredExerciseList(
+                  sections.length > 1 && activeSection
+                    ? activeSection.exercises
+                    : data.exercises
+                )}
             </div>
           )}
         </div>
@@ -1858,6 +1953,9 @@ export function WorkoutLogScreen({
                 <p className="text-muted-foreground text-xs font-medium">
                   {activeExerciseSectionLabel
                     ? `${activeExerciseSectionLabel} · `
+                    : ''}
+                  {activeSupersetPosition
+                    ? `Superset ${activeSupersetPosition.group} · ${activeSupersetPosition.index} of ${activeSupersetPosition.total} · `
                     : ''}
                   Exercise {activeExerciseIndex + 1} of {orderedExercises.length}
                 </p>

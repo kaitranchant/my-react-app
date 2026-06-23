@@ -499,9 +499,16 @@ export type WorkoutLogFieldFlags = ReturnType<typeof getLogFieldsForExercise>
 
 export function getWorkoutLogSetGridTemplate(
   fields: WorkoutLogFieldFlags,
-  canRemoveSet: boolean
+  canRemoveSet: boolean,
+  options?: { hideConfirmColumn?: boolean }
 ): string {
   if (fields.completionOnly) {
+    if (options?.hideConfirmColumn) {
+      return canRemoveSet
+        ? '1.5rem minmax(0, 1fr) 1.5rem'
+        : '1.5rem minmax(0, 1fr)'
+    }
+
     return canRemoveSet
       ? '1.5rem minmax(0, 1fr) 2rem 1.5rem'
       : '1.5rem minmax(0, 1fr) 2rem'
@@ -692,17 +699,7 @@ export function parseOptionalInt(value: string): number | null {
   return Math.round(parsed)
 }
 
-const SUPERSET_COLORS: Record<string, string> = {
-  A: 'bg-sky-500',
-  B: 'bg-violet-500',
-  C: 'bg-amber-500',
-  D: 'bg-rose-500',
-}
-
-export function getSupersetColor(group: string | null): string {
-  if (!group) return 'bg-muted-foreground'
-  return SUPERSET_COLORS[group] ?? 'bg-muted-foreground'
-}
+export { getSupersetColor } from '@/lib/superset-groups'
 
 /** Epley formula — standard estimated 1RM from weight × reps. */
 export function calculateE1rm(weight: number, reps: number): number | null {

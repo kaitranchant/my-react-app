@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, HeartPulse } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { PortalCheckInStatus } from '@/lib/portal-data'
@@ -18,24 +18,20 @@ export function PortalReadinessPrompt({
   }
 
   return (
-    <section className="rounded-2xl border border-brand/20 bg-brand/5 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="bg-brand/15 text-brand flex size-10 shrink-0 items-center justify-center rounded-xl">
-            <HeartPulse className="size-5" />
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium">Quick readiness check-in</p>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {dueLabel}. Share sleep, energy, soreness, and how you&apos;re
-              feeling before you train.
-            </p>
-          </div>
-        </div>
-        <Button variant="brand" size="sm" className="shrink-0" asChild>
+    <section className="rounded-xl border border-brand/20 bg-brand/5 p-3 sm:rounded-2xl sm:p-4">
+      <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-stretch lg:gap-3">
+        <p className="min-w-0 flex-1 text-sm leading-snug font-medium lg:flex-none">
+          {dueLabel}
+        </p>
+        <Button
+          variant="brand"
+          size="sm"
+          className="h-8 shrink-0 rounded-full px-3.5 text-xs lg:h-9 lg:w-full lg:rounded-md lg:px-4 lg:text-sm"
+          asChild
+        >
           <Link href="/portal/check-in">
-            Check in now
-            <ArrowRight className="size-4" />
+            Check in
+            <ArrowRight className="size-3.5" />
           </Link>
         </Button>
       </div>

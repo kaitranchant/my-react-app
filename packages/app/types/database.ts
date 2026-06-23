@@ -2248,6 +2248,10 @@ export type Database = {
           email: string
         }[]
       }
+      get_portal_coach_display_name: {
+        Args: Record<string, never>
+        Returns: string
+      }
       get_gym_invite_preview: {
         Args: { p_token: string }
         Returns: {

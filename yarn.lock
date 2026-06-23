@@ -4329,6 +4329,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tesseract.js-data/eng@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@tesseract.js-data/eng@npm:1.0.0"
+  checksum: 10/2ccdc948577ed66cafbc587bbcf227742630f28c0e11a7c93d07745e8ff0aa461d3a9413ababfcab5a75d7e5c75af8c6957e79e75f49e636306e5263aacd70b5
+  languageName: node
+  linkType: hard
+
 "@theme-ui/css@npm:^0.4.0-rc.1":
   version: 0.4.0-rc.13
   resolution: "@theme-ui/css@npm:0.4.0-rc.13"
@@ -5353,6 +5360,13 @@ __metadata:
   version: 1.6.52
   resolution: "big-integer@npm:1.6.52"
   checksum: 10/4bc6ae152a96edc9f95020f5fc66b13d26a9ad9a021225a9f0213f7e3dc44269f423aa8c42e19d6ac4a63bb2b22140b95d10be8f9ca7a6d9aa1b22b330d1f514
+  languageName: node
+  linkType: hard
+
+"bmp-js@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "bmp-js@npm:0.1.0"
+  checksum: 10/9597f41038f4a326bc465d009e2e170203fc296219a743efbcf531289913680761f155be8a2e586c0b48c59644e46449be556a5ec5b09c413b7e84a05db25fd4
   languageName: node
   linkType: hard
 
@@ -8043,6 +8057,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"idb-keyval@npm:^6.2.0":
+  version: 6.2.5
+  resolution: "idb-keyval@npm:6.2.5"
+  checksum: 10/ac645882b3258ff07347d085baab91b871bac7be4f46ff8e20a7c036c2df35d3f695a30050009f27237b99045203568f2a842a35295a48f9b815959ee51a347e
+  languageName: node
+  linkType: hard
+
 "ieee754@npm:^1.1.13":
   version: 1.2.1
   resolution: "ieee754@npm:1.2.1"
@@ -8407,6 +8428,13 @@ __metadata:
   dependencies:
     which-typed-array: "npm:^1.1.16"
   checksum: 10/e8cf60b9ea85667097a6ad68c209c9722cfe8c8edf04d6218366469e51944c5cc25bae45ffb845c23f811d262e4314d3b0168748eb16711aa34d12724cdf0735
+  languageName: node
+  linkType: hard
+
+"is-url@npm:^1.2.4":
+  version: 1.2.4
+  resolution: "is-url@npm:1.2.4"
+  checksum: 10/100e74b3b1feab87a43ef7653736e88d997eb7bd32e71fd3ebc413e58c1cbe56269699c776aaea84244b0567f2a7d68dfaa512a062293ed2f9fdecb394148432
   languageName: node
   linkType: hard
 
@@ -10025,6 +10053,7 @@ __metadata:
     "@supabase/ssr": "npm:^0.12.0"
     "@supabase/supabase-js": "npm:^2.108.2"
     "@tailwindcss/postcss": "npm:^4.3.1"
+    "@tesseract.js-data/eng": "npm:^1.0.0"
     "@types/node": "npm:17.0.21"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
@@ -10049,6 +10078,7 @@ __metadata:
     sonner: "npm:^2.0.7"
     tailwind-merge: "npm:^3.6.0"
     tailwindcss: "npm:^4"
+    tesseract.js: "npm:^7.0.0"
     tsx: "npm:^4.22.4"
     tw-animate-css: "npm:^1.4.0"
     typescript: "npm:^5.2.2"
@@ -10126,7 +10156,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:^2.7.0":
+"node-fetch@npm:^2.6.9, node-fetch@npm:^2.7.0":
   version: 2.7.0
   resolution: "node-fetch@npm:2.7.0"
   dependencies:
@@ -10386,6 +10416,15 @@ __metadata:
     is-docker: "npm:^2.1.1"
     is-wsl: "npm:^2.2.0"
   checksum: 10/acd81a1d19879c818acb3af2d2e8e9d81d17b5367561e623248133deb7dd3aefaed527531df2677d3e6aaf0199f84df57b6b2262babff8bf46ea0029aac536c9
+  languageName: node
+  linkType: hard
+
+"opencollective-postinstall@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "opencollective-postinstall@npm:2.0.3"
+  bin:
+    opencollective-postinstall: index.js
+  checksum: 10/69d63778087cd10c9d707d9ed360556780cfdd0cd6241ded0e26632f467f1d5a064f4a9aec19a30c187770c17adba034d988f7684b226f3a73e79f44e73fab0e
   languageName: node
   linkType: hard
 
@@ -11205,7 +11244,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"regenerator-runtime@npm:^0.13.2":
+"regenerator-runtime@npm:^0.13.2, regenerator-runtime@npm:^0.13.3":
   version: 0.13.11
   resolution: "regenerator-runtime@npm:0.13.11"
   checksum: 10/d493e9e118abef5b099c78170834f18540c4933cedf9bfabc32d3af94abfb59a7907bd7950259cbab0a929ebca7db77301e8024e5121e6482a82f78283dfd20c
@@ -12431,6 +12470,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tesseract.js-core@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "tesseract.js-core@npm:7.0.0"
+  checksum: 10/6eab7ecb462abc4c4c15f5a61f924700a48f5d1c8ce7f2b1447960b0f6f10063d7c0e5ac56f1905ae87d643a99c6ee28a90b827148aa006b712d5cecd2991f19
+  languageName: node
+  linkType: hard
+
+"tesseract.js@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "tesseract.js@npm:7.0.0"
+  dependencies:
+    bmp-js: "npm:^0.1.0"
+    idb-keyval: "npm:^6.2.0"
+    is-url: "npm:^1.2.4"
+    node-fetch: "npm:^2.6.9"
+    opencollective-postinstall: "npm:^2.0.3"
+    regenerator-runtime: "npm:^0.13.3"
+    tesseract.js-core: "npm:^7.0.0"
+    wasm-feature-detect: "npm:^1.8.0"
+    zlibjs: "npm:^0.3.1"
+  checksum: 10/eefcce0c143b1f78c81220d32e83631778280d402e5439d4c50316779d7ecc4a11486690ca0748e1419100ceb33ef78121ff51876ef807b9de7c74bfb848690d
+  languageName: node
+  linkType: hard
+
 "test-exclude@npm:^6.0.0":
   version: 6.0.0
   resolution: "test-exclude@npm:6.0.0"
@@ -13038,6 +13101,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"wasm-feature-detect@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "wasm-feature-detect@npm:1.8.0"
+  checksum: 10/54662197b41b1d60969ac58b41d8792241a405354775d3e35d0915da2551b0a3b87a5b55a1c93ef51606bf52d420e02b8d0a932a5b00f9a6f9b333a49dda1ece
+  languageName: node
+  linkType: hard
+
 "wcwidth@npm:^1.0.1":
   version: 1.0.1
   resolution: "wcwidth@npm:1.0.1"
@@ -13391,6 +13461,13 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10/f77b3d8d00310def622123df93d4ee654fc6a0096182af8bd60679ddcdfb3474c56c6c7190817c84a2785648cdee9d721c0154eb45698c62176c322fb46fc700
+  languageName: node
+  linkType: hard
+
+"zlibjs@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "zlibjs@npm:0.3.1"
+  checksum: 10/f7cbf1d22495820b334db1ea3cd4b04b293fcd316fc8cf9e5edc8c9f1a983586582a81420115bb38e48f358d28cfafedfcfbe6f80ad8f0effacefffb930136c2
   languageName: node
   linkType: hard
 

@@ -215,7 +215,7 @@ export function getFormReviewTitle(
   return 'Form review'
 }
 
-export function formatFormReviewCoachReplyMessage(
+export function formatFormReviewCoachReplySubject(
   review: Pick<ClientFormReview, 'title' | 'content_type'> & {
     exercise?: { name: string } | null
   }
@@ -223,12 +223,21 @@ export function formatFormReviewCoachReplyMessage(
   const mediaLabel = isFormReviewImage(review.content_type) ? 'photo' : 'video'
 
   if (review.title?.trim()) {
-    return `Coach replied to "${review.title.trim()}"`
+    return `"${review.title.trim()}"`
   }
 
   if (review.exercise?.name) {
-    return `Coach replied to your ${review.exercise.name.toLowerCase()} ${mediaLabel}`
+    return `your ${review.exercise.name.toLowerCase()} ${mediaLabel}`
   }
 
-  return `Coach replied to your ${mediaLabel}`
+  return `your ${mediaLabel}`
+}
+
+export function formatFormReviewCoachReplyMessage(
+  review: Pick<ClientFormReview, 'title' | 'content_type'> & {
+    exercise?: { name: string } | null
+  },
+  coachName = 'Coach'
+): string {
+  return `${coachName} replied to ${formatFormReviewCoachReplySubject(review)}`
 }

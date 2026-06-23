@@ -17,6 +17,22 @@ type PortalTodayWorkoutHeroProps = {
   streak: number
 }
 
+function getWorkoutSubtext(
+  isRestDay: boolean,
+  workoutStatus: WorkoutStatus | null
+): string {
+  if (isRestDay) {
+    return 'No session scheduled today — recovery counts.'
+  }
+  if (workoutStatus?.label === 'Completed') {
+    return 'Nice work finishing today\u2019s session.'
+  }
+  if (workoutStatus?.label === 'Paused') {
+    return 'Pick up where you left off.'
+  }
+  return 'Your coach planned this session for today.'
+}
+
 function statusBadgeVariant(
   tone: WorkoutStatus['tone']
 ): 'default' | 'secondary' | 'success' | 'warning' {
@@ -58,23 +74,25 @@ export function PortalTodayWorkoutHero({
           : 'border-brand/20 from-brand/10 bg-gradient-to-br to-brand/5'
       )}
     >
-      <div className="relative flex flex-col gap-4 p-5 sm:p-6">
+      <div className="relative flex flex-col gap-3 p-4 sm:gap-4 sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="section-header text-muted-foreground">Today&apos;s workout</p>
+          <div className="min-w-0 space-y-1">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              Today&apos;s workout
+            </p>
             {isRestDay ? (
-              <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+              <h2 className="text-lg font-semibold tracking-tight sm:text-2xl">
                 Rest day
               </h2>
             ) : (
-              <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+              <h2 className="text-lg font-semibold tracking-tight sm:text-2xl">
                 {todayWorkout.name}
               </h2>
             )}
           </div>
           <div
             className={cn(
-              'flex size-11 shrink-0 items-center justify-center rounded-xl',
+              'hidden size-11 shrink-0 items-center justify-center rounded-xl sm:flex',
               isRestDay ? 'bg-muted text-muted-foreground' : 'bg-brand/15 text-brand'
             )}
           >
@@ -86,50 +104,48 @@ export function PortalTodayWorkoutHero({
           </div>
         </div>
 
+        {!isRestDay && workoutStatus ? (
+          <Badge
+            variant={statusBadgeVariant(workoutStatus.tone)}
+            className="w-fit"
+          >
+            {workoutStatus.label}
+          </Badge>
+        ) : null}
+
         <p className="text-muted-foreground text-sm leading-relaxed">
-          {isRestDay
-            ? 'No session scheduled today. Recovery counts — check back tomorrow or browse your calendar.'
-            : workoutStatus?.label === 'Completed'
-              ? 'Nice work finishing today’s session.'
-              : 'Your coach planned this session for today. Log sets as you go.'}
+          {getWorkoutSubtext(isRestDay, workoutStatus)}
         </p>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {!isRestDay && workoutStatus ? (
-            <Badge variant={statusBadgeVariant(workoutStatus.tone)}>
-              {workoutStatus.label}
-            </Badge>
-          ) : null}
-          {streak > 0 ? (
-            <Badge variant="outline">
-              {streak}-day streak
-            </Badge>
-          ) : null}
-        </div>
+        {streak > 0 ? (
+          <Badge variant="outline" className="hidden w-fit sm:inline-flex">
+            {streak}-day streak
+          </Badge>
+        ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {isRestDay ? (
-            <Button variant="brand" size="sm" asChild>
+            <Button variant="brand" size="sm" className="flex-1 sm:flex-none" asChild>
               <Link href="/portal/workouts">
                 View calendar
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
           ) : (
-            <Button variant="brand" size="sm" asChild>
-              <Link href={`/portal/workouts/${todayWorkout.id}/log`}>
-                {workoutActionLabel(workoutStatus)}
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
+            <>
+              <Button variant="brand" size="sm" className="flex-1 sm:flex-none" asChild>
+                <Link href={`/portal/workouts/${todayWorkout.id}/log`}>
+                  {workoutActionLabel(workoutStatus)}
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
+                <Link href={`/portal/workouts?date=${todayWorkout.scheduled_date}`}>
+                  Session details
+                </Link>
+              </Button>
+            </>
           )}
-          {!isRestDay ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/portal/workouts?date=${todayWorkout.scheduled_date}`}>
-                Session details
-              </Link>
-            </Button>
-          ) : null}
         </div>
       </div>
     </section>

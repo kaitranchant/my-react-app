@@ -45,17 +45,13 @@ export function PortalRecentPrs({
           <p className="section-header">Recent PRs</p>
         </div>
         {showViewAll && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground h-8 gap-1 px-2 text-xs"
-            asChild
+          <Link
+            href="/portal/progress"
+            className="text-brand flex items-center gap-1 text-xs font-medium"
           >
-            <Link href="/portal/progress">
-              View all
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </Button>
+            View all
+            <ArrowRight className="size-3.5" />
+          </Link>
         )}
       </CardHeader>
       <CardContent className="px-5 pb-5">

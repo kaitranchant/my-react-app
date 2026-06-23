@@ -15,6 +15,51 @@ export const PROGRAM_WEEKDAY_HEADERS = [
 
 export const MAX_PROGRAM_DAY_OFFSET = 364
 
+export const MAX_PROGRAM_WEEK_INDEX = Math.floor(
+  MAX_PROGRAM_DAY_OFFSET / DAYS_PER_PROGRAM_WEEK
+)
+
+export const MAX_PROGRAM_WEEK_NUMBER = MAX_PROGRAM_WEEK_INDEX + 1
+
+export function weekNumberToIndex(weekNumber: number): number {
+  return weekNumber - 1
+}
+
+export function weekIndexToNumber(weekIndex: number): number {
+  return weekIndex + 1
+}
+
+export function getTargetDayOffsetForWeekCopy(
+  sourceDayOffset: number,
+  targetWeekIndex: number
+): number {
+  const normalizedOffset = Number(sourceDayOffset)
+  if (!Number.isFinite(normalizedOffset)) {
+    return Number.NaN
+  }
+
+  const dayInWeek =
+    ((normalizedOffset % DAYS_PER_PROGRAM_WEEK) + DAYS_PER_PROGRAM_WEEK) %
+    DAYS_PER_PROGRAM_WEEK
+
+  return targetWeekIndex * DAYS_PER_PROGRAM_WEEK + dayInWeek
+}
+
+export function countWeeksInRange(
+  startWeekIndex: number,
+  endWeekIndex: number,
+  options?: { excludeWeekIndex?: number }
+): number {
+  if (startWeekIndex > endWeekIndex) return 0
+
+  let count = 0
+  for (let weekIndex = startWeekIndex; weekIndex <= endWeekIndex; weekIndex++) {
+    if (weekIndex === options?.excludeWeekIndex) continue
+    count++
+  }
+  return count
+}
+
 export function getWeekDayOffsets(weekIndex: number): number[] {
   const start = weekIndex * DAYS_PER_PROGRAM_WEEK
   return Array.from({ length: DAYS_PER_PROGRAM_WEEK }, (_, index) => start + index)

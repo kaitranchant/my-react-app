@@ -136,6 +136,7 @@ export default async function PortalProgressPage() {
               <PortalTrainingConsistencyHeatmap
                 heatmap={progressData.trainingConsistency}
                 weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
+                achievementColors
               />
             </CardContent>
           </Card>

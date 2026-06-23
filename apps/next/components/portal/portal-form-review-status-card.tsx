@@ -8,14 +8,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { formatFormReviewCoachReplyMessage } from '@/lib/form-reviews'
 import type { PortalFormReviewHighlight } from '@/lib/portal-home-highlights'
 
 type PortalFormReviewStatusCardProps = {
   highlight?: PortalFormReviewHighlight | null
+  coachName?: string
 }
 
 export function PortalFormReviewStatusCard({
   highlight,
+  coachName = 'Coach',
 }: PortalFormReviewStatusCardProps) {
   const pendingCount = highlight?.pendingCount ?? 0
   const recentCoachReply = highlight?.recentCoachReply ?? null
@@ -39,7 +42,7 @@ export function PortalFormReviewStatusCard({
         <CardContent className="space-y-2">
           {recentCoachReply ? (
             <p className="text-brand text-sm font-medium leading-relaxed">
-              {recentCoachReply.message}
+              {formatFormReviewCoachReplyMessage(recentCoachReply, coachName)}
             </p>
           ) : pendingCount > 0 ? (
             <p className="text-muted-foreground text-sm leading-relaxed">

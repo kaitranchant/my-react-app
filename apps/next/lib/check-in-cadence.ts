@@ -78,14 +78,19 @@ export function getCheckInCadenceTitle(
 }
 
 export function getPortalCheckInDueLabel(
-  frequency: CheckInFrequency = defaultCoachPreferences.defaultCheckInFrequency
+  frequency: CheckInFrequency = defaultCoachPreferences.defaultCheckInFrequency,
+  options?: { hasWorkoutToday?: boolean }
 ): string {
+  if (options?.hasWorkoutToday) {
+    return 'Check in before today\u2019s session'
+  }
+
   switch (frequency) {
     case 'daily':
-      return 'Due today'
+      return 'Check in today'
     case 'weekly':
-      return 'Due this week'
+      return 'Check in this week'
     case 'biweekly':
-      return 'Due this period'
+      return 'Check in this period'
   }
 }

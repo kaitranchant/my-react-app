@@ -289,10 +289,6 @@ await checkRestTable(
   'team_announcements table',
   '/rest/v1/team_announcements?select=id&limit=1'
 )
-await checkRestTable(
-  'team_challenges table',
-  '/rest/v1/team_challenges?select=id&limit=1'
-)
 await checkRestTable('team_events table', '/rest/v1/team_events?select=id&limit=1')
 await checkRestTable(
   'team_event_member_status table',
@@ -385,7 +381,7 @@ await checkRestTable(
 
 await checkRestTable(
   'profiles notification preference columns',
-  '/rest/v1/profiles?select=notify_check_ins,notify_form_reviews,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_weekly_summary&limit=1'
+  '/rest/v1/profiles?select=notify_check_ins,notify_form_reviews,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_prs,notify_weekly_summary&limit=1'
 )
 
 // Migration 0038 — client goals
@@ -480,6 +476,34 @@ await checkRestTable(
   '/rest/v1/client_wearable_connection_secrets?select=connection_id,expires_at&limit=1'
 )
 
+// Migration 0054 — form review video annotations
+await checkRestTable(
+  'client_form_reviews coach_annotations column',
+  '/rest/v1/client_form_reviews?select=coach_annotations&limit=1'
+)
+
+// Migration 0055 — per-exercise client notes during logging
+await checkRestTable(
+  'scheduled_workout_exercises.client_notes column',
+  '/rest/v1/scheduled_workout_exercises?select=client_notes&limit=1'
+)
+
+// Migration 0056 — progressive overload coach approval
+await checkRestTable(
+  'scheduled_workout_exercises.target_weight column',
+  '/rest/v1/scheduled_workout_exercises?select=target_weight&limit=1'
+)
+await checkRestTable(
+  'progressive_overload_decisions table',
+  '/rest/v1/progressive_overload_decisions?select=id,coach_id,client_id,exercise_id,status&limit=1'
+)
+
+// Migration 0058 — team challenges
+await checkRestTable(
+  'team_challenges table',
+  '/rest/v1/team_challenges?select=id,team_id,coach_id,name,metric,start_date,end_date,status&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -493,7 +517,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0052 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0058 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -526,6 +550,11 @@ if (failed) {
   console.error('       supabase/apply-client-wearables.sql            (0051 wearables)')
   console.error('       supabase/apply-client-wearable-secrets.sql     (0052 wearable OAuth tokens)')
   console.error('       supabase/apply-notify-form-reviews.sql         (0053 form review notifications)')
+  console.error('       supabase/apply-form-review-annotations.sql     (0054 form review annotations)')
+  console.error('       supabase/apply-scheduled-exercise-client-notes.sql (0055 exercise client notes)')
+  console.error('       supabase/apply-progressive-overload.sql        (0056 progressive overload)')
+  console.error('       supabase/apply-notify-prs.sql                  (0057 PR notifications)')
+  console.error('       supabase/apply-team-challenges.sql             (0058 team challenges)')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -533,7 +562,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0053 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, Whoop OAuth tokens, form review notification preference).'
+  '\nSchema looks good — migrations through 0058 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, progressive overload, team challenges).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

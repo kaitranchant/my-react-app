@@ -93,6 +93,7 @@ type ExercisePrescriptionFormProps = {
   form: UseFormReturn<ScheduledExercisePrescriptionValues>
   idPrefix?: string
   compact?: boolean
+  hideSupersetGroup?: boolean
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
@@ -105,6 +106,7 @@ export function ExercisePrescriptionForm({
   form,
   idPrefix = 'prescription',
   compact = false,
+  hideSupersetGroup = false,
 }: ExercisePrescriptionFormProps) {
   const repMode = form.watch('repMode')
   const selectedBlock = form.watch('exerciseBlock')
@@ -233,36 +235,71 @@ export function ExercisePrescriptionForm({
         />
 
         {compact ? (
-          <FormField
-            control={form.control}
-            name="exerciseBlock"
-            render={({ field }) => (
-              <FormItem className="col-span-2">
-                <FormLabel>Section</FormLabel>
-                <Select
-                  onValueChange={(value) =>
-                    field.onChange(value === '__none__' ? '' : value)
-                  }
-                  value={field.value || '__none__'}
-                >
-                  <FormControl>
-                    <SelectTrigger id={`${idPrefix}-exercise-block`} className="h-9">
-                      <SelectValue placeholder="Select section" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {EXERCISE_BLOCK_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <>
+            <FormField
+              control={form.control}
+              name="exerciseBlock"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Section</FormLabel>
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === '__none__' ? '' : value)
+                    }
+                    value={field.value || '__none__'}
+                  >
+                    <FormControl>
+                      <SelectTrigger id={`${idPrefix}-exercise-block`} className="h-9">
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {EXERCISE_BLOCK_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {!hideSupersetGroup ? (
+            <FormField
+              control={form.control}
+              name="supersetGroup"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Superset group</FormLabel>
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === '__none__' ? '' : value)
+                    }
+                    value={field.value || '__none__'}
+                  >
+                    <FormControl>
+                      <SelectTrigger id={`${idPrefix}-superset`} className="h-9">
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-72">
+                      <SelectItem value="__none__">None</SelectItem>
+                      {SUPERSET_GROUP_OPTIONS.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          Group {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldHint>Same letter = performed back-to-back.</FieldHint>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            ) : null}
+          </>
         ) : null}
       </div>
 
@@ -391,6 +428,7 @@ export function ExercisePrescriptionForm({
               )}
             />
 
+            {!hideSupersetGroup ? (
             <FormField
               control={form.control}
               name="supersetGroup"
@@ -422,6 +460,7 @@ export function ExercisePrescriptionForm({
                 </FormItem>
               )}
             />
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -585,35 +624,6 @@ export function ExercisePrescriptionForm({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="supersetGroup"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Superset group</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(value === '__none__' ? '' : value)}
-                    value={field.value || '__none__'}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="max-h-72">
-                      <SelectItem value="__none__">None</SelectItem>
-                      {SUPERSET_GROUP_OPTIONS.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          Group {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <div className="grid grid-cols-2 gap-3">
               <FormField

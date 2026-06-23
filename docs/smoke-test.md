@@ -4,7 +4,7 @@ Repeatable manual verification for the coach → client loop and recent features
 
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0050**)
+- `yarn db:check` passes (schema through migration **0058**)
 - `yarn web` running at http://localhost:3000
 - Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
@@ -182,6 +182,46 @@ Repeatable manual verification for the coach → client loop and recent features
 - [ ] Confirm team rankings load and **Your leaderboard profile** card is visible
 - [ ] (Optional) Set biological sex on the profile card — Wilks/DOTS column updates on refresh
 
+## 15. Progressive overload
+
+- [ ] On a client calendar exercise, enable **Auto progress load** in the prescription editor
+- [ ] Assign the workout and have the client log all rep targets for that exercise, then complete the session
+- [ ] Sign in as coach → **Programming → Progressive overload** (`/progressive-overload`)
+- [ ] Confirm a suggestion appears for the client/exercise with previous and suggested weight
+- [ ] Click **Approve** — toast confirms target weight applied to upcoming sessions
+- [ ] (Optional) Click **Dismiss** on another suggestion — it leaves the inbox
+
+## 16. Team challenges
+
+- [ ] Open a team → **Challenges** tab
+- [ ] Click **New challenge** → name it, choose **Consistency** (or another metric), keep the default date range → **Create draft**
+- [ ] Click **Publish** on the draft challenge card
+- [ ] Sign in as a client on that team → `/portal/team` — **Team challenges** section shows the challenge
+- [ ] (Optional) Expand **Show standings** on the coach challenge card
+
+## 17. Workout log client notes
+
+- [ ] As client, open a scheduled workout log and expand notes on an exercise row
+- [ ] Add a short note (e.g. "Felt heavy today") and save
+- [ ] Sign in as coach → open the same client's completed workout log — client note is visible on that exercise
+
+## 18. Form review annotations (video)
+
+- [ ] As client, submit a **video** form review from `/portal/form-review`
+- [ ] As coach, open **Form Review** → pending submission with a video
+- [ ] Add a timestamped marker on the timeline with coach feedback → **Save feedback**
+- [ ] Client portal shows reviewed status and coach feedback on refresh
+
+## 19. Supersets
+
+- [ ] Open a client **Calendar** tab → build or edit a workout
+- [ ] In the workout builder, click **Add superset** — banner shows group **A**
+- [ ] Add two exercises from the library with prescriptions → each joins the superset
+- [ ] Click **Finish superset** — workout order panel shows both exercises in a colored **Superset A** block
+- [ ] (Optional) Use the link icon on an exercise row to **Join superset** or **Create new superset**
+- [ ] Save and sign in as client → open the workout log — exercises appear grouped under **Superset A**
+- [ ] (Optional) On mobile portal workout log, switch to **Guided** view — footer shows superset position (e.g. `Superset A · 1 of 2`)
+
 ---
 
 ## Troubleshooting
@@ -211,6 +251,12 @@ Repeatable manual verification for the coach → client loop and recent features
 | Leaderboards page fails or portal rankings empty | Run [`supabase/apply-leaderboard-opt-out.sql`](../supabase/apply-leaderboard-opt-out.sql), [`supabase/apply-portal-leaderboards.sql`](../supabase/apply-portal-leaderboards.sql), and related scripts through [`supabase/apply-team-powerlifting-exercises.sql`](../supabase/apply-team-powerlifting-exercises.sql) or `yarn db:push` (0043–0047) |
 | Wilks/DOTS scores missing | Set client **Biological sex** and bodyweight; run [`supabase/apply-client-biological-sex.sql`](../supabase/apply-client-biological-sex.sql) and [`supabase/apply-portal-leaderboard-bodyweight.sql`](../supabase/apply-portal-leaderboard-bodyweight.sql) or `yarn db:push` (0045–0046) |
 | Form review page fails or upload errors | Run [`supabase/apply-client-form-reviews.sql`](../supabase/apply-client-form-reviews.sql) through [`supabase/apply-form-review-images.sql`](../supabase/apply-form-review-images.sql) or `yarn db:push` (0048–0050) |
+| Form review annotation markers fail to save | Run [`supabase/apply-form-review-annotations.sql`](../supabase/apply-form-review-annotations.sql) or `yarn db:push` (0054) |
+| Client exercise notes fail to save during logging | Run [`supabase/apply-scheduled-exercise-client-notes.sql`](../supabase/apply-scheduled-exercise-client-notes.sql) or `yarn db:push` (0055) |
+| Progressive overload inbox shows schema notice | Run [`supabase/apply-progressive-overload.sql`](../supabase/apply-progressive-overload.sql) or `yarn db:push` (0056) |
+| PR notification toggle missing or won't save | Run [`supabase/apply-notify-prs.sql`](../supabase/apply-notify-prs.sql) or `yarn db:push` (0057) |
+| Team challenges tab fails or portal standings empty | Run [`supabase/apply-team-challenges.sql`](../supabase/apply-team-challenges.sql) or `yarn db:push` (0058) |
+| Wearables page shows schema notice | Run [`supabase/apply-client-wearables.sql`](../supabase/apply-client-wearables.sql) and [`supabase/apply-client-wearable-secrets.sql`](../supabase/apply-client-wearable-secrets.sql) or `yarn db:push` (0051–0052) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |

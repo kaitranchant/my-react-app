@@ -29,10 +29,12 @@ export function UserMenu({
   name,
   email,
   avatarUrl,
+  settingsHref = '/settings',
 }: {
   name: string
   email: string
   avatarUrl?: string | null
+  settingsHref?: string
 }) {
   return (
     <DropdownMenu>
@@ -59,7 +61,7 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings" className="flex items-center gap-2">
+          <Link href={settingsHref} className="flex items-center gap-2">
             <Settings className="size-4" />
             Settings
           </Link>

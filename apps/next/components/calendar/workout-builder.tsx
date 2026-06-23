@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Dumbbell, Loader2 } from 'lucide-react'
+import { Copy, Dumbbell, Layers, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { exerciseDbImageUrl } from '@/lib/exercisedb'
+import { getNextSupersetGroup, getSupersetColor } from '@/lib/superset-groups'
 import {
   defaultPrescriptionValues,
   rowToPrescriptionValues,
@@ -35,9 +36,10 @@ import type {
   EditableWorkoutWithExercises,
   WorkoutBuilderExerciseActions,
 } from '@/lib/workout-builder-types'
+import { cn } from '@/lib/utils'
 import type { Exercise } from 'app/types/database'
 
-type BuilderMode = 'idle' | 'add' | 'edit'
+type BuilderMode = 'idle' | 'add' | 'add-superset' | 'edit'
 
 type WorkoutBuilderProps = {
   headerLabel: string
@@ -76,20 +78,28 @@ export function WorkoutBuilder({
   const [libraryExercises, setLibraryExercises] = React.useState(exercises)
   const [pending, setPending] = React.useState(false)
   const [mobileTab, setMobileTab] = React.useState('library')
+  const [activeSupersetGroup, setActiveSupersetGroup] = React.useState<string | null>(
+    null
+  )
 
   React.useEffect(() => {
     setLibraryExercises(exercises)
   }, [exercises])
 
-  const selectedRow = React.useMemo(
-    () => workout.exercises.find((row) => row.id === selectedRowId) ?? null,
-    [workout.exercises, selectedRowId]
-  )
-
   const addForm = useForm<ScheduledExercisePrescriptionValues>({
     resolver: zodResolver(scheduledExercisePrescriptionSchema),
     defaultValues: defaultPrescriptionValues,
   })
+
+  React.useEffect(() => {
+    if (mode !== 'add-superset' || !activeSupersetGroup) return
+    addForm.setValue('supersetGroup', activeSupersetGroup)
+  }, [mode, activeSupersetGroup, addForm])
+
+  const selectedRow = React.useMemo(
+    () => workout.exercises.find((row) => row.id === selectedRowId) ?? null,
+    [workout.exercises, selectedRowId]
+  )
 
   const editForm = useForm<ScheduledExercisePrescriptionValues>({
     resolver: zodResolver(scheduledExerciseUpdateSchema),
@@ -103,11 +113,41 @@ export function WorkoutBuilder({
 
   function startAddMode() {
     setMode('add')
+    setActiveSupersetGroup(null)
     setSelectedRowId(null)
     setLibrarySelection(null)
     addForm.reset(defaultPrescriptionValues)
     customForm.reset(customExerciseQuickDefaults)
     setMobileTab('library')
+  }
+
+  function startSupersetMode() {
+    const group = getNextSupersetGroup(workout.exercises)
+    setMode('add-superset')
+    setActiveSupersetGroup(group)
+    setSelectedRowId(null)
+    setLibrarySelection(null)
+    addForm.reset({ ...defaultPrescriptionValues, supersetGroup: group })
+    customForm.reset(customExerciseQuickDefaults)
+    setMobileTab('library')
+  }
+
+  function finishSupersetMode() {
+    if (activeSupersetGroup) {
+      const count = workout.exercises.filter(
+        (row) => row.superset_group === activeSupersetGroup
+      ).length
+      if (count === 1) {
+        toast.message('Superset has one exercise', {
+          description: 'Add another exercise or remove the group from the workout order panel.',
+        })
+      }
+    }
+    setMode('idle')
+    setActiveSupersetGroup(null)
+    setLibrarySelection(null)
+    addForm.reset(defaultPrescriptionValues)
+    setMobileTab('workout')
   }
 
   function handleSelectRow(rowId: string | null) {
@@ -124,9 +164,15 @@ export function WorkoutBuilder({
 
   function handleLibrarySelect(selection: LibrarySelection) {
     setLibrarySelection(selection)
-    setMode('add')
+    if (mode !== 'add-superset') {
+      setMode('add')
+    }
     setSelectedRowId(null)
-    addForm.reset(defaultPrescriptionValues)
+    if (mode === 'add-superset' && activeSupersetGroup) {
+      addForm.reset({ ...defaultPrescriptionValues, supersetGroup: activeSupersetGroup })
+    } else {
+      addForm.reset(defaultPrescriptionValues)
+    }
     setMobileTab('prescription')
   }
 
@@ -207,11 +253,22 @@ export function WorkoutBuilder({
     setPending(false)
 
     if (result.success) {
-      toast.success('Exercise added.')
-      startAddMode()
+      toast.success(
+        mode === 'add-superset' ? 'Exercise added to superset.' : 'Exercise added.'
+      )
+      if (mode === 'add-superset' && activeSupersetGroup) {
+        setLibrarySelection(null)
+        addForm.reset({
+          ...defaultPrescriptionValues,
+          supersetGroup: activeSupersetGroup,
+        })
+        setMobileTab('library')
+      } else {
+        startAddMode()
+        setMobileTab('workout')
+      }
       router.refresh()
       onChanged()
-      setMobileTab('workout')
       return
     }
 
@@ -248,10 +305,16 @@ export function WorkoutBuilder({
         : null
 
   const canAdd =
-    mode === 'add' &&
+    (mode === 'add' || mode === 'add-superset') &&
     librarySelection &&
     (librarySelection.source !== 'custom' ||
       Boolean(customForm.watch('name')?.trim()))
+
+  const supersetExerciseCount =
+    activeSupersetGroup == null
+      ? 0
+      : workout.exercises.filter((row) => row.superset_group === activeSupersetGroup)
+          .length
 
   const panelHeader = (
     <div className="border-brand bg-brand/5 flex flex-wrap items-center justify-between gap-3 border-l-4 px-4 py-3">
@@ -307,11 +370,50 @@ export function WorkoutBuilder({
           >
             Browse exercises
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={startSupersetMode}
+          >
+            <Layers className="size-4" />
+            Add superset
+          </Button>
         </div>
       )}
 
-      {mode === 'add' && (
+      {(mode === 'add' || mode === 'add-superset') && (
         <div className="flex min-h-0 flex-1 flex-col">
+          {mode === 'add-superset' && activeSupersetGroup && (
+            <div
+              className={cn(
+                'flex items-center justify-between gap-3 border-b px-4 py-3 text-white',
+                getSupersetColor(activeSupersetGroup)
+              )}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-medium tracking-wide uppercase opacity-90">
+                  Building superset {activeSupersetGroup}
+                </p>
+                <p className="text-sm opacity-90">
+                  {supersetExerciseCount === 0
+                    ? 'Add at least 2 exercises performed back-to-back.'
+                    : `${supersetExerciseCount} exercise${supersetExerciseCount === 1 ? '' : 's'} in this group`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="shrink-0"
+                onClick={finishSupersetMode}
+              >
+                Done
+              </Button>
+            </div>
+          )}
+
           {activeExerciseName ? (
             <div className="border-b px-4 py-3">
               <div className="flex items-center gap-3">
@@ -328,7 +430,7 @@ export function WorkoutBuilder({
                 )}
                 <div>
                   <p className="text-muted-foreground text-xs font-medium">
-                    Adding exercise
+                    {mode === 'add-superset' ? 'Adding to superset' : 'Adding exercise'}
                   </p>
                   <p className="font-semibold">{activeExerciseName}</p>
                 </div>
@@ -337,7 +439,9 @@ export function WorkoutBuilder({
           ) : (
             <div className="border-b px-4 py-3">
               <p className="text-muted-foreground text-sm">
-                Select an exercise from the library to configure sets and reps.
+                {mode === 'add-superset'
+                  ? 'Select exercises from the library — each will join this superset.'
+                  : 'Select an exercise from the library to configure sets and reps.'}
               </p>
             </div>
           )}
@@ -348,17 +452,32 @@ export function WorkoutBuilder({
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                <ExercisePrescriptionForm form={addForm} idPrefix="builder-add" compact={compact} />
+                <ExercisePrescriptionForm
+                  form={addForm}
+                  idPrefix="builder-add"
+                  compact={compact}
+                  hideSupersetGroup={mode === 'add-superset'}
+                />
               </div>
-              <div className="shrink-0 border-t px-4 py-3">
+              <div className="shrink-0 space-y-2 border-t px-4 py-3">
                 <Button
                   type="submit"
                   disabled={pending || !canAdd}
                   className="w-full"
                 >
                   {pending && <Loader2 className="size-4 animate-spin" />}
-                  Add to workout
+                  {mode === 'add-superset' ? 'Add to superset' : 'Add to workout'}
                 </Button>
+                {mode === 'add-superset' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={finishSupersetMode}
+                  >
+                    Finish superset
+                  </Button>
+                )}
               </div>
             </form>
           </Form>
@@ -424,6 +543,8 @@ export function WorkoutBuilder({
       selectedRowId={selectedRowId}
       onSelectRow={handleSelectRow}
       onChanged={onChanged}
+      onStartSuperset={startSupersetMode}
+      activeSupersetGroup={mode === 'add-superset' ? activeSupersetGroup : null}
     />
   )
 

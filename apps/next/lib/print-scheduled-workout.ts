@@ -3,6 +3,7 @@ import {
   formatExercisePrescriptionSummary,
   getExerciseOptionBadges,
 } from '@/lib/scheduled-exercise'
+import { clusterExercisesBySuperset } from '@/lib/superset-groups'
 import { parseSetCount } from '@/lib/workout-log'
 import type { ClientScheduledWorkoutWithExercises } from 'app/types/database'
 
@@ -15,6 +16,60 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+function buildExerciseSection(
+  row: ClientScheduledWorkoutWithExercises['exercises'][number],
+  index: number
+): string {
+  const summary = formatExercisePrescriptionSummary(row)
+  const badges = getExerciseOptionBadges(row)
+  const setCount = parseSetCount(row.sets)
+  const valueHeader = row.rep_mode === 'time' ? 'Time' : 'Reps'
+  const setRows = Array.from({ length: setCount }, (_, setIndex) => {
+    const setNumber = setIndex + 1
+    return `
+      <tr>
+        <td>${setNumber}</td>
+        <td></td>
+        <td></td>
+      </tr>
+    `
+  }).join('')
+
+  const badgeHtml =
+    badges.length > 0
+      ? `<p class="badges">${escapeHtml(badges.join(' · '))}</p>`
+      : ''
+  const workoutNotes = row.workout_notes?.trim()
+    ? `<p class="notes">${escapeHtml(row.workout_notes.trim())}</p>`
+    : ''
+
+  return `
+    <section class="exercise">
+      <div class="exercise-header">
+        <span class="exercise-number">${index + 1}</span>
+        <div>
+          <h2>${escapeHtml(row.exercise.name)}</h2>
+          <p class="prescription">${escapeHtml(summary)}</p>
+          ${badgeHtml}
+          ${workoutNotes}
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Set</th>
+            <th>Weight</th>
+            <th>${valueHeader}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${setRows}
+        </tbody>
+      </table>
+    </section>
+  `
+}
+
 function buildExerciseRows(
   workout: ClientScheduledWorkoutWithExercises
 ): string {
@@ -22,55 +77,34 @@ function buildExerciseRows(
     return '<p class="empty">No exercises scheduled.</p>'
   }
 
-  return workout.exercises
-    .map((row, index) => {
-      const summary = formatExercisePrescriptionSummary(row)
-      const badges = getExerciseOptionBadges(row)
-      const setCount = parseSetCount(row.sets)
-      const valueHeader = row.rep_mode === 'time' ? 'Time' : 'Reps'
-      const setRows = Array.from({ length: setCount }, (_, setIndex) => {
-        const setNumber = setIndex + 1
-        return `
-          <tr>
-            <td>${setNumber}</td>
-            <td></td>
-            <td></td>
-          </tr>
-        `
-      }).join('')
+  const clusters = clusterExercisesBySuperset(workout.exercises)
+  let exerciseIndex = 0
 
-      const badgeHtml =
-        badges.length > 0
-          ? `<p class="badges">${escapeHtml(badges.join(' · '))}</p>`
-          : ''
-      const workoutNotes = row.workout_notes?.trim()
-        ? `<p class="notes">${escapeHtml(row.workout_notes.trim())}</p>`
-        : ''
+  return clusters
+    .map((cluster) => {
+      if (cluster.type === 'single') {
+        const section = buildExerciseSection(cluster.exercise, exerciseIndex)
+        exerciseIndex += 1
+        return section
+      }
+
+      const sections = cluster.exercises
+        .map((row) => {
+          const section = buildExerciseSection(row, exerciseIndex)
+          exerciseIndex += 1
+          return section
+        })
+        .join('')
+
+      if (cluster.exercises.length <= 1) {
+        return sections
+      }
 
       return `
-        <section class="exercise">
-          <div class="exercise-header">
-            <span class="exercise-number">${index + 1}</span>
-            <div>
-              <h2>${escapeHtml(row.exercise.name)}</h2>
-              <p class="prescription">${escapeHtml(summary)}</p>
-              ${badgeHtml}
-              ${workoutNotes}
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Set</th>
-                <th>Weight</th>
-                <th>${valueHeader}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${setRows}
-            </tbody>
-          </table>
-        </section>
+        <div class="superset">
+          <p class="superset-label">Superset ${escapeHtml(cluster.group)}</p>
+          ${sections}
+        </div>
       `
     })
     .join('')
@@ -128,6 +162,25 @@ function buildPrintHtml(
         border-bottom: 1px solid #ddd;
       }
       .exercise:last-child { border-bottom: 0; }
+      .superset {
+        margin-bottom: 24px;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
+      .superset-label {
+        margin: 0 0 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #333;
+      }
+      .superset .exercise:last-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
       .exercise-header {
         display: flex;
         gap: 12px;

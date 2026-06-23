@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Dumbbell, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Dumbbell, Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +23,8 @@ type ProgramWeekGridProps = {
   onWeekChange: (weekIndex: number) => void
   onSelectDay: (dayOffset: number) => void
   onDayDoubleClick?: (dayOffset: number) => void
+  onCopyWeek?: () => void
+  canCopyWeek?: boolean
   loading?: boolean
 }
 
@@ -146,6 +148,8 @@ export function ProgramWeekGrid({
   onWeekChange,
   onSelectDay,
   onDayDoubleClick,
+  onCopyWeek,
+  canCopyWeek = false,
   loading = false,
 }: ProgramWeekGridProps) {
   const scheduledByOffset = new Map(
@@ -180,6 +184,19 @@ export function ProgramWeekGrid({
             ) : null}
           </div>
           <div className="flex items-center gap-1">
+            {onCopyWeek ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={onCopyWeek}
+                disabled={!canCopyWeek}
+              >
+                <Copy className="size-4" />
+                <span className="hidden sm:inline">Copy week</span>
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"

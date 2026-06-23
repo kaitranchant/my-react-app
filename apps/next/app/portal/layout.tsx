@@ -60,11 +60,12 @@ export default async function PortalLayout({
               name={name}
               email={user.email ?? ''}
               avatarUrl={avatarUrl}
+              settingsHref="/portal/account"
             />
           </div>
         </header>
         <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8">
-          <div className="mx-auto w-full max-w-4xl">{children}</div>
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
         <PortalMobileNav showTeamNav={showTeamNav} />
       </div>

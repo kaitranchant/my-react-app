@@ -5,11 +5,16 @@ import { z } from 'zod'
 
 import { addDaysToDateKey } from '@/lib/calendar'
 import {
+  DAYS_PER_PROGRAM_WEEK,
+  formatProgramDayLabel,
+  formatProgramWeekLabel,
   getMatchingDayOffsetsInRange,
+  getTargetDayOffsetForWeekCopy,
   getWeekDayOffsets,
   MAX_PROGRAM_DAY_OFFSET,
 } from '@/lib/program-calendar'
 import {
+  copyProgramWeekRangeSchema,
   copyProgramWorkoutRangeSchema,
 } from '@/lib/validations/program'
 import {
@@ -52,6 +57,8 @@ export type ProgramWeekData = {
 const dayOffsetSchema = z.number().int().min(0).max(MAX_PROGRAM_DAY_OFFSET)
 
 const MAX_COPY_RANGE_DAYS = 366
+
+const MAX_COPY_WEEK_RANGE = 52
 
 const PROGRAM_EXERCISES_SQL_FILE = 'apply-program-workout-exercises.sql'
 
@@ -126,6 +133,20 @@ function matchesMaterializedProgramWorkout(
   }
 
   return clientWorkout.name === programWorkout.name
+}
+
+function matchesProgramWorkoutCopy(
+  source: Pick<ProgramWorkoutSnapshot, 'name' | 'library_workout_id'>,
+  target: Pick<ProgramWorkoutSnapshot, 'name' | 'library_workout_id'>
+): boolean {
+  if (
+    source.library_workout_id &&
+    target.library_workout_id === source.library_workout_id
+  ) {
+    return true
+  }
+
+  return target.name === source.name
 }
 
 const PROGRAM_EXERCISE_SYNC_SELECT =
@@ -1276,16 +1297,19 @@ async function copyProgramWorkoutToOffsets(
   }
 
   const occupiedOffsets = new Set(
-    (existingRows ?? []).map((row) => row.day_offset)
+    (existingRows ?? []).map((row) => Number(row.day_offset))
   )
-  const openOffsets = targetOffsets.filter((offset) => !occupiedOffsets.has(offset))
-  const skippedCount = targetOffsets.length - openOffsets.length
+  const normalizedTargetOffsets = targetOffsets.map((offset) => Number(offset))
+  const openOffsets = normalizedTargetOffsets.filter(
+    (offset) => Number.isFinite(offset) && !occupiedOffsets.has(offset)
+  )
+  const skippedCount = normalizedTargetOffsets.length - openOffsets.length
 
   if (openOffsets.length === 0) {
     return { copiedCount: 0, skippedCount }
   }
 
-  const { data: createdWorkouts, error: createError } = await supabase
+  const { data: insertedWorkouts, error: createError } = await supabase
     .from('program_scheduled_workouts')
     .insert(
       openOffsets.map((dayOffset) => ({
@@ -1299,15 +1323,34 @@ async function copyProgramWorkoutToOffsets(
     )
     .select('id, day_offset')
 
-  if (createError || !createdWorkouts) {
-    if (createError?.code === '23505') {
+  if (createError) {
+    if (createError.code === '23505') {
       return { error: 'One or more target days already have a workout.' }
     }
     return {
       error: mapProgramCalendarDbError(
-        createError?.message ?? 'Could not copy workout.'
+        createError.message ?? 'Could not copy workout.'
       ),
     }
+  }
+
+  let createdWorkouts = insertedWorkouts ?? []
+  if (createdWorkouts.length === 0) {
+    const { data: refetchedWorkouts, error: refetchError } = await supabase
+      .from('program_scheduled_workouts')
+      .select('id, day_offset')
+      .eq('program_id', programId)
+      .in('day_offset', openOffsets)
+
+    if (refetchError) {
+      return { error: mapProgramCalendarDbError(refetchError.message) }
+    }
+
+    createdWorkouts = refetchedWorkouts ?? []
+  }
+
+  if (createdWorkouts.length === 0) {
+    return { error: 'Could not copy workout.' }
   }
 
   if (source.exercises.length > 0) {
@@ -1477,5 +1520,366 @@ export async function copyProgramScheduledWorkoutToDayRange(
     success: true,
     copiedCount: result.copiedCount,
     skippedCount: result.skippedCount,
+  }
+}
+
+async function fetchProgramWeekWorkoutsWithExercises(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  programId: string,
+  weekIndex: number
+): Promise<ProgramScheduledWorkoutWithExercises[]> {
+  const dayOffsets = getWeekDayOffsets(weekIndex)
+  const { data: workouts, error } = await supabase
+    .from('program_scheduled_workouts')
+    .select('id')
+    .eq('program_id', programId)
+    .in('day_offset', dayOffsets)
+    .order('day_offset', { ascending: true })
+
+  if (error || !workouts?.length) {
+    return []
+  }
+
+  const results: ProgramScheduledWorkoutWithExercises[] = []
+  for (const workout of workouts) {
+    const full = await fetchProgramWorkoutWithExercises(
+      supabase,
+      workout.id,
+      programId
+    )
+    if (full) {
+      results.push(full)
+    }
+  }
+
+  return results
+}
+
+async function copyProgramWeekWorkoutsToTargetWeek(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  programId: string,
+  sourceWeekIndex: number,
+  targetWeekIndex: number,
+  sourceWorkouts: ProgramScheduledWorkoutWithExercises[]
+): Promise<
+  | { copiedCount: number; skippedCount: number; blockedOffsets: number[] }
+  | { error: string }
+> {
+  if (sourceWorkouts.length === 0) {
+    return { copiedCount: 0, skippedCount: 0, blockedOffsets: [] }
+  }
+
+  const blockedOffsets: number[] = []
+  let copiedCount = 0
+  let skippedCount = 0
+
+  for (const { source, targetOffset } of getWeekCopyMappings(
+    sourceWorkouts,
+    sourceWeekIndex,
+    targetWeekIndex
+  )) {
+    const result = await copyProgramWorkoutToOffsets(
+      supabase,
+      coachId,
+      programId,
+      source,
+      [targetOffset]
+    )
+
+    if ('error' in result) {
+      return { error: result.error }
+    }
+
+    copiedCount += result.copiedCount
+    skippedCount += result.skippedCount
+
+    if (result.copiedCount === 0 && result.skippedCount > 0) {
+      blockedOffsets.push(targetOffset)
+    }
+  }
+
+  return { copiedCount, skippedCount, blockedOffsets }
+}
+
+function getWeekCopyMappings(
+  sourceWorkouts: ProgramScheduledWorkoutWithExercises[],
+  sourceWeekIndex: number,
+  targetWeekIndex: number
+): Array<{
+  source: ProgramScheduledWorkoutWithExercises
+  targetOffset: number
+}> {
+  const sourceWeekStart = sourceWeekIndex * DAYS_PER_PROGRAM_WEEK
+  const sourceWeekEnd = sourceWeekStart + DAYS_PER_PROGRAM_WEEK - 1
+
+  return sourceWorkouts.flatMap((source) => {
+    const sourceOffset = Number(source.day_offset)
+    if (
+      !Number.isFinite(sourceOffset) ||
+      sourceOffset < sourceWeekStart ||
+      sourceOffset > sourceWeekEnd
+    ) {
+      return []
+    }
+
+    const targetOffset = getTargetDayOffsetForWeekCopy(
+      sourceOffset,
+      targetWeekIndex
+    )
+
+    if (!Number.isFinite(targetOffset) || targetOffset > MAX_PROGRAM_DAY_OFFSET) {
+      return []
+    }
+
+    return [{ source, targetOffset }]
+  })
+}
+
+async function targetWeekAlreadyHasCopiedWorkouts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  programId: string,
+  sourceWorkouts: ProgramScheduledWorkoutWithExercises[],
+  sourceWeekIndex: number,
+  targetWeekIndex: number
+): Promise<boolean> {
+  const mappings = getWeekCopyMappings(
+    sourceWorkouts,
+    sourceWeekIndex,
+    targetWeekIndex
+  )
+
+  if (mappings.length === 0) {
+    return false
+  }
+
+  const targetOffsets = mappings.map((mapping) => mapping.targetOffset)
+  const { data: existingRows, error } = await supabase
+    .from('program_scheduled_workouts')
+    .select('day_offset, name, library_workout_id')
+    .eq('program_id', programId)
+    .in('day_offset', targetOffsets)
+
+  if (error) {
+    return false
+  }
+
+  const existingByOffset = new Map(
+    (existingRows ?? []).map((row) => [Number(row.day_offset), row])
+  )
+
+  return mappings.every((mapping) => {
+    const existing = existingByOffset.get(mapping.targetOffset)
+    if (!existing) return false
+
+    return matchesProgramWorkoutCopy(mapping.source, existing)
+  })
+}
+
+function formatBlockedProgramDays(blockedOffsets: number[]): string {
+  const labels = Array.from(
+    new Set(
+      blockedOffsets
+        .filter((offset) => Number.isFinite(offset))
+        .map((offset) => formatProgramDayLabel(offset))
+    )
+  )
+
+  if (labels.length === 0) {
+    return ''
+  }
+
+  return ` Blocked days: ${labels.join(', ')}.`
+}
+
+async function safeAfterProgramCalendarChange(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  programId: string
+) {
+  try {
+    await afterProgramCalendarChange(supabase, coachId, programId)
+  } catch {
+    revalidateProgramCalendar(programId)
+  }
+}
+
+export async function copyProgramWeekToWeek(
+  programId: string,
+  sourceWeekIndex: number,
+  targetWeekIndex: number
+): Promise<CopyProgramWorkoutRangeResult> {
+  const parsedSource = z.number().int().min(0).max(52).safeParse(sourceWeekIndex)
+  const parsedTarget = z.number().int().min(0).max(52).safeParse(targetWeekIndex)
+
+  if (!parsedSource.success || !parsedTarget.success) {
+    return { success: false, error: 'Invalid week.' }
+  }
+
+  if (parsedSource.data === parsedTarget.data) {
+    return {
+      success: false,
+      error: 'Choose a different week than the source week.',
+    }
+  }
+
+  const ctx = await requireProgram(programId)
+  if (!ctx) {
+    return { success: false, error: 'Program not found.' }
+  }
+
+  const { supabase, user } = ctx
+  const sourceWorkouts = await fetchProgramWeekWorkoutsWithExercises(
+    supabase,
+    programId,
+    parsedSource.data
+  )
+
+  const result = await copyProgramWeekWorkoutsToTargetWeek(
+    supabase,
+    user.id,
+    programId,
+    parsedSource.data,
+    parsedTarget.data,
+    sourceWorkouts
+  )
+
+  if ('error' in result) {
+    return { success: false, error: result.error }
+  }
+
+  if (result.copiedCount === 0 && result.skippedCount === 0) {
+    return {
+      success: false,
+      error: 'No workouts scheduled in this week to copy.',
+    }
+  }
+
+  if (result.copiedCount === 0) {
+    const alreadyCopied = await targetWeekAlreadyHasCopiedWorkouts(
+      supabase,
+      programId,
+      sourceWorkouts,
+      parsedSource.data,
+      parsedTarget.data
+    )
+
+    if (alreadyCopied) {
+      revalidateProgramCalendar(programId)
+      return {
+        success: true,
+        copiedCount: 0,
+        skippedCount: result.skippedCount,
+      }
+    }
+
+    const blockedMessage = formatBlockedProgramDays(result.blockedOffsets)
+    return {
+      success: false,
+      error:
+        `Could not copy workouts to ${formatProgramWeekLabel(parsedTarget.data)}.` +
+        (blockedMessage ||
+          ' Every matching day already has a workout scheduled.'),
+    }
+  }
+
+  await safeAfterProgramCalendarChange(supabase, user.id, programId)
+  return {
+    success: true,
+    copiedCount: result.copiedCount,
+    skippedCount: result.skippedCount,
+  }
+}
+
+export async function copyProgramWeekToWeekRange(
+  programId: string,
+  sourceWeekIndex: number,
+  startWeekIndex: number,
+  endWeekIndex: number
+): Promise<CopyProgramWorkoutRangeResult> {
+  const parsed = copyProgramWeekRangeSchema.safeParse({
+    sourceWeekIndex,
+    startWeekIndex,
+    endWeekIndex,
+  })
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid copy settings.',
+    }
+  }
+
+  if (parsed.data.endWeekIndex - parsed.data.startWeekIndex + 1 > MAX_COPY_WEEK_RANGE) {
+    return {
+      success: false,
+      error: `Choose a range of ${MAX_COPY_WEEK_RANGE} weeks or fewer.`,
+    }
+  }
+
+  const ctx = await requireProgram(programId)
+  if (!ctx) {
+    return { success: false, error: 'Program not found.' }
+  }
+
+  const { supabase, user } = ctx
+  const sourceWorkouts = await fetchProgramWeekWorkoutsWithExercises(
+    supabase,
+    programId,
+    parsed.data.sourceWeekIndex
+  )
+
+  let copiedCount = 0
+  let skippedCount = 0
+  const blockedOffsets: number[] = []
+
+  for (
+    let targetWeekIndex = parsed.data.startWeekIndex;
+    targetWeekIndex <= parsed.data.endWeekIndex;
+    targetWeekIndex++
+  ) {
+    if (targetWeekIndex === parsed.data.sourceWeekIndex) continue
+
+    const result = await copyProgramWeekWorkoutsToTargetWeek(
+      supabase,
+      user.id,
+      programId,
+      parsed.data.sourceWeekIndex,
+      targetWeekIndex,
+      sourceWorkouts
+    )
+
+    if ('error' in result) {
+      return { success: false, error: result.error }
+    }
+
+    copiedCount += result.copiedCount
+    skippedCount += result.skippedCount
+    blockedOffsets.push(...result.blockedOffsets)
+  }
+
+  if (copiedCount === 0 && skippedCount === 0) {
+    return {
+      success: false,
+      error: 'No workouts scheduled in this week to copy.',
+    }
+  }
+
+  if (copiedCount === 0) {
+    const blockedMessage = formatBlockedProgramDays(blockedOffsets)
+    return {
+      success: false,
+      error:
+        'Could not copy workouts to the selected weeks.' +
+        (blockedMessage ||
+          ' Every matching day already has a workout scheduled.'),
+    }
+  }
+
+  await safeAfterProgramCalendarChange(supabase, user.id, programId)
+  return {
+    success: true,
+    copiedCount,
+    skippedCount,
   }
 }

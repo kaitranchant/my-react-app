@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 import {
   copyProgramScheduledWorkoutToDay,
   copyProgramScheduledWorkoutToDayRange,
+  copyProgramWeekToWeek,
+  copyProgramWeekToWeekRange,
   createProgramScheduledWorkout,
   deleteProgramScheduledWorkout,
   getProgramWeekData,
@@ -52,11 +54,15 @@ import {
   WEEKDAY_OPTIONS,
 } from '@/lib/calendar'
 import {
+  countWeeksInRange,
   dayNumberToOffset,
   formatProgramDayLabel,
+  formatProgramWeekLabel,
   getMatchingDayOffsetsInRange,
   getWeekDayOffsets,
+  MAX_PROGRAM_WEEK_NUMBER,
   offsetToDayNumber,
+  weekNumberToIndex,
 } from '@/lib/program-calendar'
 import {
   scheduledWorkoutFormSchema,
@@ -118,6 +124,17 @@ export function ProgramCalendarPanel({
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
     ...ALL_WEEKDAY_VALUES,
   ])
+  const [copyWeekOpen, setCopyWeekOpen] = React.useState(false)
+  const [copyWeekPending, setCopyWeekPending] = React.useState(false)
+  const [copySourceWeekIndex, setCopySourceWeekIndex] =
+    React.useState(initialWeekIndex)
+  const [copySourceWorkoutCount, setCopySourceWorkoutCount] = React.useState(0)
+  const [copyWeekMode, setCopyWeekMode] = React.useState<'single' | 'range'>(
+    'single'
+  )
+  const [copySingleWeek, setCopySingleWeek] = React.useState('')
+  const [copyStartWeek, setCopyStartWeek] = React.useState('')
+  const [copyEndWeek, setCopyEndWeek] = React.useState('')
   const [phases, setPhases] = React.useState(initialPhases)
 
   const dayOffsets = getWeekDayOffsets(weekIndex)
@@ -149,6 +166,37 @@ export function ProgramCalendarPanel({
     copySingleDayNumber !== null && !Number.isNaN(copySingleDayNumber)
       ? dayNumberToOffset(copySingleDayNumber)
       : null
+
+  const copySingleWeekNumber = copySingleWeek ? Number(copySingleWeek) : null
+  const copySingleWeekIndex =
+    copySingleWeekNumber !== null && !Number.isNaN(copySingleWeekNumber)
+      ? weekNumberToIndex(copySingleWeekNumber)
+      : null
+
+  const copyWeekTargetCount = React.useMemo(() => {
+    const startWeekIndex = copyStartWeek
+      ? weekNumberToIndex(Number(copyStartWeek))
+      : null
+    const endWeekIndex = copyEndWeek ? weekNumberToIndex(Number(copyEndWeek)) : null
+
+    if (
+      startWeekIndex === null ||
+      endWeekIndex === null ||
+      Number.isNaN(startWeekIndex) ||
+      Number.isNaN(endWeekIndex) ||
+      startWeekIndex > endWeekIndex
+    ) {
+      return 0
+    }
+
+    const weekCount = countWeeksInRange(startWeekIndex, endWeekIndex, {
+      excludeWeekIndex: copySourceWeekIndex,
+    })
+
+    return weekCount * copySourceWorkoutCount
+  }, [copyStartWeek, copyEndWeek, copySourceWorkoutCount, copySourceWeekIndex])
+
+  const canCopyCurrentWeek = scheduledWorkouts.length > 0
 
   const createForm = useForm<ScheduledWorkoutFormValues>({
     resolver: zodResolver(scheduledWorkoutFormSchema),
@@ -254,21 +302,24 @@ export function ProgramCalendarPanel({
     }
 
     setPending(true)
-    const result = await copyProgramScheduledWorkoutToDay(
-      programId,
-      selectedWorkout.id,
-      copySingleDayOffset
-    )
-    setPending(false)
+    try {
+      const result = await copyProgramScheduledWorkoutToDay(
+        programId,
+        selectedWorkout.id,
+        copySingleDayOffset
+      )
 
-    if (result.success) {
-      toast.success(`Workout copied to ${formatProgramDayLabel(copySingleDayOffset)}.`)
-      setCopyOpen(false)
-      await refreshWeek()
-      return
+      if (result.success) {
+        toast.success(`Workout copied to ${formatProgramDayLabel(copySingleDayOffset)}.`)
+        setCopyOpen(false)
+        await refreshWeek()
+        return
+      }
+
+      toast.error(result.error)
+    } finally {
+      setPending(false)
     }
-
-    toast.error(result.error)
   }
 
   async function handleCopyDayRange() {
@@ -290,33 +341,141 @@ export function ProgramCalendarPanel({
     }
 
     setPending(true)
-    const result = await copyProgramScheduledWorkoutToDayRange(
-      programId,
-      selectedWorkout.id,
-      startOffset,
-      endOffset,
-      copyWeekdays
-    )
-    setPending(false)
-
-    if (result.success) {
-      const skippedMessage =
-        result.skippedCount > 0
-          ? ` Skipped ${result.skippedCount} day${
-              result.skippedCount === 1 ? '' : 's'
-            } that already had workouts.`
-          : ''
-      toast.success(
-        `Workout copied to ${result.copiedCount} day${
-          result.copiedCount === 1 ? '' : 's'
-        }.${skippedMessage}`
+    try {
+      const result = await copyProgramScheduledWorkoutToDayRange(
+        programId,
+        selectedWorkout.id,
+        startOffset,
+        endOffset,
+        copyWeekdays
       )
-      setCopyOpen(false)
-      await refreshWeek()
+
+      if (result.success) {
+        const skippedMessage =
+          result.skippedCount > 0
+            ? ` Skipped ${result.skippedCount} day${
+                result.skippedCount === 1 ? '' : 's'
+              } that already had workouts.`
+            : ''
+        toast.success(
+          `Workout copied to ${result.copiedCount} day${
+            result.copiedCount === 1 ? '' : 's'
+          }.${skippedMessage}`
+        )
+        setCopyOpen(false)
+        await refreshWeek()
+        return
+      }
+
+      toast.error(result.error)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function openCopyWeekDialog() {
+    setCopySourceWeekIndex(weekIndex)
+    setCopySourceWorkoutCount(scheduledWorkouts.length)
+    const nextWeekNumber = weekIndex + 2
+    setCopyWeekMode('single')
+    setCopySingleWeek(String(nextWeekNumber))
+    setCopyStartWeek(String(nextWeekNumber))
+    setCopyEndWeek(String(Math.min(nextWeekNumber + 3, MAX_PROGRAM_WEEK_NUMBER)))
+    setCopyWeekOpen(true)
+  }
+
+  async function handleCopySingleWeek() {
+    if (copySingleWeekIndex === null) return
+
+    if (copySingleWeekIndex === copySourceWeekIndex) {
+      toast.error('Choose a different week than the source week.')
       return
     }
 
-    toast.error(result.error)
+    setCopyWeekPending(true)
+    try {
+      const result = await copyProgramWeekToWeek(
+        programId,
+        copySourceWeekIndex,
+        copySingleWeekIndex
+      )
+
+      if (result.success) {
+        const skippedMessage =
+          result.skippedCount > 0
+            ? ` Skipped ${result.skippedCount} day${
+                result.skippedCount === 1 ? '' : 's'
+              } that already had workouts.`
+            : ''
+        toast.success(
+          result.copiedCount === 0
+            ? `Workouts are already scheduled in ${formatProgramWeekLabel(copySingleWeekIndex)}.`
+            : `Week copied to ${formatProgramWeekLabel(copySingleWeekIndex)} — ` +
+                `${result.copiedCount} workout${
+                  result.copiedCount === 1 ? '' : 's'
+                } added.${skippedMessage}`
+        )
+        setCopyWeekOpen(false)
+        void refreshWeek()
+        return
+      }
+
+      toast.error(result.error)
+    } catch {
+      toast.error('Could not copy week. Please try again.')
+    } finally {
+      setCopyWeekPending(false)
+    }
+  }
+
+  async function handleCopyWeekRange() {
+    if (!copyStartWeek || !copyEndWeek) return
+
+    const startWeekIndex = weekNumberToIndex(Number(copyStartWeek))
+    const endWeekIndex = weekNumberToIndex(Number(copyEndWeek))
+
+    if (Number.isNaN(startWeekIndex) || Number.isNaN(endWeekIndex)) {
+      toast.error('Enter valid week numbers.')
+      return
+    }
+
+    if (startWeekIndex > endWeekIndex) {
+      toast.error('Start week must be on or before end week.')
+      return
+    }
+
+    setCopyWeekPending(true)
+    try {
+      const result = await copyProgramWeekToWeekRange(
+        programId,
+        copySourceWeekIndex,
+        startWeekIndex,
+        endWeekIndex
+      )
+
+      if (result.success) {
+        const skippedMessage =
+          result.skippedCount > 0
+            ? ` Skipped ${result.skippedCount} day${
+                result.skippedCount === 1 ? '' : 's'
+              } that already had workouts.`
+            : ''
+        toast.success(
+          `Week copied to ${result.copiedCount} day${
+            result.copiedCount === 1 ? '' : 's'
+          } across the selected weeks.${skippedMessage}`
+        )
+        setCopyWeekOpen(false)
+        void refreshWeek()
+        return
+      }
+
+      toast.error(result.error)
+    } catch {
+      toast.error('Could not copy week. Please try again.')
+    } finally {
+      setCopyWeekPending(false)
+    }
   }
 
   async function handleCreateWorkout(
@@ -481,6 +640,8 @@ export function ProgramCalendarPanel({
         onWeekChange={handleWeekChange}
         onSelectDay={handleSelectDay}
         onDayDoubleClick={handleDayDoubleClick}
+        onCopyWeek={openCopyWeekDialog}
+        canCopyWeek={canCopyCurrentWeek}
       />
 
       <p className="text-muted-foreground text-sm">
@@ -707,6 +868,141 @@ export function ProgramCalendarPanel({
               >
                 {pending && <Loader2 className="size-4 animate-spin" />}
                 Copy to matching days
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={copyWeekOpen}
+        onOpenChange={(open) => {
+          if (!copyWeekPending) {
+            setCopyWeekOpen(open)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copy week to other weeks</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Copy all workouts from{' '}
+            <span className="text-foreground font-medium">
+              {formatProgramWeekLabel(copySourceWeekIndex)}
+            </span>{' '}
+            ({copySourceWorkoutCount} workout
+            {copySourceWorkoutCount === 1 ? '' : 's'}) to other weeks.
+            Days that already have workouts are skipped.
+          </p>
+          <Tabs
+            value={copyWeekMode}
+            onValueChange={(value) => setCopyWeekMode(value as 'single' | 'range')}
+            className="gap-4"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="single">Single week</TabsTrigger>
+              <TabsTrigger value="range">Week range</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="single" className="mt-0 space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="copy-single-week" className="text-sm font-medium">
+                  Copy to week
+                </label>
+                <Input
+                  id="copy-single-week"
+                  type="number"
+                  min={1}
+                  max={MAX_PROGRAM_WEEK_NUMBER}
+                  value={copySingleWeek}
+                  onChange={(event) => setCopySingleWeek(event.target.value)}
+                  placeholder="e.g. 2"
+                />
+              </div>
+
+              {copySingleWeekIndex !== null &&
+                copySingleWeekIndex === copySourceWeekIndex && (
+                <p className="text-destructive text-sm">
+                  Choose a week other than{' '}
+                  {formatProgramWeekLabel(copySourceWeekIndex)}.
+                </p>
+              )}
+
+              {copySingleWeekIndex !== null &&
+                copySingleWeekIndex !== copySourceWeekIndex && (
+                <p className="text-muted-foreground text-sm">
+                  Copy this week&apos;s schedule to{' '}
+                  <span className="text-foreground font-medium">
+                    {formatProgramWeekLabel(copySingleWeekIndex)}
+                  </span>
+                  . Exercises and prescriptions are included.
+                </p>
+              )}
+
+              <Button
+                type="button"
+                className="w-full"
+                disabled={
+                  copyWeekPending ||
+                  copySingleWeekIndex === null ||
+                  copySingleWeekIndex === copySourceWeekIndex
+                }
+                onClick={handleCopySingleWeek}
+              >
+                {copyWeekPending && <Loader2 className="size-4 animate-spin" />}
+                {copySingleWeekIndex !== null
+                  ? `Copy to ${formatProgramWeekLabel(copySingleWeekIndex)}`
+                  : 'Copy week'}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="range" className="mt-0 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor="copy-start-week" className="text-sm font-medium">
+                    Start week
+                  </label>
+                  <Input
+                    id="copy-start-week"
+                    type="number"
+                    min={1}
+                    max={MAX_PROGRAM_WEEK_NUMBER}
+                    value={copyStartWeek}
+                    onChange={(event) => setCopyStartWeek(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="copy-end-week" className="text-sm font-medium">
+                    End week
+                  </label>
+                  <Input
+                    id="copy-end-week"
+                    type="number"
+                    min={1}
+                    max={MAX_PROGRAM_WEEK_NUMBER}
+                    value={copyEndWeek}
+                    onChange={(event) => setCopyEndWeek(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              {copyWeekTargetCount > 0 && (
+                <p className="text-muted-foreground text-sm">
+                  Up to {copyWeekTargetCount} workout
+                  {copyWeekTargetCount === 1 ? '' : 's'} across the selected
+                  weeks. Days that already have workouts will be skipped.
+                </p>
+              )}
+
+              <Button
+                type="button"
+                className="w-full"
+                disabled={copyWeekPending || copyWeekTargetCount === 0}
+                onClick={handleCopyWeekRange}
+              >
+                {copyWeekPending && <Loader2 className="size-4 animate-spin" />}
+                Copy to matching weeks
               </Button>
             </TabsContent>
           </Tabs>

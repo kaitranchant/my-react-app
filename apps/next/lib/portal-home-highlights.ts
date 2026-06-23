@@ -3,7 +3,6 @@ import {
   defaultCoachPreferences,
 } from '@/lib/coach-preferences'
 import {
-  formatFormReviewCoachReplyMessage,
   hasFormReviewCoachReply,
   isFormReviewPending,
 } from '@/lib/form-reviews'
@@ -25,7 +24,7 @@ import {
   getExerciseName,
 } from '@/lib/goal-progress-context'
 import type { createClient } from '@/lib/supabase/server'
-import type { ClientGoal } from 'app/types/database'
+import type { ClientFormReview, ClientGoal } from 'app/types/database'
 
 export type PortalGoalHighlight = {
   id: string
@@ -39,15 +38,20 @@ export type PortalFormReviewHighlight = {
   pendingCount: number
   recentCoachReply: {
     id: string
-    message: string
+    title: string | null
+    content_type: ClientFormReview['content_type']
+    exercise: { name: string } | null
   } | null
 }
 
+export type PortalCoachMessagePreview = {
+  body: string
+  createdAt: string
+}
+
 export type PortalMessageHighlight = {
-  latestCoachMessage: {
-    body: string
-    createdAt: string
-  } | null
+  latestCoachMessage: PortalCoachMessagePreview | null
+  recentCoachMessages: PortalCoachMessagePreview[]
   unreadCount: number
 }
 
@@ -216,13 +220,15 @@ export async function fetchPortalFormReviewHighlight(
     recentCoachReply: recentCoachReply
       ? {
           id: recentCoachReply.id,
-          message: formatFormReviewCoachReplyMessage(recentCoachReply),
+          title: recentCoachReply.title,
+          content_type: recentCoachReply.content_type,
+          exercise: recentCoachReply.exercise,
         }
       : null,
   }
 }
 
-function truncateMessagePreview(body: string, maxLength = 120) {
+function truncateMessagePreview(body: string, maxLength = 200) {
   const normalized = body.replace(/\s+/g, ' ').trim()
   if (normalized.length <= maxLength) return normalized
   return `${normalized.slice(0, maxLength - 1)}…`
@@ -239,8 +245,7 @@ export async function fetchPortalMessageHighlight(
       .eq('client_id', clientId)
       .eq('sender_role', 'coach')
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(3),
     supabase
       .from('client_message_threads')
       .select('client_last_read_at')
@@ -262,12 +267,11 @@ export async function fetchPortalMessageHighlight(
     return null
   }
 
-  const latestCoachMessage = latestResult.data
-    ? {
-        body: truncateMessagePreview(latestResult.data.body),
-        createdAt: latestResult.data.created_at,
-      }
-    : null
+  const recentCoachMessages = (latestResult.data ?? []).map((message) => ({
+    body: truncateMessagePreview(message.body),
+    createdAt: message.created_at,
+  }))
+  const latestCoachMessage = recentCoachMessages[0] ?? null
 
   const clientLastReadAt = threadResult.data?.client_last_read_at
   let unreadCount = 0
@@ -287,5 +291,5 @@ export async function fetchPortalMessageHighlight(
     unreadCount = unreadResult.count ?? 1
   }
 
-  return { latestCoachMessage, unreadCount }
+  return { latestCoachMessage, recentCoachMessages, unreadCount }
 }

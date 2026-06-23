@@ -22,17 +22,34 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Layers,
+  Link2,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { getExerciseBlockLabel } from '@/lib/exercise-groups'
 import { formatExercisePrescriptionSummary } from '@/lib/scheduled-exercise'
+import {
+  clusterExercisesBySuperset,
+  getNextSupersetGroup,
+  getSupersetColor,
+  getUsedSupersetGroups,
+  type SupersetCluster,
+} from '@/lib/superset-groups'
 import type {
   EditableWorkoutWithExercises,
   WorkoutBuilderExerciseActions,
 } from '@/lib/workout-builder-types'
+import { rowToPrescriptionValues } from '@/lib/validations/calendar'
 import { cn } from '@/lib/utils'
 import type {
   ScheduledExerciseBlock,
@@ -49,22 +66,18 @@ type WorkoutSegment = {
 }
 
 const SECTION_PREFIX = 'section:'
-const SUPERSET_COLORS: Record<string, string> = {
-  A: 'bg-sky-500',
-  B: 'bg-violet-500',
-  C: 'bg-amber-500',
-  D: 'bg-rose-500',
-}
 
 type WorkoutArrangementPanelProps = {
   workout: EditableWorkoutWithExercises
   exerciseActions: Pick<
     WorkoutBuilderExerciseActions,
-    'removeExercise' | 'reorderExercises'
+    'removeExercise' | 'reorderExercises' | 'updateExercise'
   >
   selectedRowId: string | null
   onSelectRow: (rowId: string | null) => void
   onChanged: () => void
+  onStartSuperset?: () => void
+  activeSupersetGroup?: string | null
 }
 
 function sectionLabel(block: ScheduledExerciseBlock | null): string {
@@ -114,16 +127,22 @@ type SortableExerciseItemProps = {
   row: ExerciseRow
   selected: boolean
   pending: boolean
+  showSupersetBadge?: boolean
+  usedSupersetGroups: string[]
   onSelect: () => void
   onRemove: () => void
+  onAssignSuperset: (group: string | null) => void
 }
 
 function SortableExerciseItem({
   row,
   selected,
   pending,
+  showSupersetBadge = true,
+  usedSupersetGroups,
   onSelect,
   onRemove,
+  onAssignSuperset,
 }: SortableExerciseItemProps) {
   const {
     attributes,
@@ -169,11 +188,11 @@ function SortableExerciseItem({
         className="min-w-0 flex-1 text-left"
       >
         <div className="flex items-start gap-2">
-          {row.superset_group && (
+          {showSupersetBadge && row.superset_group && (
             <span
               className={cn(
                 'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white',
-                SUPERSET_COLORS[row.superset_group] ?? 'bg-muted-foreground'
+                getSupersetColor(row.superset_group)
               )}
             >
               {row.superset_group}
@@ -185,6 +204,43 @@ function SortableExerciseItem({
           </div>
         </div>
       </button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            disabled={pending}
+            aria-label="Superset options"
+          >
+            <Link2 className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {row.superset_group ? (
+            <DropdownMenuItem onClick={() => onAssignSuperset(null)}>
+              Remove from superset
+            </DropdownMenuItem>
+          ) : null}
+          {usedSupersetGroups
+            .filter((group) => group !== row.superset_group)
+            .map((group) => (
+              <DropdownMenuItem key={group} onClick={() => onAssignSuperset(group)}>
+                Join superset {group}
+              </DropdownMenuItem>
+            ))}
+          {!row.superset_group ? (
+            <>
+              {usedSupersetGroups.length > 0 ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuItem onClick={() => onAssignSuperset('__new__')}>
+                Create new superset
+              </DropdownMenuItem>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Button
         type="button"
@@ -201,15 +257,139 @@ function SortableExerciseItem({
   )
 }
 
+type ExerciseClusterListProps = {
+  exercises: ExerciseRow[]
+  selectedRowId: string | null
+  pendingId: string | null
+  usedSupersetGroups: string[]
+  onSelectRow: (rowId: string) => void
+  onRemove: (rowId: string) => void
+  onAssignSuperset: (rowId: string, group: string | null) => void
+  allExercises: ExerciseRow[]
+}
+
+function ExerciseClusterList({
+  exercises,
+  selectedRowId,
+  pendingId,
+  usedSupersetGroups,
+  onSelectRow,
+  onRemove,
+  onAssignSuperset,
+  allExercises,
+}: ExerciseClusterListProps) {
+  const clusters = clusterExercisesBySuperset(exercises)
+  const exerciseIds = exercises.map((row) => row.id)
+
+  function handleAssign(rowId: string, group: string | null) {
+    if (group === '__new__') {
+      onAssignSuperset(rowId, getNextSupersetGroup(allExercises))
+      return
+    }
+    onAssignSuperset(rowId, group)
+  }
+
+  function renderCluster(cluster: SupersetCluster<ExerciseRow>, index: number) {
+    if (cluster.type === 'single') {
+      return (
+        <li key={cluster.exercise.id}>
+          <SortableExerciseItem
+            row={cluster.exercise}
+            selected={selectedRowId === cluster.exercise.id}
+            pending={pendingId === cluster.exercise.id}
+            usedSupersetGroups={usedSupersetGroups}
+            onSelect={() => onSelectRow(cluster.exercise.id)}
+            onRemove={() => onRemove(cluster.exercise.id)}
+            onAssignSuperset={(group) => handleAssign(cluster.exercise.id, group)}
+          />
+        </li>
+      )
+    }
+
+    return (
+      <li key={`superset-${cluster.group}-${index}`}>
+        <div className="mx-1 overflow-hidden rounded-md border">
+          {cluster.exercises.length > 1 && (
+            <div
+              className={cn(
+                'px-2 py-1 text-[10px] font-bold tracking-wide text-white uppercase',
+                getSupersetColor(cluster.group)
+              )}
+            >
+              Superset {cluster.group}
+            </div>
+          )}
+          <ul className="divide-y">
+            {cluster.exercises.map((row) => (
+              <li key={row.id}>
+                <SortableExerciseItem
+                  row={row}
+                  selected={selectedRowId === row.id}
+                  pending={pendingId === row.id}
+                  showSupersetBadge={cluster.exercises.length === 1}
+                  usedSupersetGroups={usedSupersetGroups}
+                  onSelect={() => onSelectRow(row.id)}
+                  onRemove={() => onRemove(row.id)}
+                  onAssignSuperset={(group) => handleAssign(row.id, group)}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
+      <ul className="divide-y">
+        {clusters.map((cluster, index) => renderCluster(cluster, index))}
+      </ul>
+    </SortableContext>
+  )
+}
+
+type ArrangementToolbarProps = {
+  onStartSuperset?: () => void
+  activeSupersetGroup?: string | null
+}
+
+function ArrangementToolbar({
+  onStartSuperset,
+  activeSupersetGroup,
+}: ArrangementToolbarProps) {
+  if (!onStartSuperset) return null
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b px-2 py-2">
+      <Button
+        type="button"
+        variant={activeSupersetGroup ? 'default' : 'outline'}
+        size="sm"
+        className="h-8 flex-1 text-xs"
+        onClick={onStartSuperset}
+      >
+        <Layers className="size-3.5" />
+        {activeSupersetGroup
+          ? `Superset ${activeSupersetGroup}…`
+          : 'Add superset'}
+      </Button>
+    </div>
+  )
+}
+
 type SortableSectionProps = {
   segment: WorkoutSegment
   collapsed: boolean
   draggable: boolean
   selectedRowId: string | null
   pendingId: string | null
+  usedSupersetGroups: string[]
+  allExercises: ExerciseRow[]
   onToggle: () => void
   onSelectRow: (rowId: string) => void
   onRemove: (rowId: string) => void
+  onAssignSuperset: (rowId: string, group: string | null) => void
 }
 
 function SortableSection({
@@ -218,9 +398,12 @@ function SortableSection({
   draggable,
   selectedRowId,
   pendingId,
+  usedSupersetGroups,
+  allExercises,
   onToggle,
   onSelectRow,
   onRemove,
+  onAssignSuperset,
 }: SortableSectionProps) {
   const {
     attributes,
@@ -239,8 +422,6 @@ function SortableSection({
     transform: CSS.Transform.toString(transform),
     transition,
   }
-
-  const exerciseIds = segment.exercises.map((row) => row.id)
 
   return (
     <div
@@ -285,24 +466,16 @@ function SortableSection({
       </div>
 
       {!collapsed && (
-        <SortableContext
-          items={exerciseIds}
-          strategy={verticalListSortingStrategy}
-        >
-          <ul className="divide-y">
-            {segment.exercises.map((row) => (
-              <li key={row.id}>
-                <SortableExerciseItem
-                  row={row}
-                  selected={selectedRowId === row.id}
-                  pending={pendingId === row.id}
-                  onSelect={() => onSelectRow(row.id)}
-                  onRemove={() => onRemove(row.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        </SortableContext>
+        <ExerciseClusterList
+          exercises={segment.exercises}
+          selectedRowId={selectedRowId}
+          pendingId={pendingId}
+          usedSupersetGroups={usedSupersetGroups}
+          allExercises={allExercises}
+          onSelectRow={onSelectRow}
+          onRemove={onRemove}
+          onAssignSuperset={onAssignSuperset}
+        />
       )}
     </div>
   )
@@ -314,6 +487,8 @@ export function WorkoutArrangementPanel({
   selectedRowId,
   onSelectRow,
   onChanged,
+  onStartSuperset,
+  activeSupersetGroup,
 }: WorkoutArrangementPanelProps) {
   const [pendingId, setPendingId] = React.useState<string | null>(null)
   const [reordering, setReordering] = React.useState(false)
@@ -325,6 +500,11 @@ export function WorkoutArrangementPanel({
     () =>
       [...workout.exercises].sort((a, b) => a.sort_order - b.sort_order),
     [workout.exercises]
+  )
+
+  const usedSupersetGroups = React.useMemo(
+    () => getUsedSupersetGroups(sortedExercises),
+    [sortedExercises]
   )
 
   const [localSegments, setLocalSegments] = React.useState<WorkoutSegment[]>(() =>
@@ -411,6 +591,26 @@ export function WorkoutArrangementPanel({
     if (result.success) {
       toast.success('Exercise removed.')
       if (selectedRowId === rowId) onSelectRow(null)
+      onChanged()
+      return
+    }
+    toast.error(result.error)
+  }
+
+  async function handleAssignSuperset(rowId: string, group: string | null) {
+    const row = sortedExercises.find((item) => item.id === rowId)
+    if (!row) return
+
+    setPendingId(rowId)
+    const values = rowToPrescriptionValues(row)
+    values.supersetGroup = group ?? ''
+    const result = await exerciseActions.updateExercise(rowId, values)
+    setPendingId(null)
+
+    if (result.success) {
+      toast.success(
+        group ? `Added to superset ${group}.` : 'Removed from superset.'
+      )
       onChanged()
       return
     }
@@ -511,19 +711,34 @@ export function WorkoutArrangementPanel({
 
   if (localSegments.every((segment) => segment.exercises.length === 0)) {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-        <p className="text-muted-foreground text-sm">
-          No exercises yet. Pick one from the library to start building this session.
-        </p>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <ArrangementToolbar
+          onStartSuperset={onStartSuperset}
+          activeSupersetGroup={activeSupersetGroup}
+        />
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 text-center">
+          <p className="text-muted-foreground text-sm">
+            No exercises yet. Pick one from the library or start a superset.
+          </p>
+        </div>
       </div>
     )
   }
 
+  const panelBody = (children: React.ReactNode) => (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ArrangementToolbar
+        onStartSuperset={onStartSuperset}
+        activeSupersetGroup={activeSupersetGroup}
+      />
+      {children}
+    </div>
+  )
+
   if (!showSectionHeaders) {
     const exercises = localSegments.flatMap((segment) => segment.exercises)
-    const exerciseIds = exercises.map((row) => row.id)
 
-    return (
+    return panelBody(
       <div
         className={cn(
           'min-h-0 flex-1 overflow-y-auto',
@@ -535,30 +750,24 @@ export function WorkoutArrangementPanel({
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext
-            items={exerciseIds}
-            strategy={verticalListSortingStrategy}
-          >
-            <ul className="divide-y p-2">
-              {exercises.map((row) => (
-                <li key={row.id}>
-                  <SortableExerciseItem
-                    row={row}
-                    selected={selectedRowId === row.id}
-                    pending={pendingId === row.id}
-                    onSelect={() => onSelectRow(row.id)}
-                    onRemove={() => handleRemove(row.id)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </SortableContext>
+          <div className="p-2">
+            <ExerciseClusterList
+              exercises={exercises}
+              selectedRowId={selectedRowId}
+              pendingId={pendingId}
+              usedSupersetGroups={usedSupersetGroups}
+              allExercises={sortedExercises}
+              onSelectRow={onSelectRow}
+              onRemove={handleRemove}
+              onAssignSuperset={handleAssignSuperset}
+            />
+          </div>
         </DndContext>
       </div>
     )
   }
 
-  return (
+  return panelBody(
     <div
       className={cn(
         'min-h-0 flex-1 overflow-y-auto',
@@ -583,9 +792,12 @@ export function WorkoutArrangementPanel({
                 draggable={sectionsDraggable}
                 selectedRowId={selectedRowId}
                 pendingId={pendingId}
+                usedSupersetGroups={usedSupersetGroups}
+                allExercises={sortedExercises}
                 onToggle={() => toggleBlock(segment.blockKey)}
                 onSelectRow={onSelectRow}
                 onRemove={handleRemove}
+                onAssignSuperset={handleAssignSuperset}
               />
             ))}
           </div>
@@ -594,8 +806,8 @@ export function WorkoutArrangementPanel({
 
       <div className="px-3 pb-3">
         <p className="text-muted-foreground text-[11px]">
-          Drag section headers or individual exercises to reorder. New exercises
-          are placed in their section automatically.
+          Drag to reorder. Use the link icon to join or create supersets. Exercises
+          with the same letter are performed back-to-back.
         </p>
       </div>
     </div>

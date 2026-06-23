@@ -23,6 +23,10 @@ import {
   formatExercisePrescriptionSummary,
   getExerciseOptionBadges,
 } from '@/lib/scheduled-exercise'
+import {
+  clusterExercisesBySuperset,
+  getSupersetColor,
+} from '@/lib/superset-groups'
 import { cn } from '@/lib/utils'
 import type {
   ClientScheduledWorkoutWithExercises,
@@ -34,6 +38,7 @@ type ScheduledExerciseRowProps = {
   row: ClientScheduledWorkoutWithExercises['exercises'][number]
   isFirst: boolean
   isLast: boolean
+  showSupersetBadge?: boolean
   onChanged: () => void
 }
 
@@ -42,6 +47,7 @@ function ScheduledExerciseRow({
   row,
   isFirst,
   isLast,
+  showSupersetBadge = true,
   onChanged,
 }: ScheduledExerciseRowProps) {
   const [pending, setPending] = React.useState(false)
@@ -71,24 +77,17 @@ function ScheduledExerciseRow({
     toast.error(result.error)
   }
 
-  const groupColors: Record<string, string> = {
-    A: 'bg-sky-500',
-    B: 'bg-violet-500',
-    C: 'bg-amber-500',
-    D: 'bg-rose-500',
-  }
-
   return (
     <div className="flex items-start gap-3 border-b py-4 last:border-b-0">
       <div className="relative shrink-0">
         <div className="bg-muted flex size-10 items-center justify-center rounded-full">
           <Dumbbell className="text-muted-foreground size-4" />
         </div>
-        {row.superset_group && (
+        {showSupersetBadge && row.superset_group && (
           <span
             className={cn(
               'absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white',
-              groupColors[row.superset_group] ?? 'bg-muted-foreground'
+              getSupersetColor(row.superset_group)
             )}
           >
             {row.superset_group}
@@ -221,16 +220,59 @@ export function ScheduledWorkoutView({
             No exercises yet. Search the catalog or pick from your library to build this session.
           </p>
         ) : (
-          workout.exercises.map((row, index) => (
-            <ScheduledExerciseRow
-              key={row.id}
-              clientId={clientId}
-              row={row}
-              isFirst={index === 0}
-              isLast={index === workout.exercises.length - 1}
-              onChanged={onChanged}
-            />
-          ))
+          clusterExercisesBySuperset(workout.exercises).map((cluster, clusterIndex) => {
+            if (cluster.type === 'single') {
+              const index = workout.exercises.findIndex(
+                (row) => row.id === cluster.exercise.id
+              )
+              return (
+                <ScheduledExerciseRow
+                  key={cluster.exercise.id}
+                  clientId={clientId}
+                  row={cluster.exercise}
+                  isFirst={index === 0}
+                  isLast={index === workout.exercises.length - 1}
+                  onChanged={onChanged}
+                />
+              )
+            }
+
+            return (
+              <div
+                key={`superset-${cluster.group}-${clusterIndex}`}
+                className="mb-3 overflow-hidden rounded-lg border"
+              >
+                {cluster.exercises.length > 1 && (
+                  <div
+                    className={cn(
+                      'px-3 py-1.5 text-[10px] font-bold tracking-wide text-white uppercase',
+                      getSupersetColor(cluster.group)
+                    )}
+                  >
+                    Superset {cluster.group}
+                  </div>
+                )}
+                <div>
+                  {cluster.exercises.map((row) => {
+                    const index = workout.exercises.findIndex(
+                      (item) => item.id === row.id
+                    )
+                    return (
+                      <ScheduledExerciseRow
+                        key={row.id}
+                        clientId={clientId}
+                        row={row}
+                        isFirst={index === 0}
+                        isLast={index === workout.exercises.length - 1}
+                        showSupersetBadge={cluster.exercises.length === 1}
+                        onChanged={onChanged}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
     </div>

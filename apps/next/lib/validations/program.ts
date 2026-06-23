@@ -64,6 +64,23 @@ export const copyProgramWorkoutRangeSchema = z
     path: ['endDayOffset'],
   })
 
+export const programWeekIndexSchema = z
+  .number()
+  .int()
+  .min(0, 'Week must be at least 1.')
+  .max(52, 'Week cannot exceed 53.')
+
+export const copyProgramWeekRangeSchema = z
+  .object({
+    sourceWeekIndex: programWeekIndexSchema,
+    startWeekIndex: programWeekIndexSchema,
+    endWeekIndex: programWeekIndexSchema,
+  })
+  .refine((value) => value.startWeekIndex <= value.endWeekIndex, {
+    message: 'Start week must be on or before end week.',
+    path: ['endWeekIndex'],
+  })
+
 export const programPhaseDaySchema = z
   .number()
   .int()

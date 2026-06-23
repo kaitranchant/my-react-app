@@ -17,9 +17,11 @@ type TrainingConsistencyHeatmapProps = {
   compact?: boolean
   displayWeeks?: number
   className?: string
+  /** Use green achievement colors (client portal) instead of brand purple */
+  achievementColors?: boolean
 }
 
-const LEVEL_CLASS: Record<TrainingConsistencyLevel, string> = {
+const BRAND_LEVEL_CLASS: Record<TrainingConsistencyLevel, string> = {
   0: 'bg-muted/70',
   1: 'bg-brand/25',
   2: 'bg-brand/45',
@@ -27,15 +29,38 @@ const LEVEL_CLASS: Record<TrainingConsistencyLevel, string> = {
   4: 'bg-brand',
 }
 
+const ACHIEVEMENT_LEVEL_CLASS: Record<TrainingConsistencyLevel, string> = {
+  0: 'bg-muted/70',
+  1: 'bg-status-success/25',
+  2: 'bg-status-success/45',
+  3: 'bg-status-success/70',
+  4: 'bg-status-success',
+}
+
 const WEEKDAY_LABELS: Record<WeekStartsOn, string[]> = {
   monday: ['Mon', '', 'Wed', '', 'Fri', '', ''],
   sunday: ['Sun', '', 'Tue', '', 'Thu', '', 'Sat'],
 }
 
-function getDayClassName(day: TrainingConsistencyDay): string {
-  if (day.count > 0) return LEVEL_CLASS[day.level]
-  if (day.missed) return 'border border-destructive/45 bg-destructive/10'
-  return LEVEL_CLASS[0]
+function getDayClassName(
+  day: TrainingConsistencyDay,
+  levelClass: Record<TrainingConsistencyLevel, string>,
+  achievementColors: boolean
+): string {
+  if (day.count > 0) {
+    if (achievementColors) {
+      if (day.level >= 3) return 'bg-status-success'
+      if (day.level >= 2) return 'bg-status-success/90'
+      return 'bg-status-success/75'
+    }
+    return levelClass[day.level]
+  }
+  if (day.missed) {
+    return achievementColors
+      ? 'bg-muted/50'
+      : 'border border-destructive/45 bg-destructive/10'
+  }
+  return levelClass[0]
 }
 
 export function TrainingConsistencyHeatmap({
@@ -44,7 +69,11 @@ export function TrainingConsistencyHeatmap({
   compact = false,
   displayWeeks,
   className,
+  achievementColors = false,
 }: TrainingConsistencyHeatmapProps) {
+  const levelClass = achievementColors
+    ? ACHIEVEMENT_LEVEL_CLASS
+    : BRAND_LEVEL_CLASS
   const weekdayLabels = WEEKDAY_LABELS[weekStartsOn]
   const hasActivity = heatmap.totalSessions > 0
   const recentWeekCount = displayWeeks ?? (compact ? COMPACT_HEATMAP_WEEKS : undefined)
@@ -137,7 +166,9 @@ export function TrainingConsistencyHeatmap({
                     className={cn(
                       'rounded-[3px]',
                       cellSize,
-                      day ? getDayClassName(day) : 'bg-transparent'
+                      day
+                        ? getDayClassName(day, levelClass, achievementColors)
+                        : 'bg-transparent'
                     )}
                     title={day ? formatTrainingConsistencyDayLabel(day) : undefined}
                     aria-label={
@@ -160,7 +191,9 @@ export function TrainingConsistencyHeatmap({
         <p className="text-muted-foreground text-xs leading-relaxed">
           {hasActivity
             ? compact
-              ? 'Recent training activity. Darker squares mean more completed sessions.'
+              ? achievementColors
+                ? 'Recent training activity. Green squares are completed sessions.'
+                : 'Recent training activity. Darker squares mean more completed sessions.'
               : 'Each square is a day. Darker squares mean more completed sessions. Outlined squares are missed sessions.'
             : 'Complete workouts to start building training history.'}
         </p>
@@ -170,7 +203,7 @@ export function TrainingConsistencyHeatmap({
           {([0, 1, 2, 3, 4] as TrainingConsistencyLevel[]).map((level) => (
             <span
               key={level}
-              className={cn('rounded-[3px]', cellSize, LEVEL_CLASS[level])}
+              className={cn('rounded-[3px]', cellSize, levelClass[level])}
             />
           ))}
           <span>More</span>

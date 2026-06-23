@@ -1,30 +1,30 @@
 import Link from 'next/link'
 import { ArrowRight, CalendarCheck } from 'lucide-react'
 
-import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { PortalActiveGoalsCard } from '@/components/portal/portal-active-goals-card'
-import { PortalFormReviewStatusCard } from '@/components/portal/portal-form-review-status-card'
+import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-section'
+import { PortalHomeStatsRow } from '@/components/portal/portal-home-stats-row'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
+import { PortalProgramCard } from '@/components/portal/portal-program-card'
 import { PortalReadinessPrompt } from '@/components/portal/portal-readiness-prompt'
-import { PortalRecentMessagesCard } from '@/components/portal/portal-recent-messages-card'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
-import { PortalTrainingConsistencyHeatmap } from '@/components/portal/portal-training-consistency-heatmap'
+import { PortalTrainingConsistencyCard } from '@/components/portal/portal-training-consistency-card'
 import { PortalTodayWorkoutHero } from '@/components/portal/portal-today-workout-hero'
-import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
-import { PortalStatCard } from '@/components/portal/portal-stat-cards'
 import { PortalWeekStrip } from '@/components/portal/portal-week-strip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
 import { getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
-import { formatVolume } from '@/lib/load-analytics'
+import { fetchClientProgramSummary } from '@/lib/client-program-progress'
+import { fetchCoachDisplayName } from '@/lib/portal-coach-name'
+import { getGreeting } from '@/lib/dashboard'
 import {
   fetchPortalFormReviewHighlight,
   fetchPortalHomeGoalHighlights,
@@ -88,6 +88,7 @@ export default async function PortalPage() {
   const clientRecord = portalCtx?.client ?? null
 
   let activeProgram: {
+    id: string
     name: string
     description: string | null
     start_date: string | null
@@ -96,6 +97,7 @@ export default async function PortalPage() {
   let homeData = null
   let todayWorkout: CalendarDaySummary | null = null
   let nextTeamEvent = null
+  let programSummary = null
   let goalHighlights: Awaited<
     ReturnType<typeof fetchPortalHomeGoalHighlights>
   > = []
@@ -107,7 +109,7 @@ export default async function PortalPage() {
   > = null
 
   let coachPreferences = null
-
+  let coachName = 'Coach'
 
   if (clientRecord?.id) {
     coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
@@ -121,10 +123,11 @@ export default async function PortalPage() {
       goalHighlightsResult,
       formReviewHighlightResult,
       messageHighlightResult,
+      coachNameResult,
     ] = await Promise.all([
       supabase
         .from('program_assignments')
-        .select('start_date, program:programs(name, description)')
+        .select('start_date, program_id, program:programs(id, name, description)')
         .eq('client_id', clientRecord.id)
         .eq('status', 'active')
         .maybeSingle(),
@@ -139,6 +142,7 @@ export default async function PortalPage() {
       fetchPortalHomeGoalHighlights(supabase, clientRecord.id, coachPreferences),
       fetchPortalFormReviewHighlight(supabase, clientRecord.id),
       fetchPortalMessageHighlight(supabase, clientRecord.id),
+      fetchCoachDisplayName(supabase, clientRecord.coach_id),
     ])
 
     if (
@@ -146,6 +150,7 @@ export default async function PortalPage() {
       !Array.isArray(assignmentResult.data.program)
     ) {
       activeProgram = {
+        id: assignmentResult.data.program.id,
         name: assignmentResult.data.program.name,
         description: assignmentResult.data.program.description,
         start_date: assignmentResult.data.start_date,
@@ -158,6 +163,20 @@ export default async function PortalPage() {
     goalHighlights = goalHighlightsResult
     formReviewHighlight = formReviewHighlightResult
     messageHighlight = messageHighlightResult
+    coachName = coachNameResult
+
+    if (activeProgram && homeData) {
+      programSummary = await fetchClientProgramSummary(
+        supabase,
+        activeProgram.id,
+        activeProgram.start_date,
+        homeData.weekSessions,
+        {
+          clientId: clientRecord.id,
+          todayKey: coachTodayKey,
+        }
+      )
+    }
   }
 
   const name =
@@ -166,9 +185,10 @@ export default async function PortalPage() {
     user?.email?.split('@')[0] ||
     'Client'
 
-  const avatarUrl = clientRecord?.avatar_url ?? profile?.avatar_url
-  const todayLabel = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
+  const firstName = name.split(/\s+/)[0] ?? name
+
+  const shortDateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
     month: 'long',
     day: 'numeric',
   })
@@ -180,32 +200,80 @@ export default async function PortalPage() {
       )
     : null
 
-  return (
-    <div className="flex flex-col gap-6">
-      <section className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-card sm:p-8">
-        <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
-        <div className="relative space-y-4">
-          <ClientAvatarUpload
-            name={name}
-            avatarUrl={avatarUrl}
-            forClientPortal
-            size="md"
-          />
-          <div className="space-y-2">
-            <p className="section-header text-muted-foreground">
-              {todayLabel}
-            </p>
-            <h1 className="page-title">
-              Welcome, {name}
-            </h1>
-            <p className="helper-text leading-relaxed">
-              Your coach&apos;s plan for today — workouts, check-ins, and progress
-              in one place.
-            </p>
-          </div>
-        </div>
-      </section>
+  const checkInDueLabel = coachPreferences
+    ? getPortalCheckInDueLabel(coachPreferences.defaultCheckInFrequency, {
+        hasWorkoutToday: todayWorkout != null,
+      })
+    : 'Due this week'
 
+  const weekStartsOn = coachPreferences?.weekStartsOn ?? 'monday'
+
+  const weekCard = homeData ? (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-base">This week</CardTitle>
+        <Link
+          href="/portal/workouts"
+          className="text-brand flex items-center gap-1 text-xs font-medium"
+        >
+          Full calendar
+          <ArrowRight className="size-3.5" />
+        </Link>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <PortalWeekStrip
+          weekSessions={homeData.weekSessions}
+          weekStartsOn={weekStartsOn}
+        />
+      </CardContent>
+    </Card>
+  ) : null
+
+  const heatmapCard = homeData ? (
+    <PortalTrainingConsistencyCard
+      heatmap={homeData.trainingConsistency}
+      weekStartsOn={weekStartsOn}
+    />
+  ) : null
+
+  const submittedCheckInCard =
+    homeData && homeData.checkInStatus !== 'due' ? (
+      <Link href="/portal/check-in" className="group block">
+        <Card className="transition-colors group-hover:border-brand/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-2">
+                <CalendarCheck className="text-brand size-4" />
+                Check-in
+              </span>
+              <Badge variant={checkInStatusVariant(homeData.checkInStatus)}>
+                {checkInStatusLabel(homeData.checkInStatus, checkInDueLabel)}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {homeData.checkInStatus === 'reviewed' &&
+              homeData.periodCheckIn?.coach_notes && (
+                <p className="text-brand text-xs font-medium">
+                  Coach left feedback — open to read
+                </p>
+              )}
+          </CardContent>
+        </Card>
+      </Link>
+    ) : null
+
+  const programCard =
+    activeProgram && homeData ? (
+      <PortalProgramCard
+        name={activeProgram.name}
+        description={activeProgram.description}
+        summary={programSummary}
+      />
+    ) : null
+
+  return (
+    <div className="flex flex-col gap-4 lg:gap-6">
       {!clientRecord ? (
         <Card>
           <CardContent className="helper-text py-8 text-center leading-relaxed">
@@ -216,179 +284,75 @@ export default async function PortalPage() {
         </Card>
       ) : homeData ? (
         <>
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-base font-semibold sm:text-lg">
+              {getGreeting()}, {firstName}
+            </h1>
+            <p className="text-muted-foreground shrink-0 text-sm">
+              {shortDateLabel}
+            </p>
+          </div>
+
           <PortalTodayWorkoutHero
             todayWorkout={todayWorkout}
             workoutStatus={todayWorkoutStatus}
             streak={homeData.streak}
           />
 
-          <PortalReadinessPrompt
-            status={homeData.checkInStatus}
-            dueLabel={homeData.checkInDueLabel}
+          <PortalHomeStatsRow
+            streak={homeData.streak}
+            completionRate={homeData.completionRate}
+            lastActive={homeData.lastActive}
           />
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            <PortalRecentMessagesCard highlight={messageHighlight} />
+          {/* Mobile: single-column stack matching mockup order */}
+          <div className="flex flex-col gap-4 lg:hidden">
+            <PortalFromCoachSection
+              coachName={coachName}
+              messageHighlight={messageHighlight}
+              formReviewHighlight={formReviewHighlight}
+            />
+            <PortalReadinessPrompt
+              status={homeData.checkInStatus}
+              dueLabel={checkInDueLabel}
+            />
+            {submittedCheckInCard}
             <PortalActiveGoalsCard goals={goalHighlights} />
-          </section>
-
-          {activeProgram && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>
-                  Your program
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="body-text space-y-2 leading-relaxed">
-                <p className="section-header">{activeProgram.name}</p>
-                {activeProgram.description && (
-                  <p className="helper-text whitespace-pre-wrap">
-                    {activeProgram.description}
-                  </p>
-                )}
-                {activeProgram.start_date && (
-                  <p className="helper-text">
-                    Started{' '}
-                    {new Date(`${activeProgram.start_date}T12:00:00`).toLocaleDateString(
-                      undefined,
-                      { month: 'short', day: 'numeric', year: 'numeric' }
-                    )}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div>
-                <CardTitle>This week</CardTitle>
-                <CardDescription>Tap a day to open your workout.</CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-8 gap-1 px-2 text-xs"
-                asChild
-              >
-                <Link href="/portal/workouts">
-                  Full calendar
-                  <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <PortalWeekStrip
-                weekSessions={homeData.weekSessions}
-                weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
-              />
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <PortalStatCard
-              label="This week volume"
-              value={formatVolume(
-                homeData.loadMetrics?.thisWeekVolume ?? 0,
-                coachPreferences?.weightUnit ?? 'lbs'
-              )}
-              hint={
-                homeData.loadMetrics?.volumeDeltaLabel ??
-                'Log workouts to track load'
-              }
-              accent
-            />
-            <PortalAcwrStatCard loadMetrics={homeData.loadMetrics} />
-            <PortalStatCard
-              label="Streak"
-              value={
-                homeData.streak > 0
-                  ? `${homeData.streak} day${homeData.streak === 1 ? '' : 's'}`
-                  : '—'
-              }
-              hint="Consecutive workout days"
-            />
-            <PortalStatCard
-              label="Completion"
-              value={
-                homeData.completionRate !== null
-                  ? `${homeData.completionRate}%`
-                  : '—'
-              }
-              hint="Scheduled sessions this week"
-            />
-            <PortalStatCard
-              label="Last active"
-              value={homeData.lastActive}
-              hint="Most recent session"
-            />
-          </div>
-
-          <section className="grid gap-4 sm:grid-cols-2">
-            {homeData.checkInStatus !== 'due' && (
-              <Link href="/portal/check-in" className="group block">
-                <Card className="h-full transition-colors group-hover:border-brand/40">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2">
-                        <CalendarCheck className="text-brand size-5" />
-                        Check-in
-                      </span>
-                      <Badge variant={checkInStatusVariant(homeData.checkInStatus)}>
-                        {checkInStatusLabel(
-                          homeData.checkInStatus,
-                          homeData.checkInDueLabel
-                        )}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Share sleep, energy, soreness, and how you are feeling today.
-                    </p>
-                    {homeData.checkInStatus === 'reviewed' &&
-                      homeData.periodCheckIn?.coach_notes && (
-                        <p className="text-brand text-xs font-medium">
-                          Coach left feedback — open to read
-                        </p>
-                      )}
-                  </CardContent>
-                </Card>
-              </Link>
-            )}
-
+            {weekCard}
+            <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
+            {programCard}
+            {heatmapCard}
             {nextTeamEvent && (
               <PortalNextTeamEventCard nextEvent={nextTeamEvent} />
             )}
+          </div>
 
-            <PortalFormReviewStatusCard highlight={formReviewHighlight} />
-          </section>
+          {/* Desktop: two-column grid */}
+          <div className="hidden items-start gap-6 lg:grid lg:grid-cols-[1.35fr_22rem]">
+            <div className="flex min-w-0 flex-col gap-6">
+              {weekCard}
+              {heatmapCard}
+              <PortalActiveGoalsCard goals={goalHighlights} />
+            </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div>
-                <CardTitle>Training consistency</CardTitle>
-                <CardDescription>
-                  Your last 12 weeks of completed and missed sessions.
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/portal/progress">
-                  Full year
-                  <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <PortalTrainingConsistencyHeatmap
-                heatmap={homeData.trainingConsistency}
-                weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
-                compact
+            <aside className="flex min-w-0 flex-col gap-6">
+              <PortalFromCoachSection
+                coachName={coachName}
+                messageHighlight={messageHighlight}
+                formReviewHighlight={formReviewHighlight}
               />
-            </CardContent>
-          </Card>
-
-          <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
+              <PortalReadinessPrompt
+                status={homeData.checkInStatus}
+                dueLabel={checkInDueLabel}
+              />
+              {submittedCheckInCard}
+              <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
+              {programCard}
+              {nextTeamEvent && (
+                <PortalNextTeamEventCard nextEvent={nextTeamEvent} />
+              )}
+            </aside>
+          </div>
         </>
       ) : null}
     </div>
