@@ -135,33 +135,45 @@ function NavGroupSection({
         />
       </button>
 
-      {open ? (
-        <div className="border-border/60 ml-[18px] space-y-0.5 border-l pl-2">
-          {group.items.map((item) => {
-            if (item.soon) {
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-out',
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div
+            className={cn(
+              'border-border/60 ml-[18px] space-y-0.5 border-l pl-2 transition-opacity duration-200',
+              open ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            {group.items.map((item) => {
+              if (item.soon) {
+                return (
+                  <NavSoonItem
+                    key={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                  />
+                )
+              }
+
               return (
-                <NavSoonItem
+                <NavLink
                   key={item.href}
+                  href={item.href}
                   label={item.label}
                   icon={item.icon}
+                  active={isNavItemActive(pathname, item.href)}
+                  badgeCount={badgeByHref[item.href] ?? 0}
+                  onNavigate={onNavigate}
                 />
               )
-            }
-
-            return (
-              <NavLink
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                active={isNavItemActive(pathname, item.href)}
-                badgeCount={badgeByHref[item.href] ?? 0}
-                onNavigate={onNavigate}
-              />
-            )
-          })}
+            })}
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }

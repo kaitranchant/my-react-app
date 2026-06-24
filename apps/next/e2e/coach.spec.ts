@@ -10,7 +10,7 @@ test.describe('Coach auth and client management', () => {
     test.setTimeout(60_000)
     await page.setViewportSize({ width: 1280, height: 1200 })
     await page.goto('/clients')
-    await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const dialog = page.getByRole('dialog', { name: 'Add client' })
     await page.getByRole('button', { name: 'Add client' }).click()
@@ -31,7 +31,7 @@ test.describe('Coach auth and client management', () => {
   })
 
   test('coach dashboard loads with navigation', async ({ coachPage: page }) => {
-    await expectSidebarLink(page, 'Athletes', 'Clients')
+    await expectSidebarLink(page, 'Clients', 'Users')
     await expectSidebarLink(page, 'Programming', 'Library')
   })
 })

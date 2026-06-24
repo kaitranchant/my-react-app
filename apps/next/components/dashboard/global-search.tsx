@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/command'
 
 const GROUP_LABELS: Record<GlobalSearchResultType, string> = {
-  client: 'Clients',
+  client: 'Users',
   workout: 'Workouts',
   program: 'Programs',
   exercise: 'Exercises',

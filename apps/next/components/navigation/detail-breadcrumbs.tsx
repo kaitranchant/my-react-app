@@ -56,7 +56,7 @@ export function ClientDetailBreadcrumbs({
   const tab = searchParams.get('tab') ?? 'overview'
   const tabLabel = CLIENT_TAB_LABELS[tab]
 
-  const items: BreadcrumbItem[] = [{ label: 'Clients', href: '/clients' }]
+  const items: BreadcrumbItem[] = [{ label: 'Users', href: '/clients' }]
 
   if (tab === 'overview' || !tabLabel) {
     items.push({ label: clientName })

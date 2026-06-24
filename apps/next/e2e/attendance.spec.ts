@@ -2,7 +2,7 @@ import { test, expect, E2E_CLIENT_NAME, expandSidebarGroup } from './fixtures'
 
 test.describe('Attendance', () => {
   test('coach can mark daily client presence', async ({ coachPage: page }) => {
-    await expandSidebarGroup(page, 'Athletes')
+    await expandSidebarGroup(page, 'Clients')
     await page.getByRole('link', { name: 'Attendance', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Attendance' })).toBeVisible()
 
@@ -89,7 +89,7 @@ test.describe('Attendance', () => {
       .click()
     await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
 
-    await expandSidebarGroup(page, 'Athletes')
+    await expandSidebarGroup(page, 'Clients')
     await page.getByRole('link', { name: 'Attendance', exact: true }).click()
     await page.getByRole('tab', { name: teamName }).click()
 

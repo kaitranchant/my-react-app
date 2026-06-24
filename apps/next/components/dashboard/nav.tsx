@@ -12,6 +12,8 @@ import {
 
   CalendarClock,
 
+  Contact,
+
   Flag,
 
   LayoutDashboard,
@@ -78,13 +80,13 @@ export const navGroups: NavGroup[] = [
 
   {
 
-    label: 'Athletes',
+    label: 'Clients',
 
-    icon: Users,
+    icon: Contact,
 
     items: [
 
-      { label: 'Clients', href: '/clients', icon: Users },
+      { label: 'Users', href: '/clients', icon: Users },
 
       { label: 'Teams', href: '/teams', icon: Flag },
       { label: 'Gym', href: '/gym', icon: Building2 },

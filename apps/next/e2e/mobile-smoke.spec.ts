@@ -21,8 +21,8 @@ test.describe('Mobile smoke — client portal', () => {
 test.describe('Mobile smoke — coach dashboard', () => {
   test('coach can use bottom nav to reach clients', async ({ coachPage: page }) => {
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: 'Clients' }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
     await expect(page).toHaveURL(/\/clients/)
-    await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
   })
 })

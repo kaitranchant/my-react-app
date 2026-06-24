@@ -27,7 +27,7 @@ import { clientStatuses } from '@/lib/validations/client'
 import type { Client, ClientStatus, ClientTeamMembership } from 'app/types/database'
 
 export const metadata = {
-  title: 'Clients — Coaching App',
+  title: 'Users — Coaching App',
 }
 
 function isStatus(value: string): value is ClientStatus {
@@ -180,7 +180,7 @@ export default async function ClientsPage({
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <PageHeader
-        title="Clients"
+        title="Users"
         description="Manage your clients, their programs, and progress in one place."
       >
         <Suspense fallback={<AddClientButtonSkeleton />}>

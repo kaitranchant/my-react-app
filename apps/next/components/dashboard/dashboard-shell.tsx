@@ -57,11 +57,14 @@ export function DashboardShell({
           <div className="min-w-0 flex-1 md:hidden">
             <BrandLogo />
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
+          <div className="hidden min-w-0 flex-1 md:flex md:items-center">
             <GlobalSearch />
           </div>
-          <CoachNotificationCenter items={notifications} />
-          <div className="shrink-0">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            <CoachNotificationCenter items={notifications} />
+            <div className="md:hidden">
+              <GlobalSearch />
+            </div>
             <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
           </div>
         </header>
