@@ -4,6 +4,7 @@ export type ClientEmailNudgeType =
   | 'workout_reminder'
   | 'check_in_due'
   | 'unread_digest'
+  | 'appointment_reminder'
 
 export function shouldSendCheckInDueNudge(
   frequency: CheckInFrequency,

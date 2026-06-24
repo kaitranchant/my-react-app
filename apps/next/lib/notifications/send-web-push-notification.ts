@@ -7,10 +7,10 @@ import { sendWebPushToUser } from '@/lib/web-push/send'
 import type { WebPushPayload } from '@/lib/web-push/payload'
 
 const coachNotificationSelect =
-  'notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary'
+  'notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders'
 
 const portalNotificationSelect =
-  'portal_notify_messages, portal_notify_check_in_reviews, portal_notify_form_review_replies, portal_notify_team_updates, portal_notify_workout_reminders, portal_notify_check_in_reminders, portal_notify_unread_digest'
+  'portal_notify_messages, portal_notify_check_in_reviews, portal_notify_form_review_replies, portal_notify_team_updates, portal_notify_workout_reminders, portal_notify_check_in_reminders, portal_notify_unread_digest, portal_notify_appointment_reminders'
 
 export async function sendCoachWebPushNotification(params: {
   coachId: string

@@ -12,6 +12,7 @@ export const defaultPortalNotificationPreferences: PortalNotificationPreferences
     notifyWorkoutReminders: true,
     notifyCheckInReminders: true,
     notifyUnreadDigest: true,
+    notifyAppointmentReminders: true,
   }
 
 type ProfilePortalNotificationRow = Pick<
@@ -23,6 +24,7 @@ type ProfilePortalNotificationRow = Pick<
   | 'portal_notify_workout_reminders'
   | 'portal_notify_check_in_reminders'
   | 'portal_notify_unread_digest'
+  | 'portal_notify_appointment_reminders'
 >
 
 export function parsePortalNotificationPreferences(
@@ -50,6 +52,9 @@ export function parsePortalNotificationPreferences(
     notifyUnreadDigest:
       row?.portal_notify_unread_digest ??
       defaultPortalNotificationPreferences.notifyUnreadDigest,
+    notifyAppointmentReminders:
+      row?.portal_notify_appointment_reminders ??
+      defaultPortalNotificationPreferences.notifyAppointmentReminders,
   }
 }
 
@@ -64,5 +69,6 @@ export function portalNotificationPreferencesToRow(
     portal_notify_workout_reminders: values.notifyWorkoutReminders,
     portal_notify_check_in_reminders: values.notifyCheckInReminders,
     portal_notify_unread_digest: values.notifyUnreadDigest,
+    portal_notify_appointment_reminders: values.notifyAppointmentReminders,
   }
 }

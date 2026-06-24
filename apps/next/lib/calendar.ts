@@ -230,3 +230,20 @@ export function getWeekDayLabels(
     })
   )
 }
+
+/** Compact week label, e.g. "Jun 22–28" or "Jun 30 – Jul 6". */
+export function formatSchedulingWeekRange(
+  startDateKey: string,
+  endDateKey: string
+): string {
+  const start = parseDateKey(startDateKey)
+  const end = parseDateKey(endDateKey)
+  const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
+  const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${start.getDate()}–${end.getDate()}`
+  }
+
+  return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}`
+}

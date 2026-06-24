@@ -8,6 +8,7 @@ export const portalNotificationPreferenceKeys = [
   'notifyWorkoutReminders',
   'notifyCheckInReminders',
   'notifyUnreadDigest',
+  'notifyAppointmentReminders',
 ] as const
 
 export type PortalNotificationPreferenceKey =
@@ -21,6 +22,7 @@ export const portalNotificationPreferencesSchema = z.object({
   notifyWorkoutReminders: z.boolean(),
   notifyCheckInReminders: z.boolean(),
   notifyUnreadDigest: z.boolean(),
+  notifyAppointmentReminders: z.boolean(),
 })
 
 export type PortalNotificationPreferencesValues = z.infer<

@@ -6,7 +6,7 @@ export async function getNotificationPreferencesForUser(userId: string) {
   const { data } = await supabase
     .from('profiles')
     .select(
-      'notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary'
+      'notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders'
     )
     .eq('id', userId)
     .maybeSingle()

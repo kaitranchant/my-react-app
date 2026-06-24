@@ -62,6 +62,12 @@ const notificationOptions: NotificationOption[] = [
     description:
       'Daily email when you have unread messages from your coach.',
   },
+  {
+    key: 'notifyAppointmentReminders',
+    label: 'Session reminders',
+    description:
+      'Email and browser alerts before your scheduled coaching sessions.',
+  },
 ]
 
 export function PortalNotificationSettings({

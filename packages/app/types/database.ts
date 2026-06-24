@@ -41,6 +41,7 @@ export type ClientEmailNudgeType =
   | 'workout_reminder'
   | 'check_in_due'
   | 'unread_digest'
+  | 'appointment_reminder'
 export type CoachTimezone =
   | 'auto'
   | 'america_new_york'
@@ -88,6 +89,14 @@ export type WearableConnectionStatus =
   | 'connected'
   | 'disconnected'
   | 'error'
+export type CoachingAppointmentStatus =
+  | 'scheduled'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
+  | 'rescheduled'
+export type CoachingAppointmentBookedBy = 'coach' | 'client'
+export type CoachAvailabilityExceptionType = 'blocked' | 'extra_hours'
 
 export type ClientGoalMetadata = {
   squatExerciseId?: string
@@ -168,6 +177,16 @@ export type Database = {
           portal_notify_workout_reminders: boolean
           portal_notify_check_in_reminders: boolean
           portal_notify_unread_digest: boolean
+          portal_notify_appointment_reminders: boolean
+          notify_appointment_reminders: boolean
+          appointment_reminder_hours: number
+          session_booking_enabled: boolean
+          default_session_duration_minutes: number
+          booking_buffer_minutes: number
+          booking_min_notice_hours: number
+          booking_max_days_ahead: number
+          default_session_location: string | null
+          booking_requires_session_pack: boolean
           created_at: string
           updated_at: string
         }
@@ -197,6 +216,16 @@ export type Database = {
           portal_notify_workout_reminders?: boolean
           portal_notify_check_in_reminders?: boolean
           portal_notify_unread_digest?: boolean
+          portal_notify_appointment_reminders?: boolean
+          notify_appointment_reminders?: boolean
+          appointment_reminder_hours?: number
+          session_booking_enabled?: boolean
+          default_session_duration_minutes?: number
+          booking_buffer_minutes?: number
+          booking_min_notice_hours?: number
+          booking_max_days_ahead?: number
+          default_session_location?: string | null
+          booking_requires_session_pack?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -226,6 +255,16 @@ export type Database = {
           portal_notify_workout_reminders?: boolean
           portal_notify_check_in_reminders?: boolean
           portal_notify_unread_digest?: boolean
+          portal_notify_appointment_reminders?: boolean
+          notify_appointment_reminders?: boolean
+          appointment_reminder_hours?: number
+          session_booking_enabled?: boolean
+          default_session_duration_minutes?: number
+          booking_buffer_minutes?: number
+          booking_min_notice_hours?: number
+          booking_max_days_ahead?: number
+          default_session_location?: string | null
+          booking_requires_session_pack?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1365,6 +1404,48 @@ export type Database = {
           },
         ]
       }
+      client_session_packs: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          label: string
+          total_sessions: number
+          sessions_used: number
+          expires_at: string | null
+          notes: string | null
+          price_cents: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          label: string
+          total_sessions: number
+          sessions_used?: number
+          expires_at?: string | null
+          notes?: string | null
+          price_cents?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          label?: string
+          total_sessions?: number
+          sessions_used?: number
+          expires_at?: string | null
+          notes?: string | null
+          price_cents?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_scheduled_workouts: {
         Row: {
           id: string
@@ -2376,6 +2457,153 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      coach_availability_exceptions: {
+        Row: {
+          id: string
+          coach_id: string
+          exception_date: string
+          exception_type: CoachAvailabilityExceptionType
+          start_time: string | null
+          end_time: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          exception_date: string
+          exception_type: CoachAvailabilityExceptionType
+          start_time?: string | null
+          end_time?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          exception_date?: string
+          exception_type?: CoachAvailabilityExceptionType
+          start_time?: string | null
+          end_time?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_availability_rules: {
+        Row: {
+          id: string
+          coach_id: string
+          day_of_week: number
+          start_time: string
+          end_time: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          day_of_week: number
+          start_time: string
+          end_time: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          day_of_week?: number
+          start_time?: string
+          end_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coaching_appointment_reminders: {
+        Row: {
+          appointment_id: string
+          recipient: 'client' | 'coach'
+          sent_at: string
+        }
+        Insert: {
+          appointment_id: string
+          recipient: 'client' | 'coach'
+          sent_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          recipient?: 'client' | 'coach'
+          sent_at?: string
+        }
+        Relationships: []
+      }
+      coaching_appointments: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          starts_at: string
+          ends_at: string
+          status: CoachingAppointmentStatus
+          location: string | null
+          notes: string | null
+          pre_session_notes: string | null
+          post_session_notes: string | null
+          coaching_type: ClientCoachingType | null
+          session_pack_id: string | null
+          booked_by: CoachingAppointmentBookedBy
+          cancelled_at: string | null
+          cancellation_reason: string | null
+          rescheduled_to_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          starts_at: string
+          ends_at: string
+          status?: CoachingAppointmentStatus
+          location?: string | null
+          notes?: string | null
+          pre_session_notes?: string | null
+          post_session_notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          session_pack_id?: string | null
+          booked_by: CoachingAppointmentBookedBy
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          rescheduled_to_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          starts_at?: string
+          ends_at?: string
+          status?: CoachingAppointmentStatus
+          location?: string | null
+          notes?: string | null
+          pre_session_notes?: string | null
+          post_session_notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          session_pack_id?: string | null
+          booked_by?: CoachingAppointmentBookedBy
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          rescheduled_to_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       client_daily_attendance: {
         Row: {

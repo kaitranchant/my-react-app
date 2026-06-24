@@ -12,6 +12,8 @@ import {
 
   CalendarClock,
 
+  CalendarRange,
+
   ClipboardCheck,
 
   Contact,
@@ -102,6 +104,16 @@ export const navGroups: NavGroup[] = [
         href: '/attendance',
 
         icon: CalendarClock,
+
+      },
+
+      {
+
+        label: 'Scheduling',
+
+        href: '/scheduling',
+
+        icon: CalendarRange,
 
       },
 

@@ -8,6 +8,7 @@ export const notificationPreferenceKeys = [
   'notifyInviteAccepted',
   'notifyPrs',
   'notifyWeeklySummary',
+  'notifyAppointmentReminders',
 ] as const
 
 export type NotificationPreferenceKey =
@@ -21,6 +22,7 @@ export const notificationPreferencesSchema = z.object({
   notifyInviteAccepted: z.boolean(),
   notifyPrs: z.boolean(),
   notifyWeeklySummary: z.boolean(),
+  notifyAppointmentReminders: z.boolean(),
 })
 
 export type NotificationPreferencesValues = z.infer<

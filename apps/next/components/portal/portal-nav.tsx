@@ -1,5 +1,6 @@
 import {
   CalendarCheck,
+  CalendarClock,
   CalendarDays,
   Flag,
   LayoutDashboard,
@@ -37,6 +38,7 @@ export const portalLeaderboardsNavItem: PortalNavItem = {
 export const portalBaseNavItems: PortalNavItem[] = [
   { label: 'Home', href: '/portal', icon: LayoutDashboard },
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
+  { label: 'Sessions', href: '/portal/sessions', icon: CalendarClock },
   { label: 'Form Review', href: '/portal/form-review', icon: Video },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
   { label: 'Messages', href: '/portal/messages', icon: MessageSquare },

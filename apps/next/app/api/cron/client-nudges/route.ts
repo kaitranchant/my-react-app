@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { isAuthorizedCronRequest } from '@/lib/cron/auth'
 import { isEmailDeliveryConfigured } from '@/lib/email/config'
 import { sendClientEmailNudges } from '@/lib/notifications/client-nudges-data'
+import { sendAppointmentReminders } from '@/lib/notifications/appointment-reminders-data'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +31,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await sendClientEmailNudges(admin)
+    const [nudgeResults, appointmentResults] = await Promise.all([
+      sendClientEmailNudges(admin),
+      sendAppointmentReminders(admin),
+    ])
+    const results = [...nudgeResults, ...appointmentResults]
     const sent = results.filter((result) => result.status === 'sent').length
     const failed = results.filter((result) => result.status === 'failed').length
     const skipped = results.filter((result) => result.status === 'skipped').length
@@ -40,6 +45,8 @@ export async function GET(request: Request) {
       sent,
       failed,
       skipped,
+      nudges: nudgeResults,
+      appointmentReminders: appointmentResults,
       results,
     })
   } catch (error) {

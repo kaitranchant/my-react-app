@@ -67,6 +67,13 @@ const notificationOptions: NotificationOption[] = [
       'Receive a Sunday morning recap of client activity and action items.',
     email: true,
   },
+  {
+    key: 'notifyAppointmentReminders',
+    label: 'Session reminders',
+    description:
+      'Email and browser alerts before upcoming coaching appointments.',
+    email: true,
+  },
 ]
 
 export function NotificationSettings({

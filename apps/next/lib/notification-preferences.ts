@@ -12,6 +12,7 @@ export const defaultNotificationPreferences: NotificationPreferences = {
   notifyInviteAccepted: true,
   notifyPrs: true,
   notifyWeeklySummary: false,
+  notifyAppointmentReminders: true,
 }
 
 type ProfileNotificationRow = Pick<
@@ -23,6 +24,7 @@ type ProfileNotificationRow = Pick<
   | 'notify_invite_accepted'
   | 'notify_prs'
   | 'notify_weekly_summary'
+  | 'notify_appointment_reminders'
 >
 
 export function parseNotificationPreferences(
@@ -46,6 +48,9 @@ export function parseNotificationPreferences(
     notifyWeeklySummary:
       row?.notify_weekly_summary ??
       defaultNotificationPreferences.notifyWeeklySummary,
+    notifyAppointmentReminders:
+      row?.notify_appointment_reminders ??
+      defaultNotificationPreferences.notifyAppointmentReminders,
   }
 }
 
@@ -58,6 +63,7 @@ export function notificationPreferencesToRow(values: NotificationPreferences) {
     notify_invite_accepted: values.notifyInviteAccepted,
     notify_prs: values.notifyPrs,
     notify_weekly_summary: values.notifyWeeklySummary,
+    notify_appointment_reminders: values.notifyAppointmentReminders,
   }
 }
 
