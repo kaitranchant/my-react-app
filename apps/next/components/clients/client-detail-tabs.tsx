@@ -34,11 +34,13 @@ function tabSkeleton(tab: ClientDetailMainTab) {
 
 type ClientDetailTabsProps = {
   activeTab: ClientDetailMainTab
+  hideMessagesTab?: boolean
   children: React.ReactNode
 }
 
 export function ClientDetailTabs({
   activeTab,
+  hideMessagesTab = false,
   children,
 }: ClientDetailTabsProps) {
   const router = useRouter()
@@ -70,6 +72,12 @@ export function ClientDetailTabs({
   React.useEffect(() => {
     setPendingTab(null)
   }, [activeTab, searchParams])
+
+  React.useEffect(() => {
+    if (hideMessagesTab && searchParams.get('tab') === 'messages') {
+      router.replace(buildUrl('overview'), { scroll: false })
+    }
+  }, [hideMessagesTab, searchParams, router, pathname])
 
   React.useEffect(() => {
     const tab = searchParams.get('tab')
@@ -110,7 +118,9 @@ export function ClientDetailTabs({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="training">Training</TabsTrigger>
           <TabsTrigger value="progress">Progress</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
+          {!hideMessagesTab ? (
+            <TabsTrigger value="messages">Messages</TabsTrigger>
+          ) : null}
         </TabsList>
       </div>
 
@@ -126,9 +136,11 @@ export function ClientDetailTabs({
         {displayedTab === 'progress' ? panel : null}
       </TabsContent>
 
-      <TabsContent value="messages" className="mt-4">
-        {displayedTab === 'messages' ? panel : null}
-      </TabsContent>
+      {!hideMessagesTab ? (
+        <TabsContent value="messages" className="mt-4">
+          {displayedTab === 'messages' ? panel : null}
+        </TabsContent>
+      ) : null}
     </Tabs>
   )
 }

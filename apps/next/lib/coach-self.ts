@@ -78,6 +78,20 @@ export async function getOrCreateCoachSelfClient(
   }
 
   if (existing) {
+    if (existing.full_name !== coachName) {
+      const { data: updated } = await supabase
+        .from('clients')
+        .update({ full_name: coachName })
+        .eq('id', existing.id)
+        .select('*')
+        .single()
+
+      return {
+        success: true,
+        data: { client: (updated ?? existing) as Client, coachName },
+      }
+    }
+
     return {
       success: true,
       data: { client: existing as Client, coachName },
@@ -88,7 +102,7 @@ export async function getOrCreateCoachSelfClient(
     .from('clients')
     .insert({
       coach_id: user.id,
-      full_name: COACH_SELF_CLIENT_NAME,
+      full_name: coachName,
       status: 'active',
       is_coach_self: true,
     })

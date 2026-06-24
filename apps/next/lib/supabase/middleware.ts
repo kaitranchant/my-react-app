@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from 'app/types/database'
 
-const PUBLIC_ROUTES = ['/login', '/signup', '/auth']
+const PUBLIC_ROUTES = ['/login', '/signup', '/auth', '/book']
 const MOBILE_AUTH_API_ROUTES = ['/api/wearables/apple-health/sync']
 const CRON_API_ROUTES = ['/api/cron']
 

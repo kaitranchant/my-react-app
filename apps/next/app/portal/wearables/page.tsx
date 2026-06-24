@@ -1,10 +1,12 @@
-import { listClientWearableConnections } from '@/app/portal/wearables-actions'
-import { PortalWearableConnectPanel } from '@/components/wearables/portal-wearable-connect-panel'
-import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
-import { getPortalClientContext } from '@/lib/portal-client'
-import { WearablesComingSoon } from '@/components/wearables/wearables-coming-soon'
-import { areWearablesLive } from '@/lib/wearables-feature'
 import { Suspense } from 'react'
+
+import { listClientWearableConnections } from '@/app/portal/wearables-actions'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
+import { PortalSectionSkeleton } from '@/components/portal/portal-page-skeletons'
+import { PortalWearableConnectPanel } from '@/components/wearables/portal-wearable-connect-panel'
+import { WearablesComingSoon } from '@/components/wearables/wearables-coming-soon'
+import { getPortalClientContext } from '@/lib/portal-client'
+import { areWearablesLive } from '@/lib/wearables-feature'
 
 export const metadata = {
   title: 'Wearables — Coaching App',
@@ -40,7 +42,7 @@ export default async function PortalWearablesPage() {
       {!clientRecord ? (
         <PortalUnlinkedState feature="connect a wearable" />
       ) : (
-        <Suspense fallback={null}>
+        <Suspense fallback={<PortalSectionSkeleton rows={2} />}>
           <PortalWearableConnectPanel connections={connections} />
         </Suspense>
       )}

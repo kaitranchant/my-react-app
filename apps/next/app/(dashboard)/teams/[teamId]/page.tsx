@@ -2,6 +2,10 @@ import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Pencil } from 'lucide-react'
 
+import {
+  BreadcrumbSkeleton,
+  FilterPillsSkeleton,
+} from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
 import { fetchTeamActivityFeed } from '@/lib/team-activity'
 import { fetchTeamPerformanceSummary } from '@/lib/team-metrics'
@@ -226,7 +230,7 @@ export default async function TeamDetailPage({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <Suspense fallback={null}>
+      <Suspense fallback={<BreadcrumbSkeleton />}>
         <TeamDetailBreadcrumbs teamId={teamId} teamName={team.name} />
       </Suspense>
 
@@ -267,7 +271,7 @@ export default async function TeamDetailPage({
         <ClientSharedBanner primaryCoachName={primaryCoachName} />
       ) : null}
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FilterPillsSkeleton count={5} />}>
         <TeamDetailTabs
           teamId={teamId}
           team={team}

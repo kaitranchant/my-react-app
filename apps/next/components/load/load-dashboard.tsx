@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, ChevronDown, ChevronRight, Users } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, Trophy, Users } from 'lucide-react'
 
 import { LoadSparkline } from '@/components/load/load-sparkline'
 import { VolumeBarChart } from '@/components/load/volume-bar-chart'
@@ -202,7 +202,12 @@ function LoadClientExpandedPanel({
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground text-sm">No PRs recorded yet.</p>
+          <EmptyState
+            icon={Trophy}
+            title="No PRs recorded yet"
+            description="Personal records appear here after clients log new bests."
+            className="py-4"
+          />
         )}
       </div>
     </div>

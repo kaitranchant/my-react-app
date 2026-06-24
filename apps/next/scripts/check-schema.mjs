@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0060.
+ * Verify hosted Supabase schema through migration 0074.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -386,7 +386,7 @@ await checkRestTable(
 
 await checkRestTable(
   'profiles portal notification preference columns',
-  '/rest/v1/profiles?select=portal_notify_messages,portal_notify_check_in_reviews,portal_notify_form_review_replies,portal_notify_team_updates&limit=1'
+  '/rest/v1/profiles?select=portal_notify_messages,portal_notify_check_in_reviews,portal_notify_form_review_replies,portal_notify_team_updates,portal_notify_workout_reminders,portal_notify_check_in_reminders,portal_notify_unread_digest,portal_notify_appointment_reminders&limit=1'
 )
 
 // Migration 0038 — client goals
@@ -532,6 +532,147 @@ await check('get_portal_coach_display_name RPC', async () => {
 // Migration 0060 — portal program progress (RLS policy on program_scheduled_workouts;
 // table already verified above; policy cannot be checked via anon REST)
 
+// Migration 0063 — client email nudges
+await checkRestTable(
+  'client_email_nudges table',
+  '/rest/v1/client_email_nudges?select=id,client_id,nudge_type,reference_key,sent_at&limit=1'
+)
+
+// Migration 0064 — coach message templates
+await checkRestTable(
+  'coach_message_templates table',
+  '/rest/v1/coach_message_templates?select=id,coach_id,name,body&limit=1'
+)
+
+// Migration 0065 — message media (voice notes)
+await checkRestTable(
+  'client_messages media columns',
+  '/rest/v1/client_messages?select=message_type,storage_path,content_type,media_duration_seconds&limit=1'
+)
+
+await check('message-media storage bucket', async () => {
+  const res = await fetch(
+    `${url}/storage/v1/object/message-media/.schema-check`,
+    { headers: { apikey: key } }
+  )
+  const body = await res.text()
+  if (body.includes('Bucket not found')) {
+    throw new Error('Bucket not found')
+  }
+  if (!body.includes('Object not found') && !res.ok && res.status !== 400) {
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+// Migration 0066 — coach broadcasts
+await checkRestTable(
+  'coach_broadcasts table',
+  '/rest/v1/coach_broadcasts?select=id,coach_id,message_type,body,storage_path&limit=1'
+)
+
+await checkRestTable(
+  'client_messages.broadcast_id column',
+  '/rest/v1/client_messages?select=broadcast_id&limit=1'
+)
+
+// Migration 0067 — team forum
+await checkRestTable(
+  'team_forum_posts table',
+  '/rest/v1/team_forum_posts?select=id,team_id,author_id,body,pinned&limit=1'
+)
+
+await checkRestTable(
+  'team_forum_replies table',
+  '/rest/v1/team_forum_replies?select=id,post_id,author_id,body&limit=1'
+)
+
+// Migration 0068 — realtime messaging (publication; not verifiable via REST)
+
+// Migration 0069 — onboarding automation
+await checkRestTable(
+  'profiles onboarding automation columns',
+  '/rest/v1/profiles?select=default_onboarding_program_id,onboarding_welcome_template_id&limit=1'
+)
+
+await checkRestTable(
+  'clients onboarding automation columns',
+  '/rest/v1/clients?select=invite_accepted_at,onboarding_automation_at&limit=1'
+)
+
+// Migration 0070 — exercise demo videos
+await checkRestTable(
+  'exercises.demo_video_path column',
+  '/rest/v1/exercises?select=demo_video_path&limit=1'
+)
+
+await check('exercise-demos storage bucket', async () => {
+  const res = await fetch(
+    `${url}/storage/v1/object/public/exercise-demos/.schema-check`,
+    { headers: { apikey: key } }
+  )
+  const body = await res.text()
+  if (body.includes('Bucket not found')) {
+    throw new Error('Bucket not found')
+  }
+  if (!body.includes('Object not found') && !res.ok && res.status !== 400) {
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+// Migration 0071 — web push subscriptions
+await checkRestTable(
+  'push_subscriptions table',
+  '/rest/v1/push_subscriptions?select=id,user_id,endpoint,p256dh,auth&limit=1'
+)
+
+// Migration 0072 — coaching session booking
+await checkRestTable(
+  'profiles session booking columns',
+  '/rest/v1/profiles?select=session_booking_enabled,default_session_duration_minutes,booking_buffer_minutes,booking_requires_session_pack&limit=1'
+)
+
+await checkRestTable(
+  'coach_availability_rules table',
+  '/rest/v1/coach_availability_rules?select=id,coach_id,day_of_week,start_time,end_time&limit=1'
+)
+
+await checkRestTable(
+  'coach_availability_exceptions table',
+  '/rest/v1/coach_availability_exceptions?select=id,coach_id,exception_date,exception_type&limit=1'
+)
+
+await checkRestTable(
+  'client_session_packs table',
+  '/rest/v1/client_session_packs?select=id,client_id,coach_id,label,total_sessions,sessions_used&limit=1'
+)
+
+await checkRestTable(
+  'coaching_appointments table',
+  '/rest/v1/coaching_appointments?select=id,coach_id,client_id,starts_at,ends_at,status,booked_by&limit=1'
+)
+
+// Migration 0073 — appointment reminders
+await checkRestTable(
+  'profiles appointment reminder columns',
+  '/rest/v1/profiles?select=notify_appointment_reminders,appointment_reminder_hours&limit=1'
+)
+
+await checkRestTable(
+  'coaching_appointment_reminders table',
+  '/rest/v1/coaching_appointment_reminders?select=appointment_id,recipient,sent_at&limit=1'
+)
+
+// Migration 0074 — scheduling improvements
+await checkRestTable(
+  'client_session_packs.price_cents column',
+  '/rest/v1/client_session_packs?select=price_cents&limit=1'
+)
+
+await checkRestTable(
+  'coaching_appointments session notes columns',
+  '/rest/v1/coaching_appointments?select=pre_session_notes,post_session_notes,rescheduled_to_id&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -545,7 +686,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0060 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0074 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -585,6 +726,17 @@ if (failed) {
   console.error('       supabase/apply-team-challenges.sql             (0058 team challenges)')
   console.error('       supabase/apply-portal-coach-display-name.sql   (0059 portal coach name)')
   console.error('       supabase/apply-portal-program-progress.sql     (0060 portal program progress)')
+  console.error('       supabase/apply-portal-notification-preferences.sql (0061 portal notification prefs)')
+  console.error('       supabase/apply-progressive-overload-decisions-delete.sql (0062 overload undo)')
+  console.error('       supabase/apply-client-email-nudges.sql       (0063 client email nudges)')
+  console.error('       supabase/apply-coach-message-templates.sql   (0064 message templates)')
+  console.error('       supabase/apply-onboarding-automation.sql     (0069 onboarding automation)')
+  console.error('       supabase/apply-exercise-demo-videos.sql      (0070 exercise demo videos)')
+  console.error('       supabase/apply-web-push-subscriptions.sql    (0071 web push)')
+  console.error('       supabase/apply-coaching-session-booking.sql  (0072 session booking)')
+  console.error('       supabase/apply-appointment-reminders.sql     (0073 appointment reminders)')
+  console.error('       supabase/apply-scheduling-improvements.sql   (0074 scheduling improvements)')
+  console.error('     Migrations 0065–0068 (message media, broadcasts, forum, realtime) — use yarn db:push.')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
   console.error('     Do NOT use apply-remote.sql — it is deprecated and incomplete.')
@@ -592,7 +744,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0060 (teams, messaging, program phases, My Workouts, client team portal, gyms, coach preferences, notification preferences, client goals v2, daily attendance, team gym sharing, attendance enhancements, leaderboards, form review, wearables, progressive overload, team challenges, portal coach name, portal program progress).'
+  '\nSchema looks good — migrations through 0074 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

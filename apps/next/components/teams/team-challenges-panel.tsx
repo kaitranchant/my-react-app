@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import { formatChallengeDateRange } from '@/lib/leaderboard'
 import {
@@ -244,9 +245,12 @@ export function TeamChallengesPanel({
 
       {challenges.length === 0 ? (
         <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm">
-            No challenges yet. Create a monthly volume, consistency, or strength
-            challenge to keep the team competing.
+          <CardContent className="pt-6">
+            <EmptyState
+              icon={Rocket}
+              title="No challenges yet"
+              description="Create a monthly volume, consistency, or strength challenge to keep the team competing."
+            />
           </CardContent>
         </Card>
       ) : (

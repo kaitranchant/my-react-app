@@ -2,6 +2,8 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowRight, CalendarCheck } from 'lucide-react'
 
+import { Skeleton } from '@/components/ui/skeleton'
+import { PortalBookSessionCard } from '@/components/portal/portal-book-session-card'
 import { PortalActiveGoalsCard } from '@/components/portal/portal-active-goals-card'
 import { PortalCheckInSuccessBanner } from '@/components/portal/portal-check-in-success-banner'
 import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-section'
@@ -37,6 +39,10 @@ import {
 import { fetchPortalHomeData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { fetchClientNextTeamEvent } from '@/lib/portal-teams'
+import {
+  fetchClientCoachingAppointments,
+  fetchCoachSessionBookingSettings,
+} from '@/lib/session-booking-queries'
 import { createClient } from '@/lib/supabase/server'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import type { CalendarDaySummary } from 'app/types/database'
@@ -114,6 +120,8 @@ export default async function PortalPage() {
 
   let coachPreferences = null
   let coachName = 'Coach'
+  let sessionBookingEnabled = false
+  let upcomingSessionCount = 0
 
   if (clientRecord?.id && user) {
     coachPreferences = await getPortalDisplayPreferences(
@@ -121,6 +129,11 @@ export default async function PortalPage() {
       clientRecord.coach_id
     )
     const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+
+    const nowIso = new Date().toISOString()
+    const horizonIso = new Date(
+      Date.now() + 90 * 24 * 60 * 60 * 1000
+    ).toISOString()
 
     const [
       assignmentResult,
@@ -131,6 +144,8 @@ export default async function PortalPage() {
       formReviewHighlightResult,
       messageHighlightResult,
       coachNameResult,
+      sessionBookingSettings,
+      upcomingAppointments,
     ] = await Promise.all([
       supabase
         .from('program_assignments')
@@ -150,6 +165,13 @@ export default async function PortalPage() {
       fetchPortalFormReviewHighlight(supabase, clientRecord.id),
       fetchPortalMessageHighlight(supabase, clientRecord.id),
       fetchCoachDisplayName(supabase, clientRecord.coach_id),
+      fetchCoachSessionBookingSettings(supabase, clientRecord.coach_id),
+      fetchClientCoachingAppointments(
+        supabase,
+        clientRecord.id,
+        nowIso,
+        horizonIso
+      ),
     ])
 
     if (
@@ -171,6 +193,12 @@ export default async function PortalPage() {
     formReviewHighlight = formReviewHighlightResult
     messageHighlight = messageHighlightResult
     coachName = coachNameResult
+    sessionBookingEnabled = sessionBookingSettings.session_booking_enabled
+    upcomingSessionCount = upcomingAppointments.filter(
+      (appointment) =>
+        appointment.status === 'scheduled' &&
+        new Date(appointment.starts_at).getTime() >= Date.now()
+    ).length
 
     if (activeProgram && homeData) {
       programSummary = await fetchClientProgramSummary(
@@ -284,6 +312,10 @@ export default async function PortalPage() {
       />
     ) : null
 
+  const sessionBookingCard = sessionBookingEnabled ? (
+    <PortalBookSessionCard upcomingCount={upcomingSessionCount} />
+  ) : null
+
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
       {!clientRecord ? (
@@ -291,7 +323,7 @@ export default async function PortalPage() {
       ) : homeData ? (
         <>
           <PortalWelcomeDialog userId={user.id} coachName={coachName} />
-          <Suspense fallback={null}>
+          <Suspense fallback={<Skeleton className="h-12 w-full rounded-lg" />}>
             <PortalCheckInSuccessBanner />
           </Suspense>
           <div className="flex items-baseline justify-between gap-3">
@@ -327,6 +359,7 @@ export default async function PortalPage() {
               dueLabel={checkInDueLabel}
             />
             {submittedCheckInCard}
+            {sessionBookingCard}
             <PortalActiveGoalsCard goals={goalHighlights} />
             {weekCard}
             <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
@@ -356,6 +389,7 @@ export default async function PortalPage() {
                 dueLabel={checkInDueLabel}
               />
               {submittedCheckInCard}
+              {sessionBookingCard}
               <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
               {programCard}
               {nextTeamEvent && (

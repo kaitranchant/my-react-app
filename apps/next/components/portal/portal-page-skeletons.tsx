@@ -192,6 +192,16 @@ export function PortalWearablesSkeleton() {
   )
 }
 
+export function PortalSessionsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <PortalPageHeaderSkeleton titleWidth="w-28" />
+      <Skeleton className="h-40 rounded-xl" />
+      <Skeleton className="h-72 rounded-xl" />
+    </div>
+  )
+}
+
 export function PortalLeaderboardsSkeleton() {
   return (
     <div className="flex flex-col gap-6">

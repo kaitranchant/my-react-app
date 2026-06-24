@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { Flag, Plus } from 'lucide-react'
 
+import { ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
+import { FetchErrorState } from '@/components/ui/fetch-error-state'
 import { createClient } from '@/lib/supabase/server'
 import { getGymsForCoach } from '@/lib/gym-access'
 import {
@@ -183,7 +185,7 @@ export default async function TeamsPage({
       <TeamsToolbar />
 
       {coachGyms.length > 0 ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ScopeTabsSkeleton />}>
           <ClientsScopeTabs gyms={coachGyms} />
         </Suspense>
       ) : null}
@@ -196,9 +198,7 @@ export default async function TeamsPage({
         </CardHeader>
         <CardContent className="p-0">
           {error ? (
-            <p className="text-destructive p-6 text-sm">
-              Could not load teams: {error.message}
-            </p>
+            <FetchErrorState title="Couldn't load teams" />
           ) : teamsWithMeta.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
               <div className="empty-state-icon">

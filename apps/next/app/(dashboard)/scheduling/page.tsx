@@ -159,6 +159,10 @@ export default async function SchedulingPage({
               <SessionBookingSettingsForm
                 defaultValues={sessionBookingSettingsToFormValues(settings)}
               />
+              <p className="text-muted-foreground text-xs">
+                Google Calendar and Apple Calendar sync are planned for a future
+                update.
+              </p>
             </CardContent>
           </Card>
 
@@ -179,18 +183,6 @@ export default async function SchedulingPage({
               <AvailabilityExceptionsPanel
                 initialExceptions={availabilityExceptions}
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Calendar sync</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Google Calendar and Apple Calendar sync are coming soon. For now,
-                use the weekly calendar view to manage sessions in one place.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { CalendarClock, CalendarOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -20,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import {
@@ -136,6 +138,13 @@ export function PortalSessionsPanel({
             coachPreferences={coachPreferences}
             showClient={false}
             allowClientCancel
+            emptyIcon={CalendarOff}
+            emptyTitle="No upcoming sessions"
+            emptyDescription={
+              bookingEnabled
+                ? 'Pick a date and time below to book your next session.'
+                : 'Your coach will schedule sessions with you directly.'
+            }
           />
         </CardContent>
       </Card>
@@ -227,10 +236,12 @@ export function PortalSessionsPanel({
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">
-              Your coach has not enabled self-booking yet. Contact them to schedule a
-              session.
-            </p>
+            <EmptyState
+              icon={CalendarClock}
+              title="Self-booking is not enabled"
+              description="Your coach has not opened booking yet. Send them a message to schedule a session."
+              action={{ label: 'Message coach', href: '/portal/messages' }}
+            />
           </CardContent>
         </Card>
       )}

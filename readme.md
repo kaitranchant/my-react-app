@@ -36,7 +36,16 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - PR email notifications: optional coach email when a client hits a new PR (Settings → Notifications)
 - Form review email notifications: optional coach email when a client submits a form review (Settings → Notifications)
 - Per-exercise client notes: athletes can add notes per exercise during workout logging for coach review
-- Portal home dashboard: coach display name, program week/completion progress, training consistency heatmap, week strip with workout status colors, mobile bottom nav with Progress tab and unread badges, loading skeletons, and check-in wellness trends
+- Portal home dashboard: coach display name, program week/completion progress, training consistency heatmap, week strip with workout status colors, mobile bottom nav with Sessions tab and unread badges, loading skeletons, check-in wellness trends, and sessions booking card when enabled
+- Compliance dashboard: coach `/compliance` roster with missed workouts, overdue check-ins, unread messages, elevated load, and injury flags; gym/team scope filters and per-client issue drill-down
+- Session scheduling: coach `/scheduling` with weekly availability, exceptions, session packs, and 1:1 appointment booking; client portal `/portal/sessions` self-booking; shareable `/book/{coach-slug}` links
+- Messaging upgrades: voice notes in coach ↔ client threads, coach broadcasts to teams or client groups, saved message templates in the library, and realtime inbox updates
+- Team forum: **Community** tab on team detail and `/portal/team` for coach and athlete discussion with pinning
+- Exercise demo videos: coach-uploaded clips on library exercises, playable from workout logs
+- Onboarding automation: default welcome message template and/or program assignment when a client accepts an invite (Settings → Onboarding automation)
+- Portal account settings: notification preferences, weight unit, and optional browser push notifications (`/portal/account`)
+- Client email nudges: optional workout, check-in, unread digest, and appointment reminder emails (cron; requires `RESEND_API_KEY`)
+- Appointment reminders: coach and client email/push preferences for upcoming coaching sessions
 
 ## What's coming
 
@@ -55,13 +64,13 @@ Wearables integrations are scaffolded (Whoop, Apple Health) but not yet live —
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0060**). For one-off patches without the CLI, see the apply scripts below.
-4. Verify schema: `yarn db:check` (checks tables through migration 0060)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0074**). For one-off patches without the CLI, see the apply scripts below.
+4. Verify schema: `yarn db:check` (checks tables through migration **0074**)
 5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0060 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0074 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -121,6 +130,18 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-team-challenges.sql` | Team challenges and portal standings (0058) |
 | `apply-portal-coach-display-name.sql` | Portal coach display name RPC (0059) |
 | `apply-portal-program-progress.sql` | Portal program week progress RLS (0060) |
+| `apply-portal-notification-preferences.sql` | Client portal email notification prefs (0061) |
+| `apply-progressive-overload-decisions-delete.sql` | Undo dismissed progressive overload suggestions (0062) |
+| `apply-client-email-nudges.sql` | Client email nudge prefs and dedupe log (0063) |
+| `apply-coach-message-templates.sql` | Saved coach message templates (0064) |
+| `apply-exercise-demo-videos.sql` | Exercise demo video uploads (0070) |
+| `apply-onboarding-automation.sql` | Default program + welcome message on invite accept (0069) |
+| `apply-web-push-subscriptions.sql` | Browser push subscription storage (0071) |
+| `apply-coaching-session-booking.sql` | Session scheduling, availability, packs, appointments (0072) |
+| `apply-appointment-reminders.sql` | Appointment reminder prefs and dedupe (0073) |
+| `apply-scheduling-improvements.sql` | Session notes, pack pricing, rescheduled status (0074) |
+
+Migrations **0065–0068** (message media, broadcasts, team forum, realtime) have no standalone apply scripts — use `yarn db:push`.
 
 Do **not** use `apply-remote.sql` — it is deprecated and incomplete.
 
@@ -226,7 +247,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema (migrations through 0060) |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0074) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |

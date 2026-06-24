@@ -1,21 +1,22 @@
 import { Suspense } from 'react'
 
-import { createClient } from '@/lib/supabase/server'
-import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import {
-  fetchAttendanceClients,
-  fetchCoachTeams,
-  parseAttendanceScope,
-} from '@/lib/attendance'
-import { fetchCoachLoadSummaries } from '@/lib/load-queries'
-import { getGymsForCoach } from '@/lib/gym-access'
-import { LoadDashboard } from '@/components/load/load-dashboard'
+import { ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import {
   ClearPageFilters,
   PageFilterPersistence,
 } from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { LoadDashboard } from '@/components/load/load-dashboard'
+import {
+  fetchAttendanceClients,
+  fetchCoachTeams,
+  parseAttendanceScope,
+} from '@/lib/attendance'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import { fetchCoachLoadSummaries } from '@/lib/load-queries'
+import { getGymsForCoach } from '@/lib/gym-access'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata = {
   title: 'Load Management — Coaching App',
@@ -74,7 +75,7 @@ export default async function LoadPage({
         description="Monitor training load, ACWR risk, session compliance, and readiness across your roster."
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<ScopeTabsSkeleton />}>
         <PageFilterPersistence
           pageKey="load"
           filterKeys={['scope', 'team']}

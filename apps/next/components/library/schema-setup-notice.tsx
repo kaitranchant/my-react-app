@@ -1,6 +1,7 @@
 import { FileCode2 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { FetchErrorState } from '@/components/ui/fetch-error-state'
 
 type SchemaSetupNoticeProps = {
   tables: string[]
@@ -79,8 +80,9 @@ export function LibraryLoadError({
   }
 
   return (
-    <p className="text-destructive p-6 text-sm">
-      Could not load {resource}: {error.message}
-    </p>
+    <FetchErrorState
+      title={`Couldn't load ${resource}`}
+      className="py-10"
+    />
   )
 }

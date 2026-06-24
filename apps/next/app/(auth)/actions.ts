@@ -63,12 +63,17 @@ async function postAuthRedirectPath(
   return profile?.role === 'client' ? '/portal' : '/dashboard'
 }
 
+function isSafeRedirectPath(path: string | null | undefined): path is string {
+  return Boolean(path?.startsWith('/') && !path.startsWith('//'))
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
 ): Promise<AuthState> {
   const email = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
+  const redirectTo = String(formData.get('redirectTo') ?? '').trim()
 
   if (!email || !password) {
     return { error: 'Email and password are required.' }
@@ -90,6 +95,32 @@ export async function login(
 
   revalidatePath('/', 'layout')
   const supabase = await createClient()
+  if (isSafeRedirectPath(redirectTo)) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const isClientRoute = redirectTo.startsWith('/portal')
+      const isCoachRoute =
+        redirectTo.startsWith('/dashboard') ||
+        redirectTo.startsWith('/clients') ||
+        redirectTo.startsWith('/scheduling')
+
+      if (profile?.role === 'client' && isClientRoute) {
+        return { redirectTo }
+      }
+      if (profile?.role !== 'client' && (isCoachRoute || redirectTo.startsWith('/book'))) {
+        return { redirectTo: redirectTo.startsWith('/book') ? '/scheduling?view=availability' : redirectTo }
+      }
+    }
+  }
+
   return { redirectTo: await postAuthRedirectPath(supabase) }
 }
 

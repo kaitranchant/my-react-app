@@ -51,6 +51,7 @@ type ClientDetailTrainingSectionProps = {
     libraryWorkouts: Pick<Workout, 'id' | 'name' | 'status'>[]
   }
   coachPreferences?: CoachPreferences
+  personalMode?: boolean
 }
 
 export function ClientDetailTrainingSection({
@@ -60,6 +61,7 @@ export function ClientDetailTrainingSection({
   availablePrograms,
   calendar,
   coachPreferences,
+  personalMode = false,
 }: ClientDetailTrainingSectionProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -134,6 +136,7 @@ export function ClientDetailTrainingSection({
           initialActionDate={calendarActionDate}
           onActionConsumed={consumeCalendarAction}
           weightUnit={coachPreferences?.weightUnit}
+          personalMode={personalMode}
         />
       </TabsContent>
 
@@ -142,6 +145,7 @@ export function ClientDetailTrainingSection({
           clientId={clientId}
           activeAssignment={activeAssignment}
           availablePrograms={availablePrograms}
+          personalMode={personalMode}
         />
       </TabsContent>
     </Tabs>

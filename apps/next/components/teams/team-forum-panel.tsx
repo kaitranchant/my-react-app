@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Pin, Trash2 } from 'lucide-react'
+import { MessageSquare, Pin, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useTeamForumRealtime } from '@/hooks/use-team-forum-realtime'
 import { formatMessageTimestamp } from '@/lib/messages'
 import type { TeamForumPostWithReplies } from 'app/types/database'
@@ -113,7 +114,11 @@ export function TeamForumPanel({ teamId, posts: initialPosts }: TeamForumPanelPr
         </div>
 
         {posts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No posts yet.</p>
+          <EmptyState
+            icon={MessageSquare}
+            title="No posts yet"
+            description="Start a team discussion — share updates, ask questions, or celebrate wins."
+          />
         ) : (
           <div className="space-y-4">
             {posts.map((post) => (

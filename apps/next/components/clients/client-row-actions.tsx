@@ -26,6 +26,10 @@ export function ClientRowActions({ client }: { client: Client }) {
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
+  if (client.is_coach_self) {
+    return null
+  }
+
   async function handleStatus(archive: boolean) {
     setPending(true)
     const result = await setClientStatus(

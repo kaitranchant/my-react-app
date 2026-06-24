@@ -9,7 +9,7 @@ import { shouldShowWearablesNav } from '@/lib/wearables-feature'
 const dashboardPrimaryMobileHrefs = new Set([
   '/dashboard',
   '/clients',
-  '/check-ins',
+  '/scheduling',
   '/messages',
 ])
 

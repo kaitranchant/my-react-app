@@ -6,7 +6,7 @@ import { Archive, ArchiveRestore, PauseCircle, PlayCircle, X } from 'lucide-reac
 import { toast } from 'sonner'
 
 import { bulkSetClientStatus } from '@/app/(dashboard)/clients/actions'
-import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
+import { ClientUserTypeBadge } from '@/components/clients/client-user-type-badge'
 import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
 import { ClientRowActions } from '@/components/clients/client-row-actions'
 import { StatusBadge } from '@/components/clients/status-badge'
@@ -49,9 +49,14 @@ export function ClientsList({
   const [pending, setPending] = React.useState(false)
 
   const selectedCount = selectedIds.size
-  const allSelected = clients.length > 0 && selectedCount === clients.length
+  const selectableClients = clients.filter((client) => !client.is_coach_self)
+  const allSelected =
+    selectableClients.length > 0 && selectedCount === selectableClients.length
 
   function toggleOne(clientId: string, checked: boolean) {
+    const client = clients.find((entry) => entry.id === clientId)
+    if (client?.is_coach_self) return
+
     setSelectedIds((current) => {
       const next = new Set(current)
       if (checked) {
@@ -64,7 +69,11 @@ export function ClientsList({
   }
 
   function toggleAll(checked: boolean) {
-    setSelectedIds(checked ? new Set(clients.map((client) => client.id)) : new Set())
+    setSelectedIds(
+      checked
+        ? new Set(clients.filter((client) => !client.is_coach_self).map((client) => client.id))
+        : new Set()
+    )
   }
 
   function clearSelection() {
@@ -102,15 +111,19 @@ export function ClientsList({
             >
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${client.full_name}`}
-                    checked={isSelected}
-                    onChange={(event) =>
-                      toggleOne(client.id, event.target.checked)
-                    }
-                    className="accent-brand mt-1 size-4 shrink-0"
-                  />
+                  {!client.is_coach_self ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${client.full_name}`}
+                      checked={isSelected}
+                      onChange={(event) =>
+                        toggleOne(client.id, event.target.checked)
+                      }
+                      className="accent-brand mt-1 size-4 shrink-0"
+                    />
+                  ) : (
+                    <div className="mt-1 size-4 shrink-0" />
+                  )}
                   <div className="min-w-0 flex-1">
                     <PersonRow
                       name={client.full_name}
@@ -137,10 +150,10 @@ export function ClientsList({
 
                 <div className="flex flex-wrap items-center gap-2 pl-7">
                   <StatusBadge status={client.status} />
-                  <ClientInviteStatusBadge status={client.invite_status} />
-                  {client.coaching_type ? (
-                    <ClientCoachingTypeBadge coachingType={client.coaching_type} />
+                  {!client.is_coach_self ? (
+                    <ClientInviteStatusBadge status={client.invite_status} />
                   ) : null}
+                  <ClientUserTypeBadge client={client} />
                 </div>
 
                 {(teamsByClientId[client.id] ?? []).length > 0 ? (
@@ -200,18 +213,20 @@ export function ClientsList({
                 className={cn('group', isSelected && 'bg-brand/[0.03]')}
               >
                 <TableCell className="pl-5">
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${client.full_name}`}
-                    checked={isSelected}
-                    onChange={(event) => toggleOne(client.id, event.target.checked)}
-                    className={cn(
-                      'accent-brand size-4 transition-opacity',
-                      isSelected || selectedCount > 0
-                        ? 'opacity-100'
-                        : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
-                    )}
-                  />
+                  {!client.is_coach_self ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${client.full_name}`}
+                      checked={isSelected}
+                      onChange={(event) => toggleOne(client.id, event.target.checked)}
+                      className={cn(
+                        'accent-brand size-4 transition-opacity',
+                        isSelected || selectedCount > 0
+                          ? 'opacity-100'
+                          : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                      )}
+                    />
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <PersonRow
@@ -236,11 +251,15 @@ export function ClientsList({
                   <StatusBadge status={client.status} />
                 </TableCell>
                 <TableCell>
-                  <ClientInviteStatusBadge status={client.invite_status} />
+                  {!client.is_coach_self ? (
+                    <ClientInviteStatusBadge status={client.invite_status} />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
-                  {client.coaching_type ? (
-                    <ClientCoachingTypeBadge coachingType={client.coaching_type} />
+                  {client.is_coach_self || client.coaching_type ? (
+                    <ClientUserTypeBadge client={client} />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}

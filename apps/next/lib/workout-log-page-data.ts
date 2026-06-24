@@ -4,7 +4,6 @@ import { WorkoutLogPage } from '@/components/calendar/workout-log-page'
 import { coerceDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import { isCoachSelfClient } from '@/lib/coach-self'
 import { requireClientAccess } from '@/lib/gym-access'
 import { getWorkoutLogReturnHref } from '@/lib/workout-log-routes'
 import type { Exercise, ScheduledWorkoutStatus } from 'app/types/database'
@@ -49,7 +48,6 @@ export async function getCoachWorkoutLogPageProps({
   const coachPreferences = user
     ? await getCoachPreferencesForUser(user.id)
     : defaultCoachPreferences
-  const personalMode = isCoachSelfClient(client)
 
   return {
     clientId,
@@ -65,7 +63,6 @@ export async function getCoachWorkoutLogPageProps({
     returnHref: getWorkoutLogReturnHref(selectedDate, {
       variant: 'coach',
       clientId,
-      personalMode,
     }),
   }
 }

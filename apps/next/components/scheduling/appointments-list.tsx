@@ -2,12 +2,15 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import type { LucideIcon } from 'lucide-react'
+import { CalendarOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { cancelCoachingAppointment } from '@/app/(dashboard)/scheduling/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
+import { EmptyState } from '@/components/ui/empty-state'
 import { formatAppointmentRange } from '@/lib/session-booking-slots'
 import {
   appointmentStatusLabels,
@@ -24,6 +27,10 @@ type AppointmentsListProps = {
   showClient?: boolean
   allowClientCancel?: boolean
   onManage?: (appointment: CoachingAppointment) => void
+  emptyTitle?: string
+  emptyDescription?: string
+  emptyIcon?: LucideIcon
+  emptyAction?: { label: string; href: string }
 }
 
 const statusVariant: Record<
@@ -43,6 +50,10 @@ export function AppointmentsList({
   showClient = true,
   allowClientCancel = false,
   onManage,
+  emptyTitle,
+  emptyDescription,
+  emptyIcon: EmptyIcon = CalendarOff,
+  emptyAction,
 }: AppointmentsListProps) {
   const router = useRouter()
   const [pendingId, setPendingId] = React.useState<string | null>(null)
@@ -62,7 +73,22 @@ export function AppointmentsList({
 
   if (appointments.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">No sessions scheduled for this period.</p>
+      <EmptyState
+        icon={EmptyIcon}
+        title={
+          emptyTitle ??
+          (showClient
+            ? 'No sessions scheduled'
+            : 'No upcoming sessions')
+        }
+        description={
+          emptyDescription ??
+          (showClient
+            ? 'Open availability or book a session to fill this week.'
+            : 'Book a time below when your coach has slots open.')
+        }
+        action={emptyAction}
+      />
     )
   }
 

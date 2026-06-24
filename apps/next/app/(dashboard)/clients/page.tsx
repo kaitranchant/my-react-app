@@ -4,6 +4,7 @@ import { Plus, Users } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getGymsForCoach } from '@/lib/gym-access'
+import { getOrCreateCoachSelfClient } from '@/lib/coach-self'
 import {
   Card,
   CardContent,
@@ -22,6 +23,7 @@ import { AddClientDialog } from '@/components/clients/add-client-dialog'
 import { AddClientButtonSkeleton, ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Button } from '@/components/ui/button'
+import { FetchErrorState } from '@/components/ui/fetch-error-state'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
 import { clientStatuses } from '@/lib/validations/client'
 import type { Client, ClientStatus, ClientTeamMembership } from 'app/types/database'
@@ -46,6 +48,11 @@ export default async function ClientsPage({
   } = await supabase.auth.getUser()
   const coachGyms = user ? await getGymsForCoach(user.id) : []
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
+
+  if (user) {
+    await getOrCreateCoachSelfClient(supabase)
+  }
+
   const rawScope = scopeParam ?? 'all'
   const scope =
     rawScope === 'personal'
@@ -59,7 +66,7 @@ export default async function ClientsPage({
   let queryBuilder = supabase
     .from('clients')
     .select('*', { count: 'exact' })
-    .eq('is_coach_self', false)
+    .order('is_coach_self', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (user && scope === 'personal') {
@@ -213,14 +220,12 @@ export default async function ClientsPage({
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
           <CardTitle className="text-muted-foreground">
-            {totalCount} client{totalCount === 1 ? '' : 's'}
+            {totalCount} user{totalCount === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {error ? (
-            <p className="text-destructive body-text p-6">
-              Could not load clients: {error.message}
-            </p>
+            <FetchErrorState title="Couldn't load clients" />
           ) : clients.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
               <div className="empty-state-icon">

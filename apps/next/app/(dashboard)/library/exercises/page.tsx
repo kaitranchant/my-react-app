@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { Dumbbell } from 'lucide-react'
 
+import { FilterPillsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
 import {
   Card,
@@ -96,7 +97,7 @@ export default async function LibraryExercisesPage({
         {!showCatalog && <AddExerciseButton />}
       </div>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FilterPillsSkeleton count={2} />}>
         <ExerciseViewTabs />
       </Suspense>
 

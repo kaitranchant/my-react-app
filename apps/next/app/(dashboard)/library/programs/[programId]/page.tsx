@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 
+import { BreadcrumbSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
 import { ProgramDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { ProgramCalendarPanel } from '@/components/programs/program-calendar-panel'
@@ -128,7 +129,7 @@ export default async function ProgramDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
-          <Suspense fallback={null}>
+          <Suspense fallback={<BreadcrumbSkeleton />}>
             <ProgramDetailBreadcrumbs programName={program.name} />
           </Suspense>
           <div className="space-y-1">

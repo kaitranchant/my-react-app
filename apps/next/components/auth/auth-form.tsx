@@ -45,10 +45,12 @@ export function AuthForm({
   mode,
   invitePreview,
   gymInvitePreview,
+  redirectTo,
 }: {
   mode: 'login' | 'signup'
   invitePreview?: InvitePreview | null
   gymInvitePreview?: GymInvitePreview | null
+  redirectTo?: string
 }) {
   const router = useRouter()
   const action = mode === 'login' ? login : signup
@@ -88,6 +90,9 @@ export function AuthForm({
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
+        {mode === 'login' && redirectTo ? (
+          <input type="hidden" name="redirectTo" value={redirectTo} />
+        ) : null}
         {isClientInvite && invitePreview && (
           <input
             type="hidden"

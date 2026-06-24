@@ -1,5 +1,9 @@
 import { Suspense } from 'react'
 
+import {
+  BreadcrumbSkeleton,
+  GymJoinContentSkeleton,
+} from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
 import { GymJoinClient } from '@/components/gym/gym-join-client'
 import { GymJoinBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
@@ -21,10 +25,10 @@ export default async function GymJoinPage({
   if (!invite || !INVITE_TOKEN_PATTERN.test(invite)) {
     return (
       <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
-        <Suspense fallback={null}>
+        <Suspense fallback={<BreadcrumbSkeleton />}>
           <GymJoinBreadcrumbs />
         </Suspense>
-        <Suspense fallback={null}>
+        <Suspense fallback={<GymJoinContentSkeleton />}>
           <GymJoinClient invalid />
         </Suspense>
       </div>
@@ -41,10 +45,10 @@ export default async function GymJoinPage({
   if (error || !row?.email) {
     return (
       <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
-        <Suspense fallback={null}>
+        <Suspense fallback={<BreadcrumbSkeleton />}>
           <GymJoinBreadcrumbs />
         </Suspense>
-        <Suspense fallback={null}>
+        <Suspense fallback={<GymJoinContentSkeleton />}>
           <GymJoinClient invalid token={invite} />
         </Suspense>
       </div>
@@ -53,10 +57,10 @@ export default async function GymJoinPage({
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
-      <Suspense fallback={null}>
+      <Suspense fallback={<BreadcrumbSkeleton />}>
         <GymJoinBreadcrumbs gymName={row.gym_name} />
       </Suspense>
-      <Suspense fallback={null}>
+      <Suspense fallback={<GymJoinContentSkeleton />}>
         <GymJoinClient
           gymName={row.gym_name}
           inviterName={row.inviter_name}

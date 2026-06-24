@@ -1,6 +1,11 @@
 import { Suspense } from 'react'
 import { Building2 } from 'lucide-react'
 
+import {
+  FilterPillsSkeleton,
+  ScopeTabsSkeleton,
+} from '@/components/dashboard/async-fallback-skeletons'
+
 import { createClient } from '@/lib/supabase/server'
 import { getGymContextForCoach, getGymsForCoach } from '@/lib/gym-access'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -254,7 +259,7 @@ export default async function GymPage({
       </PageHeader>
 
       {coachGyms.length > 1 ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ScopeTabsSkeleton />}>
           <PageFilterPersistence pageKey="gym" filterKeys={['gym', 'tab', 'coach']} />
           <GymScopeBreadcrumbs
             gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
@@ -269,7 +274,7 @@ export default async function GymPage({
       ) : null}
 
       {isOwner && ownerDashboard ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<FilterPillsSkeleton count={3} />}>
           <GymPageTabs
             gymId={gym.id}
             gymName={gym.name}

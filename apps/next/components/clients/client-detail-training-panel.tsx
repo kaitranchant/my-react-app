@@ -16,12 +16,14 @@ type ClientDetailTrainingPanelProps = {
   clientId: string
   clientName: string
   coachUserId: string | null
+  isCoachSelf?: boolean
 }
 
 export async function ClientDetailTrainingPanel({
   clientId,
   clientName,
   coachUserId,
+  isCoachSelf = false,
 }: ClientDetailTrainingPanelProps) {
   const supabase = await createClient()
   const today = new Date()
@@ -118,6 +120,7 @@ export async function ClientDetailTrainingPanel({
       clientName={clientName}
       activeAssignment={activeAssignment}
       availablePrograms={availablePrograms}
+      personalMode={isCoachSelf}
       calendar={{
         schemaError: monthResult.error?.message ?? null,
         year,

@@ -168,9 +168,7 @@ export function ClientCalendarPanel({
       isMobile,
       workoutId: workoutToLog.id,
       selectedDate,
-      context: personalMode
-        ? { variant: 'coach', clientId, personalMode: true }
-        : { variant: 'coach', clientId },
+      context: { variant: 'coach', clientId },
       openModal: () => setLogOpen(true),
     })
   }

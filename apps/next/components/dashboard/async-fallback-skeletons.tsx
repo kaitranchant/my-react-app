@@ -1,4 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 export function AddClientButtonSkeleton() {
   return <Skeleton className="h-10 w-32 rounded-lg" />
@@ -91,6 +92,149 @@ export function FormReviewPageSkeleton() {
       <FormReviewTabsSkeleton />
     </div>
   )
+}
+
+export function BreadcrumbSkeleton() {
+  return <Skeleton className="h-4 w-48" />
+}
+
+export function PageHeaderSkeleton({
+  titleWidth = 'w-36',
+  description = true,
+  action = false,
+}: {
+  titleWidth?: string
+  description?: boolean
+  action?: boolean
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-2">
+        <Skeleton className={cn('h-8', titleWidth)} />
+        {description ? <Skeleton className="h-4 w-full max-w-lg" /> : null}
+      </div>
+      {action ? <Skeleton className="h-10 w-36 rounded-lg" /> : null}
+    </div>
+  )
+}
+
+export function SchedulingPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <PageHeaderSkeleton titleWidth="w-32" action />
+      <Skeleton className="h-10 w-full max-w-md rounded-lg" />
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  )
+}
+
+export function SettingsPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <PageHeaderSkeleton titleWidth="w-28" />
+      <div className="grid gap-8 lg:grid-cols-[12rem_minmax(0,1fr)]">
+        <Skeleton className="hidden h-56 rounded-xl lg:block" />
+        <div className="space-y-6">
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-36 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function GymPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <PageHeaderSkeleton titleWidth="w-20" action />
+      <ScopeTabsSkeleton />
+      <Skeleton className="h-10 w-48 rounded-lg" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  )
+}
+
+export function TeamsPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <PageHeaderSkeleton titleWidth="w-24" action />
+      <ScopeTabsSkeleton />
+      <Skeleton className="h-10 w-full max-w-md rounded-lg" />
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  )
+}
+
+export function ProgressiveOverloadSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <PageHeaderSkeleton titleWidth="w-44" />
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-28 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function ProgressPhotosSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+      <PageHeaderSkeleton titleWidth="w-40" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} className="aspect-[3/4] rounded-xl" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function MyWorkoutsPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+      <PageHeaderSkeleton titleWidth="w-36" />
+      <FilterPillsSkeleton count={2} />
+      <Skeleton className="h-[22rem] rounded-xl sm:h-[26rem]" />
+    </div>
+  )
+}
+
+export function CoachLeaderboardsPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <PageHeaderSkeleton titleWidth="w-36" />
+      <LeaderboardFiltersSkeleton />
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  )
+}
+
+export function ProgramDetailPageSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+      <BreadcrumbSkeleton />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </div>
+        <Skeleton className="h-10 w-28 rounded-lg" />
+      </div>
+      <FilterPillsSkeleton count={4} />
+      <Skeleton className="h-96 rounded-xl" />
+    </div>
+  )
+}
+
+export function GymJoinContentSkeleton() {
+  return <Skeleton className="h-64 rounded-xl" />
 }
 
 export function CoachInboxPanelSkeleton() {

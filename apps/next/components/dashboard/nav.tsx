@@ -4,8 +4,6 @@ import {
 
   Building2,
 
-  CalendarDays,
-
   Camera,
 
   CalendarCheck,
@@ -72,7 +70,7 @@ export const topNavItems: NavItem[] = [
 
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 
-  { label: 'My Workouts', href: '/my-workouts', icon: CalendarDays },
+  { label: 'Schedule', href: '/scheduling', icon: CalendarRange },
 
   { label: 'Inbox', href: '/messages', icon: MessageSquare },
 
@@ -92,10 +90,9 @@ export const navGroups: NavGroup[] = [
 
       { label: 'Users', href: '/clients', icon: Users },
 
-      { label: 'Compliance', href: '/compliance', icon: ClipboardCheck },
-
-      { label: 'Teams', href: '/teams', icon: Flag },
       { label: 'Gym', href: '/gym', icon: Building2 },
+
+      { label: 'Team', href: '/teams', icon: Flag },
 
       {
 
@@ -104,16 +101,6 @@ export const navGroups: NavGroup[] = [
         href: '/attendance',
 
         icon: CalendarClock,
-
-      },
-
-      {
-
-        label: 'Scheduling',
-
-        href: '/scheduling',
-
-        icon: CalendarRange,
 
       },
 
@@ -133,10 +120,8 @@ export const navGroups: NavGroup[] = [
 
       { label: 'Library', href: '/library', icon: LibraryBig },
 
-      { label: 'Load Management', href: '/load', icon: Activity },
-
       {
-        label: 'Progressive overload',
+        label: 'Progressive Overload',
         href: '/progressive-overload',
         icon: TrendingUp,
       },
@@ -154,6 +139,10 @@ export const navGroups: NavGroup[] = [
     items: [
 
       { label: 'Check-ins', href: '/check-ins', icon: CalendarCheck },
+
+      { label: 'Compliance', href: '/compliance', icon: ClipboardCheck },
+
+      { label: 'Load Management', href: '/load', icon: Activity },
 
       { label: 'Progress Photos', href: '/progress-photos', icon: Camera },
 

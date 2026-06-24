@@ -61,7 +61,7 @@ function getPortalBaseNavItems(): PortalNavItem[] {
 const portalPrimaryMobileHrefs = new Set([
   '/portal',
   '/portal/workouts',
-  '/portal/progress',
+  '/portal/sessions',
   '/portal/messages',
 ])
 

@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 
+import { ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { WearablesRosterTable } from '@/components/wearables/wearables-roster-table'
@@ -69,7 +70,7 @@ export default async function WearablesPage({
         description="Monitor sleep, HRV, recovery, and activity synced from athlete wearables."
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<ScopeTabsSkeleton />}>
         <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
       </Suspense>
 

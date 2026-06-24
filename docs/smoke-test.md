@@ -2,11 +2,13 @@
 
 Repeatable manual verification for the coach → client loop and recent features. Run after applying migrations or before a production deploy.
 
+**New since migration 0060** (sections 21–27): session scheduling, compliance dashboard, voice/broadcast messaging, team forum, exercise demo videos, onboarding automation, portal notification preferences, and web push.
+
 **Prerequisites**
 
-- `yarn db:check` passes (schema through migration **0060**)
+- Migrations applied through **0074** via `yarn db:push` (or the relevant `supabase/apply-*.sql` scripts listed in [readme.md](../readme.md))
+- `yarn db:check` passes for schema through migration **0074**
 - `yarn web` running at http://localhost:3000
-- Migrations applied via `yarn db:push`, or the relevant `supabase/apply-*.sql` scripts
 
 ---
 
@@ -70,8 +72,26 @@ Repeatable manual verification for the coach → client loop and recent features
 
 - [ ] As client, open **Messages** on `/portal/messages` and send a message to your coach
 - [ ] Sign in as coach → **Inbox** (`/messages`) — conversation appears with the client
-- [ ] Reply from the inbox — message shows in the thread
+- [ ] Reply from the inbox — message shows in the thread without a full page reload (realtime)
 - [ ] Open the same client → **Messages** tab — thread matches the inbox
+
+## 7b. Voice messages
+
+- [ ] As coach in the inbox thread, record a **voice note** and send — player appears in the thread
+- [ ] As client on `/portal/messages`, play the voice note
+- [ ] As client, record and send a voice note back — coach inbox shows the recording
+
+## 7c. Coach broadcasts
+
+- [ ] As coach on `/messages`, open **Broadcast** in the inbox toolbar
+- [ ] Select a team or individual clients → send a text broadcast
+- [ ] Sign in as a selected client → `/portal/messages` — broadcast appears in the thread
+- [ ] (Optional) Send a **voice broadcast** to multiple clients — each thread receives the same recording
+
+## 7d. Message templates (optional)
+
+- [ ] Go to **Library → Message templates** (`/library/message-templates`) → create a template
+- [ ] Open a client **Messages** tab or the inbox — insert the template when composing a reply
 
 ## 8. Teams
 
@@ -225,19 +245,94 @@ Repeatable manual verification for the coach → client loop and recent features
 
 ## 20. Portal home and mobile UX
 
-Requires migrations **0059** and **0060** (`apply-portal-coach-display-name.sql`, `apply-portal-program-progress.sql`).
+Requires migrations **0059** and **0060** (`apply-portal-coach-display-name.sql`, `apply-portal-program-progress.sql`). Session booking card requires **0072+**.
 
-- [ ] As client on `/portal` (mobile viewport ~375px): bottom nav shows **Home**, **Workouts**, **Progress**, **Messages**, and **More** (Check-in is under More)
+- [ ] As client on `/portal` (mobile viewport ~375px): bottom nav shows **Home**, **Workouts**, **Sessions**, **Messages**, and **More** (Progress and Check-in are under More)
+- [ ] As coach on mobile: bottom nav shows **Dashboard**, **Users**, **Schedule**, **Inbox**, and **More** (Check-ins and Compliance are under More)
 - [ ] Portal home shows coach name in **From your coach** (not generic "Coach") when the coach has a profile name
 - [ ] With an active program assigned: **Your program** card shows "Week X of Y" and weekly completion (e.g. "2 of 4 workouts completed"); tapping opens `/portal/workouts`
+- [ ] With client self-booking enabled: **Sessions** card appears on portal home linking to `/portal/sessions`
 - [ ] **This week** strip uses status colors (completed, in progress, skipped, scheduled) with a legend below
 - [ ] **Training consistency** card shows a heatmap on mobile (not text-only stats)
-- [ ] Navigate to **Progress** — mobile stats include **ACWR**; **8-week volume** chart and load-balance card are visible
+- [ ] Navigate to **Progress** (via More) — mobile stats include **ACWR**; **8-week volume** chart and load-balance card are visible
 - [ ] New client with no messages: **From your coach** shows a "Message your coach" CTA instead of hiding the section
 - [ ] Coach sends a message → **Messages** tab icon shows an unread badge; open and read — badge clears on refresh
 - [ ] Submit a form review → **More** menu shows a badge on **Form Review** while pending
 - [ ] `/portal/check-in` shows **Your wellness trends** when prior check-ins exist (sleep, energy, soreness)
-- [ ] Navigate between `/portal`, `/portal/progress`, and `/portal/workouts` — loading skeletons appear briefly (not a blank page)
+- [ ] Navigate between `/portal`, `/portal/sessions`, and `/portal/workouts` — loading skeletons appear briefly (not a blank page)
+- [ ] Visit a bad coach URL (e.g. `/clients/not-a-real-id` on a missing client) — friendly **Page not found** with link back to dashboard
+- [ ] Visit a bad portal URL (e.g. `/portal/does-not-exist`) — friendly **Page not found** with link back to home
+
+## 21. Session scheduling
+
+Requires migrations **0072–0074** (`apply-coaching-session-booking.sql`, `apply-appointment-reminders.sql`, `apply-scheduling-improvements.sql`).
+
+- [ ] Sign in as coach → open **Scheduling** (`/scheduling`) — on mobile, use the **Schedule** tab in the bottom nav
+- [ ] **Availability** tab → enable **Client self-booking** and set weekly hours in the availability grid → save
+- [ ] Confirm the **Shareable booking link** appears — copy link (format `/book/{coach-slug}`) and preview
+- [ ] **Session packs** tab → create a pack for a client (e.g. 10 sessions) — pack appears in the list
+- [ ] **This week** tab → **Book appointment** → book a session for a client — appointment appears in the week calendar/list
+- [ ] Sign in as client → **Sessions** (`/portal/sessions`) — upcoming session appears
+- [ ] Book another session via the client booking form (pick date + time slot) — toast confirms and list refreshes
+- [ ] As client, cancel an upcoming session — status updates on refresh
+- [ ] As coach, open **Manage** on a scheduled session → mark completed or add session notes
+- [ ] (Optional) Open the booking link in a private window while signed out → login redirects to `/portal/sessions` after sign-in
+- [ ] (Optional) With **Appointment reminders** enabled in coach Settings → Notifications, verify reminder preference saves
+
+## 22. Compliance dashboard
+
+Uses existing client, check-in, messaging, and load data — no separate migration.
+
+- [ ] Sign in as coach → **Compliance** (`/compliance`) — summary stats load (need attention, missed workouts, unread messages, etc.)
+- [ ] Use gym/team scope tabs to filter the roster
+- [ ] Click **Needs attention** filter — only clients with open issues appear
+- [ ] Expand a client row — issue chips show with links (missed workout, overdue check-in, unread message, etc.)
+- [ ] Click an issue link — navigates to the relevant client tab or inbox
+- [ ] With no issues on a client, confirm **On track** count increases in the summary
+
+## 23. Team forum (Community)
+
+Requires migration **0067** (`yarn db:push`).
+
+- [ ] Open a team → **Community** tab
+- [ ] Post a discussion as coach — post appears in the feed
+- [ ] Pin the post — **Pinned** badge shows
+- [ ] Sign in as a client on that team → `/portal/team` — **Community** section shows the post
+- [ ] As client, reply to the post — reply appears for coach on refresh (realtime)
+- [ ] As coach, delete or unpin the post — changes reflect on portal
+
+## 24. Exercise demo videos
+
+Requires migration **0070** (`apply-exercise-demo-videos.sql`).
+
+- [ ] Go to **Library → Exercises** → edit an exercise (or create one)
+- [ ] In the exercise form, upload a short **demo video** (MP4/WebM) — preview plays after upload
+- [ ] Assign a workout using that exercise to a client and open the workout log (coach or client)
+- [ ] On an exercise row, open the demo video — inline player or modal plays the clip
+- [ ] (Optional) Remove the demo video from the exercise form — player no longer appears in the log
+
+## 25. Onboarding automation (optional)
+
+Requires migration **0069** (`apply-onboarding-automation.sql`).
+
+- [ ] Go to **Settings** → **Onboarding automation**
+- [ ] Set a default welcome message template and/or default onboarding program → save
+- [ ] Invite a new client and complete their portal signup
+- [ ] Confirm the welcome message is sent (inbox) and/or the default program is assigned automatically
+
+## 26. Portal account and notifications
+
+Requires migrations **0061** and **0071** for full feature set (`apply-portal-notification-preferences.sql`, `apply-web-push-subscriptions.sql`).
+
+- [ ] As client, open **Account** (`/portal/account`) via the user menu
+- [ ] **Notifications** section — toggle email preferences (e.g. check-in reminders) and save
+- [ ] (Optional) **Push notifications** — enable browser push when prompted; send a coach message and confirm a push arrives (requires HTTPS or localhost and service worker support)
+- [ ] **Preferences** — switch weight unit to kg — portal load/goal displays update on refresh
+
+## 27. Coach settings additions
+
+- [ ] **Settings → Notifications** — toggle **Appointment reminders** and **Weekly summary**; save succeeds
+- [ ] (Optional) With `RESEND_API_KEY` configured, client email nudges cron sends reminder emails (migration **0063**)
 
 ---
 
@@ -275,8 +370,24 @@ Requires migrations **0059** and **0060** (`apply-portal-coach-display-name.sql`
 | Team challenges tab fails or portal standings empty | Run [`supabase/apply-team-challenges.sql`](../supabase/apply-team-challenges.sql) or `yarn db:push` (0058) |
 | Portal shows "Coach" instead of coach name | Run [`supabase/apply-portal-coach-display-name.sql`](../supabase/apply-portal-coach-display-name.sql) or `yarn db:push` (0059) |
 | Program card missing "Week X of Y" or weekly completion | Run [`supabase/apply-portal-program-progress.sql`](../supabase/apply-portal-program-progress.sql) or `yarn db:push` (0060) |
+| Portal notification toggles fail to save | Run [`supabase/apply-portal-notification-preferences.sql`](../supabase/apply-portal-notification-preferences.sql) or `yarn db:push` (0061) |
+| Progressive overload dismiss fails permanently | Run [`supabase/apply-progressive-overload-decisions-delete.sql`](../supabase/apply-progressive-overload-decisions-delete.sql) or `yarn db:push` (0062) |
+| Client email nudges cron fails | Run [`supabase/apply-client-email-nudges.sql`](../supabase/apply-client-email-nudges.sql) or `yarn db:push` (0063) |
+| Message templates page fails | Run [`supabase/apply-coach-message-templates.sql`](../supabase/apply-coach-message-templates.sql) or `yarn db:push` (0064) |
+| Voice message upload or playback fails | Run `yarn db:push` (0065 message media + storage policies) |
+| Broadcast send fails | Run `yarn db:push` (0066 coach broadcasts) |
+| Team Community tab or portal forum fails | Run `yarn db:push` (0067 team forum) |
+| Messages don't update live | Run `yarn db:push` (0068 realtime messaging) |
+| Onboarding automation settings fail | Run [`supabase/apply-onboarding-automation.sql`](../supabase/apply-onboarding-automation.sql) or `yarn db:push` (0069) |
+| Exercise demo video upload fails | Run [`supabase/apply-exercise-demo-videos.sql`](../supabase/apply-exercise-demo-videos.sql) or `yarn db:push` (0070) |
+| Web push subscribe fails | Run [`supabase/apply-web-push-subscriptions.sql`](../supabase/apply-web-push-subscriptions.sql) or `yarn db:push` (0071) |
+| Scheduling page fails or booking slots empty | Run [`supabase/apply-coaching-session-booking.sql`](../supabase/apply-coaching-session-booking.sql) or `yarn db:push` (0072) |
+| Appointment reminder preference missing | Run [`supabase/apply-appointment-reminders.sql`](../supabase/apply-appointment-reminders.sql) or `yarn db:push` (0073) |
+| Booking link or availability exceptions fail | Run [`supabase/apply-scheduling-improvements.sql`](../supabase/apply-scheduling-improvements.sql) or `yarn db:push` (0074) |
+| `/book/{slug}` returns 404 | Confirm `apps/next/app/book/[slug]/page.tsx` is deployed; client must use the copied booking URL |
 | Wearables page shows schema notice | Run [`supabase/apply-client-wearables.sql`](../supabase/apply-client-wearables.sql) and [`supabase/apply-client-wearable-secrets.sql`](../supabase/apply-client-wearable-secrets.sql) or `yarn db:push` (0051–0052) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |
-| `yarn db:check` fails | Run `npx supabase login && yarn db:link && yarn db:push` |
+| Coach or portal 404 shows generic Next.js page | Confirm `not-found.tsx` exists under `app/(dashboard)` and `app/portal` |
+| `yarn db:check` fails | Run `npx supabase login && yarn db:link && yarn db:push` (applies through 0074) |

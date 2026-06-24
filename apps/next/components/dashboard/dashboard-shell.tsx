@@ -16,7 +16,7 @@ import type { CoachNotificationItem } from '@/lib/coach-notifications'
 import { cn } from '@/lib/utils'
 
 const COACH_IMMERSIVE_LOG_ROUTE =
-  /^\/(?:clients\/[^/]+\/workouts|my-workouts)\/[^/]+\/log(?:\/|$)/
+  /^\/clients\/[^/]+\/workouts\/[^/]+\/log(?:\/|$)/
 
 type DashboardShellProps = {
   children: React.ReactNode

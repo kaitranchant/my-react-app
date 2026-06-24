@@ -6,14 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
+import { getCoachBookingUrl } from '@/lib/booking-slug'
 
 type BookingLinkCardProps = {
   bookingEnabled: boolean
@@ -32,13 +25,12 @@ export function BookingLinkCard({
     return null
   }
 
-  const slug = slugify(coachName ?? 'coach')
-  const portalUrl = `${appBaseUrl}/portal/sessions`
-  const shareLabel = slug ? `${appBaseUrl.replace(/^https?:\/\//, '')}/book/${slug}` : portalUrl
+  const bookingUrl = getCoachBookingUrl(appBaseUrl, coachName)
+  const shareLabel = bookingUrl.replace(/^https?:\/\//, '')
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(portalUrl)
+      await navigator.clipboard.writeText(bookingUrl)
       setCopied(true)
       toast.success('Booking link copied')
       window.setTimeout(() => setCopied(false), 2000)
@@ -67,7 +59,7 @@ export function BookingLinkCard({
             Copy link
           </Button>
           <Button type="button" variant="outline" asChild>
-            <a href={portalUrl} target="_blank" rel="noreferrer">
+            <a href={bookingUrl} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-2 size-4" />
               Preview
             </a>
@@ -75,8 +67,8 @@ export function BookingLinkCard({
         </div>
       </div>
       <p className="text-muted-foreground text-xs">
-        Clients sign in to the portal at{' '}
-        <span className="font-mono">{portalUrl}</span> to book available slots.
+        Clients sign in to book at{' '}
+        <span className="font-mono">{bookingUrl}</span>.
       </p>
     </div>
   )

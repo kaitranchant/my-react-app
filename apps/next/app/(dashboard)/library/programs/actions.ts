@@ -47,7 +47,7 @@ function revalidatePrograms(clientId?: string) {
   revalidatePath('/library/programs')
   revalidatePath('/library')
   revalidatePath('/dashboard')
-  revalidatePath('/my-workouts')
+  revalidatePath('/clients')
   if (clientId) {
     revalidatePath(`/clients/${clientId}`)
   }

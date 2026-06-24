@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { CalendarClock, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { replaceAvailabilityRules } from '@/app/(dashboard)/scheduling/actions'
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { WEEKDAY_OPTIONS } from '@/lib/calendar'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { CoachAvailabilityRule } from '@/lib/session-booking-types'
 import type { AvailabilityRuleValues } from '@/lib/validations/session-booking'
 
@@ -77,7 +78,12 @@ export function AvailabilityEditor({ initialRules }: AvailabilityEditorProps) {
 
       <div className="space-y-3">
         {rules.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No availability configured yet.</p>
+          <EmptyState
+            icon={CalendarClock}
+            title="No availability configured"
+            description="Add your weekly hours so clients can book sessions."
+            action={{ label: 'Add time window', onClick: () => setRules([createEmptyRule()]) }}
+          />
         ) : null}
 
         {rules.map((rule) => (

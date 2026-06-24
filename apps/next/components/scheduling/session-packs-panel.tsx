@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Package, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { EmptyState } from '@/components/ui/empty-state'
 import { formatAppointmentRange } from '@/lib/session-booking-slots'
 import { sessionsRemaining } from '@/lib/session-booking-slots'
 import {
@@ -268,13 +269,11 @@ export function SessionPacksPanel({
       </div>
 
       {packs.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-6 text-center">
-          <p className="font-medium">No session packs yet</p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Session packs track prepaid credits. For example:{' '}
-            <span className="text-foreground">10-session pack · $500 · expires in 90 days</span>
-          </p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No session packs yet"
+          description="Session packs track prepaid credits — for example, a 10-session pack at $500 that expires in 90 days."
+        />
       ) : (
         <ul className="divide-border divide-y rounded-lg border">
           {packs.map((pack) => (

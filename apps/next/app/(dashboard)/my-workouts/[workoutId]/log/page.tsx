@@ -1,13 +1,7 @@
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
-import { WorkoutLogPage } from '@/components/calendar/workout-log-page'
-import { getCoachWorkoutLogPageProps } from '@/lib/workout-log-page-data'
 import { getOrCreateCoachSelfClient } from '@/lib/coach-self'
 import { createClient } from '@/lib/supabase/server'
-
-export const metadata = {
-  title: 'Log Workout — Coaching App',
-}
 
 export default async function MyWorkoutLogRoute({
   params,
@@ -22,19 +16,11 @@ export default async function MyWorkoutLogRoute({
   const selfClientResult = await getOrCreateCoachSelfClient(supabase)
 
   if (!selfClientResult.success) {
-    redirect('/my-workouts')
+    redirect('/clients')
   }
 
-  const { client } = selfClientResult.data
-  const props = await getCoachWorkoutLogPageProps({
-    clientId: client.id,
-    workoutId,
-    date,
-  })
-
-  if (!props.returnHref.startsWith('/my-workouts')) {
-    notFound()
-  }
-
-  return <WorkoutLogPage {...props} />
+  const dateQuery = date ? `?date=${encodeURIComponent(date)}` : ''
+  redirect(
+    `/clients/${selfClientResult.data.client.id}/workouts/${workoutId}/log${dateQuery}`
+  )
 }

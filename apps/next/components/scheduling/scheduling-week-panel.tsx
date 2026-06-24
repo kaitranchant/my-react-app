@@ -2,13 +2,14 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
 
 import { AppointmentsList } from '@/components/scheduling/appointments-list'
 import { AppointmentManageDialog } from '@/components/scheduling/appointment-manage-dialog'
 import { SchedulingWeekCalendar } from '@/components/scheduling/scheduling-week-calendar'
 import { SchedulingWeekStats } from '@/components/scheduling/scheduling-week-stats'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { addDaysToDateKey, formatSchedulingWeekRange } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
@@ -110,10 +111,15 @@ export function SchedulingWeekPanel({
 
       {viewMode === 'calendar' ? (
         appointments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No sessions scheduled this week. Configure availability to open booking
-            slots.
-          </p>
+          <EmptyState
+            icon={CalendarDays}
+            title="No sessions this week"
+            description="Set your weekly availability so clients can book open slots."
+            action={{
+              label: 'Configure availability',
+              href: '/scheduling?view=availability',
+            }}
+          />
         ) : (
           <SchedulingWeekCalendar
             appointments={appointments}
@@ -128,6 +134,12 @@ export function SchedulingWeekPanel({
           coachPreferences={coachPreferences}
           sessionPacks={sessionPacks}
           onManage={openManage}
+          emptyTitle="No sessions this week"
+          emptyDescription="Book a session or open availability for client self-booking."
+          emptyAction={{
+            label: 'Configure availability',
+            href: '/scheduling?view=availability',
+          }}
         />
       )}
 

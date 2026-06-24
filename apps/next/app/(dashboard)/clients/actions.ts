@@ -116,7 +116,7 @@ async function rejectCoachSelfClientMutation(
   if (data?.is_coach_self) {
     return {
       success: false,
-      error: 'This profile is managed from My Workouts.',
+      error: 'Coach profiles cannot be edited from the users list.',
     }
   }
 

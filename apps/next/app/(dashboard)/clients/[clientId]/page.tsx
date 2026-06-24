@@ -1,7 +1,8 @@
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Pencil } from 'lucide-react'
 
+import { BreadcrumbSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
 import { isCoachSelfClient } from '@/lib/coach-self'
 import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
@@ -25,7 +26,7 @@ import {
   ClientGymShareMenu,
 } from '@/components/gym/client-gym-share-toggle'
 import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
-import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
+import { ClientUserTypeBadge } from '@/components/clients/client-user-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { ClientDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import type { Client, ClientTeamMembership } from 'app/types/database'
@@ -39,7 +40,6 @@ export default async function ClientDetailPage({
 }) {
   const { clientId } = await params
   const { tab: initialTab } = await searchParams
-  const activeTab = resolveClientDetailMainTab(initialTab)
   const supabase = await createClient()
   const {
     data: { user },
@@ -58,11 +58,12 @@ export default async function ClientDetailPage({
     notFound()
   }
 
-  if (isCoachSelfClient(data as Client)) {
-    redirect('/my-workouts')
-  }
-
   const client = data as Client
+  const coachSelf = isCoachSelfClient(client)
+  const activeTab =
+    coachSelf && resolveClientDetailMainTab(initialTab) === 'messages'
+      ? 'overview'
+      : resolveClientDetailMainTab(initialTab)
   const viewerIsPrimaryCoach = user
     ? isPrimaryCoach(user.id, client)
     : false
@@ -89,7 +90,7 @@ export default async function ClientDetailPage({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <Suspense fallback={null}>
+      <Suspense fallback={<BreadcrumbSkeleton />}>
         <ClientDetailBreadcrumbs
           clientId={clientId}
           clientName={client.full_name}
@@ -116,9 +117,7 @@ export default async function ClientDetailPage({
                 <p className="helper-text">{client.email}</p>
               )}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                {client.coaching_type && (
-                  <ClientCoachingTypeBadge coachingType={client.coaching_type} />
-                )}
+                <ClientUserTypeBadge client={client} />
                 <ClientTeamBadges memberships={teamMemberships} />
                 {!viewerIsPrimaryCoach && coachGyms.length > 0 ? (
                   <ClientGymMemberBadge client={client} gyms={coachGyms} />
@@ -128,16 +127,18 @@ export default async function ClientDetailPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ClientQuickActions clientId={client.id} />
-            <ClientFormDialog
-              client={client}
-              trigger={
-                <Button variant="outline">
-                  <Pencil className="size-4" />
-                  Edit
-                </Button>
-              }
-            />
-            {coachGyms.length > 0 ? (
+            {!coachSelf ? (
+              <ClientFormDialog
+                client={client}
+                trigger={
+                  <Button variant="outline">
+                    <Pencil className="size-4" />
+                    Edit
+                  </Button>
+                }
+              />
+            ) : null}
+            {coachGyms.length > 0 && !coachSelf ? (
               <ClientGymShareMenu
                 client={client}
                 gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
@@ -152,9 +153,9 @@ export default async function ClientDetailPage({
         <ClientSharedBanner primaryCoachName={primaryCoachName} />
       ) : null}
 
-      <ClientAccountBanner client={client} />
+      {!coachSelf ? <ClientAccountBanner client={client} /> : null}
 
-      <ClientDetailTabs activeTab={activeTab}>
+      <ClientDetailTabs activeTab={activeTab} hideMessagesTab={coachSelf}>
         <Suspense fallback={clientDetailTabSkeleton(activeTab)}>
           {activeTab === 'overview' ? (
             <ClientDetailOverviewPanel
@@ -168,6 +169,7 @@ export default async function ClientDetailPage({
               clientId={clientId}
               clientName={client.full_name}
               coachUserId={user?.id ?? null}
+              isCoachSelf={coachSelf}
             />
           ) : null}
           {activeTab === 'progress' ? (
@@ -177,7 +179,7 @@ export default async function ClientDetailPage({
               coachUserId={user?.id ?? null}
             />
           ) : null}
-          {activeTab === 'messages' ? (
+          {activeTab === 'messages' && !coachSelf ? (
             <ClientDetailMessagesPanel
               clientId={clientId}
               clientName={client.full_name}

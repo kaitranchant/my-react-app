@@ -3,7 +3,6 @@ import { coerceDateKey } from '@/lib/calendar'
 type CoachWorkoutLogContext = {
   variant: 'coach'
   clientId: string
-  personalMode?: boolean
 }
 
 type PortalWorkoutLogContext = {
@@ -26,10 +25,6 @@ export function getWorkoutLogHref(
     return `/portal/workouts/${workoutId}/log${dateQuery}`
   }
 
-  if (context.personalMode) {
-    return `/my-workouts/${workoutId}/log${dateQuery}`
-  }
-
   return `/clients/${context.clientId}/workouts/${workoutId}/log${dateQuery}`
 }
 
@@ -42,10 +37,6 @@ export function getWorkoutLogReturnHref(
 
   if (context.variant === 'client') {
     return `/portal/workouts${dateQuery}`
-  }
-
-  if (context.personalMode) {
-    return `/my-workouts${dateQuery}`
   }
 
   return `/clients/${context.clientId}?tab=training${date ? `&date=${encodeURIComponent(date)}` : ''}`

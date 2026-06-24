@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 
+import { ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { AttendanceDailyRollCall } from '@/components/attendance/attendance-daily-roll-call'
 import { AttendanceDateNav } from '@/components/attendance/attendance-date-nav'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
@@ -170,7 +171,7 @@ export default async function AttendancePage({
         weekStartsOn={weekStartsOn}
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<ScopeTabsSkeleton />}>
         <PageFilterPersistence
           pageKey="attendance"
           filterKeys={['scope', 'team', 'view']}
