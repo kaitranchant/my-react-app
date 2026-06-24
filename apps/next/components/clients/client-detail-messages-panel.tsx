@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { attachSignedUrlsToMessages } from '@/lib/message-media'
+import { fetchCoachMessageTemplates } from '@/lib/message-templates'
 import { CoachClientMessagesPanel } from '@/components/messages/coach-client-messages-panel'
 import type { ClientMessage } from 'app/types/database'
 
@@ -12,6 +14,9 @@ export async function ClientDetailMessagesPanel({
   clientName,
 }: ClientDetailMessagesPanelProps) {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const messagesResult = await supabase
     .from('client_messages')
@@ -20,13 +25,20 @@ export async function ClientDetailMessagesPanel({
     .order('created_at', { ascending: true })
     .limit(200)
 
-  const messages = (messagesResult.data ?? []) as ClientMessage[]
+  const messages = await attachSignedUrlsToMessages(
+    supabase,
+    (messagesResult.data ?? []) as ClientMessage[]
+  )
+  const { templates: messageTemplates } = user
+    ? await fetchCoachMessageTemplates(supabase, user.id)
+    : { templates: [] }
 
   return (
     <CoachClientMessagesPanel
       clientId={clientId}
       clientName={clientName}
       messages={messages}
+      messageTemplates={messageTemplates}
       schemaError={messagesResult.error?.message ?? null}
     />
   )

@@ -8,6 +8,7 @@ import { DashboardMobileBottomNav } from '@/components/dashboard/dashboard-mobil
 import { CoachNotificationCenter } from '@/components/dashboard/coach-notification-center'
 import { DashboardShortcuts } from '@/components/dashboard/dashboard-shortcuts'
 import { GlobalSearch } from '@/components/dashboard/global-search'
+import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { UserMenu } from '@/components/dashboard/user-menu'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
@@ -22,6 +23,7 @@ type DashboardShellProps = {
   name: string
   email: string
   avatarUrl?: string | null
+  userId: string
   navBadges: CoachNavBadges
   notifications: CoachNotificationItem[]
 }
@@ -31,6 +33,7 @@ export function DashboardShell({
   name,
   email,
   avatarUrl,
+  userId,
   navBadges,
   notifications,
 }: DashboardShellProps) {
@@ -39,6 +42,7 @@ export function DashboardShell({
 
   return (
     <div className="fixed inset-0 flex overflow-hidden">
+      <RealtimePushListener role="coach" userId={userId} />
       <a
         href="#main-content"
         className="bg-background focus:ring-ring sr-only fixed left-4 top-4 z-50 rounded-md px-4 py-2 text-sm font-medium shadow-lg focus:not-sr-only focus:outline-none focus:ring-2"

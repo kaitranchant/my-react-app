@@ -4,9 +4,12 @@ import type {
   Client,
   ClientMessage,
   ClientMessageThread,
+  ClientMessageType,
   Database,
   MessageSenderRole,
 } from 'app/types/database'
+
+import { getMessagePreviewText } from '@/lib/message-media'
 
 export type InboxConversation = {
   clientId: string
@@ -15,6 +18,7 @@ export type InboxConversation = {
   lastMessageAt: string | null
   lastMessageBody: string | null
   lastMessageSenderRole: MessageSenderRole | null
+  lastMessageType: ClientMessageType | null
   unreadCount: number
 }
 
@@ -34,11 +38,15 @@ function truncatePreview(body: string, maxLength = 72) {
 
 export function formatInboxPreview(
   body: string | null,
-  senderRole: MessageSenderRole | null
+  senderRole: MessageSenderRole | null,
+  messageType: ClientMessageType | null = 'text'
 ) {
-  if (!body) return 'No messages yet'
+  if (!body && messageType !== 'voice') return 'No messages yet'
+  const preview =
+    messageType === 'voice' ? body?.trim() || 'Voice message' : body ?? ''
+  if (!preview) return 'No messages yet'
   const prefix = senderRole === 'coach' ? 'You: ' : ''
-  return truncatePreview(`${prefix}${body}`)
+  return truncatePreview(`${prefix}${preview}`)
 }
 
 export function sortInboxConversations(
@@ -81,7 +89,7 @@ export async function fetchCoachInbox(
       .eq('coach_id', coachId),
     supabase
       .from('client_messages')
-      .select('client_id, body, sender_role, created_at')
+      .select('client_id, body, sender_role, created_at, message_type')
       .eq('coach_id', coachId)
       .order('created_at', { ascending: false })
       .limit(500),
@@ -101,7 +109,7 @@ export async function fetchCoachInbox(
   const threads = (threadsData ?? []) as ClientMessageThread[]
   const messages = (messagesData ?? []) as Pick<
     ClientMessage,
-    'client_id' | 'body' | 'sender_role' | 'created_at'
+    'client_id' | 'body' | 'sender_role' | 'created_at' | 'message_type'
   >[]
 
   const threadsByClientId = new Map(
@@ -110,7 +118,10 @@ export async function fetchCoachInbox(
 
   const latestByClientId = new Map<
     string,
-    Pick<ClientMessage, 'body' | 'sender_role' | 'created_at'>
+    Pick<
+      ClientMessage,
+      'body' | 'sender_role' | 'created_at' | 'message_type'
+    >
   >()
   const unreadByClientId = new Map<string, number>()
 
@@ -144,8 +155,14 @@ export async function fetchCoachInbox(
       clientName: client.full_name,
       avatarUrl: client.avatar_url,
       lastMessageAt: thread?.last_message_at ?? latest?.created_at ?? null,
-      lastMessageBody: latest?.body ?? null,
+      lastMessageBody: latest
+        ? getMessagePreviewText({
+            message_type: latest.message_type ?? 'text',
+            body: latest.body,
+          })
+        : null,
       lastMessageSenderRole: latest?.sender_role ?? null,
+      lastMessageType: latest?.message_type ?? null,
       unreadCount: unreadByClientId.get(client.id) ?? 0,
     }
   })

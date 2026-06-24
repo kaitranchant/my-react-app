@@ -1,9 +1,21 @@
+import { Suspense } from 'react'
+
 import { createClient } from '@/lib/supabase/server'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import {
+  fetchAttendanceClients,
+  fetchCoachTeams,
+  parseAttendanceScope,
+} from '@/lib/attendance'
 import { fetchCoachLoadSummaries } from '@/lib/load-queries'
+import { getGymsForCoach } from '@/lib/gym-access'
 import { LoadDashboard } from '@/components/load/load-dashboard'
+import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
+import {
+  ClearPageFilters,
+  PageFilterPersistence,
+} from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
-import type { Client } from 'app/types/database'
 
 export const metadata = {
   title: 'Load Management — Coaching App',
@@ -12,9 +24,13 @@ export const metadata = {
 export default async function LoadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string }>
+  searchParams: Promise<{ client?: string; scope?: string; team?: string }>
 }) {
-  const { client: initialClientId } = await searchParams
+  const {
+    client: initialClientId,
+    scope: scopeParam,
+    team: teamParam,
+  } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -23,18 +39,33 @@ export default async function LoadPage({
     ? await getCoachPreferencesForUser(user.id)
     : null
 
-  const { data: clientsData } = await supabase
-    .from('clients')
-    .select('id, full_name, avatar_url')
-    .eq('status', 'active')
-    .eq('is_coach_self', false)
-    .order('full_name', { ascending: true })
+  const coachGyms = user ? await getGymsForCoach(user.id) : []
+  const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
+  const coachTeams = user ? await fetchCoachTeams(supabase, user.id) : []
+  const scope = parseAttendanceScope(
+    scopeParam,
+    teamParam,
+    coachGymIds,
+    coachGyms,
+    coachTeams
+  )
 
-  const clients = (clientsData ?? []) as Pick<
-    Client,
-    'id' | 'full_name' | 'avatar_url'
-  >[]
-  const summaries = await fetchCoachLoadSummaries(supabase, clients)
+  const clients = user
+    ? await fetchAttendanceClients(supabase, {
+        scope,
+        coachGymIds,
+        userId: user.id,
+      })
+    : []
+
+  const summaries = await fetchCoachLoadSummaries(
+    supabase,
+    clients.map((client) => ({
+      id: client.id,
+      full_name: client.full_name,
+      avatar_url: client.avatar_url,
+    }))
+  )
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -42,6 +73,21 @@ export default async function LoadPage({
         title="Load Management"
         description="Monitor training load, ACWR risk, session compliance, and readiness across your roster."
       />
+
+      <Suspense fallback={null}>
+        <PageFilterPersistence
+          pageKey="load"
+          filterKeys={['scope', 'team']}
+        />
+        <div className="space-y-3">
+          <AttendanceScopeTabs
+            gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+            teams={coachTeams}
+          />
+          <ClearPageFilters pageKey="load" filterKeys={['scope', 'team']} />
+        </div>
+      </Suspense>
+
       <LoadDashboard
         summaries={summaries}
         initialClientId={initialClientId ?? null}

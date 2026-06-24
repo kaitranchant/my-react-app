@@ -37,6 +37,10 @@ export type WeightUnit = 'lbs' | 'kg'
 export type BiologicalSex = 'male' | 'female'
 export type WeekStartsOn = 'sunday' | 'monday'
 export type CheckInFrequency = 'daily' | 'weekly' | 'biweekly'
+export type ClientEmailNudgeType =
+  | 'workout_reminder'
+  | 'check_in_due'
+  | 'unread_digest'
 export type CoachTimezone =
   | 'auto'
   | 'america_new_york'
@@ -45,6 +49,7 @@ export type CoachTimezone =
   | 'america_los_angeles'
   | 'europe_london'
 export type MessageSenderRole = 'coach' | 'client'
+export type ClientMessageType = 'text' | 'voice'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time'
@@ -147,6 +152,8 @@ export type Database = {
           week_starts_on: WeekStartsOn
           coach_timezone: string | null
           default_check_in_frequency: CheckInFrequency
+          default_onboarding_program_id: string | null
+          onboarding_welcome_template_id: string | null
           notify_check_ins: boolean
           notify_workout_completions: boolean
           notify_missed_sessions: boolean
@@ -158,6 +165,9 @@ export type Database = {
           portal_notify_check_in_reviews: boolean
           portal_notify_form_review_replies: boolean
           portal_notify_team_updates: boolean
+          portal_notify_workout_reminders: boolean
+          portal_notify_check_in_reminders: boolean
+          portal_notify_unread_digest: boolean
           created_at: string
           updated_at: string
         }
@@ -171,6 +181,8 @@ export type Database = {
           week_starts_on?: WeekStartsOn
           coach_timezone?: string | null
           default_check_in_frequency?: CheckInFrequency
+          default_onboarding_program_id?: string | null
+          onboarding_welcome_template_id?: string | null
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
@@ -182,6 +194,9 @@ export type Database = {
           portal_notify_check_in_reviews?: boolean
           portal_notify_form_review_replies?: boolean
           portal_notify_team_updates?: boolean
+          portal_notify_workout_reminders?: boolean
+          portal_notify_check_in_reminders?: boolean
+          portal_notify_unread_digest?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -195,6 +210,8 @@ export type Database = {
           week_starts_on?: WeekStartsOn
           coach_timezone?: string | null
           default_check_in_frequency?: CheckInFrequency
+          default_onboarding_program_id?: string | null
+          onboarding_welcome_template_id?: string | null
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
@@ -206,8 +223,73 @@ export type Database = {
           portal_notify_check_in_reviews?: boolean
           portal_notify_form_review_replies?: boolean
           portal_notify_team_updates?: boolean
+          portal_notify_workout_reminders?: boolean
+          portal_notify_check_in_reminders?: boolean
+          portal_notify_unread_digest?: boolean
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      client_email_nudges: {
+        Row: {
+          id: string
+          client_id: string
+          nudge_type: ClientEmailNudgeType
+          reference_key: string
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          nudge_type: ClientEmailNudgeType
+          reference_key: string
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          nudge_type?: ClientEmailNudgeType
+          reference_key?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_email_nudges_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          user_agent?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -231,6 +313,8 @@ export type Database = {
           gym_id: string | null
           leaderboard_opt_out: boolean
           biological_sex: BiologicalSex | null
+          invite_accepted_at: string | null
+          onboarding_automation_at: string | null
           created_at: string
           updated_at: string
         }
@@ -253,6 +337,8 @@ export type Database = {
           gym_id?: string | null
           leaderboard_opt_out?: boolean
           biological_sex?: BiologicalSex | null
+          invite_accepted_at?: string | null
+          onboarding_automation_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -275,6 +361,8 @@ export type Database = {
           gym_id?: string | null
           leaderboard_opt_out?: boolean
           biological_sex?: BiologicalSex | null
+          invite_accepted_at?: string | null
+          onboarding_automation_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -601,6 +689,82 @@ export type Database = {
             columns: ['team_id']
             isOneToOne: false
             referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_forum_posts: {
+        Row: {
+          id: string
+          team_id: string
+          author_id: string
+          author_role: MessageSenderRole
+          body: string
+          pinned: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          author_id: string
+          author_role: MessageSenderRole
+          body: string
+          pinned?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          author_id?: string
+          author_role?: MessageSenderRole
+          body?: string
+          pinned?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_forum_posts_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_forum_replies: {
+        Row: {
+          id: string
+          post_id: string
+          author_id: string
+          author_role: MessageSenderRole
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          author_id: string
+          author_role: MessageSenderRole
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          author_id?: string
+          author_role?: MessageSenderRole
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_forum_replies_post_id_fkey'
+            columns: ['post_id']
+            isOneToOne: false
+            referencedRelation: 'team_forum_posts'
             referencedColumns: ['id']
           },
         ]
@@ -1113,6 +1277,7 @@ export type Database = {
           source: ExerciseSource
           external_id: string | null
           image_url: string | null
+          demo_video_path: string | null
           difficulty: string | null
           category: string | null
           created_at: string
@@ -1129,6 +1294,7 @@ export type Database = {
           source?: ExerciseSource
           external_id?: string | null
           image_url?: string | null
+          demo_video_path?: string | null
           difficulty?: string | null
           category?: string | null
           created_at?: string
@@ -1145,6 +1311,7 @@ export type Database = {
           source?: ExerciseSource
           external_id?: string | null
           image_url?: string | null
+          demo_video_path?: string | null
           difficulty?: string | null
           category?: string | null
           created_at?: string
@@ -1880,7 +2047,12 @@ export type Database = {
           coach_id: string
           sender_id: string
           sender_role: MessageSenderRole
-          body: string
+          body: string | null
+          message_type: ClientMessageType
+          storage_path: string | null
+          content_type: string | null
+          media_duration_seconds: number | null
+          broadcast_id: string | null
           created_at: string
         }
         Insert: {
@@ -1889,7 +2061,12 @@ export type Database = {
           coach_id: string
           sender_id: string
           sender_role: MessageSenderRole
-          body: string
+          body?: string | null
+          message_type?: ClientMessageType
+          storage_path?: string | null
+          content_type?: string | null
+          media_duration_seconds?: number | null
+          broadcast_id?: string | null
           created_at?: string
         }
         Update: {
@@ -1898,10 +2075,22 @@ export type Database = {
           coach_id?: string
           sender_id?: string
           sender_role?: MessageSenderRole
-          body?: string
+          body?: string | null
+          message_type?: ClientMessageType
+          storage_path?: string | null
+          content_type?: string | null
+          media_duration_seconds?: number | null
+          broadcast_id?: string | null
           created_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'client_messages_broadcast_id_fkey'
+            columns: ['broadcast_id']
+            isOneToOne: false
+            referencedRelation: 'coach_broadcasts'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'client_messages_client_id_fkey'
             columns: ['client_id']
@@ -1911,6 +2100,85 @@ export type Database = {
           },
           {
             foreignKeyName: 'client_messages_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      coach_broadcasts: {
+        Row: {
+          id: string
+          coach_id: string
+          sender_id: string
+          message_type: ClientMessageType
+          body: string | null
+          storage_path: string | null
+          content_type: string | null
+          media_duration_seconds: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          sender_id: string
+          message_type?: ClientMessageType
+          body?: string | null
+          storage_path?: string | null
+          content_type?: string | null
+          media_duration_seconds?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          sender_id?: string
+          message_type?: ClientMessageType
+          body?: string | null
+          storage_path?: string | null
+          content_type?: string | null
+          media_duration_seconds?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'coach_broadcasts_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      coach_message_templates: {
+        Row: {
+          id: string
+          coach_id: string
+          name: string
+          body: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          name: string
+          body: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          name?: string
+          body?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'coach_message_templates_coach_id_fkey'
             columns: ['coach_id']
             isOneToOne: false
             referencedRelation: 'profiles'
@@ -2311,6 +2579,7 @@ export type Database = {
       scheduled_workout_status: ScheduledWorkoutStatus
       check_in_submitted_by: CheckInSubmittedBy
       message_sender_role: MessageSenderRole
+      client_message_type: ClientMessageType
       exercise_pr_record_type: ExercisePrRecordType
       gym_member_role: GymMemberRole
       gym_member_status: GymMemberStatus
@@ -2517,6 +2786,7 @@ export type ScheduledWorkoutExerciseWithDetails = ScheduledWorkoutExercise & {
     | 'equipment'
     | 'external_id'
     | 'image_url'
+    | 'demo_video_path'
     | 'instructions'
   >
 }
@@ -2537,8 +2807,9 @@ export type WorkoutLogSetUpdate =
   Database['public']['Tables']['workout_log_sets']['Update']
 
 export type PreviousSetLog = {
-  weight: number
-  reps: number
+  weight: number | null
+  reps: number | null
+  durationSeconds?: number | null
 }
 
 export type ExercisePreviousSets = Record<number, PreviousSetLog>
@@ -2645,8 +2916,38 @@ export type ClientMessage =
   Database['public']['Tables']['client_messages']['Row']
 export type ClientMessageInsert =
   Database['public']['Tables']['client_messages']['Insert']
+export type ClientMessageWithUrl = ClientMessage & {
+  signedUrl: string | null
+}
 export type ClientMessageThread =
   Database['public']['Tables']['client_message_threads']['Row']
+export type CoachBroadcast =
+  Database['public']['Tables']['coach_broadcasts']['Row']
+export type CoachBroadcastInsert =
+  Database['public']['Tables']['coach_broadcasts']['Insert']
+export type TeamForumPost =
+  Database['public']['Tables']['team_forum_posts']['Row']
+export type TeamForumPostInsert =
+  Database['public']['Tables']['team_forum_posts']['Insert']
+export type TeamForumReply =
+  Database['public']['Tables']['team_forum_replies']['Row']
+export type TeamForumReplyInsert =
+  Database['public']['Tables']['team_forum_replies']['Insert']
+export type TeamForumReplyWithAuthor = TeamForumReply & {
+  authorName: string
+}
+
+export type TeamForumPostWithReplies = TeamForumPost & {
+  replies: TeamForumReplyWithAuthor[]
+  authorName: string
+}
+
+export type CoachMessageTemplate =
+  Database['public']['Tables']['coach_message_templates']['Row']
+export type CoachMessageTemplateInsert =
+  Database['public']['Tables']['coach_message_templates']['Insert']
+export type CoachMessageTemplateUpdate =
+  Database['public']['Tables']['coach_message_templates']['Update']
 
 export type ClientInbodyScan =
   Database['public']['Tables']['client_inbody_scans']['Row']

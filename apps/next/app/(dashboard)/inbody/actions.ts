@@ -2,7 +2,18 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { inbodyValuesToRow, inbodyValuesToUpdate } from '@/lib/inbody-scans'
+import {
+  extractInbodyMetricsFromImage,
+  getMissingRequiredInbodyFields,
+  INBODY_SCAN_IMAGE_MAX_BYTES,
+  validateInbodyScanImageFile,
+} from '@/lib/inbody-scan-ocr'
+import {
+  createEmptyInbodyScanValues,
+  inbodyValuesToRow,
+  inbodyValuesToUpdate,
+  mergeScannedInbodyValues,
+} from '@/lib/inbody-scans'
 import { createClient } from '@/lib/supabase/server'
 import {
   inbodyScanFormSchema,
@@ -10,6 +21,14 @@ import {
 } from '@/lib/validations/inbody-scan'
 
 export type ActionResult = { success: true } | { success: false; error: string }
+
+export type ParseInbodyScanImageResult =
+  | {
+      success: true
+      values: InbodyScanFormValues
+      missingRequired: string[]
+    }
+  | { success: false; error: string }
 
 async function requireUser() {
   const supabase = await createClient()
@@ -109,6 +128,50 @@ export async function updateCoachInbodyScan(
 
   revalidateInbodyPaths(existing.client_id)
   return { success: true }
+}
+
+export async function parseCoachInbodyScanImage(
+  clientId: string,
+  formData: FormData
+): Promise<ParseInbodyScanImageResult> {
+  const ctx = await requireCoachClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof File)) {
+    return { success: false, error: 'Choose an image to scan.' }
+  }
+
+  const validationError = validateInbodyScanImageFile(file)
+  if (validationError) {
+    return { success: false, error: validationError }
+  }
+
+  if (file.size > INBODY_SCAN_IMAGE_MAX_BYTES) {
+    return { success: false, error: 'Image is too large. Choose a file under 10 MB.' }
+  }
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const scanned = await extractInbodyMetricsFromImage(buffer, file.type)
+    const values = mergeScannedInbodyValues(
+      createEmptyInbodyScanValues(),
+      scanned
+    )
+    const missingRequired = getMissingRequiredInbodyFields(scanned)
+
+    return { success: true, values, missingRequired }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Could not read metrics from this image.',
+    }
+  }
 }
 
 export async function deleteCoachInbodyScan(scanId: string): Promise<ActionResult> {

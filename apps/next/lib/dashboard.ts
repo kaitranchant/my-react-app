@@ -130,7 +130,7 @@ export function buildActionItems({
     items.push({
       id: 'no-check-in',
       message: `${clientsWithoutCheckInThisPeriod} active client${clientsWithoutCheckInThisPeriod === 1 ? '' : 's'} ha${clientsWithoutCheckInThisPeriod === 1 ? 's' : 've'}n't checked in ${checkInPeriodLabel}`,
-      href: '/check-ins',
+      href: '/compliance?filter=needs_attention',
       priority: 'medium',
     })
   }
@@ -139,7 +139,7 @@ export function buildActionItems({
     items.push({
       id: 'no-workout',
       message: `${clientsWithoutWorkoutThisWeek} active client${clientsWithoutWorkoutThisWeek === 1 ? '' : 's'} ha${clientsWithoutWorkoutThisWeek === 1 ? 's' : 've'}n't logged a workout this week`,
-      href: '/clients',
+      href: '/compliance?filter=needs_attention',
       priority: 'high',
     })
   }
@@ -148,7 +148,7 @@ export function buildActionItems({
     items.push({
       id: 'skipped',
       message: `${skippedThisWeek} scheduled workout${skippedThisWeek === 1 ? '' : 's'} skipped this week`,
-      href: '/clients',
+      href: '/compliance?filter=needs_attention',
       priority: 'high',
     })
   }

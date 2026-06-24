@@ -12,6 +12,8 @@ import {
 
   CalendarClock,
 
+  ClipboardCheck,
+
   Contact,
 
   Flag,
@@ -87,6 +89,8 @@ export const navGroups: NavGroup[] = [
     items: [
 
       { label: 'Users', href: '/clients', icon: Users },
+
+      { label: 'Compliance', href: '/compliance', icon: ClipboardCheck },
 
       { label: 'Teams', href: '/teams', icon: Flag },
       { label: 'Gym', href: '/gym', icon: Building2 },

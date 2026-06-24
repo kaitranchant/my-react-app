@@ -6,6 +6,7 @@ import {
   hasFormReviewCoachReply,
   isFormReviewPending,
 } from '@/lib/form-reviews'
+import { getMessagePreviewText } from '@/lib/message-media'
 import {
   computeCompositionProgress,
   computeHabitProgress,
@@ -241,7 +242,7 @@ export async function fetchPortalMessageHighlight(
   const [latestResult, threadResult, unreadResult] = await Promise.all([
     supabase
       .from('client_messages')
-      .select('body, created_at')
+      .select('body, created_at, message_type')
       .eq('client_id', clientId)
       .eq('sender_role', 'coach')
       .order('created_at', { ascending: false })
@@ -268,7 +269,12 @@ export async function fetchPortalMessageHighlight(
   }
 
   const recentCoachMessages = (latestResult.data ?? []).map((message) => ({
-    body: truncateMessagePreview(message.body),
+    body: truncateMessagePreview(
+      getMessagePreviewText({
+        message_type: message.message_type ?? 'text',
+        body: message.body,
+      })
+    ),
     createdAt: message.created_at,
   }))
   const latestCoachMessage = recentCoachMessages[0] ?? null

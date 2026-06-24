@@ -1,6 +1,7 @@
 import { PortalAccountSettings } from '@/components/portal/portal-account-settings'
 import { PortalLeaderboardProfileCard } from '@/components/portal/portal-leaderboard-profile-card'
 import { PortalNotificationSettings } from '@/components/portal/portal-notification-settings'
+import { WebPushSettings } from '@/components/notifications/web-push-settings'
 import { PortalProfileSettingsForm } from '@/components/portal/portal-profile-settings-form'
 import { PortalSettingsNav } from '@/components/portal/portal-settings-nav'
 import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
@@ -64,12 +65,13 @@ export default async function PortalAccountPage() {
     <SettingsSection
       id="notifications"
       title="Notifications"
-      description="Choose what you want to be notified about by email."
+      description="Choose email alerts and enable browser pop-ups for background notifications."
     >
       <PortalNotificationSettings
         defaultValues={notificationPreferences}
         emailDeliveryEnabled={emailDeliveryEnabled}
       />
+      <WebPushSettings role="client" />
     </SettingsSection>
   )
 

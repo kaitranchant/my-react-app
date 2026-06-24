@@ -1,4 +1,6 @@
 import { sendPortalCoachMessageEmail } from '@/lib/email/portal-coach-message-notification'
+import { getAppBaseUrl } from '@/lib/email/config'
+import { sendPortalClientWebPushNotification } from '@/lib/notifications/send-web-push-notification'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getPortalClientNotificationTarget,
@@ -44,5 +46,17 @@ export async function notifyClientOfCoachMessage(params: {
     clientEmail: target.clientEmail,
     coachName,
     messagePreview: params.messageBody.trim(),
+  })
+
+  const preview = params.messageBody.trim() || 'New message from your coach'
+  await sendPortalClientWebPushNotification({
+    clientUserId: target.clientUserId,
+    preferenceKey: 'notifyCoachMessages',
+    payload: {
+      title: `Message from ${coachName}`,
+      body: preview,
+      url: `${getAppBaseUrl()}/portal/messages`,
+      tag: `client-message-${params.clientId}`,
+    },
   })
 }

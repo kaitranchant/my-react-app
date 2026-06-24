@@ -7,8 +7,10 @@ import {
   fetchCoachInbox,
   getDefaultInboxClientId,
 } from '@/lib/message-inbox'
+import { attachSignedUrlsToMessages } from '@/lib/message-media'
+import { fetchCoachMessageTemplates } from '@/lib/message-templates'
 import { createClient } from '@/lib/supabase/server'
-import type { ClientMessage } from 'app/types/database'
+import type { ClientMessage, ClientMessageWithUrl } from 'app/types/database'
 
 export const metadata = {
   title: 'Inbox — Coaching App',
@@ -30,10 +32,14 @@ export default async function MessagesPage({
   }
 
   const inbox = await fetchCoachInbox(supabase, user.id)
+  const { templates: messageTemplates } = await fetchCoachMessageTemplates(
+    supabase,
+    user.id
+  )
   const defaultClientId = getDefaultInboxClientId(inbox.conversations)
   const activeClientId = selectedClientId ?? defaultClientId
 
-  let messages: ClientMessage[] = []
+  let messages: ClientMessageWithUrl[] = []
   let messagesError: string | null = null
 
   if (
@@ -49,11 +55,43 @@ export default async function MessagesPage({
       .order('created_at', { ascending: true })
       .limit(200)
 
-    messages = (data ?? []) as ClientMessage[]
+    messages = await attachSignedUrlsToMessages(
+      supabase,
+      (data ?? []) as ClientMessage[]
+    )
     messagesError = error?.message ?? null
   }
 
   const schemaError = inbox.schemaError ?? messagesError
+
+  const { data: broadcastClientsData } = await supabase
+    .from('clients')
+    .select('id, full_name')
+    .eq('coach_id', user.id)
+    .eq('status', 'active')
+    .order('full_name', { ascending: true })
+
+  const { data: teamsData } = await supabase
+    .from('teams')
+    .select('id, name, team_members(client_id)')
+    .eq('coach_id', user.id)
+    .order('name', { ascending: true })
+
+  const broadcastClients =
+    broadcastClientsData?.map((client) => ({
+      id: client.id,
+      name: client.full_name,
+    })) ?? []
+
+  const broadcastTeams =
+    teamsData?.map((team) => ({
+      id: team.id,
+      name: team.name,
+      clientIds:
+        (
+          team.team_members as { client_id: string }[] | null | undefined
+        )?.map((member) => member.client_id) ?? [],
+    })) ?? []
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -70,10 +108,14 @@ export default async function MessagesPage({
 
       <Suspense fallback={<CoachInboxPanelSkeleton />}>
         <CoachInboxPanel
+          coachId={user.id}
           conversations={inbox.conversations}
           defaultClientId={defaultClientId}
           selectedClientId={selectedClientId}
           messages={messages}
+          messageTemplates={messageTemplates}
+          broadcastClients={broadcastClients}
+          broadcastTeams={broadcastTeams}
           schemaError={schemaError}
         />
       </Suspense>

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-panel'
 import { TeamChallengesPanel } from '@/components/teams/team-challenges-panel'
 import { TeamEventsPanel } from '@/components/teams/team-events-panel'
+import { TeamForumPanel } from '@/components/teams/team-forum-panel'
 import { TeamMembersPanel } from '@/components/teams/team-members-panel'
 import { TeamOverviewPanel } from '@/components/teams/team-overview-panel'
 import { TeamPowerliftingExercisesCard } from '@/components/teams/team-powerlifting-exercises-card'
@@ -18,6 +19,7 @@ import type {
   TeamActivityItem,
   TeamAnnouncement,
   TeamEventWithMemberStatus,
+  TeamForumPostWithReplies,
   TeamMemberWithClient,
   TeamPerformanceSummary,
   TeamProgramHistoryEntry,
@@ -27,6 +29,7 @@ import type { TeamChallengeWithLeaderboard } from '@/lib/team-challenges'
 
 const TEAM_TABS = [
   'overview',
+  'community',
   'schedule',
   'members',
   'challenges',
@@ -50,6 +53,7 @@ type TeamDetailTabsProps = {
   availablePrograms: Pick<Program, 'id' | 'name' | 'status'>[]
   activeProgram: Pick<Program, 'id' | 'name' | 'description' | 'status'> | null
   announcements: TeamAnnouncement[]
+  forumPosts?: TeamForumPostWithReplies[]
   events: TeamEventWithMemberStatus[]
   performance: TeamPerformanceSummary
   activity: TeamActivityItem[]
@@ -72,6 +76,7 @@ export function TeamDetailTabs({
   availablePrograms,
   activeProgram,
   announcements,
+  forumPosts = [],
   events,
   performance,
   activity,
@@ -132,6 +137,7 @@ export function TeamDetailTabs({
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <TabsList className="w-max flex-nowrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="community">Community</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="challenges">Challenges</TabsTrigger>
@@ -155,6 +161,12 @@ export function TeamDetailTabs({
             ) : null}
             <TeamAnnouncementsPanel teamId={teamId} announcements={announcements} />
           </>
+        ) : null}
+      </TabsContent>
+
+      <TabsContent value="community">
+        {mountedTabs.has('community') ? (
+          <TeamForumPanel teamId={teamId} posts={forumPosts} />
         ) : null}
       </TabsContent>
 

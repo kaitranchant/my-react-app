@@ -1,4 +1,6 @@
 import { sendFormReviewNotificationEmail } from '@/lib/email/form-review-notification'
+import { getAppBaseUrl } from '@/lib/email/config'
+import { sendCoachWebPushNotification } from '@/lib/notifications/send-web-push-notification'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ClientFormReview } from 'app/types/database'
 
@@ -34,9 +36,6 @@ export async function notifyCoachOfFormReviewSubmission(params: {
     await admin.auth.admin.getUserById(params.coachId)
 
   const coachEmail = authUser?.user?.email?.trim()
-  if (authError || !coachEmail) {
-    return
-  }
 
   let exercise: { name: string } | null = null
   if (params.review.exercise_id) {
@@ -61,18 +60,31 @@ export async function notifyCoachOfFormReviewSubmission(params: {
     workoutName = workout?.name?.trim() || null
   }
 
-  await sendFormReviewNotificationEmail({
-    coachName: profile.full_name?.trim() || 'Coach',
-    coachEmail,
-    clientName: params.clientName,
-    clientId: params.clientId,
-    review: {
-      title: params.review.title,
-      content_type: params.review.content_type,
-      client_notes: params.review.client_notes,
-      scheduled_workout_id: params.review.scheduled_workout_id,
-      exercise,
+  if (coachEmail) {
+    await sendFormReviewNotificationEmail({
+      coachName: profile.full_name?.trim() || 'Coach',
+      coachEmail,
+      clientName: params.clientName,
+      clientId: params.clientId,
+      review: {
+        title: params.review.title,
+        content_type: params.review.content_type,
+        client_notes: params.review.client_notes,
+        scheduled_workout_id: params.review.scheduled_workout_id,
+        exercise,
+      },
+      workoutName,
+    })
+  }
+
+  await sendCoachWebPushNotification({
+    coachId: params.coachId,
+    preferenceKey: 'notifyFormReviews',
+    payload: {
+      title: 'New form review submission',
+      body: `${params.clientName} submitted ${params.review.title?.trim() || 'a lift'} for review.`,
+      url: `${getAppBaseUrl()}/form-review`,
+      tag: `coach-form-review-${params.clientId}`,
     },
-    workoutName,
   })
 }

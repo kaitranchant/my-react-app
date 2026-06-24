@@ -53,6 +53,7 @@ function baseExercise(
       equipment: 'Barbell',
       external_id: null,
       image_url: null,
+      demo_video_path: null,
       instructions: null,
     },
     ...overrides,
@@ -114,7 +115,7 @@ describe('progressive overload suggestions', () => {
     )
   })
 
-  it('prefers percent-of-1RM over progressive overload', () => {
+  it('prefers progressive overload over percent-of-1RM when history exists', () => {
     const exercise = baseExercise({
       weight_percent: '75',
       tracking_options: {
@@ -134,7 +135,7 @@ describe('progressive overload suggestions', () => {
       { personalBest: { e1rm: 247, topSetWeight: 225, topSetReps: 3 } }
     )
 
-    assert.equal(suggested.weight, '185')
+    assert.equal(suggested.weight, '187.5')
     assert.equal(suggested.reps, '5')
   })
 })

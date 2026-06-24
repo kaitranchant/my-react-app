@@ -1,4 +1,6 @@
 import { sendPortalFormReviewReplyEmail } from '@/lib/email/portal-form-review-reply-notification'
+import { getAppBaseUrl } from '@/lib/email/config'
+import { sendPortalClientWebPushNotification } from '@/lib/notifications/send-web-push-notification'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getPortalClientNotificationTarget,
@@ -46,5 +48,16 @@ export async function notifyClientOfFormReviewReply(params: {
     coachName,
     reviewTitle: params.reviewTitle,
     coachFeedback: params.coachFeedback,
+  })
+
+  await sendPortalClientWebPushNotification({
+    clientUserId: target.clientUserId,
+    preferenceKey: 'notifyFormReviewReplies',
+    payload: {
+      title: 'Form review feedback',
+      body: `${coachName} replied to your form review.`,
+      url: `${getAppBaseUrl()}/portal/form-review`,
+      tag: `client-form-review-${params.clientId}`,
+    },
   })
 }

@@ -9,9 +9,14 @@ test('parsePortalNotificationPreferences defaults team updates to disabled', () 
     portal_notify_check_in_reviews: true,
     portal_notify_form_review_replies: false,
     portal_notify_team_updates: false,
+    portal_notify_workout_reminders: true,
+    portal_notify_check_in_reminders: true,
+    portal_notify_unread_digest: false,
   })
 
   assert.equal(preferences.notifyCoachMessages, true)
   assert.equal(preferences.notifyFormReviewReplies, false)
   assert.equal(preferences.notifyTeamUpdates, false)
+  assert.equal(preferences.notifyWorkoutReminders, true)
+  assert.equal(preferences.notifyUnreadDigest, false)
 })

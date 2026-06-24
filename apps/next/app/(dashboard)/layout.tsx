@@ -38,6 +38,7 @@ export default async function DashboardLayout({
       name={name}
       email={user.email ?? ''}
       avatarUrl={profile?.avatar_url}
+      userId={user.id}
       navBadges={navBadges}
       notifications={notifications}
     >

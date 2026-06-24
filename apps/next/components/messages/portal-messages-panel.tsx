@@ -3,17 +3,20 @@
 import {
   markPortalMessagesRead,
   sendPortalMessage,
+  sendPortalVoiceMessage,
 } from '@/app/portal/message-actions'
 import { ClientMessagesPanel } from '@/components/messages/client-messages-panel'
-import type { ClientMessage } from 'app/types/database'
+import type { ClientMessageWithUrl } from 'app/types/database'
 
 type PortalMessagesPanelProps = {
+  clientId: string
   clientName: string
-  messages: ClientMessage[]
+  messages: ClientMessageWithUrl[]
   schemaError?: string | null
 }
 
 export function PortalMessagesPanel({
+  clientId,
   clientName,
   messages,
   schemaError = null,
@@ -21,10 +24,12 @@ export function PortalMessagesPanel({
   return (
     <ClientMessagesPanel
       variant="client"
+      clientId={clientId}
       clientName={clientName}
       messages={messages}
       schemaError={schemaError}
       onSend={sendPortalMessage}
+      onSendVoice={sendPortalVoiceMessage}
       onMarkRead={markPortalMessagesRead}
     />
   )

@@ -6,12 +6,18 @@ const preferenceColumnByKey = {
   notifyCheckInReviews: 'portal_notify_check_in_reviews',
   notifyFormReviewReplies: 'portal_notify_form_review_replies',
   notifyTeamUpdates: 'portal_notify_team_updates',
+  notifyWorkoutReminders: 'portal_notify_workout_reminders',
+  notifyCheckInReminders: 'portal_notify_check_in_reminders',
+  notifyUnreadDigest: 'portal_notify_unread_digest',
 } as const satisfies Record<
   PortalNotificationPreferenceKey,
   | 'portal_notify_messages'
   | 'portal_notify_check_in_reviews'
   | 'portal_notify_form_review_replies'
   | 'portal_notify_team_updates'
+  | 'portal_notify_workout_reminders'
+  | 'portal_notify_check_in_reminders'
+  | 'portal_notify_unread_digest'
 >
 
 export type PortalClientNotificationTarget = {
@@ -70,7 +76,7 @@ export async function isPortalClientNotificationEnabled(
   const { data: profile, error } = await admin
     .from('profiles')
     .select(
-      'portal_notify_messages, portal_notify_check_in_reviews, portal_notify_form_review_replies, portal_notify_team_updates'
+      'portal_notify_messages, portal_notify_check_in_reviews, portal_notify_form_review_replies, portal_notify_team_updates, portal_notify_workout_reminders, portal_notify_check_in_reminders, portal_notify_unread_digest'
     )
     .eq('id', clientUserId)
     .maybeSingle()

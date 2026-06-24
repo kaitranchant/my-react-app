@@ -1,4 +1,6 @@
 import { sendPortalCheckInReviewEmail } from '@/lib/email/portal-check-in-review-notification'
+import { getAppBaseUrl } from '@/lib/email/config'
+import { sendPortalClientWebPushNotification } from '@/lib/notifications/send-web-push-notification'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getPortalClientNotificationTarget,
@@ -46,5 +48,16 @@ export async function notifyClientOfCheckInReview(params: {
     coachName,
     checkInDate: params.checkInDate,
     coachNotes: params.coachNotes,
+  })
+
+  await sendPortalClientWebPushNotification({
+    clientUserId: target.clientUserId,
+    preferenceKey: 'notifyCheckInReviews',
+    payload: {
+      title: 'Check-in feedback',
+      body: `${coachName} reviewed your check-in.`,
+      url: `${getAppBaseUrl()}/portal/progress`,
+      tag: `client-check-in-review-${params.clientId}`,
+    },
   })
 }

@@ -185,6 +185,18 @@ export function formatInbodyMetric(value: number, unit: string) {
   return `${formatted} ${unit}`
 }
 
+export function mergeScannedInbodyValues(
+  base: InbodyScanFormValues,
+  scanned: Partial<InbodyScanFormValues>
+): InbodyScanFormValues {
+  return {
+    ...base,
+    ...Object.fromEntries(
+      Object.entries(scanned).filter(([, value]) => value != null)
+    ),
+  } as InbodyScanFormValues
+}
+
 export function createEmptyInbodyScanValues(): InbodyScanFormValues {
   const now = new Date()
   const offset = now.getTimezoneOffset()

@@ -380,9 +380,9 @@ export function LoadDashboard({
         <CardContent>
           <EmptyState
             icon={Users}
-            title="No active clients"
-            description="Add clients and log workouts to start tracking training load."
-            action={{ label: 'Add a client', href: '/clients' }}
+            title="No active clients in this scope"
+            description="Add clients or change the gym or team filter to see load data here."
+            action={{ label: 'Add a client', href: '/clients?add=1' }}
           />
         </CardContent>
       </Card>

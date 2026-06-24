@@ -19,6 +19,11 @@ import {
   coachingPreferencesSchema,
   type CoachingPreferencesValues,
 } from '@/lib/validations/coaching-preferences'
+import {
+  normalizeOnboardingAutomationValues,
+  onboardingAutomationSchema,
+  type OnboardingAutomationValues,
+} from '@/lib/validations/onboarding-automation'
 import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
 import { profileFormSchema, type ProfileFormValues } from '@/lib/validations/profile'
 
@@ -86,6 +91,60 @@ export async function updateCoachingPreferences(
   revalidatePath('/clients')
   revalidatePath('/load')
   revalidatePath('/check-ins')
+  return { success: true }
+}
+
+export async function updateOnboardingAutomation(
+  values: OnboardingAutomationValues
+): Promise<ActionResult> {
+  const parsed = onboardingAutomationSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const { supabase, user } = await requireUser()
+  const normalized = normalizeOnboardingAutomationValues(parsed.data)
+
+  if (normalized.defaultOnboardingProgramId) {
+    const { data: program, error: programError } = await supabase
+      .from('programs')
+      .select('id')
+      .eq('id', normalized.defaultOnboardingProgramId)
+      .eq('coach_id', user.id)
+      .maybeSingle()
+
+    if (programError || !program) {
+      return { success: false, error: 'Selected program was not found.' }
+    }
+  }
+
+  if (normalized.onboardingWelcomeTemplateId) {
+    const { data: template, error: templateError } = await supabase
+      .from('coach_message_templates')
+      .select('id')
+      .eq('id', normalized.onboardingWelcomeTemplateId)
+      .eq('coach_id', user.id)
+      .maybeSingle()
+
+    if (templateError || !template) {
+      return { success: false, error: 'Selected message template was not found.' }
+    }
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      default_onboarding_program_id: normalized.defaultOnboardingProgramId,
+      onboarding_welcome_template_id: normalized.onboardingWelcomeTemplateId,
+    })
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
+  revalidatePath('/clients')
   return { success: true }
 }
 

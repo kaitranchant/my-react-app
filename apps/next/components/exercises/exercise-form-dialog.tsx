@@ -43,6 +43,7 @@ import {
   exerciseFormSchema,
   type ExerciseFormValues,
 } from '@/lib/validations/exercise'
+import { ExerciseDemoVideoUpload } from '@/components/exercises/exercise-demo-video-upload'
 import type { Exercise } from 'app/types/database'
 
 type ExerciseFormDialogProps = {
@@ -186,6 +187,12 @@ export function ExerciseFormDialog({
                 </FormItem>
               )}
             />
+            {isEdit && exercise ? (
+              <ExerciseDemoVideoUpload
+                exerciseId={exercise.id}
+                demoVideoPath={exercise.demo_video_path}
+              />
+            ) : null}
             <FormField
               control={form.control}
               name="status"

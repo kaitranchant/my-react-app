@@ -3,11 +3,16 @@
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
+import { ClientOnboardingChecklist } from '@/components/clients/client-onboarding-checklist'
 import { ClientOverview } from '@/components/clients/client-overview'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import type { TrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import type { CoachPreferences } from '@/lib/coach-preferences'
+import {
+  buildClientOnboardingProgress,
+  shouldShowClientOnboardingChecklist,
+} from '@/lib/client-onboarding'
 import type {
   CalendarDaySummary,
   Client,
@@ -43,7 +48,7 @@ export function ClientDetailOverviewSection({
   loadMetrics,
   recentPrs = [],
   trainingConsistency = null,
-  coachPreferences,
+  coachPreferences = undefined,
 }: ClientDetailOverviewSectionProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -61,8 +66,32 @@ export function ClientDetailOverviewSection({
     router.replace(`${pathname}?tab=progress&section=check-ins`, { scroll: false })
   }
 
+  const onboardingProgress = coachPreferences
+    ? buildClientOnboardingProgress({
+        client,
+        hasProgram: Boolean(activeAssignment),
+        checkIns,
+        workouts: recentWorkouts,
+        coachPreferences,
+      })
+    : null
+  const showOnboardingChecklist =
+    onboardingProgress &&
+    shouldShowClientOnboardingChecklist(client, onboardingProgress)
+
   return (
     <>
+      {showOnboardingChecklist ? (
+        <ClientOnboardingChecklist
+          clientName={client.full_name}
+          progress={onboardingProgress}
+          programName={activeAssignment?.program?.name}
+          checkInFrequency={coachPreferences!.defaultCheckInFrequency}
+          onOpenPrograms={() => openTraining('programs')}
+          onOpenCheckIns={openCheckIns}
+          onOpenCalendar={() => openTraining('calendar')}
+        />
+      ) : null}
       <ClientOverview
         client={client}
         activeAssignment={activeAssignment}

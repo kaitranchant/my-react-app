@@ -9,6 +9,9 @@ export const defaultPortalNotificationPreferences: PortalNotificationPreferences
     notifyCheckInReviews: true,
     notifyFormReviewReplies: true,
     notifyTeamUpdates: false,
+    notifyWorkoutReminders: true,
+    notifyCheckInReminders: true,
+    notifyUnreadDigest: true,
   }
 
 type ProfilePortalNotificationRow = Pick<
@@ -17,6 +20,9 @@ type ProfilePortalNotificationRow = Pick<
   | 'portal_notify_check_in_reviews'
   | 'portal_notify_form_review_replies'
   | 'portal_notify_team_updates'
+  | 'portal_notify_workout_reminders'
+  | 'portal_notify_check_in_reminders'
+  | 'portal_notify_unread_digest'
 >
 
 export function parsePortalNotificationPreferences(
@@ -35,6 +41,15 @@ export function parsePortalNotificationPreferences(
     notifyTeamUpdates:
       row?.portal_notify_team_updates ??
       defaultPortalNotificationPreferences.notifyTeamUpdates,
+    notifyWorkoutReminders:
+      row?.portal_notify_workout_reminders ??
+      defaultPortalNotificationPreferences.notifyWorkoutReminders,
+    notifyCheckInReminders:
+      row?.portal_notify_check_in_reminders ??
+      defaultPortalNotificationPreferences.notifyCheckInReminders,
+    notifyUnreadDigest:
+      row?.portal_notify_unread_digest ??
+      defaultPortalNotificationPreferences.notifyUnreadDigest,
   }
 }
 
@@ -46,5 +61,8 @@ export function portalNotificationPreferencesToRow(
     portal_notify_check_in_reviews: values.notifyCheckInReviews,
     portal_notify_form_review_replies: values.notifyFormReviewReplies,
     portal_notify_team_updates: values.notifyTeamUpdates,
+    portal_notify_workout_reminders: values.notifyWorkoutReminders,
+    portal_notify_check_in_reminders: values.notifyCheckInReminders,
+    portal_notify_unread_digest: values.notifyUnreadDigest,
   }
 }

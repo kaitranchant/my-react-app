@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
+import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -23,6 +24,9 @@ export async function GET(request: Request) {
           .eq('id', user.id)
           .maybeSingle()
         destination = profile?.role === 'client' ? '/portal' : next
+        if (profile?.role === 'client') {
+          void runOnboardingAutomationForUser(user.id)
+        }
       }
 
       return NextResponse.redirect(`${origin}${destination}`)

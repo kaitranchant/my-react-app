@@ -19,7 +19,7 @@ export async function fetchWorkoutWithExercises(
       *,
       exercises:scheduled_workout_exercises(
         *,
-        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, instructions)
+        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, demo_video_path, instructions)
       )
     `
     )
@@ -61,8 +61,25 @@ type HistoricalLogRow = {
   set_number: number
   weight: number | null
   reps: number | null
+  duration_seconds: number | null
+  scheduled_workout_id: string
   scheduled_workout_exercises: { exercise_id: string }
-  client_scheduled_workouts: { scheduled_date: string }
+  client_scheduled_workouts: {
+    scheduled_date: string
+    completed_at: string | null
+  }
+}
+
+function sessionSortKey(workout: HistoricalLogRow['client_scheduled_workouts']): string {
+  const completedAt = workout.completed_at?.trim()
+  if (completedAt) return completedAt
+
+  const scheduledDate = String(workout.scheduled_date ?? '').slice(0, 10)
+  return scheduledDate ? `${scheduledDate}T23:59:59.999Z` : ''
+}
+
+function isUsablePreviousSet(row: HistoricalLogRow): boolean {
+  return row.reps != null || row.duration_seconds != null || row.weight != null
 }
 
 export async function fetchPreviousSetsForExercises(
@@ -88,62 +105,59 @@ export async function fetchPreviousSetsForExercises(
       set_number,
       weight,
       reps,
+      duration_seconds,
+      scheduled_workout_id,
       scheduled_workout_exercises!inner (exercise_id),
-      client_scheduled_workouts!inner (client_id, scheduled_date)
+      client_scheduled_workouts!inner (client_id, scheduled_date, completed_at, status)
     `
     )
     .eq('client_scheduled_workouts.client_id', clientId)
+    .eq('client_scheduled_workouts.status', 'completed')
+    .eq('completed', true)
     .neq('scheduled_workout_id', workoutId)
     .in('scheduled_workout_exercises.exercise_id', libraryExerciseIds)
-    .not('weight', 'is', null)
-    .not('reps', 'is', null)
 
   if (error || !data) {
     return { previousSetsByExerciseId, previousSessionDateByExerciseId }
   }
 
-  const rows = data as HistoricalLogRow[]
-  const latestDateByExercise = new Map<string, string>()
+  const rows = (data as HistoricalLogRow[]).filter(isUsablePreviousSet)
+  const latestSessionKeyByExercise = new Map<string, string>()
+  const latestWorkoutIdByExercise = new Map<string, string>()
 
   for (const row of rows) {
     const exerciseId = row.scheduled_workout_exercises.exercise_id
-    const sessionDate = String(
-      row.client_scheduled_workouts.scheduled_date ?? ''
-    ).slice(0, 10)
-    if (!sessionDate) continue
+    const sortKey = sessionSortKey(row.client_scheduled_workouts)
+    if (!sortKey) continue
 
-    const currentLatest = latestDateByExercise.get(exerciseId)
+    const sessionKey = `${sortKey}:${row.scheduled_workout_id}`
+    const currentLatest = latestSessionKeyByExercise.get(exerciseId)
 
-    if (!currentLatest || sessionDate > currentLatest) {
-      latestDateByExercise.set(exerciseId, sessionDate)
+    if (!currentLatest || sessionKey > currentLatest) {
+      latestSessionKeyByExercise.set(exerciseId, sessionKey)
+      latestWorkoutIdByExercise.set(exerciseId, row.scheduled_workout_id)
     }
   }
 
   for (const row of rows) {
     const exerciseId = row.scheduled_workout_exercises.exercise_id
-    const sessionDate = String(
-      row.client_scheduled_workouts.scheduled_date ?? ''
-    ).slice(0, 10)
-    if (!sessionDate) continue
+    const latestWorkoutId = latestWorkoutIdByExercise.get(exerciseId)
 
-    const latestDate = latestDateByExercise.get(exerciseId)
-
-    if (!latestDate || sessionDate !== latestDate) {
-      continue
-    }
-
-    if (row.weight == null || row.reps == null) {
+    if (!latestWorkoutId || row.scheduled_workout_id !== latestWorkoutId) {
       continue
     }
 
     if (!previousSetsByExerciseId[exerciseId]) {
       previousSetsByExerciseId[exerciseId] = {}
-      previousSessionDateByExerciseId[exerciseId] = sessionDate
+      previousSessionDateByExerciseId[exerciseId] = String(
+        row.client_scheduled_workouts.scheduled_date ?? ''
+      ).slice(0, 10)
     }
 
     previousSetsByExerciseId[exerciseId][row.set_number] = {
       weight: row.weight,
       reps: row.reps,
+      durationSeconds: row.duration_seconds,
     }
   }
 

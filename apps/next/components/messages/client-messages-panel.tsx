@@ -1,10 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
 import { MessageSquare, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { MessageTemplatePicker } from '@/components/message-templates/message-template-picker'
+import { VoiceNotePlayer } from '@/components/messages/voice-note-player'
+import { VoiceNoteRecorder } from '@/components/messages/voice-note-recorder'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,36 +18,65 @@ import {
 } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Textarea } from '@/components/ui/textarea'
+import { useClientMessagesRealtime } from '@/hooks/use-client-messages-realtime'
+import { useMessageSignedUrls } from '@/hooks/use-message-signed-urls'
 import { formatMessageTimestamp } from '@/lib/messages'
 import { cn } from '@/lib/utils'
-import type { ClientMessage, MessageSenderRole } from 'app/types/database'
+import type {
+  ClientMessage,
+  ClientMessageWithUrl,
+  CoachMessageTemplate,
+  MessageSenderRole,
+} from 'app/types/database'
 
 type ClientMessagesPanelProps = {
   variant: MessageSenderRole
+  clientId: string
   clientName: string
-  messages: ClientMessage[]
+  messages: ClientMessageWithUrl[]
+  messageTemplates?: CoachMessageTemplate[]
   schemaError?: string | null
   showHeader?: boolean
   className?: string
   onSend: (body: string) => Promise<{ success: true } | { success: false; error: string }>
+  onSendVoice: (
+    formData: FormData
+  ) => Promise<{ success: true } | { success: false; error: string }>
   onMarkRead: () => Promise<{ success: true } | { success: false; error: string }>
 }
 
 export function ClientMessagesPanel({
   variant,
+  clientId,
   clientName,
-  messages,
+  messages: initialMessages,
+  messageTemplates = [],
   schemaError = null,
   showHeader = true,
   className,
   onSend,
+  onSendVoice,
   onMarkRead,
 }: ClientMessagesPanelProps) {
-  const router = useRouter()
   const [body, setBody] = React.useState('')
   const [isSending, setIsSending] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const markedReadRef = React.useRef(false)
+
+  const realtimeMessages = useClientMessagesRealtime(
+    clientId,
+    initialMessages as ClientMessage[]
+  )
+
+  const initialSignedUrls = React.useMemo(
+    () =>
+      Object.fromEntries(
+        initialMessages.map((message) => [message.id, message.signedUrl ?? null])
+      ),
+    [initialMessages]
+  )
+
+  const messages = useMessageSignedUrls(realtimeMessages, initialSignedUrls)
 
   React.useEffect(() => {
     if (markedReadRef.current) return
@@ -70,7 +101,29 @@ export function ClientMessagesPanel({
     if (result.success) {
       toast.success('Message sent')
       setBody('')
-      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  async function handleVoiceRecorded(file: File, durationSeconds: number) {
+    if (isSending) return
+
+    setIsSending(true)
+    const formData = new FormData()
+    formData.set('file', file)
+    formData.set('durationSeconds', String(durationSeconds))
+    const caption = body.trim()
+    if (caption) {
+      formData.set('caption', caption)
+    }
+
+    const result = await onSendVoice(formData)
+    setIsSending(false)
+
+    if (result.success) {
+      toast.success('Voice note sent')
+      setBody('')
     } else {
       toast.error(result.error)
     }
@@ -138,7 +191,22 @@ export function ClientMessagesPanel({
                         : 'bg-muted text-foreground rounded-bl-md'
                     )}
                   >
-                    <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                    {message.message_type === 'voice' ? (
+                      <VoiceNotePlayer
+                        signedUrl={message.signedUrl}
+                        durationSeconds={message.media_duration_seconds}
+                        className={isOwn ? 'text-brand-foreground' : undefined}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap break-words">
+                        {message.body}
+                      </p>
+                    )}
+                    {message.message_type === 'voice' && message.body ? (
+                      <p className="mt-2 whitespace-pre-wrap break-words text-xs opacity-90">
+                        {message.body}
+                      </p>
+                    ) : null}
                     <p
                       className={cn(
                         'mt-1 text-[11px]',
@@ -154,6 +222,14 @@ export function ClientMessagesPanel({
           )}
         </div>
 
+        {variant === 'coach' && (
+          <MessageTemplatePicker
+            templates={messageTemplates}
+            clientName={clientName}
+            onInsert={setBody}
+          />
+        )}
+
         <form
           className="flex items-end gap-2 border-t px-5 py-4"
           onSubmit={(event) => {
@@ -161,6 +237,12 @@ export function ClientMessagesPanel({
             void handleSend()
           }}
         >
+          <VoiceNoteRecorder
+            disabled={isSending}
+            onRecorded={(file, durationSeconds) =>
+              void handleVoiceRecorded(file, durationSeconds)
+            }
+          />
           <Textarea
             rows={2}
             value={body}

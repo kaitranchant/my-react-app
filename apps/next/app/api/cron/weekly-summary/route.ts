@@ -11,16 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-function isAuthorizedCronRequest(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim()
-  if (!secret) {
-    return false
-  }
-
-  const authHeader = request.headers.get('authorization')
-  return authHeader === `Bearer ${secret}`
-}
-
+import { isAuthorizedCronRequest } from '@/lib/cron/auth'
 export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -3,6 +3,8 @@ import { Building2 } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getGymContextForCoach, getGymsForCoach } from '@/lib/gym-access'
+import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import { fetchGymOwnerDashboard, parseGymCoachFilter } from '@/lib/gym-metrics'
 import {
   Card,
   CardContent,
@@ -19,6 +21,7 @@ import { GymDangerZone } from '@/components/gym/gym-danger-zone'
 import { AddClientsButton } from '@/components/gym/client-gym-share-toggle'
 import { AddTeamsButton } from '@/components/gym/team-gym-share-toggle'
 import { GymScopeTabs } from '@/components/gym/gym-scope-tabs'
+import { GymPageTabs } from '@/components/gym/gym-page-tabs'
 import { GymScopeBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import {
   ClearPageFilters,
@@ -34,9 +37,9 @@ export const metadata = {
 export default async function GymPage({
   searchParams,
 }: {
-  searchParams: Promise<{ gym?: string }>
+  searchParams: Promise<{ gym?: string; tab?: string; coach?: string }>
 }) {
-  const { gym: gymParam } = await searchParams
+  const { gym: gymParam, coach: coachParam } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -82,6 +85,8 @@ export default async function GymPage({
 
   const { gym, membership } = gymContext
   const isOwner = membership.role === 'owner'
+  const coachGymIds = new Set(coachGyms.map((item) => item.id))
+  const coachPreferences = await getCoachPreferencesForUser(user.id)
 
   const [
     { data: memberRows },
@@ -89,34 +94,34 @@ export default async function GymPage({
     { data: clientRows },
     { data: teamRows },
   ] = await Promise.all([
-      supabase
-        .from('gym_members')
-        .select(
-          '*, profile:profiles(id, full_name, avatar_url, business_name)'
-        )
-        .eq('gym_id', gym.id)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true }),
-      isOwner
-        ? supabase
-            .from('gym_invites')
-            .select('*')
-            .eq('gym_id', gym.id)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-        : Promise.resolve({ data: [] as GymInvite[] }),
-      supabase
-        .from('clients')
-        .select('id, full_name, gym_id')
-        .eq('coach_id', user.id)
-        .eq('is_coach_self', false)
-        .order('full_name', { ascending: true }),
-      supabase
-        .from('teams')
-        .select('id, name, gym_id')
-        .eq('coach_id', user.id)
-        .order('name', { ascending: true }),
-    ])
+    supabase
+      .from('gym_members')
+      .select(
+        '*, profile:profiles(id, full_name, avatar_url, business_name)'
+      )
+      .eq('gym_id', gym.id)
+      .eq('status', 'active')
+      .order('joined_at', { ascending: true }),
+    isOwner
+      ? supabase
+          .from('gym_invites')
+          .select('*')
+          .eq('gym_id', gym.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] as GymInvite[] }),
+    supabase
+      .from('clients')
+      .select('id, full_name, gym_id')
+      .eq('coach_id', user.id)
+      .eq('is_coach_self', false)
+      .order('full_name', { ascending: true }),
+    supabase
+      .from('teams')
+      .select('id, name, gym_id')
+      .eq('coach_id', user.id)
+      .order('name', { ascending: true }),
+  ])
 
   const members = (memberRows ?? []).map((row) => ({
     id: row.id,
@@ -128,39 +133,22 @@ export default async function GymPage({
     profile: row.profile as GymMemberWithProfile['profile'],
   })) as GymMemberWithProfile[]
 
-  return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
-      <PageHeader
-        title={coachGyms.length > 1 ? 'Gyms' : gym.name}
-        description="Manage gym members and invite coaches to collaborate on client programs."
-      >
-        <CreateGymButton />
-        {isOwner ? (
-          <>
-            <GymFormDialog
-              gym={gym}
-              trigger={<Button variant="outline">Edit gym</Button>}
-            />
-            <InviteCoachDialog gymId={gym.id} />
-          </>
-        ) : null}
-      </PageHeader>
+  const ownerDashboard = isOwner
+    ? await fetchGymOwnerDashboard(supabase, {
+        gymId: gym.id,
+        coachId: user.id,
+        coachGymIds,
+        members,
+        coachPreferences,
+        filterCoachId: parseGymCoachFilter(
+          coachParam,
+          new Set(members.map((member) => member.coach_id))
+        ),
+      })
+    : null
 
-      {coachGyms.length > 1 ? (
-        <Suspense fallback={null}>
-          <PageFilterPersistence pageKey="gym" filterKeys={['gym']} />
-          <GymScopeBreadcrumbs
-            gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
-          />
-          <div className="space-y-3">
-            <GymScopeTabs
-              gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
-            />
-            <ClearPageFilters pageKey="gym" filterKeys={['gym']} />
-          </div>
-        </Suspense>
-      ) : null}
-
+  const manageContent = (
+    <>
       <Card>
         <CardHeader>
           <CardTitle>{gym.name}</CardTitle>
@@ -238,6 +226,60 @@ export default async function GymPage({
       </Card>
 
       <GymDangerZone gymId={gym.id} gymName={gym.name} isOwner={isOwner} />
+    </>
+  )
+
+  return (
+    <div
+      className={`mx-auto flex flex-col gap-8 ${isOwner ? 'max-w-7xl' : 'max-w-4xl'}`}
+    >
+      <PageHeader
+        title={coachGyms.length > 1 ? 'Gyms' : gym.name}
+        description={
+          isOwner
+            ? 'Monitor gym performance and manage coaches, clients, and teams.'
+            : 'Manage gym members and invite coaches to collaborate on client programs.'
+        }
+      >
+        <CreateGymButton />
+        {isOwner ? (
+          <>
+            <GymFormDialog
+              gym={gym}
+              trigger={<Button variant="outline">Edit gym</Button>}
+            />
+            <InviteCoachDialog gymId={gym.id} />
+          </>
+        ) : null}
+      </PageHeader>
+
+      {coachGyms.length > 1 ? (
+        <Suspense fallback={null}>
+          <PageFilterPersistence pageKey="gym" filterKeys={['gym', 'tab', 'coach']} />
+          <GymScopeBreadcrumbs
+            gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
+          />
+          <div className="space-y-3">
+            <GymScopeTabs
+              gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
+            />
+            <ClearPageFilters pageKey="gym" filterKeys={['gym', 'tab', 'coach']} />
+          </div>
+        </Suspense>
+      ) : null}
+
+      {isOwner && ownerDashboard ? (
+        <Suspense fallback={null}>
+          <GymPageTabs
+            gymId={gym.id}
+            gymName={gym.name}
+            dashboard={ownerDashboard}
+            manageContent={manageContent}
+          />
+        </Suspense>
+      ) : (
+        manageContent
+      )}
     </div>
   )
 }

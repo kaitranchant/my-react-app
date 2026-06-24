@@ -11,6 +11,7 @@ import {
 import { InbodyCompositionHistoryChart } from '@/components/inbody/inbody-composition-history-chart'
 import { InbodyScanForm } from '@/components/inbody/inbody-scan-form'
 import { InbodyScanList } from '@/components/inbody/inbody-scan-list'
+import { InbodyScanPhotoUpload } from '@/components/inbody/inbody-scan-photo-upload'
 import {
   Card,
   CardContent,
@@ -19,7 +20,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { scansToChartPoints } from '@/lib/inbody-scans'
+import {
+  createEmptyInbodyScanValues,
+  scansToChartPoints,
+} from '@/lib/inbody-scans'
+import type { InbodyScanFormValues } from '@/lib/validations/inbody-scan'
 import type { Client, ClientInbodyScan } from 'app/types/database'
 
 type InbodyTab = 'history' | 'graphs' | 'log'
@@ -32,7 +37,23 @@ type ClientInbodyPanelProps = {
 export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
   const router = useRouter()
   const [tab, setTab] = React.useState<InbodyTab>('log')
+  const [formKey, setFormKey] = React.useState(0)
+  const [scannedValues, setScannedValues] = React.useState<
+    InbodyScanFormValues | undefined
+  >()
   const chartPoints = scansToChartPoints(scans)
+
+  function handleScanComplete(values: InbodyScanFormValues) {
+    setScannedValues(values)
+    setFormKey((key) => key + 1)
+  }
+
+  function handleSaveSuccess() {
+    setScannedValues(undefined)
+    setFormKey((key) => key + 1)
+    router.refresh()
+    setTab('history')
+  }
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab(value as InbodyTab)}>
@@ -47,12 +68,18 @@ export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
           <CardHeader>
             <CardTitle>Log InBody scan</CardTitle>
             <CardDescription>
-              Enter values from the client&apos;s InBody printout. Only weight,
-              SMM, and PBF are required for the history graphs.
+              Scan a photo of the InBody result sheet or enter values manually.
+              Weight, SMM, and PBF are required for the history graphs.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            <InbodyScanPhotoUpload
+              clientId={client.id}
+              onScanComplete={handleScanComplete}
+            />
             <InbodyScanForm
+              key={formKey}
+              initialValues={scannedValues ?? createEmptyInbodyScanValues()}
               onSubmit={async (values) => {
                 const result = await submitCoachInbodyScan(client.id, values)
                 return {
@@ -60,10 +87,7 @@ export function ClientInbodyPanel({ client, scans }: ClientInbodyPanelProps) {
                   error: result.success ? undefined : result.error,
                 }
               }}
-              onSuccess={() => {
-                router.refresh()
-                setTab('history')
-              }}
+              onSuccess={handleSaveSuccess}
             />
           </CardContent>
         </Card>

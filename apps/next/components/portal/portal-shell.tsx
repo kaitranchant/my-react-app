@@ -7,6 +7,7 @@ import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { UserMenu } from '@/components/dashboard/user-menu'
 import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
 import { PortalSidebar } from '@/components/portal/portal-sidebar'
+import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
 import type { PortalNavBadges } from '@/lib/portal-nav-badges'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,8 @@ type PortalShellProps = {
   name: string
   email: string
   avatarUrl?: string | null
+  userId: string
+  clientId?: string | null
 }
 
 export function PortalShell({
@@ -28,12 +31,15 @@ export function PortalShell({
   name,
   email,
   avatarUrl,
+  userId,
+  clientId,
 }: PortalShellProps) {
   const pathname = usePathname()
   const immersiveLog = PORTAL_IMMERSIVE_LOG_ROUTE.test(pathname)
 
   return (
     <div className="fixed inset-0 flex overflow-hidden">
+      <RealtimePushListener role="client" userId={userId} clientId={clientId} />
       <a
         href="#main-content"
         className="bg-background focus:ring-ring sr-only fixed left-4 top-4 z-50 rounded-md px-4 py-2 text-sm font-medium shadow-lg focus:not-sr-only focus:outline-none focus:ring-2"

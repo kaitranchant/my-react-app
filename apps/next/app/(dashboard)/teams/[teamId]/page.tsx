@@ -18,6 +18,7 @@ import { TeamDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumb
 import { getGymsForCoach, isPrimaryTeamCoach } from '@/lib/gym-access'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { fetchTeamChallengesWithLeaderboards } from '@/lib/team-challenges'
+import { fetchTeamForumPosts } from '@/lib/team-forum'
 import type {
   Client,
   Program,
@@ -214,6 +215,7 @@ export default async function TeamDetailPage({
     team.coach_id,
     coachPreferences
   )
+  const forumPosts = await fetchTeamForumPosts(supabase, teamId, team.coach_id)
   const weightClasses = Array.from(
     new Set(
       members
@@ -275,6 +277,7 @@ export default async function TeamDetailPage({
           availablePrograms={availablePrograms}
           activeProgram={activeProgram}
           announcements={announcements}
+          forumPosts={forumPosts}
           events={eventsWithStatuses}
           performance={performance}
           activity={activity}

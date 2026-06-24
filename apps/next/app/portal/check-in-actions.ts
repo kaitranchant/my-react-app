@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { checkInValuesToRow, checkInMetricValues } from '@/lib/check-ins'
+import { notifyCoachOfClientCheckIn } from '@/lib/notifications/notify-coach-check-in'
 import { requirePortalClientContext } from '@/lib/portal-client'
 import { formatSupabaseError } from '@/lib/supabase/errors'
 import {
@@ -87,6 +88,12 @@ export async function submitClientCheckIn(
     if (error) {
       return { success: false, error: formatSupabaseError(error) }
     }
+
+    void notifyCoachOfClientCheckIn({
+      coachId: coachClient.coach_id,
+      clientId: ctx.client.id,
+      clientName: ctx.client.full_name?.trim() || 'Client',
+    })
   }
 
   revalidatePortalCheckIn(ctx.client.id)

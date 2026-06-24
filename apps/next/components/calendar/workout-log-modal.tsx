@@ -91,6 +91,7 @@ import {
   weightUnitLabel,
 } from '@/lib/coach-preferences'
 import {
+  getExerciseDemoVideoPublicUrl,
   getExerciseMediaUrl,
   hasExerciseMedia,
 } from '@/lib/exercise-media'
@@ -104,6 +105,7 @@ import {
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
   findResumeExerciseIndex,
+  formatPreviousPerformance,
   getSectionLabelForExercise,
   isExerciseFullyLogged,
   isWorkoutFullyLogged,
@@ -325,8 +327,10 @@ function WorkoutLogExercise({
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
+  const demoVideoUrl = getExerciseDemoVideoPublicUrl(mediaExercise)
   const mediaUrl = getExerciseMediaUrl(mediaExercise, '180')
   const showMedia = hasExerciseMedia(mediaExercise)
+  const showVideoThumbnail = Boolean(demoVideoUrl && !mediaUrl)
 
   const trackingOptions = parseTrackingOptions(exercise.tracking_options)
   const prTrackingEnabled = !trackingOptions.disablePrTracking
@@ -489,6 +493,10 @@ function WorkoutLogExercise({
                     <PlayCircle className="size-5 text-white drop-shadow" />
                   </span>
                 </>
+              ) : showVideoThumbnail ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <PlayCircle className="size-5 text-white drop-shadow" />
+                </span>
               ) : (
                 <Dumbbell className="text-muted-foreground size-5" />
               )}
@@ -749,7 +757,10 @@ function WorkoutLogExercise({
                           ) : (
                             <span className="bg-background/80 text-muted-foreground min-w-0 truncate rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-xs">
                               {previous
-                                ? `${previous.weight}x${previous.reps}`
+                                ? formatPreviousPerformance(
+                                    previous.weight,
+                                    previous.reps
+                                  )
                                 : '—'}
                             </span>
                           )}

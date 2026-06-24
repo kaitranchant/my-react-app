@@ -1,10 +1,29 @@
+import { getExerciseDemoVideoUrl } from '@/lib/exercise-demo-video'
 import { exerciseDbImageUrl } from '@/lib/exercisedb'
 import type { Exercise } from 'app/types/database'
 
 export type ExerciseMediaFields = Pick<
   Exercise,
-  'external_id' | 'image_url' | 'instructions' | 'name' | 'muscle_group' | 'equipment'
+  | 'external_id'
+  | 'image_url'
+  | 'demo_video_path'
+  | 'instructions'
+  | 'name'
+  | 'muscle_group'
+  | 'equipment'
 >
+
+export function getExerciseDemoVideoPublicUrl(
+  exercise: Pick<Exercise, 'demo_video_path'>
+): string | null {
+  return getExerciseDemoVideoUrl(exercise.demo_video_path)
+}
+
+export function hasExerciseDemoVideo(
+  exercise: Pick<Exercise, 'demo_video_path'>
+): boolean {
+  return Boolean(exercise.demo_video_path?.trim())
+}
 
 export function getExerciseMediaUrl(
   exercise: Pick<Exercise, 'external_id' | 'image_url'>,
@@ -22,7 +41,14 @@ export function getExerciseMediaUrl(
 }
 
 export function hasExerciseMedia(
-  exercise: Pick<Exercise, 'external_id' | 'image_url' | 'instructions'>
+  exercise: Pick<
+    Exercise,
+    'external_id' | 'image_url' | 'demo_video_path' | 'instructions'
+  >
 ): boolean {
-  return Boolean(getExerciseMediaUrl(exercise) || exercise.instructions?.trim())
+  return Boolean(
+    hasExerciseDemoVideo(exercise) ||
+      getExerciseMediaUrl(exercise) ||
+      exercise.instructions?.trim()
+  )
 }

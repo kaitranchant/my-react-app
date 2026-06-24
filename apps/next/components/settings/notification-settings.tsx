@@ -50,7 +50,8 @@ const notificationOptions: NotificationOption[] = [
     key: 'notifyInviteAccepted',
     label: 'Client invite accepted',
     description:
-      'Highlight pending client invites on your dashboard action items.',
+      'Email when a client accepts their portal invite, plus pending-invite highlights on your dashboard.',
+    email: true,
   },
   {
     key: 'notifyPrs',

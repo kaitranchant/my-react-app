@@ -1,8 +1,9 @@
 import { PortalMessagesPanel } from '@/components/messages/portal-messages-panel'
 import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
+import { attachSignedUrlsToMessages } from '@/lib/message-media'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
-import type { ClientMessage } from 'app/types/database'
+import type { ClientMessage, ClientMessageWithUrl } from 'app/types/database'
 
 export const metadata = {
   title: 'Messages — Coaching App',
@@ -12,7 +13,7 @@ export default async function PortalMessagesPage() {
   const portalCtx = await getPortalClientContext()
   const clientRecord = portalCtx?.client ?? null
 
-  let messages: ClientMessage[] = []
+  let messages: ClientMessageWithUrl[] = []
   let schemaError: string | null = null
 
   if (clientRecord?.id) {
@@ -27,7 +28,10 @@ export default async function PortalMessagesPage() {
     if (error) {
       schemaError = error.message
     } else {
-      messages = (data ?? []) as ClientMessage[]
+      messages = await attachSignedUrlsToMessages(
+        supabase,
+        (data ?? []) as ClientMessage[]
+      )
     }
   }
 
@@ -44,6 +48,7 @@ export default async function PortalMessagesPage() {
         <PortalUnlinkedState feature="send messages" />
       ) : (
         <PortalMessagesPanel
+          clientId={clientRecord.id}
           clientName={clientRecord.full_name}
           messages={messages}
           schemaError={schemaError}

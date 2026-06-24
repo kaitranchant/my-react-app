@@ -15,8 +15,9 @@ export type WorkoutLogSection = {
 }
 
 export type PreviousSetLog = {
-  weight: number
-  reps: number
+  weight: number | null
+  reps: number | null
+  durationSeconds?: number | null
 }
 
 export type WorkoutLogSetDraft = {
@@ -243,10 +244,42 @@ export function suggestProgressiveLoadWeight(
   if (!options.autoProgressLoad) return null
   if (!previousSessionMetTargets(exercise, previousSets)) return null
 
-  const weights = Object.values(previousSets).map((set) => set.weight)
+  const weights = Object.values(previousSets)
+    .map((set) => set.weight)
+    .filter((value): value is number => value != null)
   if (weights.length === 0) return null
 
   return roundToWeightIncrement(Math.max(...weights) + DEFAULT_WEIGHT_INCREMENT)
+}
+
+export function resolvePreviousSetLog(
+  previousSets: Record<number, PreviousSetLog>,
+  setNumber: number
+): PreviousSetLog | null {
+  const exact = previousSets[setNumber]
+  if (exact) return exact
+
+  const setNumbers = Object.keys(previousSets)
+    .map(Number)
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right)
+
+  if (setNumbers.length === 0) return null
+
+  let fallback: PreviousSetLog | null = null
+  for (const number of setNumbers) {
+    if (number <= setNumber) {
+      fallback = previousSets[number]
+    }
+  }
+
+  return fallback ?? previousSets[setNumbers[0]] ?? null
+}
+
+function hasPreviousSessionData(
+  previousSets: Record<number, PreviousSetLog>
+): boolean {
+  return Object.keys(previousSets).length > 0
 }
 
 export function getSuggestedLogValuesForSet(
@@ -257,25 +290,32 @@ export function getSuggestedLogValuesForSet(
 ): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'> {
   const fields = getLogFieldsForExercise(exercise)
   const targetLabel = getTargetLabelForSet(exercise, setNumber)
-  const previous = previousSets[setNumber]
+  const previous = resolvePreviousSetLog(previousSets, setNumber)
+  const hasHistory = hasPreviousSessionData(previousSets)
 
   let weight = ''
   let reps = ''
   let durationSeconds = ''
 
   if (fields.showReps) {
-    const prescribed = parsePrescriptionNumber(targetLabel)
-    if (prescribed) {
-      reps = prescribed
-    } else if (previous?.reps != null) {
+    if (previous?.reps != null) {
       reps = String(previous.reps)
+    } else {
+      const prescribed = parsePrescriptionNumber(targetLabel)
+      if (prescribed) {
+        reps = prescribed
+      }
     }
   }
 
   if (fields.showDuration) {
-    const prescribed = parsePrescriptionNumber(targetLabel)
-    if (prescribed) {
-      durationSeconds = prescribed
+    if (previous?.durationSeconds != null) {
+      durationSeconds = String(previous.durationSeconds)
+    } else {
+      const prescribed = parsePrescriptionNumber(targetLabel)
+      if (prescribed) {
+        durationSeconds = prescribed
+      }
     }
   }
 
@@ -283,22 +323,19 @@ export function getSuggestedLogValuesForSet(
     const targetWeight = parseTargetWeight(exercise.target_weight)
     const e1rm = options.personalBest?.e1rm ?? null
     const percent = parseWeightPercent(exercise.weight_percent)
+    const progressiveWeight = suggestProgressiveLoadWeight(
+      exercise,
+      previousSets
+    )
 
     if (targetWeight != null) {
       weight = String(targetWeight)
-    } else if (e1rm != null && percent != null) {
+    } else if (progressiveWeight != null) {
+      weight = String(progressiveWeight)
+    } else if (previous?.weight != null) {
+      weight = String(previous.weight)
+    } else if (!hasHistory && e1rm != null && percent != null) {
       weight = String(calculateWeightFromPercent(e1rm, percent))
-    } else {
-      const progressiveWeight = suggestProgressiveLoadWeight(
-        exercise,
-        previousSets
-      )
-
-      if (progressiveWeight != null) {
-        weight = String(progressiveWeight)
-      } else if (previous?.weight != null) {
-        weight = String(previous.weight)
-      }
     }
   }
 
@@ -708,8 +745,20 @@ export function calculateE1rm(weight: number, reps: number): number | null {
   return Math.round(weight * (1 + reps / 30))
 }
 
-export function formatPreviousPerformance(weight: number, reps: number): string {
-  return `${weight} × ${reps}`
+export function formatPreviousPerformance(
+  weight: number | null,
+  reps: number | null
+): string {
+  if (weight != null && reps != null) {
+    return `${weight} × ${reps}`
+  }
+  if (reps != null) {
+    return `${reps} reps`
+  }
+  if (weight != null) {
+    return `${weight}`
+  }
+  return '—'
 }
 
 export function getBestE1rmFromDrafts(
@@ -897,6 +946,8 @@ export function getBestE1rmFromPrevious(
   let best: number | null = null
 
   for (const set of Object.values(previousSets)) {
+    if (set.weight == null || set.reps == null) continue
+
     const estimate = calculateE1rm(set.weight, set.reps)
     if (estimate != null && (best == null || estimate > best)) {
       best = estimate

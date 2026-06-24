@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { requireClientAccess } from '@/lib/gym-access'
+import { getMessagePreviewText } from '@/lib/message-media'
 import { notifyClientOfCoachMessage } from '@/lib/notifications/notify-client-coach-message'
+import { uploadVoiceMessage } from '@/lib/voice-message-upload'
 import { messageBodySchema } from '@/lib/validations/message'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -36,6 +38,7 @@ export async function sendCoachMessage(
     coach_id: client.coach_id,
     sender_id: user.id,
     sender_role: 'coach',
+    message_type: 'text',
     body: parsed.data,
   })
 
@@ -47,6 +50,39 @@ export async function sendCoachMessage(
     clientId: client.id,
     coachId: client.coach_id,
     messageBody: parsed.data,
+  })
+
+  revalidateMessagePaths(clientId)
+  return { success: true }
+}
+
+export async function sendCoachVoiceMessage(
+  clientId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user, client } = ctx
+  const result = await uploadVoiceMessage({
+    supabase,
+    clientId: client.id,
+    coachId: client.coach_id,
+    senderId: user.id,
+    senderRole: 'coach',
+    formData,
+  })
+
+  if (!result.success) {
+    return { success: false, error: result.error }
+  }
+
+  void notifyClientOfCoachMessage({
+    clientId: client.id,
+    coachId: client.coach_id,
+    messageBody: getMessagePreviewText(result.message),
   })
 
   revalidateMessagePaths(clientId)

@@ -1,6 +1,7 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import * as React from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 import { ClientCheckInsPanel } from '@/components/check-ins/client-check-ins-panel'
 import { ClientFormReviewsPanel } from '@/components/form-review/form-review-review-card'
@@ -89,15 +90,33 @@ export function ClientDetailProgressSection({
   photosByCheckInId,
   coachPreferences,
 }: ClientDetailProgressSectionProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const urlTab = searchParams.get('tab')
   const urlSection = searchParams.get('section')
-  const progressSection = resolveProgressSection(urlTab, urlSection)
+  const urlProgressSection = resolveProgressSection(urlTab, urlSection)
 
-  function buildUrl(section: ProgressSection) {
+  const [progressSection, setProgressSection] =
+    React.useState<ProgressSection>(urlProgressSection)
+
+  React.useEffect(() => {
+    setProgressSection(urlProgressSection)
+  }, [urlProgressSection])
+
+  React.useEffect(() => {
+    function syncFromUrl() {
+      const params = new URLSearchParams(window.location.search)
+      setProgressSection(
+        resolveProgressSection(params.get('tab'), params.get('section'))
+      )
+    }
+
+    window.addEventListener('popstate', syncFromUrl)
+    return () => window.removeEventListener('popstate', syncFromUrl)
+  }, [])
+
+  function updateProgressSectionUrl(section: ProgressSection) {
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', 'progress')
     const sectionParam = progressSectionForUrl(section)
@@ -107,11 +126,14 @@ export function ClientDetailProgressSection({
       params.delete('section')
     }
     const query = params.toString()
-    return query ? `${pathname}?${query}` : pathname
+    const href = query ? `${pathname}?${query}` : pathname
+    window.history.replaceState(window.history.state, '', href)
   }
 
   function handleProgressSectionChange(value: string) {
-    router.replace(buildUrl(value as ProgressSection), { scroll: false })
+    const section = value as ProgressSection
+    setProgressSection(section)
+    updateProgressSectionUrl(section)
   }
 
   return (

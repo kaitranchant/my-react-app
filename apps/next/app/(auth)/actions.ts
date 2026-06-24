@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 
 import { createClient } from '@/lib/supabase/server'
+import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 
 export type AuthState = {
   error?: string
@@ -118,6 +119,7 @@ export async function signup(
   if (envError) return envError
 
   const isClientSignup = Boolean(inviteToken)
+  let signedUpUserId: string | null = null
 
   try {
     const origin = (await headers()).get('origin') ?? ''
@@ -156,12 +158,17 @@ export async function signup(
           : 'Check your email to confirm your account, then sign in.',
       }
     }
+
+    signedUpUserId = data.user?.id ?? null
   } catch (error) {
     return { error: authErrorMessage(error) }
   }
 
   revalidatePath('/', 'layout')
   const supabase = await createClient()
+  if (isClientSignup && signedUpUserId) {
+    void runOnboardingAutomationForUser(signedUpUserId)
+  }
   return {
     redirectTo: isClientSignup
       ? '/portal'

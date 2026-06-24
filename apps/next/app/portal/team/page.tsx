@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { Flag } from 'lucide-react'
 
+import { PortalTeamForum } from '@/components/portal/portal-team-forum'
 import { PortalTeamAnnouncements } from '@/components/portal/portal-team-announcements'
 import { PortalTeamChallenges } from '@/components/portal/portal-team-challenges'
 import { PortalTeamEvents } from '@/components/portal/portal-team-events'
@@ -19,6 +20,7 @@ import {
 } from '@/lib/portal-teams'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
 import { fetchTeamChallengesWithLeaderboards } from '@/lib/team-challenges'
+import { fetchClientTeamForumPosts } from '@/lib/team-forum'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 
@@ -74,7 +76,7 @@ export default async function PortalTeamPage({
   const activeTeam =
     teams.find((team) => team.id === teamParam) ?? teams[0]
 
-  const [announcements, events, challenges] = await Promise.all([
+  const [announcements, events, challenges, forumPosts] = await Promise.all([
     fetchClientTeamAnnouncements(supabase, activeTeam.id, clientRecord.id),
     fetchClientTeamEvents(supabase, activeTeam.id, clientRecord.id),
     getCoachPreferencesForCoachId(clientRecord.coach_id).then((preferences) =>
@@ -86,6 +88,7 @@ export default async function PortalTeamPage({
         { clientVisibleOnly: true }
       )
     ),
+    fetchClientTeamForumPosts(supabase, activeTeam.id),
   ])
 
   return (
@@ -123,6 +126,11 @@ export default async function PortalTeamPage({
 
       <PortalTeamChallenges teamName={activeTeam.name} challenges={challenges} />
       <PortalTeamAnnouncements announcements={announcements} />
+      <PortalTeamForum
+        teamId={activeTeam.id}
+        clientUserId={portalCtx?.userId ?? ''}
+        posts={forumPosts}
+      />
       <PortalTeamEvents teamId={activeTeam.id} events={events} />
     </div>
   )

@@ -209,7 +209,9 @@ export function buildSuggestionFromSession(
   )
   if (suggestedWeight == null) return null
 
-  const weights = Object.values(previousSets).map((set) => set.weight)
+  const weights = Object.values(previousSets)
+    .map((set) => set.weight)
+    .filter((value): value is number => value != null)
   if (weights.length === 0) return null
 
   const previousWeight = Math.max(...weights)

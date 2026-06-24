@@ -8,7 +8,13 @@ import { ArrowLeft, MessageSquare } from 'lucide-react'
 import {
   markCoachMessagesRead,
   sendCoachMessage,
+  sendCoachVoiceMessage,
 } from '@/app/(dashboard)/clients/[clientId]/messages/actions'
+import {
+  BroadcastComposeDialog,
+  type BroadcastClientOption,
+  type BroadcastTeamOption,
+} from '@/components/messages/broadcast-compose-dialog'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { ClientMessagesPanel } from '@/components/messages/client-messages-panel'
@@ -17,31 +23,38 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { LiveRelativeTime } from '@/components/ui/live-relative-time'
-import {
-  formatInboxPreview,
-  type InboxConversation,
-} from '@/lib/message-inbox'
+import { useCoachInboxRealtime } from '@/hooks/use-coach-inbox-realtime'
+import { formatInboxPreview } from '@/lib/message-inbox'
 import { cn } from '@/lib/utils'
-import type { ClientMessage } from 'app/types/database'
+import type { ClientMessageWithUrl, CoachMessageTemplate } from 'app/types/database'
 
 type CoachInboxPanelProps = {
-  conversations: InboxConversation[]
+  coachId: string
+  conversations: import('@/lib/message-inbox').InboxConversation[]
   defaultClientId: string | null
   selectedClientId: string | null
-  messages: ClientMessage[]
+  messages: ClientMessageWithUrl[]
+  messageTemplates?: CoachMessageTemplate[]
+  broadcastClients?: BroadcastClientOption[]
+  broadcastTeams?: BroadcastTeamOption[]
   schemaError?: string | null
 }
 
 export function CoachInboxPanel({
-  conversations,
+  coachId,
+  conversations: initialConversations,
   defaultClientId,
   selectedClientId,
   messages,
+  messageTemplates = [],
+  broadcastClients = [],
+  broadcastTeams = [],
   schemaError = null,
 }: CoachInboxPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [query, setQuery] = React.useState('')
+  const { conversations } = useCoachInboxRealtime(coachId, initialConversations)
 
   const activeClientId = selectedClientId ?? defaultClientId
   const activeConversation = conversations.find(
@@ -89,12 +102,21 @@ export function CoachInboxPanel({
           )}
         >
           <div className="space-y-3 border-b px-4 py-4">
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search clients…"
-              aria-label="Search conversations"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search clients…"
+                aria-label="Search conversations"
+                className="flex-1"
+              />
+              {broadcastClients.length > 0 ? (
+                <BroadcastComposeDialog
+                  clients={broadcastClients}
+                  teams={broadcastTeams}
+                />
+              ) : null}
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -167,7 +189,8 @@ export function CoachInboxPanel({
                             >
                               {formatInboxPreview(
                                 conversation.lastMessageBody,
-                                conversation.lastMessageSenderRole
+                                conversation.lastMessageSenderRole,
+                                conversation.lastMessageType
                               )}
                             </p>
                             {conversation.unreadCount > 0 && (
@@ -227,13 +250,18 @@ export function CoachInboxPanel({
               <div className="min-h-0 flex-1">
                 <ClientMessagesPanel
                   variant="coach"
+                  clientId={activeConversation.clientId}
                   clientName={activeConversation.clientName}
                   messages={messages}
+                  messageTemplates={messageTemplates}
                   schemaError={schemaError}
                   showHeader={false}
                   className="h-full rounded-none border-0 shadow-none"
                   onSend={(body) =>
                     sendCoachMessage(activeConversation.clientId, body)
+                  }
+                  onSendVoice={(formData) =>
+                    sendCoachVoiceMessage(activeConversation.clientId, formData)
                   }
                   onMarkRead={() =>
                     markCoachMessagesRead(activeConversation.clientId)

@@ -64,6 +64,8 @@ export default async function PortalLayout({
       name={name}
       email={user.email ?? ''}
       avatarUrl={avatarUrl}
+      userId={user.id}
+      clientId={portalCtx?.client?.id ?? null}
     >
       {children}
     </PortalShell>

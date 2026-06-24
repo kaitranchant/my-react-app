@@ -8,7 +8,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  getExerciseDemoVideoPublicUrl,
   getExerciseMediaUrl,
+  hasExerciseDemoVideo,
   type ExerciseMediaFields,
 } from '@/lib/exercise-media'
 
@@ -23,7 +25,10 @@ export function ExerciseMediaDialog({
   open,
   onOpenChange,
 }: ExerciseMediaDialogProps) {
-  const mediaUrl = getExerciseMediaUrl(exercise)
+  const demoVideoUrl = getExerciseDemoVideoPublicUrl(exercise)
+  const imageUrl = hasExerciseDemoVideo(exercise)
+    ? null
+    : getExerciseMediaUrl(exercise)
   const instructions = exercise.instructions?.trim()
   const subtitle = [exercise.muscle_group, exercise.equipment]
     .filter(Boolean)
@@ -38,11 +43,21 @@ export function ExerciseMediaDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
-          {mediaUrl ? (
+          {demoVideoUrl ? (
+            <div className="bg-muted overflow-hidden rounded-lg">
+              <video
+                src={demoVideoUrl}
+                controls
+                playsInline
+                preload="metadata"
+                className="mx-auto max-h-[min(50vh,360px)] w-full object-contain"
+              />
+            </div>
+          ) : imageUrl ? (
             <div className="bg-muted overflow-hidden rounded-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={mediaUrl}
+                src={imageUrl}
                 alt={`${exercise.name} demonstration`}
                 className="mx-auto max-h-[min(50vh,360px)] w-full object-contain"
               />
@@ -56,7 +71,7 @@ export function ExerciseMediaDialog({
                 {instructions}
               </p>
             </div>
-          ) : !mediaUrl ? (
+          ) : !demoVideoUrl && !imageUrl ? (
             <p className="text-muted-foreground text-sm">
               No demonstration media is available for this exercise.
             </p>

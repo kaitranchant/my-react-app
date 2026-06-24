@@ -6,6 +6,14 @@
     {
       "path": "/api/cron/weekly-summary",
       "schedule": "0 16 * * 0"
+    },
+    {
+      "path": "/api/cron/client-nudges",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/client-onboarding",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

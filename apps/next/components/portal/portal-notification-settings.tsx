@@ -44,6 +44,24 @@ const notificationOptions: NotificationOption[] = [
     description:
       'Email when your team has a new announcement or event update.',
   },
+  {
+    key: 'notifyWorkoutReminders',
+    label: 'Workout reminders',
+    description:
+      'Email on days you have a scheduled workout that you have not started yet.',
+  },
+  {
+    key: 'notifyCheckInReminders',
+    label: 'Check-in reminders',
+    description:
+      'Email when a check-in is due based on your coach\u2019s cadence.',
+  },
+  {
+    key: 'notifyUnreadDigest',
+    label: 'Unread message digest',
+    description:
+      'Daily email when you have unread messages from your coach.',
+  },
 ]
 
 export function PortalNotificationSettings({
