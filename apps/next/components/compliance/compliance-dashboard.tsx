@@ -50,6 +50,7 @@ import {
   parseComplianceFilter,
   parseComplianceSort,
   sortComplianceRows,
+  type ComplianceClientRow,
   type ComplianceSort,
 } from '@/lib/compliance'
 import { cn } from '@/lib/utils'

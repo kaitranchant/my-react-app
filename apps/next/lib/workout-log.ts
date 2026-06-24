@@ -231,6 +231,7 @@ export function previousSessionMetTargets(
     const targetLabel = getTargetLabelForSet(exercise, setNumber)
     const targetReps = parsePrescriptionNumber(targetLabel)
     if (!targetReps) return true
+    if (previous.reps == null) return false
 
     return previous.reps >= Number.parseFloat(targetReps)
   })
