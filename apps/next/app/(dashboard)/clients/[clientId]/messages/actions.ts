@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { requireClientAccess } from '@/lib/gym-access'
+import { notifyClientOfCoachMessage } from '@/lib/notifications/notify-client-coach-message'
 import { messageBodySchema } from '@/lib/validations/message'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -41,6 +42,12 @@ export async function sendCoachMessage(
   if (error) {
     return { success: false, error: error.message }
   }
+
+  void notifyClientOfCoachMessage({
+    clientId: client.id,
+    coachId: client.coach_id,
+    messageBody: parsed.data,
+  })
 
   revalidateMessagePaths(clientId)
   return { success: true }

@@ -1,11 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { BrandLogo } from '@/components/dashboard/brand-logo'
-import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
-import { UserMenu } from '@/components/dashboard/user-menu'
-import { PortalMobileMenu } from '@/components/portal/portal-mobile-menu'
-import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
-import { PortalSidebar } from '@/components/portal/portal-sidebar'
+import { PortalShell } from '@/components/portal/portal-shell'
 import { getPortalClientContext } from '@/lib/portal-client'
 import {
   fetchPortalFormReviewHighlight,
@@ -63,29 +58,14 @@ export default async function PortalLayout({
   const avatarUrl = portalCtx?.client.avatar_url ?? profile?.avatar_url
 
   return (
-    <div className="fixed inset-0 flex overflow-hidden">
-      <AppShellScrollLock />
-      <PortalSidebar showTeamNav={showTeamNav} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6">
-          <PortalMobileMenu showTeamNav={showTeamNav} />
-          <div className="min-w-0 flex-1 md:hidden">
-            <BrandLogo />
-          </div>
-          <div className="shrink-0">
-            <UserMenu
-              name={name}
-              email={user.email ?? ''}
-              avatarUrl={avatarUrl}
-              settingsHref="/portal/account"
-            />
-          </div>
-        </header>
-        <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
-        </main>
-        <PortalMobileNav showTeamNav={showTeamNav} badges={navBadges} />
-      </div>
-    </div>
+    <PortalShell
+      showTeamNav={showTeamNav}
+      navBadges={navBadges}
+      name={name}
+      email={user.email ?? ''}
+      avatarUrl={avatarUrl}
+    >
+      {children}
+    </PortalShell>
   )
 }

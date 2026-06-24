@@ -1,9 +1,6 @@
 import { listClientWearableConnections } from '@/app/portal/wearables-actions'
 import { PortalWearableConnectPanel } from '@/components/wearables/portal-wearable-connect-panel'
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { WearablesComingSoon } from '@/components/wearables/wearables-coming-soon'
 import { areWearablesLive } from '@/lib/wearables-feature'
@@ -41,12 +38,7 @@ export default async function PortalWearablesPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can connect a wearable.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="connect a wearable" />
       ) : (
         <Suspense fallback={null}>
           <PortalWearableConnectPanel connections={connections} />

@@ -73,11 +73,16 @@ export function PortalCheckInPanel({
         : 'Share how the last two weeks went so your coach can adjust your program.'
 
   async function handleSubmit(values: CheckInFormValues) {
+    const isNewSubmission = !periodCheckIn
     const result = await submitClientCheckIn(toClientCheckInValues(values))
     if (result.success) {
-      toast.success(periodCheckIn ? 'Check-in updated' : 'Check-in submitted')
-      setIsEditing(false)
-      router.refresh()
+      if (isNewSubmission) {
+        router.push('/portal?checkIn=submitted')
+      } else {
+        toast.success('Check-in updated')
+        setIsEditing(false)
+        router.refresh()
+      }
       return { success: true }
     }
     toast.error(result.error)

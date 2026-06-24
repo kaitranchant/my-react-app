@@ -1,5 +1,5 @@
 import { PortalMessagesPanel } from '@/components/messages/portal-messages-panel'
-import { Card, CardContent } from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 import type { ClientMessage } from 'app/types/database'
@@ -41,12 +41,7 @@ export default async function PortalMessagesPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link before you can send messages.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="send messages" />
       ) : (
         <PortalMessagesPanel
           clientName={clientRecord.full_name}

@@ -1,9 +1,6 @@
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { PortalGoalsPanel } from '@/components/portal/portal-goals-panel'
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { partitionClientGoals } from '@/lib/goal-progress'
 import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
 import type { GoalProgressContext } from '@/lib/goal-progress-context'
@@ -67,12 +64,7 @@ export default async function PortalGoalsPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can see your goals.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="see your goals" />
       ) : goalsSchemaError?.includes('Could not find the table') ? (
         <SchemaSetupNotice
           tables={['client_goals']}

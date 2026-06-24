@@ -211,6 +211,38 @@ export async function dismissProgressiveOverloadSuggestion(
   return { success: true }
 }
 
+export async function undoDismissProgressiveOverloadSuggestion(
+  input: SuggestionActionInput
+): Promise<ActionResult> {
+  const coach = await requireCoach()
+  if ('error' in coach) {
+    return { success: false as const, error: coach.error ?? 'Unauthorized.' }
+  }
+
+  const ownsClient = await verifyClientOwnership(
+    coach.supabase,
+    coach.coachId,
+    input.clientId
+  )
+  if (!ownsClient) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await coach.supabase
+    .from('progressive_overload_decisions')
+    .delete()
+    .eq('coach_id', coach.coachId)
+    .eq('source_scheduled_exercise_id', input.sourceScheduledExerciseId)
+    .eq('status', 'dismissed')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateProgressiveOverloadPaths(input.clientId)
+  return { success: true }
+}
+
 export async function approveAllProgressiveOverloadSuggestions(
   suggestions: SuggestionActionInput[]
 ): Promise<ActionResult> {

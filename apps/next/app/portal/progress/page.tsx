@@ -6,6 +6,7 @@ import { PortalTrainingConsistencyHeatmap } from '@/components/portal/portal-tra
 import { PortalAcwrStatCard } from '@/components/portal/portal-acwr-stat'
 import { PortalStatCard } from '@/components/portal/portal-stat-cards'
 import { VolumeBarChart } from '@/components/load/volume-bar-chart'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import {
   Card,
   CardContent,
@@ -13,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import { formatVolume } from '@/lib/load-analytics'
 import { fetchPortalProgressData } from '@/lib/portal-data'
 import { getPortalClientContext } from '@/lib/portal-client'
@@ -33,14 +34,20 @@ function MobileSectionLabel({ children }: { children: React.ReactNode }) {
 
 export default async function PortalProgressPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const portalCtx = await getPortalClientContext()
   const clientRecord = portalCtx?.client ?? null
 
   let progressData = null
   let coachPreferences = null
 
-  if (clientRecord?.id) {
-    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+  if (clientRecord?.id && user) {
+    coachPreferences = await getPortalDisplayPreferences(
+      user.id,
+      clientRecord.coach_id
+    )
     progressData = await fetchPortalProgressData(
       supabase,
       clientRecord.id,
@@ -64,11 +71,12 @@ export default async function PortalProgressPage() {
         </p>
       </section>
 
-      {!clientRecord || !progressData ? (
+      {!clientRecord ? (
+        <PortalUnlinkedState feature="see your training history" />
+      ) : !progressData ? (
         <Card>
           <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can see your training history.
+            Unable to load your progress data right now. Try refreshing the page.
           </CardContent>
         </Card>
       ) : (

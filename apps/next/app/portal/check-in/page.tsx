@@ -1,11 +1,11 @@
 import { PortalCheckInPanel } from '@/components/portal/portal-check-in-panel'
 import { PortalCheckInTrendsCard } from '@/components/portal/portal-check-in-trends-card'
 import { attachSignedUrlsToPhotos } from '@/lib/progress-photos'
-import { Card, CardContent } from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getCheckInPeriodBounds } from '@/lib/check-in-cadence'
 import { buildCheckInTrendPoints } from '@/lib/check-in-trends'
 import { getCoachDateKey } from '@/lib/coach-preferences'
-import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 import type { ClientCheckIn, ClientProgressPhotoWithUrl } from 'app/types/database'
@@ -16,6 +16,9 @@ export const metadata = {
 
 export default async function PortalCheckInPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const portalCtx = await getPortalClientContext()
   const clientRecord = portalCtx?.client ?? null
 
@@ -25,8 +28,11 @@ export default async function PortalCheckInPage() {
   let todayPhotos: ClientProgressPhotoWithUrl[] = []
   let coachPreferences = null
 
-  if (clientRecord?.id) {
-    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+  if (clientRecord?.id && user) {
+    coachPreferences = await getPortalDisplayPreferences(
+      user.id,
+      clientRecord.coach_id
+    )
     const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
     const { start: periodStart, end: periodEnd } = getCheckInPeriodBounds(
       coachPreferences.defaultCheckInFrequency,
@@ -90,12 +96,7 @@ export default async function PortalCheckInPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link before you can submit check-ins.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="submit check-ins" />
       ) : (
         <>
           <PortalCheckInTrendsCard points={checkInTrendPoints} />

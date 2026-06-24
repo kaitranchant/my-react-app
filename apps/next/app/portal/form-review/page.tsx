@@ -1,10 +1,7 @@
 import { listClientFormReviews } from '@/app/portal/form-review-actions'
 import { FormReviewUploadCard } from '@/components/form-review/form-review-upload-card'
 import { PortalFormReviewList } from '@/components/form-review/portal-form-review-list'
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 
@@ -46,12 +43,7 @@ export default async function PortalFormReviewPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can submit videos.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="submit form reviews" />
       ) : (
         <>
           <FormReviewUploadCard exercises={exercises} />

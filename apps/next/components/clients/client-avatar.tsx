@@ -8,6 +8,7 @@ import {
   setClientAvatarPreset,
   uploadClientAvatar,
   uploadMyClientAvatar,
+  setMyClientAvatarPreset,
 } from '@/app/(dashboard)/clients/avatar-actions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -127,7 +128,22 @@ export function ClientAvatarUpload({
     setLocalPresetId(next)
     onPendingPreset?.(next)
 
-    if (!clientId || forClientPortal) return
+    if (forClientPortal) {
+      setUploading(true)
+      const result = await setMyClientAvatarPreset(next)
+      setUploading(false)
+      if (result.success) {
+        onUploaded?.(result.avatarUrl)
+        toast.success(next ? 'Icon updated' : 'Icon removed')
+      } else {
+        toast.error(result.error)
+        setLocalPresetId(savedPresetId)
+        onPendingPreset?.(savedPresetId)
+      }
+      return
+    }
+
+    if (!clientId) return
 
     setUploading(true)
     const result = await setClientAvatarPreset(clientId, next)
@@ -249,7 +265,7 @@ export function ClientAvatarUpload({
         />
       </div>
 
-      {showPresetPicker && !forClientPortal && (
+      {showPresetPicker && (
         <div className="space-y-2">
           <p className="text-muted-foreground text-xs font-medium">
             Or choose an icon

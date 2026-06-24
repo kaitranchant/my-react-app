@@ -8,12 +8,13 @@ import { LeaderboardToolbar } from '@/components/leaderboards/leaderboard-toolba
 import { LeaderboardWeightClassFilter } from '@/components/leaderboards/leaderboard-weight-class-filter'
 import { PortalSectionSkeleton } from '@/components/portal/portal-page-skeletons'
 import { PortalLeaderboardProfileCard } from '@/components/portal/portal-leaderboard-profile-card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import {
   Card,
   CardContent,
 } from '@/components/ui/card'
 import { fetchAttendanceClients } from '@/lib/attendance'
-import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import {
   fetchLeaderboardExercises,
   fetchLeaderboardRows,
@@ -64,12 +65,7 @@ export default async function PortalLeaderboardsPage({
             See how you rank against teammates.
           </p>
         </section>
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="view team leaderboards" />
       </div>
     )
   }
@@ -94,6 +90,18 @@ export default async function PortalLeaderboardsPage({
   }
 
   const supabase = portalCtx.supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  const displayPreferences = await getPortalDisplayPreferences(
+    user.id,
+    clientRecord.coach_id
+  )
   const { data: memberships } = await supabase
     .from('team_members')
     .select('team_id, team:teams(id, name)')
@@ -129,7 +137,7 @@ export default async function PortalLeaderboardsPage({
     )
   }
 
-  const coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+  const coachPreferences = displayPreferences
   const metric = parseLeaderboardMetric(metricParam)
   const period = parseLeaderboardPeriod(periodParam, metric)
   const exerciseId = parseLeaderboardExerciseId(exerciseParam)
@@ -157,8 +165,8 @@ export default async function PortalLeaderboardsPage({
     period,
     exerciseId,
     formula,
-    weekStartsOn: coachPreferences?.weekStartsOn ?? 'monday',
-    weightUnit: coachPreferences?.weightUnit ?? 'lbs',
+    weekStartsOn: coachPreferences.weekStartsOn,
+    weightUnit: coachPreferences.weightUnit,
     teamId: selectedTeam.id,
     exercises,
     weightClass,

@@ -384,6 +384,11 @@ await checkRestTable(
   '/rest/v1/profiles?select=notify_check_ins,notify_form_reviews,notify_workout_completions,notify_missed_sessions,notify_invite_accepted,notify_prs,notify_weekly_summary&limit=1'
 )
 
+await checkRestTable(
+  'profiles portal notification preference columns',
+  '/rest/v1/profiles?select=portal_notify_messages,portal_notify_check_in_reviews,portal_notify_form_review_replies,portal_notify_team_updates&limit=1'
+)
+
 // Migration 0038 — client goals
 await checkRestTable(
   'client_goals table',

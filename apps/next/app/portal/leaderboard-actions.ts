@@ -8,6 +8,7 @@ import type { BiologicalSex } from 'app/types/database'
 export type ActionResult = { success: true } | { success: false; error: string }
 
 function revalidateLeaderboardPaths() {
+  revalidatePath('/portal/account')
   revalidatePath('/portal/leaderboards')
   revalidatePath('/leaderboards')
   revalidatePath('/portal', 'layout')

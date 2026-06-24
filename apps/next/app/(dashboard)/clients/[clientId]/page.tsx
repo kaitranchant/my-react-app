@@ -3,23 +3,21 @@ import { Suspense } from 'react'
 import { Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
-import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
-import { defaultCoachPreferences } from '@/lib/coach-preferences'
-import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import type { ClientWorkoutActivity } from '@/lib/client-metrics'
-import { fetchClientLoadMetrics } from '@/lib/load-queries'
-import { fetchGoalProgressContext } from '@/lib/goal-progress-context'
-import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import { isCoachSelfClient } from '@/lib/coach-self'
 import { getGymsForCoach, isPrimaryCoach } from '@/lib/gym-access'
-import { fetchClientFormReviews } from '@/app/(dashboard)/form-review/actions'
-import { attachSignedUrlsToPhotos, countPhotosByCheckInId } from '@/lib/progress-photos'
 import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountBanner } from '@/components/clients/client-account-banner'
 import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
-import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
+import { ClientDetailTabs, resolveClientDetailMainTab } from '@/components/clients/client-detail-tabs'
+import { ClientDetailMessagesPanel } from '@/components/clients/client-detail-messages-panel'
+import { ClientDetailOverviewPanel } from '@/components/clients/client-detail-overview-panel'
+import { ClientDetailProgressPanel } from '@/components/clients/client-detail-progress-panel'
+import { ClientDetailTrainingPanel } from '@/components/clients/client-detail-training-panel'
+import {
+  clientDetailTabSkeleton,
+} from '@/components/clients/client-detail-tab-skeletons'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import {
   ClientGymMemberBadge,
@@ -29,20 +27,7 @@ import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { ClientDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
-import type {
-  CalendarDaySummary,
-  Client,
-  ClientProgramAssignment,
-  ClientCheckIn,
-  ClientInbodyScan,
-  ClientGoal,
-  ClientMessage,
-  ClientScheduledWorkoutWithExercises,
-  ClientTeamMembership,
-  Exercise,
-  Program,
-  Workout,
-} from 'app/types/database'
+import type { Client, ClientTeamMembership } from 'app/types/database'
 
 export default async function ClientDetailPage({
   params,
@@ -53,141 +38,15 @@ export default async function ClientDetailPage({
 }) {
   const { clientId } = await params
   const { tab: initialTab } = await searchParams
+  const activeTab = resolveClientDetailMainTab(initialTab)
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   const coachGyms = user ? await getGymsForCoach(user.id) : []
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = today.getMonth()
-  const selectedDate = toDateKey(today)
-  const { start: monthStart, end: monthEnd } = getMonthDateRange(year, month)
-  const coachPreferences = user
-    ? await getCoachPreferencesForUser(user.id)
-    : defaultCoachPreferences
-  const weekDateKeys = getWeekDayLabels(coachPreferences.weekStartsOn).map(
-    (day) => day.dateKey
-  )
-  const weekStart = weekDateKeys[0]
-  const weekEnd = weekDateKeys[weekDateKeys.length - 1]
-  const streakStart = toDateKey(
-    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 90)
-  )
 
-  const [
-    { data },
-    { data: assignmentData },
-    { data: programsData },
-    monthResult,
-    weekResult,
-    selectedResult,
-    exercisesResult,
-    workoutsResult,
-    recentWorkoutsResult,
-    streakWorkoutsResult,
-    checkInsResult,
-    messagesResult,
-    progressPhotosResult,
-    inbodyScansResult,
-    clientGoalsResult,
-    teamMembershipsResult,
-  ] = await Promise.all([
+  const [{ data }, teamMembershipsResult] = await Promise.all([
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
-    supabase
-      .from('program_assignments')
-      .select('*, program:programs(id, name, description, status), team:teams(id, name)')
-      .eq('client_id', clientId)
-      .eq('status', 'active')
-      .maybeSingle(),
-    supabase
-      .from('programs')
-      .select('id, name, status')
-      .order('name', { ascending: true }),
-    supabase
-      .from('client_scheduled_workouts')
-      .select('id, scheduled_date, name, status, started_at')
-      .eq('client_id', clientId)
-      .gte('scheduled_date', monthStart)
-      .lte('scheduled_date', monthEnd)
-      .order('scheduled_date', { ascending: true }),
-    supabase
-      .from('client_scheduled_workouts')
-      .select('id, scheduled_date, name, status, started_at')
-      .eq('client_id', clientId)
-      .gte('scheduled_date', weekStart)
-      .lte('scheduled_date', weekEnd)
-      .order('scheduled_date', { ascending: true }),
-    supabase
-      .from('client_scheduled_workouts')
-      .select(
-        `
-        *,
-        exercises:scheduled_workout_exercises(
-          *,
-          exercise:exercises(id, name, muscle_group, equipment)
-        )
-      `
-      )
-      .eq('client_id', clientId)
-      .eq('scheduled_date', selectedDate)
-      .maybeSingle(),
-    supabase
-      .from('exercises')
-      .select('id, name, muscle_group, external_id')
-      .eq('status', 'active')
-      .order('name', { ascending: true }),
-    supabase
-      .from('workouts')
-      .select('id, name, status')
-      .neq('status', 'archived')
-      .order('name', { ascending: true }),
-    supabase
-      .from('client_scheduled_workouts')
-      .select(
-        'id, name, status, scheduled_date, started_at, completed_at, updated_at'
-      )
-      .eq('client_id', clientId)
-      .in('status', ['completed', 'in_progress', 'skipped'])
-      .order('updated_at', { ascending: false })
-      .limit(12),
-    supabase
-      .from('client_scheduled_workouts')
-      .select('status, scheduled_date, completed_at')
-      .eq('client_id', clientId)
-      .eq('status', 'completed')
-      .gte('scheduled_date', streakStart)
-      .order('scheduled_date', { ascending: false }),
-    supabase
-      .from('client_check_ins')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('check_in_date', { ascending: false })
-      .limit(50),
-    supabase
-      .from('client_messages')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: true })
-      .limit(200),
-    supabase
-      .from('client_progress_photos')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('photo_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('client_inbody_scans')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('scan_date', { ascending: false })
-      .limit(50),
-    supabase
-      .from('client_goals')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('sort_order', { ascending: true }),
     supabase
       .from('team_members')
       .select('team:teams(id, name)')
@@ -221,76 +80,11 @@ export default async function ClientDetailPage({
       'Primary coach'
   }
 
-  const activeAssignment = assignmentData
-    ? (assignmentData as ClientProgramAssignment)
-    : null
-  const availablePrograms = (programsData ?? []) as Pick<
-    Program,
-    'id' | 'name' | 'status'
-  >[]
-
-  const calendarSchemaError = monthResult.error?.message ?? null
-  const monthDays = (monthResult.data ?? []) as CalendarDaySummary[]
-  const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
-
-  let selectedWorkout: ClientScheduledWorkoutWithExercises | null = null
-  if (selectedResult.data) {
-    const exercises = (selectedResult.data.exercises ?? [])
-      .slice()
-      .sort((a, b) => a.sort_order - b.sort_order)
-    selectedWorkout = {
-      ...selectedResult.data,
-      exercises,
-    } as ClientScheduledWorkoutWithExercises
-  }
-
-  const exercises = (exercisesResult.data ?? []) as Pick<
-    Exercise,
-    'id' | 'name' | 'muscle_group' | 'external_id'
-  >[]
-  const libraryWorkouts = (workoutsResult.data ?? []) as Pick<
-    Workout,
-    'id' | 'name' | 'status'
-  >[]
-  const recentWorkouts = (recentWorkoutsResult.data ??
-    []) as ClientWorkoutActivity[]
-  const streakWorkouts = (streakWorkoutsResult.data ??
-    []) as ClientWorkoutActivity[]
-  const checkIns = (checkInsResult.data ?? []) as ClientCheckIn[]
-  const messages = (messagesResult.data ?? []) as ClientMessage[]
-  const messagesSchemaError = messagesResult.error?.message ?? null
-  const progressPhotos = await attachSignedUrlsToPhotos(
-    supabase,
-    progressPhotosResult.data ?? []
-  )
-  const formReviews = await fetchClientFormReviews(clientId)
-  const inbodyScans = (inbodyScansResult.data ?? []) as ClientInbodyScan[]
-  const clientGoals = (clientGoalsResult.data ?? []) as ClientGoal[]
-  const goalsSchemaError = clientGoalsResult.error?.message ?? null
   const teamMemberships = ((teamMembershipsResult.data ?? []) as {
     team: { id: string; name: string } | null
   }[])
     .filter((row) => row.team)
     .map((row) => ({ team: row.team! })) as ClientTeamMembership[]
-  const photosByCheckInId = progressPhotos.reduce<
-    Record<string, typeof progressPhotos>
-  >((accumulator, photo) => {
-    if (!photo.check_in_id) return accumulator
-    const existing = accumulator[photo.check_in_id] ?? []
-    existing.push(photo)
-    accumulator[photo.check_in_id] = existing
-    return accumulator
-  }, {})
-  const photoCounts = countPhotosByCheckInId(progressPhotos)
-  const loadMetrics = await fetchClientLoadMetrics(supabase, clientId)
-  const [goalProgressContext, trainingConsistency] = await Promise.all([
-    fetchGoalProgressContext(supabase, clientId),
-    fetchTrainingConsistencyHeatmap(
-      supabase,
-      clientId,
-      coachPreferences.weekStartsOn
-    ),
-  ])
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
@@ -359,48 +153,37 @@ export default async function ClientDetailPage({
 
       <ClientAccountBanner client={client} />
 
-      <Suspense fallback={null}>
-        <ClientDetailTabs
-          client={client}
-          activeAssignment={activeAssignment}
-          availablePrograms={availablePrograms}
-          weekSessions={weekSessions}
-          recentWorkouts={recentWorkouts}
-          streakWorkouts={streakWorkouts}
-          checkIns={checkIns}
-          messages={messages}
-          messagesSchemaError={messagesSchemaError}
-          progressPhotos={progressPhotos}
-          formReviews={formReviews}
-          inbodyScans={inbodyScans}
-          clientGoals={clientGoals}
-          goalsSchemaError={goalsSchemaError}
-          goalProgressContext={goalProgressContext}
-          goalExercises={exercises}
-          photoCounts={photoCounts}
-          photosByCheckInId={photosByCheckInId}
-          loadMetrics={{
-            thisWeekVolume: loadMetrics.thisWeekVolume,
-            volumeDeltaLabel: loadMetrics.volumeDeltaLabel,
-            acwrLabel: loadMetrics.acwrLabel,
-            acwrVariant: loadMetrics.acwrVariant,
-          }}
-          recentPrs={loadMetrics.recentPrs}
-          trainingConsistency={trainingConsistency}
-          coachPreferences={coachPreferences}
-          initialTab={initialTab}
-          calendar={{
-            schemaError: calendarSchemaError,
-            year,
-            month,
-            selectedDate,
-            days: monthDays,
-            selectedWorkout,
-            exercises,
-            libraryWorkouts,
-          }}
-        />
-      </Suspense>
+      <ClientDetailTabs activeTab={activeTab}>
+        <Suspense fallback={clientDetailTabSkeleton(activeTab)}>
+          {activeTab === 'overview' ? (
+            <ClientDetailOverviewPanel
+              client={client}
+              clientId={clientId}
+              coachUserId={user?.id ?? null}
+            />
+          ) : null}
+          {activeTab === 'training' ? (
+            <ClientDetailTrainingPanel
+              clientId={clientId}
+              clientName={client.full_name}
+              coachUserId={user?.id ?? null}
+            />
+          ) : null}
+          {activeTab === 'progress' ? (
+            <ClientDetailProgressPanel
+              client={client}
+              clientId={clientId}
+              coachUserId={user?.id ?? null}
+            />
+          ) : null}
+          {activeTab === 'messages' ? (
+            <ClientDetailMessagesPanel
+              clientId={clientId}
+              clientName={client.full_name}
+            />
+          ) : null}
+        </Suspense>
+      </ClientDetailTabs>
     </div>
   )
 }

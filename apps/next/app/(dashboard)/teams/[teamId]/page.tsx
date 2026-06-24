@@ -49,13 +49,10 @@ export async function generateMetadata({
 
 export default async function TeamDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ teamId: string }>
-  searchParams: Promise<{ tab?: string; date?: string }>
 }) {
   const { teamId } = await params
-  const { tab: initialTab, date: highlightDate } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -235,18 +232,14 @@ export default async function TeamDetailPage({
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="page-title">
-                {team.name}
-              </h1>
-              {team.next_competition_name && team.next_competition_date && (
-                <TeamCompetitionLink
-                  teamId={teamId}
-                  name={team.next_competition_name}
-                  date={team.next_competition_date}
-                />
-              )}
-            </div>
+            <h1 className="page-title">{team.name}</h1>
+            {team.next_competition_name && team.next_competition_date && (
+              <TeamCompetitionLink
+                teamId={teamId}
+                name={team.next_competition_name}
+                date={team.next_competition_date}
+              />
+            )}
             {team.description && (
               <p className="helper-text max-w-2xl leading-relaxed whitespace-pre-wrap">
                 {team.description}
@@ -293,8 +286,6 @@ export default async function TeamDetailPage({
           challenges={challenges}
           canEditLeaderboardLifts={viewerIsPrimaryCoach}
           canManageChallenges={viewerIsPrimaryCoach}
-          initialTab={initialTab}
-          highlightDate={highlightDate ?? null}
         />
       </Suspense>
     </div>

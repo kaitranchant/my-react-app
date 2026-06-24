@@ -1,6 +1,7 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import * as React from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-panel'
 import { TeamChallengesPanel } from '@/components/teams/team-challenges-panel'
@@ -24,6 +25,22 @@ import type {
 } from 'app/types/database'
 import type { TeamChallengeWithLeaderboard } from '@/lib/team-challenges'
 
+const TEAM_TABS = [
+  'overview',
+  'schedule',
+  'members',
+  'challenges',
+  'program',
+] as const
+type TeamTab = (typeof TEAM_TABS)[number]
+
+function resolveTeamTab(tab: string | null | undefined): TeamTab {
+  if (tab && TEAM_TABS.includes(tab as TeamTab)) {
+    return tab as TeamTab
+  }
+  return 'overview'
+}
+
 type TeamDetailTabsProps = {
   teamId: string
   team: Team
@@ -44,8 +61,6 @@ type TeamDetailTabsProps = {
   challenges?: TeamChallengeWithLeaderboard[]
   canEditLeaderboardLifts: boolean
   canManageChallenges?: boolean
-  initialTab?: string
-  highlightDate?: string | null
 }
 
 export function TeamDetailTabs({
@@ -68,31 +83,54 @@ export function TeamDetailTabs({
   challenges = [],
   canEditLeaderboardLifts,
   canManageChallenges = false,
-  initialTab,
-  highlightDate,
 }: TeamDetailTabsProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const tab = searchParams.get('tab') ?? initialTab ?? 'overview'
+  const highlightDate = searchParams.get('date')
+
+  const [tab, setTab] = React.useState<TeamTab>(() =>
+    resolveTeamTab(searchParams.get('tab'))
+  )
+  const [mountedTabs, setMountedTabs] = React.useState<Set<TeamTab>>(() =>
+    new Set([resolveTeamTab(searchParams.get('tab'))])
+  )
+
+  React.useEffect(() => {
+    const next = resolveTeamTab(searchParams.get('tab'))
+    setTab(next)
+    setMountedTabs((prev) => new Set(prev).add(next))
+  }, [searchParams])
 
   const performanceByClientId = Object.fromEntries(
     performance.members.map((member) => [member.clientId, member])
   )
 
-  function setTab(value: string) {
+  function buildUrl(nextTab: TeamTab) {
     const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', value)
-    if (value !== 'schedule') {
+    if (nextTab === 'overview') {
+      params.delete('tab')
+    } else {
+      params.set('tab', nextTab)
+    }
+    if (nextTab !== 'schedule') {
       params.delete('date')
     }
     const query = params.toString()
-    router.push(query ? `?${query}` : '?', { scroll: false })
+    return query ? `${pathname}?${query}` : pathname
+  }
+
+  function handleTabChange(value: string) {
+    const next = resolveTeamTab(value)
+    setTab(next)
+    setMountedTabs((prev) => new Set(prev).add(next))
+    router.replace(buildUrl(next), { scroll: false })
   }
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="space-y-6" variant="filter">
+    <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6" variant="filter">
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <TabsList>
+        <TabsList className="w-max flex-nowrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
@@ -101,60 +139,75 @@ export function TeamDetailTabs({
         </TabsList>
       </div>
 
-      <TabsContent value="overview" className="space-y-6">
-        <TeamOverviewPanel
-          team={team}
-          performance={performance}
-          activity={activity}
-        />
-        {canEditLeaderboardLifts ? (
-          <TeamPowerliftingExercisesCard team={team} exercises={exercises} />
+      <TabsContent value="overview" className="space-y-4 md:space-y-6">
+        {mountedTabs.has('overview') ? (
+          <>
+            <TeamOverviewPanel
+              teamId={teamId}
+              performance={performance}
+              activity={activity}
+              memberAvatars={Object.fromEntries(
+                members.map((member) => [member.client.id, member.client.avatar_url])
+              )}
+            />
+            {canEditLeaderboardLifts ? (
+              <TeamPowerliftingExercisesCard team={team} exercises={exercises} />
+            ) : null}
+            <TeamAnnouncementsPanel teamId={teamId} announcements={announcements} />
+          </>
         ) : null}
-        <TeamAnnouncementsPanel teamId={teamId} announcements={announcements} />
       </TabsContent>
 
       <TabsContent value="schedule">
-        <TeamEventsPanel
-          teamId={teamId}
-          events={events}
-          members={members}
-          highlightDate={highlightDate ?? searchParams.get('date')}
-        />
+        {mountedTabs.has('schedule') ? (
+          <TeamEventsPanel
+            teamId={teamId}
+            events={events}
+            members={members}
+            highlightDate={highlightDate}
+          />
+        ) : null}
       </TabsContent>
 
       <TabsContent value="members">
-        <TeamMembersPanel
-          teamId={teamId}
-          team={team}
-          members={members}
-          allClients={allClients}
-          teamAssignedClientIds={teamAssignedClientIds}
-          performanceByClientId={performanceByClientId}
-          nextEvent={nextEvent}
-        />
+        {mountedTabs.has('members') ? (
+          <TeamMembersPanel
+            teamId={teamId}
+            team={team}
+            members={members}
+            allClients={allClients}
+            teamAssignedClientIds={teamAssignedClientIds}
+            performanceByClientId={performanceByClientId}
+            nextEvent={nextEvent}
+          />
+        ) : null}
       </TabsContent>
 
       <TabsContent value="challenges">
-        <TeamChallengesPanel
-          teamId={teamId}
-          teamName={team.name}
-          challenges={challenges}
-          exercises={exercises}
-          weightClasses={weightClasses}
-          canManage={canManageChallenges}
-        />
+        {mountedTabs.has('challenges') ? (
+          <TeamChallengesPanel
+            teamId={teamId}
+            teamName={team.name}
+            challenges={challenges}
+            exercises={exercises}
+            weightClasses={weightClasses}
+            canManage={canManageChallenges}
+          />
+        ) : null}
       </TabsContent>
 
       <TabsContent value="program">
-        <TeamProgramsPanel
-          teamId={teamId}
-          team={team}
-          activeProgram={activeProgram}
-          availablePrograms={availablePrograms}
-          memberCount={members.length}
-          programProgress={programProgress}
-          programHistory={programHistory}
-        />
+        {mountedTabs.has('program') ? (
+          <TeamProgramsPanel
+            teamId={teamId}
+            team={team}
+            activeProgram={activeProgram}
+            availablePrograms={availablePrograms}
+            memberCount={members.length}
+            programProgress={programProgress}
+            programHistory={programHistory}
+          />
+        ) : null}
       </TabsContent>
     </Tabs>
   )

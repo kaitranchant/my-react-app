@@ -10,18 +10,19 @@ import {
   getPortalPrimaryMobileNavItems,
   type PortalNavItem,
 } from '@/components/portal/portal-nav'
+import { PortalNavIconBadge } from '@/components/portal/portal-nav-badge'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import {
+  emptyPortalNavBadges,
+  getPortalNavBadgeCount,
+  type PortalNavBadges,
+} from '@/lib/portal-nav-badges'
 import { cn } from '@/lib/utils'
-
-export type PortalNavBadges = {
-  unreadMessages: number
-  pendingFormReviews: number
-}
 
 type PortalMobileNavProps = {
   showTeamNav?: boolean
@@ -32,25 +33,6 @@ function isNavItemActive(pathname: string, href: string) {
   return href === '/portal'
     ? pathname === '/portal'
     : pathname === href || pathname.startsWith(`${href}/`)
-}
-
-function getNavBadgeCount(
-  href: string,
-  badges: PortalNavBadges
-): number {
-  if (href === '/portal/messages') return badges.unreadMessages
-  if (href === '/portal/form-review') return badges.pendingFormReviews
-  return 0
-}
-
-function NavBadge({ count }: { count: number }) {
-  if (count <= 0) return null
-
-  return (
-    <span className="bg-brand text-brand-foreground absolute -top-1 -right-1 flex min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none">
-      {count > 9 ? '9+' : count}
-    </span>
-  )
 }
 
 function NavIcon({
@@ -67,14 +49,14 @@ function NavIcon({
   return (
     <span className="relative">
       <Icon className={cn('size-5', active && 'text-brand')} />
-      <NavBadge count={badgeCount} />
+      <PortalNavIconBadge count={badgeCount} />
     </span>
   )
 }
 
 export function PortalMobileNav({
   showTeamNav = false,
-  badges = { unreadMessages: 0, pendingFormReviews: 0 },
+  badges = emptyPortalNavBadges,
 }: PortalMobileNavProps) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -84,7 +66,7 @@ export function PortalMobileNav({
     isNavItemActive(pathname, item.href)
   )
   const overflowBadgeCount = overflowItems.reduce(
-    (total, item) => total + getNavBadgeCount(item.href, badges),
+    (total, item) => total + getPortalNavBadgeCount(item.href, badges),
     0
   )
 
@@ -94,7 +76,7 @@ export function PortalMobileNav({
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
             const active = isNavItemActive(pathname, item.href)
-            const badgeCount = getNavBadgeCount(item.href, badges)
+            const badgeCount = getPortalNavBadgeCount(item.href, badges)
 
             return (
               <Link
@@ -131,7 +113,7 @@ export function PortalMobileNav({
                   (overflowActive || moreOpen) && 'text-brand'
                 )}
               />
-              <NavBadge count={overflowBadgeCount} />
+              <PortalNavIconBadge count={overflowBadgeCount} />
             </span>
             <span>More</span>
           </button>
@@ -150,7 +132,7 @@ export function PortalMobileNav({
             {overflowItems.map((item) => {
               const Icon = item.icon
               const active = isNavItemActive(pathname, item.href)
-              const badgeCount = getNavBadgeCount(item.href, badges)
+              const badgeCount = getPortalNavBadgeCount(item.href, badges)
 
               return (
                 <Link
@@ -166,7 +148,7 @@ export function PortalMobileNav({
                 >
                   <span className="relative shrink-0">
                     <Icon className={cn('size-5', active && 'text-brand')} />
-                    <NavBadge count={badgeCount} />
+                    <PortalNavIconBadge count={badgeCount} />
                   </span>
                   <span>{item.label}</span>
                 </Link>

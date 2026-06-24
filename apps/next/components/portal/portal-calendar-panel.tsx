@@ -17,6 +17,7 @@ import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import type {
   CalendarDaySummary,
   ClientScheduledWorkoutWithExercises,
+  WeightUnit,
 } from 'app/types/database'
 
 type PortalCalendarPanelProps = {
@@ -29,6 +30,7 @@ type PortalCalendarPanelProps = {
   initialAction?: 'log' | null
   initialActionDate?: string | null
   onActionConsumed?: () => void
+  weightUnit?: WeightUnit
 }
 
 export function PortalCalendarPanel({
@@ -41,6 +43,7 @@ export function PortalCalendarPanel({
   initialAction = null,
   initialActionDate = null,
   onActionConsumed,
+  weightUnit = 'lbs',
 }: PortalCalendarPanelProps) {
   const router = useRouter()
   const isMobile = useIsMobile()
@@ -224,6 +227,7 @@ export function PortalCalendarPanel({
           initialStatus={workout.status}
           exercises={[]}
           variant="client"
+          weightUnit={weightUnit}
           onChanged={() => refreshCalendar()}
         />
       )}

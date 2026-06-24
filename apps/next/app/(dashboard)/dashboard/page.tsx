@@ -22,6 +22,8 @@ import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
+import { CoachGettingStartedChecklist } from '@/components/dashboard/coach-getting-started-checklist'
+import { CoachSetupDialog } from '@/components/dashboard/coach-setup-dialog'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
 import { ProactiveAlerts } from '@/components/dashboard/proactive-alerts'
 import { QuickActions } from '@/components/dashboard/quick-actions'
@@ -35,6 +37,10 @@ import {
 } from '@/lib/notification-preferences'
 import { getNotificationPreferencesForUser } from '@/lib/notification-preferences-server'
 import { buildProactiveAlerts } from '@/lib/proactive-alerts'
+import {
+  coachPreferencesUnset,
+  fetchCoachGettingStartedProgress,
+} from '@/lib/coach-onboarding'
 import { getGymsForCoach } from '@/lib/gym-access'
 import type { Client } from 'app/types/database'
 
@@ -71,6 +77,14 @@ export default async function DashboardPage() {
 
   const coachGyms = user ? await getGymsForCoach(user.id) : []
 
+  const gettingStartedProgress = user
+    ? await fetchCoachGettingStartedProgress(supabase, user.id)
+    : {
+        hasClient: false,
+        hasProgramOrWorkout: false,
+        hasScheduledWorkout: false,
+      }
+
   const [
     { data: profile },
     { data: clients },
@@ -85,7 +99,9 @@ export default async function DashboardPage() {
   ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('full_name')
+        .select(
+          'full_name, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+        )
         .eq('id', user!.id)
         .single(),
       supabase
@@ -291,8 +307,14 @@ export default async function DashboardPage() {
         ? 'Your calendar is clear today — a great time to plan ahead for your clients.'
         : 'Welcome! Add your first client to start building their program.'
 
+  const showCoachSetup = user ? coachPreferencesUnset(profile) : false
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:gap-8">
+      {user ? (
+        <CoachSetupDialog userId={user.id} show={showCoachSetup} />
+      ) : null}
+
       <section className="space-y-4 sm:relative sm:overflow-hidden sm:rounded-2xl sm:border sm:bg-card sm:p-8 sm:shadow-card">
         <div className="from-brand/8 to-brand/3 pointer-events-none absolute inset-0 hidden bg-gradient-to-br via-transparent sm:block" />
         <div className="relative space-y-4 sm:space-y-5">
@@ -311,6 +333,14 @@ export default async function DashboardPage() {
           />
         </div>
       </section>
+
+      {user ? (
+        <CoachGettingStartedChecklist
+          userId={user.id}
+          progress={gettingStartedProgress}
+          gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+        />
+      ) : null}
 
       <DashboardStats
         activeClients={activeClients.length}

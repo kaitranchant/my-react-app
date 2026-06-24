@@ -129,6 +129,7 @@ async function persistAvatar(
   revalidatePath('/clients')
   revalidatePath(`/clients/${clientId}`)
   revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/account')
 
   return { success: true, avatarUrl }
 }
@@ -239,6 +240,19 @@ export async function setClientAvatarPreset(
     return { success: false, error: 'Client not found.' }
   }
 
+  return persistClientAvatarPreset(clientId, client.user_id, presetId)
+}
+
+async function persistClientAvatarPreset(
+  clientId: string,
+  userId: string | null,
+  presetId: string | null
+): Promise<AvatarUploadResult> {
+  if (presetId !== null && !isClientAvatarPresetId(presetId)) {
+    return { success: false, error: 'Invalid avatar icon.' }
+  }
+
+  const supabase = await createClient()
   const avatarUrl = presetId ? clientAvatarPresetUrl(presetId) : null
 
   const { error: updateError } = await supabase
@@ -258,16 +272,54 @@ export async function setClientAvatarPreset(
     return { success: false, error: updateError.message }
   }
 
-  if (client.user_id) {
+  if (userId) {
     await supabase
       .from('profiles')
       .update({ avatar_url: avatarUrl })
-      .eq('id', client.user_id)
+      .eq('id', userId)
   }
 
   revalidatePath('/clients')
   revalidatePath(`/clients/${clientId}`)
   revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/account')
 
   return { success: true, avatarUrl: avatarUrl ?? '' }
+}
+
+export async function setMyClientAvatarPreset(
+  presetId: string | null
+): Promise<AvatarUploadResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { data: client, error } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (error) {
+    const message = error.message.toLowerCase()
+    if (message.includes('user_id')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: error.message }
+  }
+
+  if (!client) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  return persistClientAvatarPreset(client.id, user.id, presetId)
 }

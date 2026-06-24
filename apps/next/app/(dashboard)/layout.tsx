@@ -1,14 +1,9 @@
 import { redirect } from 'next/navigation'
 
-import { createClient } from '@/lib/supabase/server'
-import { Sidebar } from '@/components/dashboard/sidebar'
-import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav'
-import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
-import { BrandLogo } from '@/components/dashboard/brand-logo'
-import { DashboardShortcuts } from '@/components/dashboard/dashboard-shortcuts'
-import { GlobalSearch } from '@/components/dashboard/global-search'
-import { UserMenu } from '@/components/dashboard/user-menu'
+import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
+import { fetchCoachNotificationItems } from '@/lib/coach-notifications'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function DashboardLayout({
   children,
@@ -33,36 +28,20 @@ export default async function DashboardLayout({
   const name =
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
-  const navBadges = await fetchCoachNavBadges(supabase, user.id)
+  const [navBadges, notifications] = await Promise.all([
+    fetchCoachNavBadges(supabase, user.id),
+    fetchCoachNotificationItems(supabase, user.id),
+  ])
 
   return (
-    <div className="fixed inset-0 flex overflow-hidden">
-      <AppShellScrollLock />
-      <Sidebar badges={navBadges} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6">
-          <div className="shrink-0">
-            <DashboardMobileNav badges={navBadges} />
-          </div>
-          <div className="min-w-0 flex-1 md:hidden">
-            <BrandLogo />
-          </div>
-          <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
-            <GlobalSearch />
-          </div>
-          <div className="shrink-0">
-            <UserMenu
-              name={name}
-              email={user.email ?? ''}
-              avatarUrl={profile?.avatar_url}
-            />
-          </div>
-        </header>
-        <main className="app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
-        <DashboardShortcuts />
-      </div>
-    </div>
+    <DashboardShell
+      name={name}
+      email={user.email ?? ''}
+      avatarUrl={profile?.avatar_url}
+      navBadges={navBadges}
+      notifications={notifications}
+    >
+      {children}
+    </DashboardShell>
   )
 }

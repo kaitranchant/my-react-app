@@ -4,7 +4,6 @@ import * as React from 'react'
 import { toast } from 'sonner'
 
 import { updateTeamPowerliftingExercises } from '@/app/(dashboard)/teams/feature-actions'
-import { SettingsRow } from '@/components/settings/settings-row'
 import {
   Card,
   CardContent,
@@ -12,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -33,6 +33,12 @@ type TeamPowerliftingExercisesCardProps = {
 }
 
 const UNSET_VALUE = 'none'
+
+const LIFTS = [
+  { key: 'squat' as const, label: 'Squat', ariaLabel: 'Squat exercise' },
+  { key: 'bench' as const, label: 'Bench', ariaLabel: 'Bench exercise' },
+  { key: 'deadlift' as const, label: 'Deadlift', ariaLabel: 'Deadlift exercise' },
+]
 
 function toSelectValue(exerciseId: string | null | undefined): string {
   return exerciseId ?? UNSET_VALUE
@@ -64,6 +70,18 @@ export function TeamPowerliftingExercisesCard({
     team.deadlift_exercise_id,
   ])
 
+  const values = {
+    squat: squatExerciseId,
+    bench: benchExerciseId,
+    deadlift: deadliftExerciseId,
+  }
+
+  const setters = {
+    squat: setSquatExerciseId,
+    bench: setBenchExerciseId,
+    deadlift: setDeadliftExerciseId,
+  }
+
   async function saveValues(nextValues: {
     squatExerciseId: string
     benchExerciseId: string
@@ -84,111 +102,57 @@ export function TeamPowerliftingExercisesCard({
     setDeadliftExerciseId(toSelectValue(team.deadlift_exercise_id))
   }
 
-  async function handleSquatChange(value: string) {
-    const previous = squatExerciseId
-    setSquatExerciseId(value)
+  async function handleChange(
+    lift: 'squat' | 'bench' | 'deadlift',
+    value: string
+  ) {
+    const previous = values[lift]
+    setters[lift](value)
     await saveValues({
-      squatExerciseId: value,
-      benchExerciseId,
-      deadliftExerciseId,
-    }).catch(() => setSquatExerciseId(previous))
-  }
-
-  async function handleBenchChange(value: string) {
-    const previous = benchExerciseId
-    setBenchExerciseId(value)
-    await saveValues({
-      squatExerciseId,
-      benchExerciseId: value,
-      deadliftExerciseId,
-    }).catch(() => setBenchExerciseId(previous))
-  }
-
-  async function handleDeadliftChange(value: string) {
-    const previous = deadliftExerciseId
-    setDeadliftExerciseId(value)
-    await saveValues({
-      squatExerciseId,
-      benchExerciseId,
-      deadliftExerciseId: value,
-    }).catch(() => setDeadliftExerciseId(previous))
+      squatExerciseId: lift === 'squat' ? value : squatExerciseId,
+      benchExerciseId: lift === 'bench' ? value : benchExerciseId,
+      deadliftExerciseId: lift === 'deadlift' ? value : deadliftExerciseId,
+    }).catch(() => setters[lift](previous))
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Leaderboard lifts</CardTitle>
-        <CardDescription>
-          Map squat, bench, and deadlift for Wilks / DOTS powerlifting totals.
-          Unset lifts fall back to exercise name matching.
+    <Card className="gap-0 py-0">
+      <CardHeader className="border-b bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+        <CardTitle className="text-sm font-semibold">Leaderboard lifts (SBD)</CardTitle>
+        <CardDescription className="text-xs">
+          Map lifts for Wilks / DOTS powerlifting totals.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <SettingsRow
-          label="Squat"
-          description="Used when ranking by powerlifting total (SBD)."
-        >
-          <Select
-            value={squatExerciseId}
-            onValueChange={(value) => void handleSquatChange(value)}
-            disabled={disabled || pending}
-          >
-            <SelectTrigger className="w-full sm:w-[240px]" aria-label="Squat exercise">
-              <SelectValue placeholder="Auto-detect" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNSET_VALUE}>Auto-detect</SelectItem>
-              {exercises.map((exercise) => (
-                <SelectItem key={exercise.id} value={exercise.id}>
-                  {exercise.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingsRow>
-
-        <SettingsRow label="Bench press" description="Bench portion of SBD total.">
-          <Select
-            value={benchExerciseId}
-            onValueChange={(value) => void handleBenchChange(value)}
-            disabled={disabled || pending}
-          >
-            <SelectTrigger className="w-full sm:w-[240px]" aria-label="Bench exercise">
-              <SelectValue placeholder="Auto-detect" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNSET_VALUE}>Auto-detect</SelectItem>
-              {exercises.map((exercise) => (
-                <SelectItem key={exercise.id} value={exercise.id}>
-                  {exercise.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingsRow>
-
-        <SettingsRow label="Deadlift" description="Deadlift portion of SBD total.">
-          <Select
-            value={deadliftExerciseId}
-            onValueChange={(value) => void handleDeadliftChange(value)}
-            disabled={disabled || pending}
-          >
-            <SelectTrigger
-              className="w-full sm:w-[240px]"
-              aria-label="Deadlift exercise"
-            >
-              <SelectValue placeholder="Auto-detect" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNSET_VALUE}>Auto-detect</SelectItem>
-              {exercises.map((exercise) => (
-                <SelectItem key={exercise.id} value={exercise.id}>
-                  {exercise.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingsRow>
+      <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {LIFTS.map((lift) => (
+            <div key={lift.key} className="min-w-0 space-y-1.5">
+              <Label className="text-muted-foreground text-xs font-medium">
+                {lift.label}
+              </Label>
+              <Select
+                value={values[lift.key]}
+                onValueChange={(value) => void handleChange(lift.key, value)}
+                disabled={disabled || pending}
+              >
+                <SelectTrigger
+                  className="h-9 w-full text-xs"
+                  aria-label={lift.ariaLabel}
+                >
+                  <SelectValue placeholder="Auto-det" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNSET_VALUE}>Auto-detect</SelectItem>
+                  {exercises.map((exercise) => (
+                    <SelectItem key={exercise.id} value={exercise.id}>
+                      {exercise.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

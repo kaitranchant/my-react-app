@@ -6,6 +6,7 @@ import { PortalTeamChallenges } from '@/components/portal/portal-team-challenges
 import { PortalTeamEvents } from '@/components/portal/portal-team-events'
 import { PortalSectionSkeleton } from '@/components/portal/portal-page-skeletons'
 import { PortalTeamSwitcher } from '@/components/portal/portal-team-switcher'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   formatCompetitionCountdown,
@@ -43,12 +44,7 @@ export default async function PortalTeamPage({
             Team announcements and events from your coach.
           </p>
         </section>
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link before you can view team info.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="view team info" />
       </div>
     )
   }

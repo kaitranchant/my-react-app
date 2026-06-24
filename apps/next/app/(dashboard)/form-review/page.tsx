@@ -1,4 +1,5 @@
 import { fetchCoachFormReviews } from '@/app/(dashboard)/form-review/actions'
+import { FormReviewTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { FormReviewTabs } from '@/components/form-review/form-review-tabs'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { isFormReviewPending } from '@/lib/form-reviews'
@@ -26,7 +27,7 @@ export default async function FormReviewPage({
         description="Review lift photos and videos submitted by clients and leave technique feedback."
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FormReviewTabsSkeleton />}>
         <FormReviewTabs
           reviews={reviews}
           pendingReviews={pendingReviews}

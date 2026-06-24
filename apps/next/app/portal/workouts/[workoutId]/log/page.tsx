@@ -1,7 +1,10 @@
 import { notFound } from 'next/navigation'
 
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { WorkoutLogPage } from '@/components/calendar/workout-log-page'
 import { coerceDateKey } from '@/lib/calendar'
+import { defaultCoachPreferences } from '@/lib/coach-preferences'
+import { getPortalWeightUnit } from '@/lib/coach-preferences-server'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { getWorkoutLogReturnHref } from '@/lib/workout-log-routes'
 import { createClient } from '@/lib/supabase/server'
@@ -23,10 +26,20 @@ export default async function PortalWorkoutLogRoute({
   const portalCtx = await getPortalClientContext()
 
   if (!portalCtx?.client?.id) {
-    notFound()
+    return (
+      <div className="flex flex-col gap-6">
+        <section className="space-y-1">
+          <h1 className="page-title">Log workout</h1>
+        </section>
+        <PortalUnlinkedState feature="log workouts" />
+      </div>
+    )
   }
 
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { data: workout } = await supabase
     .from('client_scheduled_workouts')
     .select('id, status, scheduled_date')
@@ -39,6 +52,9 @@ export default async function PortalWorkoutLogRoute({
   }
 
   const selectedDate = coerceDateKey(date) ?? workout.scheduled_date
+  const weightUnit = user
+    ? await getPortalWeightUnit(user.id)
+    : defaultCoachPreferences.weightUnit
 
   return (
     <WorkoutLogPage
@@ -49,6 +65,7 @@ export default async function PortalWorkoutLogRoute({
       exercises={[]}
       variant="client"
       athleteName={portalCtx.client.full_name}
+      weightUnit={weightUnit}
       returnHref={getWorkoutLogReturnHref(selectedDate, { variant: 'client' })}
     />
   )

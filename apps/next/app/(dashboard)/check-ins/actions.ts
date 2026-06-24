@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { checkInValuesToRow, checkInValuesToUpdate } from '@/lib/check-ins'
 import { createClient } from '@/lib/supabase/server'
+import { notifyClientOfCheckInReview } from '@/lib/notifications/notify-client-check-in-review'
 import {
   checkInFormSchema,
   coachNotesSchema,
@@ -82,6 +83,15 @@ export async function submitCoachCheckIn(
     return { success: false, error: error.message }
   }
 
+  if (reviewedAt) {
+    void notifyClientOfCheckInReview({
+      clientId,
+      coachId: ctx.user.id,
+      checkInDate: parsed.data.checkInDate,
+      coachNotes: parsed.data.coachNotes,
+    })
+  }
+
   revalidateCheckInPaths(clientId)
   return { success: true }
 }
@@ -98,7 +108,7 @@ export async function updateCheckInCoachNotes(
   const { supabase, user } = await requireUser()
   const { data: existing, error: fetchError } = await supabase
     .from('client_check_ins')
-    .select('id, client_id')
+    .select('id, client_id, coach_id, check_in_date, reviewed_at')
     .eq('id', checkInId)
     .eq('coach_id', user.id)
     .maybeSingle()
@@ -120,6 +130,15 @@ export async function updateCheckInCoachNotes(
     return { success: false, error: error.message }
   }
 
+  if (!existing.reviewed_at) {
+    void notifyClientOfCheckInReview({
+      clientId: existing.client_id,
+      coachId: existing.coach_id,
+      checkInDate: existing.check_in_date,
+      coachNotes: parsed.data.coachNotes,
+    })
+  }
+
   revalidateCheckInPaths(existing.client_id)
   return { success: true }
 }
@@ -136,7 +155,7 @@ export async function updateCoachCheckIn(
   const { supabase, user } = await requireUser()
   const { data: existing, error: fetchError } = await supabase
     .from('client_check_ins')
-    .select('id, client_id')
+    .select('id, client_id, coach_id, check_in_date, reviewed_at')
     .eq('id', checkInId)
     .eq('coach_id', user.id)
     .maybeSingle()
@@ -161,6 +180,15 @@ export async function updateCoachCheckIn(
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  if (reviewedAt && !existing.reviewed_at) {
+    void notifyClientOfCheckInReview({
+      clientId: existing.client_id,
+      coachId: existing.coach_id,
+      checkInDate: existing.check_in_date,
+      coachNotes: parsed.data.coachNotes,
+    })
   }
 
   revalidateCheckInPaths(existing.client_id)

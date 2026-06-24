@@ -13,6 +13,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { shouldShowWearablesNav } from '@/lib/wearables-feature'
+
 export type PortalNavItem = {
   label: string
   href: string
@@ -37,12 +39,22 @@ export const portalBaseNavItems: PortalNavItem[] = [
   { label: 'Workouts', href: '/portal/workouts', icon: CalendarDays },
   { label: 'Form Review', href: '/portal/form-review', icon: Video },
   { label: 'Check-in', href: '/portal/check-in', icon: CalendarCheck },
-  { label: 'Wearables', href: '/portal/wearables', icon: Watch, soon: true },
   { label: 'Messages', href: '/portal/messages', icon: MessageSquare },
   { label: 'InBody', href: '/portal/inbody', icon: Scale },
   { label: 'Goals', href: '/portal/goals', icon: Target },
   { label: 'Progress', href: '/portal/progress', icon: TrendingUp },
 ]
+
+function getPortalBaseNavItems(): PortalNavItem[] {
+  if (shouldShowWearablesNav()) {
+    return [
+      ...portalBaseNavItems.slice(0, 4),
+      { label: 'Wearables', href: '/portal/wearables', icon: Watch },
+      ...portalBaseNavItems.slice(4),
+    ]
+  }
+  return portalBaseNavItems
+}
 
 const portalPrimaryMobileHrefs = new Set([
   '/portal',
@@ -52,12 +64,13 @@ const portalPrimaryMobileHrefs = new Set([
 ])
 
 export function getPortalNavItems(showTeam: boolean): PortalNavItem[] {
-  if (!showTeam) return portalBaseNavItems
+  const baseItems = getPortalBaseNavItems()
+  if (!showTeam) return baseItems
   return [
-    portalBaseNavItems[0],
+    baseItems[0],
     portalTeamNavItem,
     portalLeaderboardsNavItem,
-    ...portalBaseNavItems.slice(1),
+    ...baseItems.slice(1),
   ]
 }
 
@@ -74,4 +87,4 @@ export function getPortalOverflowMobileNavItems(showTeam: boolean): PortalNavIte
 }
 
 /** @deprecated Use getPortalNavItems(showTeam) from layout instead */
-export const portalNavItems: PortalNavItem[] = portalBaseNavItems
+export const portalNavItems: PortalNavItem[] = getPortalBaseNavItems()

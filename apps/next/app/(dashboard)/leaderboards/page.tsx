@@ -1,5 +1,9 @@
 import { Suspense } from 'react'
 
+import {
+  FilterPillsSkeleton,
+  LeaderboardFiltersSkeleton,
+} from '@/components/dashboard/async-fallback-skeletons'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import {
   ClearPageFilters,
@@ -12,6 +16,7 @@ import { LeaderboardPeriodTabs } from '@/components/leaderboards/leaderboard-per
 import { LeaderboardTable } from '@/components/leaderboards/leaderboard-table'
 import { LeaderboardToolbar } from '@/components/leaderboards/leaderboard-toolbar'
 import { LeaderboardWeightClassFilter } from '@/components/leaderboards/leaderboard-weight-class-filter'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   fetchAttendanceClients,
   fetchCoachTeams,
@@ -124,7 +129,7 @@ export default async function LeaderboardsPage({
         description="Rank athletes by strength PRs, Wilks/DOTS scores, consistency, volume, improvement, and training streaks."
       />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<LeaderboardFiltersSkeleton />}>
         <PageFilterPersistence
           pageKey="leaderboards"
           filterKeys={[
@@ -155,25 +160,27 @@ export default async function LeaderboardsPage({
         </div>
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FilterPillsSkeleton count={5} />}>
         <LeaderboardCategoryTabs />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FilterPillsSkeleton count={4} />}>
         <LeaderboardPeriodTabs />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FilterPillsSkeleton count={3} />}>
         <LeaderboardFormulaTabs />
       </Suspense>
 
       {scope.teamId ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<FilterPillsSkeleton count={4} />}>
           <LeaderboardWeightClassFilter weightClasses={availableWeightClasses} />
         </Suspense>
       ) : null}
 
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={<Skeleton className="h-10 w-full max-w-md rounded-lg" />}
+      >
         <LeaderboardToolbar
           exercises={exercises}
           resolvedExerciseId={resolvedExerciseId}

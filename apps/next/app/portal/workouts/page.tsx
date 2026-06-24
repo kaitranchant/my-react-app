@@ -1,8 +1,11 @@
 import { getPortalCalendarMonthData } from '@/app/portal/actions'
 import { PortalCalendarPanel } from '@/components/portal/portal-calendar-panel'
-import { Card, CardContent } from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { coerceDateKey, parseDateKey, toDateKey } from '@/lib/calendar'
+import { defaultCoachPreferences } from '@/lib/coach-preferences'
+import { getPortalWeightUnit } from '@/lib/coach-preferences-server'
 import { getPortalClientContext } from '@/lib/portal-client'
+import { createClient } from '@/lib/supabase/server'
 import type { CalendarDaySummary, ClientScheduledWorkoutWithExercises } from 'app/types/database'
 
 export const metadata = {
@@ -15,6 +18,10 @@ export default async function PortalWorkoutsPage({
   searchParams: Promise<{ date?: string; action?: string }>
 }) {
   const params = await searchParams
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const portalCtx = await getPortalClientContext()
   const clientRecord = portalCtx?.client ?? null
 
@@ -25,8 +32,13 @@ export default async function PortalWorkoutsPage({
 
   let calendarDays: CalendarDaySummary[] = []
   let selectedWorkout: ClientScheduledWorkoutWithExercises | null = null
+  let weightUnit = defaultCoachPreferences.weightUnit
 
   if (clientRecord?.id) {
+    if (user) {
+      weightUnit = await getPortalWeightUnit(user.id)
+    }
+
     const calendarResult = await getPortalCalendarMonthData(
       initialYear,
       initialMonth,
@@ -51,13 +63,7 @@ export default async function PortalWorkoutsPage({
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can see your schedule and log
-            workouts.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="see your schedule and log workouts" />
       ) : (
         <PortalCalendarPanel
           clientId={clientRecord.id}
@@ -68,6 +74,7 @@ export default async function PortalWorkoutsPage({
           initialWorkout={selectedWorkout}
           initialAction={initialAction}
           initialActionDate={selectedDate}
+          weightUnit={weightUnit}
         />
       )}
     </div>

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { requireTeamAccess, requireUser } from '@/lib/gym-access'
+import { notifyTeamClientsOfAnnouncement } from '@/lib/notifications/notify-team-clients'
 import { createClient } from '@/lib/supabase/server'
 import {
   teamAnnouncementSchema,
@@ -35,6 +36,7 @@ async function getTeamForCoach(teamId: string) {
     team: {
       id: access.team.id,
       coach_id: access.team.coach_id,
+      name: access.team.name,
     },
     error: null,
   }
@@ -94,6 +96,13 @@ export async function createTeamAnnouncement(
   if (error) {
     return { success: false, error: error.message }
   }
+
+  void notifyTeamClientsOfAnnouncement({
+    teamId,
+    teamName: team.name,
+    coachId: user.id,
+    content: parsed.data.content,
+  })
 
   revalidateTeam(teamId)
   return { success: true }

@@ -5,6 +5,10 @@ import { toast } from 'sonner'
 
 import { updateNotificationPreference } from '@/app/(dashboard)/settings/actions'
 import { SettingsRow } from '@/components/settings/settings-row'
+import {
+  SettingsSavedIndicator,
+  useSettingsSavedIndicator,
+} from '@/components/settings/settings-saved-indicator'
 import { SettingsToggle } from '@/components/settings/settings-toggle'
 import type { NotificationPreferences } from '@/lib/notification-preferences'
 import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
@@ -74,6 +78,7 @@ export function NotificationSettings({
   const [values, setValues] = React.useState(defaultValues)
   const [pendingKey, setPendingKey] =
     React.useState<NotificationPreferenceKey | null>(null)
+  const { savedKey, markSaved } = useSettingsSavedIndicator()
 
   React.useEffect(() => {
     setValues(defaultValues)
@@ -88,7 +93,7 @@ export function NotificationSettings({
     setPendingKey(null)
 
     if (result.success) {
-      toast.success('Notification preference saved')
+      markSaved(key)
       return
     }
 
@@ -108,12 +113,15 @@ export function NotificationSettings({
               : option.description
           }
         >
-          <SettingsToggle
-            checked={values[option.key]}
-            disabled={pendingKey === option.key}
-            onCheckedChange={(checked) => onToggle(option.key, checked)}
-            label={option.label}
-          />
+          <div className="flex items-center gap-2">
+            <SettingsSavedIndicator visible={savedKey === option.key} />
+            <SettingsToggle
+              checked={values[option.key]}
+              disabled={pendingKey === option.key}
+              onCheckedChange={(checked) => onToggle(option.key, checked)}
+              label={option.label}
+            />
+          </div>
         </SettingsRow>
       ))}
     </div>

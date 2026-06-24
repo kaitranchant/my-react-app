@@ -10,6 +10,7 @@ import {
   approveAllProgressiveOverloadSuggestions,
   approveProgressiveOverloadSuggestion,
   dismissProgressiveOverloadSuggestion,
+  undoDismissProgressiveOverloadSuggestion,
 } from '@/app/(dashboard)/progressive-overload/actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatTargetWeight } from '@/lib/progressive-overload'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import type { ProgressiveOverloadSuggestion } from '@/lib/progressive-overload'
 import type { WeightUnit } from 'app/types/database'
 
@@ -87,7 +89,16 @@ export function ProgressiveOverloadInbox({
     setPendingId(null)
 
     if (result.success) {
-      toast.success('Suggestion dismissed.')
+      toastSuccessWithUndo('Suggestion dismissed', async () => {
+        const undoResult = await undoDismissProgressiveOverloadSuggestion(
+          toActionInput(suggestion)
+        )
+        if (undoResult.success) {
+          router.refresh()
+        } else {
+          toast.error(undoResult.error)
+        }
+      })
       router.refresh()
       return
     }

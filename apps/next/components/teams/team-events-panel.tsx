@@ -88,6 +88,16 @@ export function TeamEventsPanel({
     if (match) setExpandedEventId(match.id)
   }, [highlightDate, events])
 
+  React.useEffect(() => {
+    if (!highlightDate) return
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-team-event-date="${highlightDate}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [highlightDate, events])
+
   const todayKey = new Date().toISOString().slice(0, 10)
   const upcoming = events.filter((event) => event.event_date >= todayKey)
   const past = events.filter((event) => event.event_date < todayKey)
@@ -184,6 +194,7 @@ export function TeamEventsPanel({
             return (
               <li
                 key={event.id}
+                data-team-event-date={event.event_date}
                 className={cn(
                   'rounded-lg border',
                   highlightDate === event.event_date && 'border-brand ring-1 ring-brand/30'

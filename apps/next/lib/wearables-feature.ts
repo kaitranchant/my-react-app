@@ -4,3 +4,7 @@ export const WEARABLES_LIVE = false
 export function areWearablesLive(): boolean {
   return WEARABLES_LIVE
 }
+
+export function shouldShowWearablesNav(): boolean {
+  return areWearablesLive()
+}

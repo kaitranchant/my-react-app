@@ -3,6 +3,7 @@ import {
   formatTrainingConsistencyDayLabel,
   sliceHeatmapWeeks,
 } from '@/lib/training-consistency'
+import { buildHeatmapSummary } from '@/lib/chart-accessibility'
 import type {
   TrainingConsistencyDay,
   TrainingConsistencyHeatmap,
@@ -88,9 +89,11 @@ export function TrainingConsistencyHeatmap({
   const columnWidth = compact ? 'w-2.5' : 'w-3'
   const labelWidth = compact ? 'w-6' : 'w-7'
   const labelPadding = compact ? 'pl-6' : 'pl-8'
+  const summary = buildHeatmapSummary(heatmap)
 
   return (
     <div className={cn('space-y-4', className)}>
+      <p className="sr-only">{summary}</p>
       <div
         className={cn(
           'flex flex-wrap gap-x-6 gap-y-2',
@@ -121,7 +124,11 @@ export function TrainingConsistencyHeatmap({
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-1">
+      <div
+        className={cn('overflow-x-auto pb-1')}
+        role="img"
+        aria-label={summary}
+      >
         <div className="inline-flex min-w-full flex-col gap-1">
           {!compact ? (
             <div className={cn('flex gap-1', labelPadding)}>

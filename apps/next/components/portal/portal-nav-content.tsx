@@ -7,7 +7,13 @@ import {
   getPortalNavItems,
   type PortalNavItem,
 } from '@/components/portal/portal-nav'
+import { PortalNavBadge } from '@/components/portal/portal-nav-badge'
 import { Badge } from '@/components/ui/badge'
+import {
+  emptyPortalNavBadges,
+  getPortalNavBadgeCount,
+  type PortalNavBadges,
+} from '@/lib/portal-nav-badges'
 import { cn } from '@/lib/utils'
 
 function NavLink({
@@ -15,12 +21,14 @@ function NavLink({
   label,
   icon: Icon,
   active,
+  badgeCount,
   onNavigate,
 }: {
   href: string
   label: string
   icon: PortalNavItem['icon']
   active: boolean
+  badgeCount: number
   onNavigate?: () => void
 }) {
   return (
@@ -34,8 +42,9 @@ function NavLink({
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
     >
-      <Icon className={cn('size-[18px]', active && 'text-brand')} />
-      {label}
+      <Icon className={cn('size-[18px] shrink-0', active && 'text-brand')} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <PortalNavBadge count={badgeCount} />
     </Link>
   )
 }
@@ -66,12 +75,14 @@ function NavSoonItem({
 
 type PortalNavContentProps = {
   showTeamNav?: boolean
+  badges?: PortalNavBadges
   onNavigate?: () => void
   className?: string
 }
 
 export function PortalNavContent({
   showTeamNav = false,
+  badges = emptyPortalNavBadges,
   onNavigate,
   className,
 }: PortalNavContentProps) {
@@ -99,6 +110,7 @@ export function PortalNavContent({
             label={item.label}
             icon={item.icon}
             active={active}
+            badgeCount={getPortalNavBadgeCount(item.href, badges)}
             onNavigate={onNavigate}
           />
         )

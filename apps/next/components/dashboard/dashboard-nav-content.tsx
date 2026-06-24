@@ -8,11 +8,11 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
-  navGroups,
   topNavItems,
   type NavGroup,
   type NavItem,
 } from '@/components/dashboard/nav'
+import { getFilteredNavGroups } from '@/lib/dashboard-mobile-nav'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
 
 function formatNavBadgeCount(count: number): string {
@@ -197,7 +197,7 @@ export function DashboardNavContent({
           onNavigate={onNavigate}
         />
       ))}
-      {navGroups.map((group) => (
+      {getFilteredNavGroups().map((group) => (
         <NavGroupSection
           key={group.label}
           group={group}

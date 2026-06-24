@@ -94,6 +94,13 @@ export function formatCompetitionDate(dateKey: string) {
   })
 }
 
+export function formatCompetitionMonthYear(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 export function daysUntilDateKey(dateKey: string): number {
   const target = new Date(`${dateKey}T12:00:00`)
   const today = new Date()

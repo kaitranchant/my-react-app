@@ -19,6 +19,7 @@ import {
 } from '@/components/filters/page-filter-persistence'
 import { ClientsPagination } from '@/components/clients/clients-pagination'
 import { AddClientDialog } from '@/components/clients/add-client-dialog'
+import { AddClientButtonSkeleton, ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Button } from '@/components/ui/button'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
@@ -182,7 +183,7 @@ export default async function ClientsPage({
         title="Clients"
         description="Manage your clients, their programs, and progress in one place."
       >
-        <Suspense fallback={null}>
+        <Suspense fallback={<AddClientButtonSkeleton />}>
           <AddClientDialog
             gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
             trigger={
@@ -196,7 +197,7 @@ export default async function ClientsPage({
       </PageHeader>
 
       {coachGyms.length > 0 ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ScopeTabsSkeleton />}>
           <PageFilterPersistence pageKey="clients" filterKeys={['scope']} />
           <div className="space-y-3">
             <ClientsScopeTabs

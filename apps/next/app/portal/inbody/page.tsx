@@ -1,8 +1,5 @@
 import { PortalInbodyPanel } from '@/components/portal/portal-inbody-panel'
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 import type { ClientInbodyScan } from 'app/types/database'
@@ -40,12 +37,7 @@ export default async function PortalInbodyPage() {
       </section>
 
       {!clientRecord ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can log InBody scans.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="log InBody scans" />
       ) : (
         <PortalInbodyPanel scans={scans} />
       )}

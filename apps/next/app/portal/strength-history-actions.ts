@@ -1,6 +1,6 @@
 'use server'
 
-import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { getPortalWeightUnit } from '@/lib/coach-preferences-server'
 import { requirePortalClientContext } from '@/lib/portal-client'
 import {
   fetchStrengthHistoryForExercise,
@@ -19,12 +19,12 @@ export async function getPortalStrengthHistoryTrend(
     return { success: false, error: ctx.error }
   }
 
-  const coachPreferences = await getCoachPreferencesForCoachId(ctx.client.coach_id)
+  const weightUnit = await getPortalWeightUnit(ctx.userId)
   const trend = await fetchStrengthHistoryForExercise(
     ctx.supabase,
     ctx.client.id,
     exerciseId,
-    coachPreferences.weightUnit
+    weightUnit
   )
 
   return { success: true, trend }

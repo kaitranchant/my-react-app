@@ -90,6 +90,13 @@ export function coachPreferencesToRow(values: CoachPreferences) {
   }
 }
 
+export function withPortalWeightUnit(
+  coachPreferences: CoachPreferences,
+  weightUnit: CoachPreferences['weightUnit']
+): CoachPreferences {
+  return { ...coachPreferences, weightUnit }
+}
+
 export function getWeekRange(
   weekStartsOn: CoachPreferences['weekStartsOn'] = 'monday',
   timezone: CoachPreferences['timezone'] = 'auto',

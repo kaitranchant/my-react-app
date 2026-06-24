@@ -154,6 +154,10 @@ export type Database = {
           notify_form_reviews: boolean
           notify_prs: boolean
           notify_weekly_summary: boolean
+          portal_notify_messages: boolean
+          portal_notify_check_in_reviews: boolean
+          portal_notify_form_review_replies: boolean
+          portal_notify_team_updates: boolean
           created_at: string
           updated_at: string
         }
@@ -174,6 +178,10 @@ export type Database = {
           notify_form_reviews?: boolean
           notify_prs?: boolean
           notify_weekly_summary?: boolean
+          portal_notify_messages?: boolean
+          portal_notify_check_in_reviews?: boolean
+          portal_notify_form_review_replies?: boolean
+          portal_notify_team_updates?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -194,6 +202,10 @@ export type Database = {
           notify_form_reviews?: boolean
           notify_prs?: boolean
           notify_weekly_summary?: boolean
+          portal_notify_messages?: boolean
+          portal_notify_check_in_reviews?: boolean
+          portal_notify_form_review_replies?: boolean
+          portal_notify_team_updates?: boolean
           created_at?: string
           updated_at?: string
         }

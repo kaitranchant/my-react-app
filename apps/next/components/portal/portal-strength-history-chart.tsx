@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { buildStrengthChartSummary } from '@/lib/chart-accessibility'
 import { formatStrengthE1rm } from '@/lib/strength-history'
 import type {
   StrengthHistoryExercise,
@@ -105,10 +106,14 @@ function StrengthTrendChart({
   points,
   weightUnit,
   compact = false,
+  exerciseName,
+  trend,
 }: {
   points: StrengthHistoryPoint[]
   weightUnit: WeightUnit
   compact?: boolean
+  exerciseName?: string
+  trend?: StrengthHistoryTrend | null
 }) {
   const height = (compact ? 140 : CHART_HEIGHT) + CHART_AXIS_HEIGHT
   const values = points.map((point) => point.e1rm)
@@ -136,13 +141,20 @@ function StrengthTrendChart({
     )
   }
 
+  const summary =
+    exerciseName && trend
+      ? buildStrengthChartSummary(exerciseName, trend, weightUnit)
+      : 'Strength history chart showing estimated one-rep max by month.'
+
   return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${height}`}
-      className="w-full"
-      role="img"
-      aria-label="Strength history chart"
-    >
+    <div>
+      <p className="sr-only">{summary}</p>
+      <svg
+        viewBox={`0 0 ${CHART_WIDTH} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label={summary}
+      >
       {path ? (
         <path
           d={path}
@@ -191,6 +203,7 @@ function StrengthTrendChart({
         )
       })}
     </svg>
+    </div>
   )
 }
 
@@ -319,6 +332,8 @@ export function PortalStrengthHistoryChart({
             points={trend.points}
             weightUnit={weightUnit}
             compact={isPortal}
+            exerciseName={selectedExercise?.name}
+            trend={trend}
           />
         ) : (
           <p className="text-muted-foreground py-8 text-center text-sm">

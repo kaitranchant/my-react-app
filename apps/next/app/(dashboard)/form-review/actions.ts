@@ -7,6 +7,7 @@ import {
   FORM_REVIEWS_BUCKET,
 } from '@/lib/form-reviews'
 import { createClient } from '@/lib/supabase/server'
+import { notifyClientOfFormReviewReply } from '@/lib/notifications/notify-client-form-review-reply'
 import {
   formReviewFeedbackSchema,
   type FormReviewFeedbackValues,
@@ -46,7 +47,7 @@ export async function updateFormReviewFeedback(
 
   const { data: existing, error: fetchError } = await supabase
     .from('client_form_reviews')
-    .select('id, client_id')
+    .select('id, client_id, coach_id, title, reviewed_at')
     .eq('id', reviewId)
     .eq('coach_id', user.id)
     .maybeSingle()
@@ -67,6 +68,15 @@ export async function updateFormReviewFeedback(
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  if (!existing.reviewed_at) {
+    void notifyClientOfFormReviewReply({
+      clientId: existing.client_id,
+      coachId: existing.coach_id,
+      reviewTitle: existing.title?.trim() || 'Form review',
+      coachFeedback: parsed.data.coachFeedback,
+    })
   }
 
   revalidateFormReviewPaths(existing.client_id)

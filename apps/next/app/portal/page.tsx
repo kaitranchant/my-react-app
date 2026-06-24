@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowRight, CalendarCheck } from 'lucide-react'
 
 import { PortalActiveGoalsCard } from '@/components/portal/portal-active-goals-card'
+import { PortalCheckInSuccessBanner } from '@/components/portal/portal-check-in-success-banner'
 import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-section'
 import { PortalHomeStatsRow } from '@/components/portal/portal-home-stats-row'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
@@ -10,7 +12,9 @@ import { PortalReadinessPrompt } from '@/components/portal/portal-readiness-prom
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
 import { PortalTrainingConsistencyCard } from '@/components/portal/portal-training-consistency-card'
 import { PortalTodayWorkoutHero } from '@/components/portal/portal-today-workout-hero'
+import { PortalWelcomeDialog } from '@/components/portal/portal-welcome-dialog'
 import { PortalWeekStrip } from '@/components/portal/portal-week-strip'
+import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,7 +25,7 @@ import {
 } from '@/components/ui/card'
 import { getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
 import { getCoachDateKey } from '@/lib/coach-preferences'
-import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
+import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import { fetchClientProgramSummary } from '@/lib/client-program-progress'
 import { fetchCoachDisplayName } from '@/lib/portal-coach-name'
 import { getGreeting } from '@/lib/dashboard'
@@ -111,8 +115,11 @@ export default async function PortalPage() {
   let coachPreferences = null
   let coachName = 'Coach'
 
-  if (clientRecord?.id) {
-    coachPreferences = await getCoachPreferencesForCoachId(clientRecord.coach_id)
+  if (clientRecord?.id && user) {
+    coachPreferences = await getPortalDisplayPreferences(
+      user.id,
+      clientRecord.coach_id
+    )
     const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
 
     const [
@@ -252,6 +259,11 @@ export default async function PortalPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
+            {homeData.checkInStatus === 'submitted' ? (
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Check-in recorded — your coach will review it soon.
+              </p>
+            ) : null}
             {homeData.checkInStatus === 'reviewed' &&
               homeData.periodCheckIn?.coach_notes && (
                 <p className="text-brand text-xs font-medium">
@@ -275,15 +287,13 @@ export default async function PortalPage() {
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
       {!clientRecord ? (
-        <Card>
-          <CardContent className="helper-text py-8 text-center leading-relaxed">
-            Your account is not linked to a client profile yet. Ask your coach
-            to send you an invite link so you can see your schedule and log
-            workouts.
-          </CardContent>
-        </Card>
+        <PortalUnlinkedState feature="see your schedule and log workouts" />
       ) : homeData ? (
         <>
+          <PortalWelcomeDialog userId={user.id} coachName={coachName} />
+          <Suspense fallback={null}>
+            <PortalCheckInSuccessBanner />
+          </Suspense>
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-base font-semibold sm:text-lg">
               {getGreeting()}, {firstName}

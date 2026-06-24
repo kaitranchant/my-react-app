@@ -1,5 +1,10 @@
-import { parseCoachPreferences, type CoachPreferences } from '@/lib/coach-preferences'
+import {
+  parseCoachPreferences,
+  withPortalWeightUnit,
+  type CoachPreferences,
+} from '@/lib/coach-preferences'
 import { createClient } from '@/lib/supabase/server'
+import type { WeightUnit } from 'app/types/database'
 
 export async function getCoachPreferencesForUser(
   userId: string
@@ -29,4 +34,21 @@ export async function getCoachPreferencesForCoachId(
     .maybeSingle()
 
   return parseCoachPreferences(data)
+}
+
+export async function getPortalWeightUnit(userId: string): Promise<WeightUnit> {
+  const preferences = await getCoachPreferencesForUser(userId)
+  return preferences.weightUnit
+}
+
+export async function getPortalDisplayPreferences(
+  userId: string,
+  coachId: string
+): Promise<CoachPreferences> {
+  const [weightUnit, coachPreferences] = await Promise.all([
+    getPortalWeightUnit(userId),
+    getCoachPreferencesForCoachId(coachId),
+  ])
+
+  return withPortalWeightUnit(coachPreferences, weightUnit)
 }

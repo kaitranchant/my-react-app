@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 
+import { CoachInboxPanelSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CoachInboxPanel } from '@/components/messages/coach-inbox-panel'
 import {
@@ -67,7 +68,7 @@ export default async function MessagesPage({
         )}
       </PageHeader>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<CoachInboxPanelSkeleton />}>
         <CoachInboxPanel
           conversations={inbox.conversations}
           defaultClientId={defaultClientId}

@@ -50,6 +50,7 @@ import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
 import { PrCelebrationDialog } from '@/components/workout/pr-celebration-dialog'
+import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
 import {
   RestTimerChip,
   RestTimerProvider,
@@ -1036,6 +1037,7 @@ export function WorkoutLogScreen({
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const [celebrationPrs, setCelebrationPrs] = React.useState<NewPrSummary[]>([])
   const [showCelebration, setShowCelebration] = React.useState(false)
+  const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
@@ -1208,6 +1210,8 @@ export function WorkoutLogScreen({
       if (result.newPrs.length > 0) {
         setCelebrationPrs(result.newPrs)
         setShowCelebration(true)
+      } else if (isClientPortal) {
+        setShowWorkoutComplete(true)
       } else {
         toast.success('Workout complete!')
       }
@@ -2024,7 +2028,9 @@ export function WorkoutLogScreen({
         setShowCelebration(open)
         if (!open) {
           setCelebrationPrs([])
-          toast.success('Workout complete!')
+          if (!isClientPortal) {
+            toast.success('Workout complete!')
+          }
         }
       }}
       prs={celebrationPrs}
@@ -2034,13 +2040,22 @@ export function WorkoutLogScreen({
     />
   )
 
+  const workoutCompleteDialog = isClientPortal ? (
+    <WorkoutCompleteDialog
+      open={showWorkoutComplete}
+      onOpenChange={setShowWorkoutComplete}
+      workoutName={data?.name ?? 'Workout'}
+    />
+  ) : null
+
   if (isPage) {
     return (
       <>
-        <div className="bg-background fixed inset-0 z-50 flex flex-col md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border">
+        <div className="bg-background fixed inset-0 z-50 flex flex-col pb-[env(safe-area-inset-bottom)] md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border md:pb-0">
           {logContent}
         </div>
         {celebrationDialog}
+        {workoutCompleteDialog}
       </>
     )
   }
@@ -2053,6 +2068,7 @@ export function WorkoutLogScreen({
         </DialogContent>
       </Dialog>
       {celebrationDialog}
+      {workoutCompleteDialog}
     </>
   )
 }
