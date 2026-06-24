@@ -2,6 +2,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
+import { APP_DESCRIPTION, APP_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
@@ -13,9 +14,8 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata = {
-  title: 'Coaching App',
-  description:
-    'Professional coaching platform for trainers, therapists, and wellness coaches',
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
 }
 
 export const viewport = {
