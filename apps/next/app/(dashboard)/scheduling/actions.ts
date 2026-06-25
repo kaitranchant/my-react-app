@@ -15,6 +15,7 @@ import {
   availabilityRuleSchema,
   bookAppointmentSchema,
   cancelAppointmentSchema,
+  deleteAppointmentSchema,
   rescheduleAppointmentSchema,
   sessionBookingSettingsSchema,
   sessionPackSchema,
@@ -512,6 +513,44 @@ export async function cancelCoachingAppointment(
       coachId: appointment.coach_id,
       messageBody: `Your coaching session on ${when} has been cancelled.`,
     })
+  }
+
+  revalidateScheduling()
+  return { success: true }
+}
+
+export async function deleteCoachingAppointment(
+  values: import('@/lib/validations/session-booking').DeleteAppointmentValues
+): Promise<ActionResult> {
+  const parsed = deleteAppointmentSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid delete request.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { data: appointment } = await ctx.supabase
+    .from('coaching_appointments')
+    .select('id')
+    .eq('id', parsed.data.appointmentId)
+    .eq('coach_id', ctx.user.id)
+    .maybeSingle()
+
+  if (!appointment) {
+    return { success: false, error: 'Appointment not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('coaching_appointments')
+    .delete()
+    .eq('id', parsed.data.appointmentId)
+    .eq('coach_id', ctx.user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
   }
 
   revalidateScheduling()

@@ -6,10 +6,16 @@ import { FetchErrorState } from '@/components/ui/fetch-error-state'
 type SchemaSetupNoticeProps = {
   tables: string[]
   sqlFile: string
+  additionalSqlFiles?: string[]
 }
 
-export function SchemaSetupNotice({ tables, sqlFile }: SchemaSetupNoticeProps) {
+export function SchemaSetupNotice({
+  tables,
+  sqlFile,
+  additionalSqlFiles = [],
+}: SchemaSetupNoticeProps) {
   const tableList = tables.join(', ')
+  const sqlFiles = [sqlFile, ...additionalSqlFiles]
 
   return (
     <Card className="border-dashed">
@@ -38,9 +44,14 @@ export function SchemaSetupNotice({ tables, sqlFile }: SchemaSetupNoticeProps) {
           </li>
           <li>
             Copy the full contents of{' '}
-            <code className="bg-muted text-foreground rounded px-1.5 py-0.5 text-xs">
-              supabase/{sqlFile}
-            </code>{' '}
+            {sqlFiles.map((file, index) => (
+              <span key={file}>
+                {index > 0 ? (index === sqlFiles.length - 1 ? ', and ' : ', ') : ''}
+                <code className="bg-muted text-foreground rounded px-1.5 py-0.5 text-xs">
+                  supabase/{file}
+                </code>
+              </span>
+            ))}{' '}
             from this project
           </li>
           <li>Paste into the editor and click Run</li>

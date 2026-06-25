@@ -15,7 +15,7 @@ import {
 } from '@/lib/session-booking-types'
 import { cn } from '@/lib/utils'
 
-const GRID_START_HOUR = 7
+const GRID_START_HOUR = 5
 const GRID_END_HOUR = 21
 const HOUR_HEIGHT = 48
 const MOBILE_DAYS_VISIBLE = 3

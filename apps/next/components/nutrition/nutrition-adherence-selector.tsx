@@ -28,6 +28,8 @@ export function NutritionAdherenceSelector({
               key={level}
               type="button"
               disabled={disabled}
+              aria-pressed={selected}
+              aria-label={`Adherence ${level} of 5`}
               onClick={() => onChange(level)}
               className={cn(
                 'flex min-h-11 items-center justify-center rounded-lg border text-center transition-colors disabled:opacity-50 sm:min-h-12',

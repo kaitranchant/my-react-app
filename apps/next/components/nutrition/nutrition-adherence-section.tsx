@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -32,6 +34,7 @@ import type {
   ClientNutritionLog,
   ClientNutritionProfile,
 } from 'app/types/database'
+import { BarChart3 } from 'lucide-react'
 
 const PERIOD_OPTIONS = [
   { value: '7', label: 'Last 7 days' },
@@ -120,13 +123,15 @@ export function NutritionAdherenceSection({
             ) : null}
           </CardDescription>
         </div>
-        <Select
-          value={period}
-          onValueChange={(value) => setPeriod(value as '7' | '30' | '90')}
-        >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
+        <div className="grid gap-1.5">
+          <Label htmlFor="nutrition-adherence-period">Period</Label>
+          <Select
+            value={period}
+            onValueChange={(value) => setPeriod(value as '7' | '30' | '90')}
+          >
+            <SelectTrigger id="nutrition-adherence-period" className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
           <SelectContent>
             {PERIOD_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
@@ -135,14 +140,18 @@ export function NutritionAdherenceSection({
             ))}
           </SelectContent>
         </Select>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-6">
         {trendPoints.length > 0 ? (
           <NutritionTrendsChart points={trendPoints} />
         ) : (
-          <p className="text-muted-foreground text-sm">
-            No nutrition activity in this period yet.
-          </p>
+          <EmptyState
+            icon={BarChart3}
+            title="No nutrition activity yet"
+            description="Log daily adherence or food to see trends for this period."
+            className="py-6"
+          />
         )}
 
         {historyPoints.length > 0 ? (

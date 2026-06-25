@@ -70,6 +70,7 @@ export function MealPlanFormDialog({
   }
 
   const isEdit = Boolean(mealPlan)
+  const [pending, setPending] = React.useState(false)
 
   const form = useForm<MealPlanFormValues>({
     resolver: zodResolver(mealPlanFormSchema),
@@ -96,9 +97,11 @@ export function MealPlanFormDialog({
   }, [open, mealPlan, form])
 
   async function onSubmit(values: MealPlanFormValues) {
+    setPending(true)
     const result = isEdit
       ? await updateMealPlanRecord(mealPlan!.id, values)
       : await createMealPlanRecord(values)
+    setPending(false)
 
     if (!result.success) {
       toast.error(result.error)
@@ -180,8 +183,14 @@ export function MealPlanFormDialog({
               )}
             />
             <DialogFooter>
-              <Button type="submit">
-                {isEdit ? 'Save changes' : 'Create meal plan'}
+              <Button type="submit" disabled={pending}>
+                {pending
+                  ? isEdit
+                    ? 'Saving…'
+                    : 'Creating…'
+                  : isEdit
+                    ? 'Save changes'
+                    : 'Create meal plan'}
               </Button>
             </DialogFooter>
           </form>

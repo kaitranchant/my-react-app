@@ -2,10 +2,9 @@ import { redirect } from 'next/navigation'
 
 import { PortalShell } from '@/components/portal/portal-shell'
 import { getPortalClientContext } from '@/lib/portal-client'
-import {
-  fetchPortalFormReviewHighlight,
-  fetchPortalMessageHighlight,
-} from '@/lib/portal-home-highlights'
+import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
+import { fetchPortalNavBadges } from '@/lib/portal-data'
+import { emptyPortalNavBadges } from '@/lib/portal-nav-badges'
 import { clientHasTeamMembership } from '@/lib/portal-teams'
 import { createClient } from '@/lib/supabase/server'
 
@@ -38,16 +37,17 @@ export default async function PortalLayout({
     ? await clientHasTeamMembership(supabase, portalCtx.client.id)
     : false
 
-  let navBadges = { unreadMessages: 0, pendingFormReviews: 0 }
-  if (portalCtx?.client?.id) {
-    const [messageHighlight, formReviewHighlight] = await Promise.all([
-      fetchPortalMessageHighlight(supabase, portalCtx.client.id),
-      fetchPortalFormReviewHighlight(supabase, portalCtx.client.id),
-    ])
-    navBadges = {
-      unreadMessages: messageHighlight?.unreadCount ?? 0,
-      pendingFormReviews: formReviewHighlight?.pendingCount ?? 0,
-    }
+  let navBadges = emptyPortalNavBadges
+  if (portalCtx?.client?.id && user) {
+    const coachPreferences = await getPortalDisplayPreferences(
+      user.id,
+      portalCtx.client.coach_id
+    )
+    navBadges = await fetchPortalNavBadges(
+      supabase,
+      portalCtx.client.id,
+      coachPreferences
+    )
   }
 
   const name =

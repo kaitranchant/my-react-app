@@ -52,9 +52,13 @@ export function ClientProgressTabSkeleton() {
 export function ClientNutritionTabSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-64 rounded-xl" />
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-24 rounded-lg" />
+        <Skeleton className="h-8 w-20 rounded-lg" />
+      </div>
+      <Skeleton className="h-72 rounded-xl" />
       <Skeleton className="h-48 rounded-xl" />
-      <Skeleton className="h-56 rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
     </div>
   )
 }

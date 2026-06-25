@@ -22,6 +22,7 @@ import {
   createEmptyNutritionLogValues,
   nutritionLogToFormValues,
 } from '@/lib/nutrition'
+import type { NutritionLogFormValues } from '@/lib/validations/nutrition'
 import type { ClientNutritionLog } from 'app/types/database'
 
 type CoachAdherenceLogCardProps = {
@@ -29,6 +30,7 @@ type CoachAdherenceLogCardProps = {
   clientName: string
   todayLog: ClientNutritionLog | null
   logDate?: string
+  onValuesChange?: (values: NutritionLogFormValues) => void
 }
 
 export function CoachAdherenceLogCard({
@@ -36,6 +38,7 @@ export function CoachAdherenceLogCard({
   clientName,
   todayLog,
   logDate,
+  onValuesChange,
 }: CoachAdherenceLogCardProps) {
   const router = useRouter()
   const todayKey = toDateKey(new Date())
@@ -55,6 +58,13 @@ export function CoachAdherenceLogCard({
         : createEmptyNutritionLogValues(targetDate)
     )
   }, [todayLog, targetDate])
+
+  const onValuesChangeRef = React.useRef(onValuesChange)
+  onValuesChangeRef.current = onValuesChange
+
+  React.useEffect(() => {
+    onValuesChangeRef.current?.(values)
+  }, [values])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()

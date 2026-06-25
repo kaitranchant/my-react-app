@@ -10,6 +10,8 @@ import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-se
 import { PortalHomeStatsRow } from '@/components/portal/portal-home-stats-row'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
 import { PortalProgramCard } from '@/components/portal/portal-program-card'
+import { PortalNoProgramCard } from '@/components/portal/portal-no-program-card'
+import { PortalHomeSkeleton } from '@/components/portal/portal-page-skeletons'
 import { PortalNutritionPrompt } from '@/components/portal/portal-nutrition-prompt'
 import { PortalReadinessPrompt } from '@/components/portal/portal-readiness-prompt'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
@@ -185,7 +187,7 @@ export default async function PortalPage() {
         .maybeSingle(),
       supabase
         .from('client_nutrition_profiles')
-        .select('id')
+        .select('client_id')
         .eq('client_id', clientRecord.id)
         .maybeSingle(),
       supabase
@@ -337,6 +339,8 @@ export default async function PortalPage() {
         description={activeProgram.description}
         summary={programSummary}
       />
+    ) : homeData ? (
+      <PortalNoProgramCard />
     ) : null
 
   const sessionBookingCard = sessionBookingEnabled ? (
@@ -427,7 +431,9 @@ export default async function PortalPage() {
             </aside>
           </div>
         </>
-      ) : null}
+      ) : (
+        <PortalHomeSkeleton />
+      )}
     </div>
   )
 }

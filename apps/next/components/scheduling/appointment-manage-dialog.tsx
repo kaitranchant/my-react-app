@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import {
+  bookCoachingAppointmentAsCoach,
   cancelCoachingAppointment,
+  deleteCoachingAppointment,
   getCoachAvailableSlots,
   rescheduleCoachingAppointment,
   updateCoachingAppointmentNotes,
@@ -13,6 +15,7 @@ import {
 } from '@/app/(dashboard)/scheduling/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDayHeader } from '@/lib/calendar'
+import { formatDayHeader, addDaysToDateKey } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import { formatAppointmentRange, getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
@@ -65,6 +68,31 @@ export function AppointmentManageDialog({
   const [rescheduleStartsAt, setRescheduleStartsAt] = React.useState<string>()
   const [noShowPackId, setNoShowPackId] = React.useState<string>()
   const [showReschedule, setShowReschedule] = React.useState(false)
+  const [showDuplicate, setShowDuplicate] = React.useState(false)
+  const [duplicateDateKey, setDuplicateDateKey] = React.useState('')
+  const [duplicateStartsAt, setDuplicateStartsAt] = React.useState<string>()
+
+  const deleteConfirm = useConfirmDialog({
+    title: 'Delete session?',
+    description:
+      appointment?.status === 'scheduled'
+        ? 'This permanently removes the session from your calendar. The client will not be notified — use Cancel session if you want to notify them.'
+        : 'This permanently removes the session from your calendar. This cannot be undone.',
+    confirmLabel: 'Delete session',
+    destructive: true,
+    onConfirm: async () => {
+      if (!appointment) return
+      const result = await deleteCoachingAppointment({
+        appointmentId: appointment.id,
+      })
+      if (result.success) {
+        await refreshAfterSuccess('Session deleted')
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   const clientPacks = React.useMemo(() => {
     if (!appointment) return []
@@ -84,21 +112,32 @@ export function AppointmentManageDialog({
     setPreNotes(appointment.pre_session_notes ?? appointment.notes ?? '')
     setPostNotes(appointment.post_session_notes ?? '')
     setShowReschedule(false)
+    setShowDuplicate(false)
     setRescheduleStartsAt(undefined)
+    setDuplicateStartsAt(undefined)
     setNoShowPackId(appointment.session_pack_id ?? undefined)
-    setRescheduleDateKey(
-      getDateKeyFromInstant(appointment.starts_at, coachPreferences.timezone)
+    const appointmentDateKey = getDateKeyFromInstant(
+      appointment.starts_at,
+      coachPreferences.timezone
     )
+    setRescheduleDateKey(appointmentDateKey)
+    setDuplicateDateKey(addDaysToDateKey(appointmentDateKey, 7))
   }, [appointment, coachPreferences.timezone, open])
 
+  const slotDateKey = showReschedule
+    ? rescheduleDateKey
+    : showDuplicate
+      ? duplicateDateKey
+      : ''
+
   React.useEffect(() => {
-    if (!open || !showReschedule || !rescheduleDateKey) {
+    if (!open || !slotDateKey) {
       setSlots([])
       return
     }
 
     let cancelled = false
-    getCoachAvailableSlots(rescheduleDateKey).then((result) => {
+    getCoachAvailableSlots(slotDateKey).then((result) => {
       if (cancelled) return
       if (result.success) {
         setSlots(result.slots)
@@ -111,7 +150,7 @@ export function AppointmentManageDialog({
     return () => {
       cancelled = true
     }
-  }, [open, rescheduleDateKey, showReschedule])
+  }, [open, slotDateKey])
 
   if (!appointment) {
     return null
@@ -196,6 +235,99 @@ export function AppointmentManageDialog({
       toast.error(result.error)
     }
   }
+
+  async function handleDuplicate() {
+    if (!duplicateStartsAt) {
+      toast.error('Select a time slot.')
+      return
+    }
+
+    setPending(true)
+    const result = await bookCoachingAppointmentAsCoach({
+      clientId: appointment!.client_id,
+      startsAt: duplicateStartsAt,
+      sessionPackId: appointment!.session_pack_id ?? null,
+      location: appointment!.location ?? null,
+      notes: preNotes || null,
+      coachingType: appointment!.coaching_type ?? null,
+    })
+    setPending(false)
+
+    if (result.success) {
+      await refreshAfterSuccess('Session duplicated')
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const slotPicker = (
+    dateKey: string,
+    startsAt: string | undefined,
+    onDateChange: (value: string) => void,
+    onTimeChange: (value: string | undefined) => void,
+    confirmLabel: string,
+    onConfirm: () => void
+  ) => (
+    <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Date</Label>
+          <Select
+            value={dateKey}
+            onValueChange={(value) => {
+              onDateChange(value)
+              onTimeChange(undefined)
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 14 }, (_, index) => {
+                const date = new Date()
+                date.setDate(date.getDate() + index)
+                const key = date.toISOString().slice(0, 10)
+                return (
+                  <SelectItem key={key} value={key}>
+                    {formatDayHeader(key)} · {key}
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Time</Label>
+          <Select
+            value={startsAt}
+            onValueChange={onTimeChange}
+            disabled={slots.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select slot" />
+            </SelectTrigger>
+            <SelectContent>
+              {slots.map((slot) => (
+                <SelectItem key={slot.startsAt} value={slot.startsAt}>
+                  {slot.startTimeLabel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter className="px-0 pb-0">
+        <Button
+          type="button"
+          size="sm"
+          disabled={pending || !startsAt}
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </Button>
+      </DialogFooter>
+    </div>
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -299,7 +431,10 @@ export function AppointmentManageDialog({
                   size="sm"
                   variant="outline"
                   disabled={pending}
-                  onClick={() => setShowReschedule((value) => !value)}
+                  onClick={() => {
+                    setShowDuplicate(false)
+                    setShowReschedule((value) => !value)
+                  }}
                 >
                   Reschedule
                 </Button>
@@ -314,70 +449,68 @@ export function AppointmentManageDialog({
                 </Button>
               </div>
 
-              {showReschedule ? (
-                <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>New date</Label>
-                      <Select
-                        value={rescheduleDateKey}
-                        onValueChange={(value) => {
-                          setRescheduleDateKey(value)
-                          setRescheduleStartsAt(undefined)
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 14 }, (_, index) => {
-                            const date = new Date()
-                            date.setDate(date.getDate() + index)
-                            const key = date.toISOString().slice(0, 10)
-                            return (
-                              <SelectItem key={key} value={key}>
-                                {formatDayHeader(key)} · {key}
-                              </SelectItem>
-                            )
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>New time</Label>
-                      <Select
-                        value={rescheduleStartsAt}
-                        onValueChange={setRescheduleStartsAt}
-                        disabled={slots.length === 0}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select slot" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {slots.map((slot) => (
-                            <SelectItem key={slot.startsAt} value={slot.startsAt}>
-                              {slot.startTimeLabel}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter className="px-0 pb-0">
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={pending || !rescheduleStartsAt}
-                      onClick={handleReschedule}
-                    >
-                      Confirm reschedule
-                    </Button>
-                  </DialogFooter>
-                </div>
-              ) : null}
+              {showReschedule
+                ? slotPicker(
+                    rescheduleDateKey,
+                    rescheduleStartsAt,
+                    setRescheduleDateKey,
+                    setRescheduleStartsAt,
+                    'Confirm reschedule',
+                    handleReschedule
+                  )
+                : null}
             </div>
           ) : null}
+
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-muted-foreground text-sm">
+              {canManage
+                ? 'Cancel keeps the session on your calendar as cancelled and notifies the client. Delete removes it entirely.'
+                : 'Remove this session from your calendar permanently.'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  setShowReschedule(false)
+                  setShowDuplicate((value) => !value)
+                }}
+              >
+                Duplicate
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={pending}
+                onClick={deleteConfirm.open}
+              >
+                Delete session
+              </Button>
+            </div>
+            {showDuplicate ? (
+              <>
+                <p className="text-muted-foreground text-sm">
+                  Book another session for {appointment.client?.full_name ?? 'this client'}{' '}
+                  with the same location and pre-session notes.
+                </p>
+                {slotPicker(
+                  duplicateDateKey,
+                  duplicateStartsAt,
+                  setDuplicateDateKey,
+                  setDuplicateStartsAt,
+                  'Confirm duplicate',
+                  handleDuplicate
+                )}
+              </>
+            ) : null}
+          </div>
         </div>
+        {deleteConfirm.dialog}
       </DialogContent>
     </Dialog>
   )

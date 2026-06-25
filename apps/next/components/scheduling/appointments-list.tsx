@@ -96,7 +96,8 @@ export function AppointmentsList({
     <ul className="divide-border divide-y rounded-lg border">
       {appointments.map((appointment) => {
         const isPending = pendingId === appointment.id
-        const canManage = appointment.status === 'scheduled'
+        const canClientCancel =
+          allowClientCancel && appointment.status === 'scheduled'
 
         return (
           <li
@@ -146,9 +147,9 @@ export function AppointmentsList({
               ) : null}
             </div>
 
-            {canManage ? (
+            {canClientCancel || onManage ? (
               <div className="flex shrink-0 flex-wrap gap-2">
-                {allowClientCancel ? (
+                {canClientCancel ? (
                   <Button
                     variant="outline"
                     size="sm"

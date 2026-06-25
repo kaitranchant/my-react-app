@@ -9,6 +9,7 @@ import {
   revokeGymInvite,
 } from '@/app/(dashboard)/gym/actions'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Table,
   TableBody,
@@ -28,6 +29,36 @@ export function GymInvitesPanel({
 }) {
   const router = useRouter()
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const inviteToRevokeRef = React.useRef<string | null>(null)
+
+  const revokeConfirm = useConfirmDialog({
+    title: 'Revoke invite?',
+    description: 'The invite link will stop working immediately.',
+    confirmLabel: 'Revoke invite',
+    destructive: true,
+    onConfirm: async () => {
+      const inviteId = inviteToRevokeRef.current
+      if (!inviteId) return
+
+      setBusyId(inviteId)
+      const result = await revokeGymInvite(gymId, inviteId)
+      setBusyId(null)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Invite revoked.')
+      inviteToRevokeRef.current = null
+      router.refresh()
+    },
+  })
+
+  function requestRevoke(inviteId: string) {
+    inviteToRevokeRef.current = inviteId
+    revokeConfirm.open()
+  }
 
   async function copyLink(inviteId: string) {
     setBusyId(inviteId)
@@ -43,22 +74,6 @@ export function GymInvitesPanel({
     toast.success('Invite link copied.')
   }
 
-  async function revoke(inviteId: string) {
-    if (!window.confirm('Revoke this invite?')) return
-
-    setBusyId(inviteId)
-    const result = await revokeGymInvite(gymId, inviteId)
-    setBusyId(null)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Invite revoked.')
-    router.refresh()
-  }
-
   if (invites.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -68,6 +83,7 @@ export function GymInvitesPanel({
   }
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -96,7 +112,7 @@ export function GymInvitesPanel({
                 variant="ghost"
                 size="sm"
                 disabled={busyId === invite.id}
-                onClick={() => revoke(invite.id)}
+                onClick={() => requestRevoke(invite.id)}
               >
                 Revoke
               </Button>
@@ -105,5 +121,7 @@ export function GymInvitesPanel({
         ))}
       </TableBody>
     </Table>
+    {revokeConfirm.dialog}
+    </>
   )
 }

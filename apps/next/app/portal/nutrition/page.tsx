@@ -32,6 +32,7 @@ export default async function PortalNutritionPage() {
   let planDays: MealPlanDayWithMeals[] = []
   let foodDiaryEntries: ClientFoodDiaryEntry[] = []
   let nutritionSchemaError: string | null = null
+  let needsFoodLibrarySql = false
 
   if (clientRecord?.id) {
     const todayKey = toDateKey(new Date())
@@ -88,6 +89,10 @@ export default async function PortalNutritionPage() {
       foodDiaryResult.error,
     ].find((error) => error && isMissingTableError(error.message))?.message ?? null
 
+    needsFoodLibrarySql = Boolean(
+      foodDiaryResult.error && isMissingTableError(foodDiaryResult.error.message)
+    )
+
     if (assignment) {
       planDays = await fetchMealPlanDaysWithMeals(supabase, assignment.meal_plan_id)
     }
@@ -110,9 +115,15 @@ export default async function PortalNutritionPage() {
           tables={[
             'client_nutrition_profiles',
             'client_nutrition_logs',
+            'client_food_diary_entries',
             'meal_plans',
+            'meal_plan_assignments',
+            'meal_plan_meal_foods',
           ]}
           sqlFile="apply-nutrition.sql"
+          additionalSqlFiles={
+            needsFoodLibrarySql ? ['apply-food-library.sql'] : []
+          }
         />
       ) : (
         <PortalNutritionPanel

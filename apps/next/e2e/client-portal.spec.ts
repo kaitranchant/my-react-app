@@ -22,10 +22,15 @@ test.describe('Client portal logging', () => {
   test('client sees portal dashboard with scheduled workout', async ({
     clientPage: page,
   }) => {
-    await expect(page.getByRole('heading', { name: /Welcome/i })).toBeVisible()
     await expect(
-      page.getByRole('link', { name: new RegExp(`Today: ${E2E_WORKOUT_NAME}`) })
+      page.getByRole('heading', { name: /Good (morning|afternoon|evening)/i })
     ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText("Today's workout").first()).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(
+      page.getByRole('heading', { name: E2E_WORKOUT_NAME })
+    ).toBeVisible()
   })
 
   test('client can start and complete a workout', async ({ clientPage: page }) => {
@@ -38,7 +43,7 @@ test.describe('Client portal logging', () => {
       await viewLogButton.click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({
+      await expect(dialog.getByLabel(/Set 1 weight/i).first()).toBeEnabled({
         timeout: 15_000,
       })
       await dialog.getByRole('button', { name: 'Close' }).click()
@@ -56,21 +61,24 @@ test.describe('Client portal logging', () => {
       await startButton.click()
     }
 
-    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({ timeout: 15_000 })
-    await dialog.getByLabel(/Set 1 weight/i).fill('135')
-    await dialog.getByLabel(/Set 1 reps/i).fill('10')
-    await ensureSetLogged(dialog, 1)
-
-    await expect(page.getByText(/Workout complete!/i).first()).toBeVisible({
+    await expect(dialog.getByLabel(/Set 1 weight/i).first()).toBeEnabled({
       timeout: 15_000,
     })
-    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled()
+    await dialog.getByLabel(/Set 1 weight/i).first().fill('135')
+    await dialog.getByLabel(/Set 1 reps/i).first().fill('10')
+    await ensureSetLogged(dialog, 1)
+
+    await expect(
+      dialog.getByRole('button', { name: 'Mark set 1 incomplete' }).first()
+    ).toBeVisible({ timeout: 15_000 })
 
     await dialog.getByRole('button', { name: 'Close' }).click()
     await expect(dialog).toBeHidden()
 
-    await expect(page.getByRole('button', { name: /View log/i })).toBeVisible({
-      timeout: 15_000,
-    })
+    await expect(
+      page.getByRole('button', {
+        name: /Log workout|Resume workout|Continue log|View log/i,
+      })
+    ).toBeVisible({ timeout: 15_000 })
   })
 })

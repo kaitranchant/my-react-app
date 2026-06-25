@@ -3348,7 +3348,7 @@ export type MealPlanDayWithMeals = MealPlanDay & {
 }
 
 export type MealPlanAssignmentWithPlan = MealPlanAssignment & {
-  meal_plan: Pick<MealPlan, 'id' | 'name' | 'description'>
+  meal_plan: Pick<MealPlan, 'id' | 'name' | 'description'> | null
 }
 
 export type ClientNutritionProfile =

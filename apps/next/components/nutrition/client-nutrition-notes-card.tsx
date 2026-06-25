@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 type ClientNutritionNotesCardProps = {
@@ -69,12 +70,16 @@ export function ClientNutritionNotesCard({
           )
         ) : (
           <form onSubmit={handleSubmit} className="grid gap-3">
-            <Textarea
-              rows={3}
+            <div className="grid gap-2">
+              <Label htmlFor="client-nutrition-notes">Your notes</Label>
+              <Textarea
+                id="client-nutrition-notes"
+                rows={3}
               placeholder="e.g. Struggling with evening snacking, craving sweets after dinner…"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
             <div className="flex justify-end">
               <Button type="submit" size="sm" disabled={pending}>
                 {pending ? 'Saving…' : 'Save notes'}

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { removeGymMember } from '@/app/(dashboard)/gym/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Table,
   TableBody,
@@ -30,28 +31,42 @@ export function GymMembersPanel({
 }) {
   const router = useRouter()
   const [removingId, setRemovingId] = React.useState<string | null>(null)
+  const memberToRemoveRef = React.useRef<{ id: string; name: string } | null>(
+    null
+  )
 
-  async function handleRemove(memberId: string, name: string) {
-    if (
-      !window.confirm(`Remove ${name} from the gym? They will lose access to gym member clients.`)
-    ) {
-      return
-    }
+  const removeConfirm = useConfirmDialog({
+    title: 'Remove coach from gym?',
+    description:
+      'They will lose access to gym member clients.',
+    confirmLabel: 'Remove coach',
+    destructive: true,
+    onConfirm: async () => {
+      const member = memberToRemoveRef.current
+      if (!member) return
 
-    setRemovingId(memberId)
-    const result = await removeGymMember(gymId, memberId)
-    setRemovingId(null)
+      setRemovingId(member.id)
+      const result = await removeGymMember(gymId, member.id)
+      setRemovingId(null)
 
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
 
-    toast.success('Coach removed.')
-    router.refresh()
+      toast.success('Coach removed.')
+      memberToRemoveRef.current = null
+      router.refresh()
+    },
+  })
+
+  function requestRemove(memberId: string, name: string) {
+    memberToRemoveRef.current = { id: memberId, name }
+    removeConfirm.open()
   }
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -92,7 +107,7 @@ export function GymMembersPanel({
                       variant="ghost"
                       size="sm"
                       disabled={removingId === member.id}
-                      onClick={() => handleRemove(member.id, name)}
+                      onClick={() => requestRemove(member.id, name)}
                     >
                       Remove
                     </Button>
@@ -104,5 +119,7 @@ export function GymMembersPanel({
         })}
       </TableBody>
     </Table>
+    {removeConfirm.dialog}
+    </>
   )
 }

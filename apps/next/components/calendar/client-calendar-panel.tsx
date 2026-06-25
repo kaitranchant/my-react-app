@@ -33,6 +33,7 @@ import { WorkoutBuilderModal } from '@/components/calendar/workout-builder-modal
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { openWorkoutLog } from '@/lib/open-workout-log'
 import {
@@ -155,6 +156,30 @@ export function ClientCalendarPanel({
     SchedulableWorkoutTemplate[]
   >([])
   const [templatesLoading, setTemplatesLoading] = React.useState(false)
+
+  const deleteWorkoutConfirm = useConfirmDialog({
+    title: 'Remove workout from calendar?',
+    description: 'This removes the scheduled workout from this date.',
+    confirmLabel: 'Remove workout',
+    destructive: true,
+    onConfirm: async () => {
+      if (!workout) return
+
+      setPending(true)
+      const result = await deleteScheduledWorkout(clientId, workout.id)
+      setPending(false)
+
+      if (result.success) {
+        toast.success('Workout removed.')
+        setBuilderOpen(false)
+        await refreshCalendar()
+        return
+      }
+
+      toast.error(result.error)
+      throw new Error(result.error)
+    },
+  })
   const [templatesError, setTemplatesError] = React.useState<string | null>(null)
   const handledActionRef = React.useRef<string | null>(null)
 
@@ -506,22 +531,9 @@ export function ClientCalendarPanel({
     }
   }
 
-  async function handleDeleteWorkout() {
+  function handleDeleteWorkout() {
     if (!workout) return
-    if (!window.confirm('Remove this workout from the calendar?')) return
-
-    setPending(true)
-    const result = await deleteScheduledWorkout(clientId, workout.id)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout removed.')
-      setBuilderOpen(false)
-      await refreshCalendar()
-      return
-    }
-
-    toast.error(result.error)
+    deleteWorkoutConfirm.open()
   }
 
   async function handleCopySingleDay() {
@@ -1076,6 +1088,7 @@ export function ClientCalendarPanel({
           </div>
         </DialogContent>
       </Dialog>
+      {deleteWorkoutConfirm.dialog}
     </div>
   )
 }

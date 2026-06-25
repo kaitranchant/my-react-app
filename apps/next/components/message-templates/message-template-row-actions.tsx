@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { deleteMessageTemplateRecord } from '@/app/(dashboard)/library/message-templates/actions'
 import { MessageTemplateFormDialog } from '@/components/message-templates/message-template-form-dialog'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,26 +27,24 @@ export function MessageTemplateRowActions({
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${template.name}? This permanently removes the template.`
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
-    const result = await deleteMessageTemplateRecord(template.id)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Template deleted')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${template.name}?`,
+    description: 'This permanently removes the template.',
+    confirmLabel: 'Delete template',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteMessageTemplateRecord(template.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Template deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   return (
     <>
@@ -67,7 +66,7 @@ export function MessageTemplateRowActions({
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem variant="destructive" onSelect={deleteConfirm.open}>
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -79,6 +78,7 @@ export function MessageTemplateRowActions({
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {deleteConfirm.dialog}
     </>
   )
 }

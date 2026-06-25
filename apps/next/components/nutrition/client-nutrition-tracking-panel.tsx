@@ -2,136 +2,136 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 import {
   addClientFoodDiaryEntry,
   deleteClientFoodDiaryEntry,
 } from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { CoachAdherenceLogCard } from '@/components/nutrition/coach-adherence-log-card'
-import { ClientMealPlanAssignmentCard } from '@/components/nutrition/assign-meal-plan-dialog'
 import { CoachNutritionNotesCard } from '@/components/nutrition/coach-nutrition-notes-card'
-import { NutritionDietaryCard } from '@/components/nutrition/nutrition-dietary-card'
-import { NutritionProfileForm } from '@/components/nutrition/nutrition-profile-form'
 import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
-import { MacroProgressCard } from '@/components/nutrition/macro-progress-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { ClientNutritionNotesCard } from '@/components/nutrition/client-nutrition-notes-card'
 import { toDateKey } from '@/lib/calendar'
 import type {
-  BiologicalSex,
   Client,
   ClientFoodDiaryEntry,
-  ClientGoal,
-  ClientInbodyScan,
   ClientNutritionLog,
   ClientNutritionProfile,
-  MealPlan,
   MealPlanAssignmentWithPlan,
   MealPlanDayWithMeals,
 } from 'app/types/database'
 
-type ClientNutritionPanelProps = {
+type ClientNutritionTrackingPanelProps = {
   client: Pick<Client, 'id' | 'full_name'>
   profile: ClientNutritionProfile | null
   logs: ClientNutritionLog[]
   assignment: MealPlanAssignmentWithPlan | null
-  mealPlans: Pick<MealPlan, 'id' | 'name' | 'status'>[]
-  clientMealPlans?: Pick<MealPlan, 'id' | 'name' | 'status' | 'updated_at'>[]
   planDays?: MealPlanDayWithMeals[]
   foodDiaryEntries?: ClientFoodDiaryEntry[]
-  goals?: ClientGoal[]
-  latestScan?: ClientInbodyScan | null
-  biologicalSex?: BiologicalSex | null
 }
 
-export function ClientNutritionPanel({
+export function ClientNutritionTrackingPanel({
   client,
   profile,
   logs,
   assignment,
-  mealPlans,
-  clientMealPlans = [],
   planDays = [],
   foodDiaryEntries = [],
-  goals = [],
-  latestScan = null,
-  biologicalSex = null,
-}: ClientNutritionPanelProps) {
+}: ClientNutritionTrackingPanelProps) {
   const router = useRouter()
   const todayKey = toDateKey(new Date())
   const [viewedDate, setViewedDate] = React.useState(todayKey)
+  const [adherenceDraft, setAdherenceDraft] = React.useState<{
+    waterMl: number | null
+    fiberG: number | null
+  } | null>(null)
   const viewedLog =
     logs.find((log) => log.log_date === viewedDate) ?? null
 
+  React.useEffect(() => {
+    setAdherenceDraft(null)
+  }, [viewedDate])
+
+  const handleAdherenceValuesChange = React.useCallback(
+    (values: { waterMl: number | null; fiberG: number | null }) => {
+      setAdherenceDraft((current) => {
+        if (
+          current?.waterMl === values.waterMl &&
+          current?.fiberG === values.fiberG
+        ) {
+          return current
+        }
+
+        return {
+          waterMl: values.waterMl,
+          fiberG: values.fiberG,
+        }
+      })
+    },
+    []
+  )
+
   return (
     <div className="grid gap-6">
-      <NutritionProfileForm
-        clientId={client.id}
-        profile={profile}
-        goals={goals}
-        latestScan={latestScan}
-        biologicalSex={biologicalSex}
-      />
-      <NutritionDietaryCard clientId={client.id} profile={profile} />
-      <ClientMealPlanAssignmentCard
-        clientId={client.id}
-        clientName={client.full_name}
+      <TodaysMealsCard
         assignment={assignment}
-        mealPlans={mealPlans}
-        clientMealPlans={clientMealPlans}
-        planDays={planDays}
+        days={planDays}
+        todayKey={todayKey}
         profile={profile}
       />
+
       <FoodDiaryPanel
         entries={foodDiaryEntries}
         readOnly
         enableDateNavigation
+        profile={profile}
+        nutritionLog={viewedLog}
+        waterMl={adherenceDraft?.waterMl ?? viewedLog?.water_ml ?? null}
+        fiberG={adherenceDraft?.fiberG ?? viewedLog?.fiber_g ?? null}
         onLogDateChange={setViewedDate}
         onAdd={async (entryValues) => {
           const result = await addClientFoodDiaryEntry(client.id, entryValues)
-          if (result.success) router.refresh()
+          if (result.success) {
+            router.refresh()
+          } else {
+            toast.error(result.error)
+          }
           return result
         }}
         onDelete={async (entryId) => {
           const result = await deleteClientFoodDiaryEntry(client.id, entryId)
-          if (result.success) router.refresh()
+          if (result.success) {
+            router.refresh()
+          } else {
+            toast.error(result.error)
+          }
           return result
         }}
       />
-      <MacroProgressCard
-        profile={profile}
-        foodDiaryEntries={foodDiaryEntries}
-        logDate={viewedDate}
-        todayKey={todayKey}
-        nutritionLog={viewedLog}
-        waterMl={viewedLog?.water_ml ?? null}
-        fiberG={viewedLog?.fiber_g ?? null}
-      />
+
       <CoachAdherenceLogCard
         clientId={client.id}
         clientName={client.full_name}
         todayLog={viewedLog}
         logDate={viewedDate}
+        onValuesChange={handleAdherenceValuesChange}
       />
-      {assignment ? (
-        <TodaysMealsCard
-          assignment={assignment}
-          days={planDays}
-          todayKey={todayKey}
-          profile={profile}
-        />
-      ) : null}
-      <ClientNutritionNotesCard
-        initialNotes={profile?.client_nutrition_notes ?? null}
-        readOnly
-      />
+
       <NutritionAdherenceSection
         logs={logs}
         profile={profile}
         foodDiaryEntries={foodDiaryEntries}
         clientName={client.full_name}
       />
+
+      <ClientNutritionNotesCard
+        initialNotes={profile?.client_nutrition_notes ?? null}
+        readOnly
+      />
+
       <CoachNutritionNotesCard clientId={client.id} profile={profile} />
     </div>
   )

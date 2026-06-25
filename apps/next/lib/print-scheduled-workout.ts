@@ -242,7 +242,7 @@ export function printScheduledWorkout(
   workout: ClientScheduledWorkoutWithExercises,
   selectedDate: string,
   subtitle?: string
-) {
+): boolean {
   const html = buildPrintHtml(workout, selectedDate, subtitle)
 
   const iframe = document.createElement('iframe')
@@ -260,8 +260,7 @@ export function printScheduledWorkout(
 
   if (!doc || !frameWindow) {
     iframe.remove()
-    window.alert('Could not open the print view. Please try again.')
-    return
+    return false
   }
 
   doc.open()
@@ -279,4 +278,6 @@ export function printScheduledWorkout(
     frameWindow.print()
     window.setTimeout(cleanup, 2000)
   }, 150)
+
+  return true
 }

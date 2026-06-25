@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { nutritionProfileToFormValues } from '@/lib/nutrition'
 import type { ClientNutritionProfile } from 'app/types/database'
@@ -68,12 +69,16 @@ export function CoachNutritionNotesCard({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-3">
-          <Textarea
-            rows={4}
+          <div className="grid gap-2">
+            <Label htmlFor="coach-nutrition-notes">Coach guidance</Label>
+            <Textarea
+              id="coach-nutrition-notes"
+              rows={4}
             placeholder="Guidance shown to the client (optional)"
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </div>
           <div className="flex justify-end">
             <Button type="submit" size="sm" disabled={pending}>
               {pending ? 'Saving…' : 'Save notes'}

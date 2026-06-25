@@ -24,6 +24,14 @@ import {
   type TrainingConsistencyHeatmap,
 } from '@/lib/training-consistency'
 import type { createClient } from '@/lib/supabase/server'
+import {
+  fetchPortalFormReviewHighlight,
+  fetchPortalMessageHighlight,
+} from '@/lib/portal-home-highlights'
+import {
+  type PortalNavBadges,
+} from '@/lib/portal-nav-badges'
+import { getCoachDateKey } from '@/lib/coach-preferences'
 import type {
   CalendarDaySummary,
   ClientCheckIn,
@@ -275,5 +283,73 @@ export async function fetchPortalProgressData(
     strengthHistoryTrend,
     strengthHistoryExerciseId,
     trainingConsistency,
+  }
+}
+
+export async function fetchPortalNavBadges(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  coachPreferences: CoachPreferences = defaultCoachPreferences
+): Promise<PortalNavBadges> {
+  const { start: periodStart, end: periodEnd } = getCheckInPeriodBounds(
+    coachPreferences.defaultCheckInFrequency,
+    coachPreferences.weekStartsOn,
+    coachPreferences.timezone
+  )
+  const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+
+  const [
+    messageHighlight,
+    formReviewHighlight,
+    periodCheckInResult,
+    todayNutritionLogResult,
+    nutritionProfileResult,
+    activeMealPlanResult,
+  ] = await Promise.all([
+    fetchPortalMessageHighlight(supabase, clientId),
+    fetchPortalFormReviewHighlight(supabase, clientId),
+    supabase
+      .from('client_check_ins')
+      .select('id, reviewed_at')
+      .eq('client_id', clientId)
+      .gte('check_in_date', periodStart)
+      .lte('check_in_date', periodEnd)
+      .order('check_in_date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('client_nutrition_logs')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('log_date', coachTodayKey)
+      .maybeSingle(),
+    supabase
+      .from('client_nutrition_profiles')
+      .select('client_id')
+      .eq('client_id', clientId)
+      .maybeSingle(),
+    supabase
+      .from('meal_plan_assignments')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .maybeSingle(),
+  ])
+
+  const periodCheckIn =
+    (periodCheckInResult.data as Pick<ClientCheckIn, 'reviewed_at'> | null) ??
+    null
+  const checkInDue =
+    getPortalCheckInStatus(periodCheckIn as ClientCheckIn | null) === 'due'
+  const nutritionConfigured =
+    Boolean(nutritionProfileResult.data) || Boolean(activeMealPlanResult.data)
+  const nutritionDue =
+    nutritionConfigured && !todayNutritionLogResult.data
+
+  return {
+    unreadMessages: messageHighlight?.unreadCount ?? 0,
+    pendingFormReviews: formReviewHighlight?.pendingCount ?? 0,
+    checkInDue,
+    nutritionDue,
   }
 }

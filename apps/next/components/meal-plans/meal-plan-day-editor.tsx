@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -15,9 +15,11 @@ import {
   updateMealPlanDay,
 } from '@/app/(dashboard)/library/meal-plans/[planId]/actions'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
+import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
 import { MacroTotalsBadges } from '@/components/nutrition/macro-totals-badges'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -35,6 +37,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  buildCustomFoodSnapshot,
   formatFoodMacrosShort,
   formatFoodQuantityLabel,
   type FoodSelectionSnapshot,
@@ -71,6 +74,57 @@ function snapshotToMealFoodValues(
     fatG: snapshot.fatG,
     sortOrder,
   }
+}
+
+function MealPlanFoodPicker({
+  idPrefix,
+  disabled,
+  addLabel = 'Add food',
+  onAdd,
+}: {
+  idPrefix: string
+  disabled: boolean
+  addLabel?: string
+  onAdd: (snapshot: FoodSelectionSnapshot) => void
+}) {
+  const [manualMode, setManualMode] = React.useState(false)
+
+  if (manualMode) {
+    return (
+      <ManualFoodEntryForm
+        showQuantity
+        idPrefix={`${idPrefix}-manual`}
+        disabled={disabled}
+        submitLabel={addLabel}
+        onBack={() => setManualMode(false)}
+        onSubmit={(values) => {
+          if (!values.quantityG) return
+          onAdd(
+            buildCustomFoodSnapshot({
+              foodName: values.foodName,
+              quantityG: values.quantityG,
+              caloriesKcal: values.caloriesKcal,
+              proteinG: values.proteinG,
+              carbsG: values.carbsG,
+              fatG: values.fatG,
+            })
+          )
+          setManualMode(false)
+        }}
+      />
+    )
+  }
+
+  return (
+    <FoodSearchPicker
+      idPrefix={idPrefix}
+      disabled={disabled}
+      addLabel={addLabel}
+      showManualEntry
+      onManualEntry={() => setManualMode(true)}
+      onAdd={onAdd}
+    />
+  )
 }
 
 export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) {
@@ -141,8 +195,12 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
 
         {days.length === 0 ? (
           <Card>
-            <CardContent className="text-muted-foreground py-10 text-center text-sm">
-              Add a day to start building meals for this plan.
+            <CardContent>
+              <EmptyState
+                icon={UtensilsCrossed}
+                title="No days in this plan yet"
+                description="Add a day to start building meals for this template."
+              />
             </CardContent>
           </Card>
         ) : (
@@ -151,7 +209,7 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
               key={day.id}
               mealPlanId={mealPlanId}
               day={day}
-              disabled={pending}
+              disabled={false}
               onDeleteDay={() => requestDeleteDay(day.id)}
             />
           ))
@@ -466,6 +524,7 @@ function MealPlanDayCard({
                                 className="size-7 shrink-0"
                                 disabled={disabled || pending}
                                 onClick={() => handleDeleteMealFood(meal.id, food.id)}
+                                aria-label={`Remove ${food.food_name}`}
                               >
                                 <Trash2 className="size-3.5" />
                               </Button>
@@ -490,6 +549,7 @@ function MealPlanDayCard({
                         size="icon"
                         disabled={disabled || pending}
                         onClick={() => handleDeleteMeal(meal.id)}
+                        aria-label={`Delete ${meal.name}`}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -497,7 +557,8 @@ function MealPlanDayCard({
                   </div>
                   {isExpanded ? (
                     <div className="border-border mt-3 border-t pt-3">
-                      <FoodSearchPicker
+                      <MealPlanFoodPicker
+                        idPrefix={`meal-food-${meal.id}`}
                         disabled={disabled || pending}
                         addLabel="Add to meal"
                         onAdd={(snapshot) =>
@@ -511,7 +572,11 @@ function MealPlanDayCard({
             })}
           </ul>
         ) : (
-          <p className="text-muted-foreground text-sm">No meals yet for this day.</p>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="No meals yet for this day"
+            description="Use the form below to add your first meal with USDA foods or manual entries."
+          />
         )}
 
         <form onSubmit={handleAddMeal} className="border-border grid gap-4 rounded-lg border p-4">
@@ -558,7 +623,8 @@ function MealPlanDayCard({
             />
           </div>
 
-          <FoodSearchPicker
+          <MealPlanFoodPicker
+            idPrefix={`draft-food-${day.id}`}
             disabled={disabled || pending}
             onAdd={handleDraftFoodAdd}
           />
@@ -592,6 +658,7 @@ function MealPlanDayCard({
                     className="size-7 shrink-0"
                     disabled={disabled || pending}
                     onClick={() => handleRemoveDraftFood(index)}
+                    aria-label={`Remove ${food.foodName}`}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>

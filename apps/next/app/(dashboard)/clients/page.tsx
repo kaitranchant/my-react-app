@@ -215,7 +215,9 @@ export default async function ClientsPage({
         </Suspense>
       ) : null}
 
-      <ClientsToolbar />
+      <Suspense fallback={null}>
+        <ClientsToolbar />
+      </Suspense>
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">

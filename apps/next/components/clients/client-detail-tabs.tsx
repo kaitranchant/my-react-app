@@ -60,7 +60,9 @@ export function ClientDetailTabs({
       params.delete('section')
     } else {
       params.set('tab', nextMain)
-      if (nextMain !== 'training' && nextMain !== 'progress') {
+      if (nextMain === 'nutrition') {
+        params.delete('section')
+      } else if (nextMain !== 'training' && nextMain !== 'progress') {
         params.delete('section')
       }
     }

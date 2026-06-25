@@ -9,6 +9,7 @@ import {
   leaveGym,
 } from '@/app/(dashboard)/gym/actions'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Card,
   CardContent,
@@ -43,33 +44,32 @@ export function GymDangerZone({
   const [deletePending, setDeletePending] = React.useState(false)
   const [confirmation, setConfirmation] = React.useState('')
 
+  const leaveConfirm = useConfirmDialog({
+    title: 'Leave this gym?',
+    description:
+      'You will lose access to clients who are members from other coaches.',
+    confirmLabel: 'Leave gym',
+    destructive: true,
+    onConfirm: async () => {
+      setLeavePending(true)
+      const result = await leaveGym(gymId)
+      setLeavePending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('You left the gym.')
+      router.refresh()
+    },
+  })
+
   React.useEffect(() => {
     if (!deleteOpen) {
       setConfirmation('')
     }
   }, [deleteOpen])
-
-  async function handleLeave() {
-    if (
-      !window.confirm(
-        'Leave this gym? You will lose access to clients who are members from other coaches.'
-      )
-    ) {
-      return
-    }
-
-    setLeavePending(true)
-    const result = await leaveGym(gymId)
-    setLeavePending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('You left the gym.')
-    router.refresh()
-  }
 
   async function handleDelete() {
     setDeletePending(true)
@@ -149,12 +149,13 @@ export function GymDangerZone({
           <Button
             variant="destructive"
             disabled={leavePending}
-            onClick={handleLeave}
+            onClick={leaveConfirm.open}
           >
             {leavePending ? 'Leaving…' : 'Leave gym'}
           </Button>
         )}
       </CardContent>
+      {leaveConfirm.dialog}
     </Card>
   )
 }

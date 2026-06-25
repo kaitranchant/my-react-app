@@ -18,6 +18,7 @@ import { TeamEventsCalendar } from '@/components/teams/team-events-calendar'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Card,
   CardContent,
@@ -81,6 +82,32 @@ export function TeamEventsPanel({
     string | null
   >(highlightDate)
 
+  const [eventToDeleteId, setEventToDeleteId] = React.useState<string | null>(
+    null
+  )
+
+  const deleteEventConfirm = useConfirmDialog({
+    title: 'Delete event?',
+    description: 'This permanently removes the team event.',
+    confirmLabel: 'Delete event',
+    destructive: true,
+    onConfirm: async () => {
+      if (!eventToDeleteId) return
+
+      setPending(true)
+      const result = await deleteTeamEvent(teamId, eventToDeleteId)
+      setPending(false)
+      if (result.success) {
+        toast.success('Event deleted')
+        setEventToDeleteId(null)
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
   React.useEffect(() => {
     if (!highlightDate) return
     setCalendarSelectedDate(highlightDate)
@@ -102,17 +129,9 @@ export function TeamEventsPanel({
   const upcoming = events.filter((event) => event.event_date >= todayKey)
   const past = events.filter((event) => event.event_date < todayKey)
 
-  async function handleDelete(eventId: string) {
-    if (!window.confirm('Delete this event?')) return
-    setPending(true)
-    const result = await deleteTeamEvent(teamId, eventId)
-    setPending(false)
-    if (result.success) {
-      toast.success('Event deleted')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
+  function requestDeleteEvent(eventId: string) {
+    setEventToDeleteId(eventId)
+    deleteEventConfirm.open()
   }
 
   async function handleMarkAllPresent(event: TeamEventWithMemberStatus) {
@@ -241,7 +260,7 @@ export function TeamEventsPanel({
                       size="sm"
                       variant="ghost"
                       disabled={pending}
-                      onClick={() => handleDelete(event.id)}
+                      onClick={() => requestDeleteEvent(event.id)}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -354,6 +373,7 @@ export function TeamEventsPanel({
   }
 
   return (
+    <>
     <Card className="gap-0 py-0">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-4">
         <CardTitle className="text-muted-foreground">Team schedule</CardTitle>
@@ -419,5 +439,7 @@ export function TeamEventsPanel({
         )}
       </CardContent>
     </Card>
+    {deleteEventConfirm.dialog}
+    </>
   )
 }

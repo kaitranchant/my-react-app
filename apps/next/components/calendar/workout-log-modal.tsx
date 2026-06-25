@@ -63,6 +63,7 @@ import {
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -1049,6 +1050,69 @@ export function WorkoutLogScreen({
   const [celebrationPrs, setCelebrationPrs] = React.useState<NewPrSummary[]>([])
   const [showCelebration, setShowCelebration] = React.useState(false)
   const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
+  const [exerciseToRemove, setExerciseToRemove] =
+    React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
+
+  const removeExerciseConfirm = useConfirmDialog({
+    title: exerciseToRemove
+      ? `Remove ${exerciseToRemove.exercise.name}?`
+      : 'Remove exercise?',
+    description: 'Logged sets for this exercise will be deleted.',
+    confirmLabel: 'Remove exercise',
+    destructive: true,
+    onConfirm: async () => {
+      const exercise = exerciseToRemove
+      if (!exercise) return
+
+      if (data && workoutHasProgress(data, data.logSets)) {
+        const saved = await persistSets(exerciseStateRef.current, {
+          silent: true,
+          reload: false,
+          notifyParent: false,
+          blockUi: false,
+        })
+        if (!saved) return
+      }
+
+      setPending(true)
+      const result = await removeScheduledExercise(clientId, exercise.id)
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Exercise removed.')
+      setExerciseToRemove(null)
+      await loadData()
+      onChanged()
+    },
+  })
+
+  const skipWorkoutConfirm = useConfirmDialog({
+    title: 'Skip workout?',
+    description: 'This marks the workout as skipped.',
+    confirmLabel: 'Skip workout',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = isClientPortal
+        ? await skipPortalWorkoutLog(workoutId)
+        : await skipWorkoutLog(clientId, workoutId)
+      setPending(false)
+
+      if (result.success) {
+        toast.success('Workout skipped.')
+        await loadData()
+        onChanged()
+        return
+      }
+
+      toast.error(result.error)
+      throw new Error(result.error)
+    },
+  })
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
@@ -1579,63 +1643,16 @@ export function WorkoutLogScreen({
     })
   }
 
-  async function handleRemoveExercise(
+  function requestRemoveExercise(
     exercise: ScheduledWorkoutExerciseWithDetails
   ) {
-    if (
-      !window.confirm(
-        `Remove ${exercise.exercise.name} from this workout? Logged sets for this exercise will be deleted.`
-      )
-    ) {
-      return
-    }
-
-    if (data && workoutHasProgress(data, data.logSets)) {
-      const saved = await persistSets(exerciseStateRef.current, {
-        silent: true,
-        reload: false,
-        notifyParent: false,
-        blockUi: false,
-      })
-      if (!saved) return
-    }
-
-    setPending(true)
-    const result = await removeScheduledExercise(clientId, exercise.id)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Exercise removed.')
-      await loadData()
-      onChanged()
-      return
-    }
-
-    toast.error(result.error)
+    setExerciseToRemove(exercise)
+    removeExerciseConfirm.open()
   }
 
   async function handleExerciseStructureChanged() {
     await loadData()
     onChanged()
-  }
-
-  async function handleSkipWorkout() {
-    if (!window.confirm('Mark this workout as skipped?')) return
-
-    setPending(true)
-    const result = isClientPortal
-      ? await skipPortalWorkoutLog(workoutId)
-      : await skipWorkoutLog(clientId, workoutId)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout skipped.')
-      await loadData()
-      onChanged()
-      return
-    }
-
-    toast.error(result.error)
   }
 
   const status = data?.status ?? initialStatus
@@ -1677,7 +1694,7 @@ export function WorkoutLogScreen({
         onRemoveSet={(setNumber) => handleRemoveSet(exercise, setNumber)}
         onEdit={() => setEditingExercise(exercise)}
         onReplace={() => setReplacingExercise(exercise)}
-        onDelete={() => void handleRemoveExercise(exercise)}
+        onDelete={() => requestRemoveExercise(exercise)}
         onNotesChanged={() => void loadData()}
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
@@ -1830,7 +1847,7 @@ export function WorkoutLogScreen({
                     size="sm"
                     className="text-muted-foreground"
                     disabled={pending || loading}
-                    onClick={handleSkipWorkout}
+                    onClick={skipWorkoutConfirm.open}
                   >
                     Skip
                   </Button>
@@ -2067,6 +2084,8 @@ export function WorkoutLogScreen({
         </div>
         {celebrationDialog}
         {workoutCompleteDialog}
+        {removeExerciseConfirm.dialog}
+        {skipWorkoutConfirm.dialog}
       </>
     )
   }
@@ -2080,6 +2099,8 @@ export function WorkoutLogScreen({
       </Dialog>
       {celebrationDialog}
       {workoutCompleteDialog}
+      {removeExerciseConfirm.dialog}
+      {skipWorkoutConfirm.dialog}
     </>
   )
 }

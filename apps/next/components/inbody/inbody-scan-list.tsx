@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { InbodyScanForm } from '@/components/inbody/inbody-scan-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
@@ -88,6 +89,25 @@ function ScanRow({
   const [isEditing, setIsEditing] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
 
+  const deleteConfirm = useConfirmDialog({
+    title: 'Delete InBody scan?',
+    description: 'This permanently removes the scan from history.',
+    confirmLabel: 'Delete scan',
+    destructive: true,
+    onConfirm: async () => {
+      setIsDeleting(true)
+      const result = await onDelete(scan.id)
+      setIsDeleting(false)
+      if (result.success) {
+        toast.success('Scan deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
   async function handleUpdate(values: InbodyScanFormValues) {
     const result = await onUpdate(scan.id, values)
     if (result.success) {
@@ -95,19 +115,6 @@ function ScanRow({
       router.refresh()
     }
     return result
-  }
-
-  async function handleDelete() {
-    if (!window.confirm('Delete this InBody scan?')) return
-    setIsDeleting(true)
-    const result = await onDelete(scan.id)
-    setIsDeleting(false)
-    if (result.success) {
-      toast.success('Scan deleted')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
   }
 
   return (
@@ -141,7 +148,7 @@ function ScanRow({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleDelete}
+                  onClick={deleteConfirm.open}
                   disabled={isDeleting}
                 >
                   <Trash2 className="size-3.5" />
@@ -165,6 +172,7 @@ function ScanRow({
           <ScanDetail scan={scan} />
         )}
       </CardContent>
+      {deleteConfirm.dialog}
     </Card>
   )
 }

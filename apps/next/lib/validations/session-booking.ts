@@ -96,6 +96,12 @@ export const cancelAppointmentSchema = z.object({
 
 export type CancelAppointmentValues = z.infer<typeof cancelAppointmentSchema>
 
+export const deleteAppointmentSchema = z.object({
+  appointmentId: z.string().uuid(),
+})
+
+export type DeleteAppointmentValues = z.infer<typeof deleteAppointmentSchema>
+
 export const updateAppointmentStatusSchema = z.object({
   appointmentId: z.string().uuid(),
   status: z.enum([

@@ -42,6 +42,28 @@ export function scaleFoodMacros(per100g: FoodMacros, quantityG: number): FoodMac
   return scaled
 }
 
+export function buildCustomFoodSnapshot(values: {
+  foodName: string
+  quantityG: number
+  caloriesKcal?: number | null
+  proteinG?: number | null
+  carbsG?: number | null
+  fatG?: number | null
+  fiberG?: number | null
+}): FoodSelectionSnapshot {
+  return {
+    source: 'custom',
+    externalId: null,
+    foodName: values.foodName.trim(),
+    quantityG: values.quantityG,
+    caloriesKcal: values.caloriesKcal ?? 0,
+    proteinG: values.proteinG ?? 0,
+    carbsG: values.carbsG ?? 0,
+    fatG: values.fatG ?? 0,
+    fiberG: values.fiberG ?? null,
+  }
+}
+
 export function buildFoodSelectionSnapshot(
   food: Pick<FoodCatalogRecord, 'id' | 'name' | 'source' | 'per100g'>,
   quantityG: number

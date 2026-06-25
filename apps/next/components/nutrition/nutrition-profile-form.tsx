@@ -54,6 +54,11 @@ type NutritionProfileFormProps = {
   goals?: ClientGoal[]
   latestScan?: ClientInbodyScan | null
   biologicalSex?: BiologicalSex | null
+  hideGoalBanner?: boolean
+}
+
+export type NutritionProfileFormHandle = {
+  applyGoalCalorieAdjustment: () => void
 }
 
 function macroValuesFromProfile(
@@ -462,13 +467,20 @@ function MacroTargetFields({
   )
 }
 
-export function NutritionProfileForm({
-  clientId,
-  profile,
-  goals = [],
-  latestScan = null,
-  biologicalSex = null,
-}: NutritionProfileFormProps) {
+export const NutritionProfileForm = React.forwardRef<
+  NutritionProfileFormHandle,
+  NutritionProfileFormProps
+>(function NutritionProfileForm(
+  {
+    clientId,
+    profile,
+    goals = [],
+    latestScan = null,
+    biologicalSex = null,
+    hideGoalBanner = false,
+  },
+  ref
+) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
   const [tdeeExpanded, setTdeeExpanded] = React.useState(false)
@@ -592,20 +604,15 @@ export function NutritionProfileForm({
     setTdeeExpanded(true)
   }
 
-  return (
-    <div className="grid gap-4">
-      {goalContext ? (
-        <NutritionGoalContextBanner
-          context={goalContext}
-          onApplyCalorieAdjustment={
-            goalContext.suggestedCalorieAdjustment != null
-              ? applyGoalCalorieAdjustment
-              : undefined
-          }
-        />
-      ) : null}
+  const applyGoalCalorieAdjustmentRef = React.useRef(applyGoalCalorieAdjustment)
+  applyGoalCalorieAdjustmentRef.current = applyGoalCalorieAdjustment
 
-      <Card>
+  React.useImperativeHandle(ref, () => ({
+    applyGoalCalorieAdjustment: () => applyGoalCalorieAdjustmentRef.current(),
+  }))
+
+  const macroTargetsCard = (
+    <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
             <CardTitle>Macro targets</CardTitle>
@@ -699,6 +706,25 @@ export function NutritionProfileForm({
           </form>
         </CardContent>
       </Card>
+  )
+
+  if (hideGoalBanner) {
+    return macroTargetsCard
+  }
+
+  return (
+    <div className="grid gap-4">
+      {goalContext ? (
+        <NutritionGoalContextBanner
+          context={goalContext}
+          onApplyCalorieAdjustment={
+            goalContext.suggestedCalorieAdjustment != null
+              ? applyGoalCalorieAdjustment
+              : undefined
+          }
+        />
+      ) : null}
+      {macroTargetsCard}
     </div>
   )
-}
+})

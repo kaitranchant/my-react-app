@@ -6,6 +6,7 @@ import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +26,26 @@ export function ClientRowActions({ client }: { client: Client }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
+
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${client.full_name}?`,
+    description:
+      'This permanently removes the client and cannot be undone.',
+    confirmLabel: 'Delete client',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteClientRecord(client.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Client deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   if (client.is_coach_self) {
     return null
@@ -51,25 +72,6 @@ export function ClientRowActions({ client }: { client: Client }) {
       } else {
         toast.success('Client restored')
       }
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${client.full_name}? This permanently removes the client and cannot be undone.`
-      )
-    ) {
-      return
-    }
-    setPending(true)
-    const result = await deleteClientRecord(client.id)
-    setPending(false)
-    if (result.success) {
-      toast.success('Client deleted')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -107,7 +109,7 @@ export function ClientRowActions({ client }: { client: Client }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem variant="destructive" onSelect={deleteConfirm.open}>
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -119,6 +121,7 @@ export function ClientRowActions({ client }: { client: Client }) {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {deleteConfirm.dialog}
     </>
   )
 }

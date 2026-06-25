@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -22,24 +22,36 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
+import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 import { addDaysToDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
+import { MacroAdherenceBadges } from '@/components/nutrition/macro-adherence-badges'
 import {
+  buildMacroAdherenceItems,
   formatFoodDiaryEntryMacros,
   groupFoodDiaryByMeal,
   sumFoodDiaryMacros,
 } from '@/lib/food-diary'
 import { formatFoodQuantityLabel, type FoodSelectionSnapshot } from '@/lib/food-catalog'
-import { MEAL_TYPE_LABELS } from '@/lib/nutrition'
+import { hasNutritionTargets, MEAL_TYPE_LABELS } from '@/lib/nutrition'
 import { mealTypes } from '@/lib/validations/nutrition'
 import type { FoodDiaryEntryFormValues } from '@/lib/validations/nutrition'
-import type { ClientFoodDiaryEntry } from 'app/types/database'
+import type {
+  ClientFoodDiaryEntry,
+  ClientNutritionLog,
+  ClientNutritionProfile,
+} from 'app/types/database'
 
 type FoodDiaryPanelProps = {
   entries: ClientFoodDiaryEntry[]
   logDate?: string
   readOnly?: boolean
   enableDateNavigation?: boolean
+  profile?: ClientNutritionProfile | null
+  nutritionLog?: ClientNutritionLog | null
+  waterMl?: number | null
+  fiberG?: number | null
   onAdd?: (values: FoodDiaryEntryFormValues) => Promise<{ success: boolean; error?: string }>
   onDelete?: (entryId: string) => Promise<{ success: boolean; error?: string }>
   onLogDateChange?: (logDate: string) => void
@@ -66,26 +78,26 @@ export function FoodDiaryPanel({
   logDate: initialLogDate = toDateKey(new Date()),
   readOnly = false,
   enableDateNavigation = false,
+  profile = null,
+  nutritionLog = null,
+  waterMl,
+  fiberG,
   onAdd,
   onDelete,
   onLogDateChange,
 }: FoodDiaryPanelProps) {
   const todayKey = toDateKey(new Date())
   const [selectedDate, setSelectedDate] = React.useState(initialLogDate)
-  const logDate = enableDateNavigation ? selectedDate : initialLogDate
-
-  React.useEffect(() => {
-    if (!enableDateNavigation) {
-      setSelectedDate(initialLogDate)
-    }
-  }, [enableDateNavigation, initialLogDate])
   const [showForm, setShowForm] = React.useState(false)
   const [manualMode, setManualMode] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [deletePending, setDeletePending] = React.useState<string | null>(null)
+  const [formValues, setFormValues] = React.useState(() =>
+    createEmptyEntry(initialLogDate)
+  )
   const pendingDeleteEntryId = React.useRef<string | null>(null)
-  const [formValues, setFormValues] = React.useState(createEmptyEntry(logDate))
   const dateInputRef = React.useRef<HTMLInputElement>(null)
+  const logDate = enableDateNavigation ? selectedDate : initialLogDate
 
   const deleteConfirm = useConfirmDialog({
     title: 'Remove food entry?',
@@ -111,8 +123,17 @@ export function FoodDiaryPanel({
   })
 
   React.useEffect(() => {
-    onLogDateChange?.(logDate)
-  }, [logDate, onLogDateChange])
+    if (!enableDateNavigation) {
+      setSelectedDate(initialLogDate)
+    }
+  }, [enableDateNavigation, initialLogDate])
+
+  const onLogDateChangeRef = React.useRef(onLogDateChange)
+  onLogDateChangeRef.current = onLogDateChange
+
+  React.useEffect(() => {
+    onLogDateChangeRef.current?.(logDate)
+  }, [logDate])
 
   React.useEffect(() => {
     setFormValues(createEmptyEntry(logDate))
@@ -122,6 +143,20 @@ export function FoodDiaryPanel({
   const dayEntries = entries.filter((entry) => entry.log_date === logDate)
   const groups = groupFoodDiaryByMeal(dayEntries)
   const dayTotals = sumFoodDiaryMacros(dayEntries)
+  const macroItems = buildMacroAdherenceItems(
+    dayTotals,
+    profile,
+    waterMl ?? nutritionLog?.water_ml,
+    fiberG ?? nutritionLog?.fiber_g
+  )
+  const hasFoodLogged =
+    dayTotals.caloriesKcal > 0 ||
+    dayTotals.proteinG > 0 ||
+    dayTotals.carbsG > 0 ||
+    dayTotals.fatG > 0
+  const showMacroProgress = hasNutritionTargets(profile) || hasFoodLogged
+  const dateLabel =
+    logDate === todayKey ? 'today' : formatDayHeader(logDate).toLowerCase()
 
   async function submitEntry(values: FoodDiaryEntryFormValues) {
     if (!onAdd) return
@@ -162,17 +197,6 @@ export function FoodDiaryPanel({
     deleteConfirm.open()
   }
 
-  async function handleManualAdd(event: React.FormEvent) {
-    event.preventDefault()
-    if (!formValues.foodName.trim()) return
-    await submitEntry({
-      ...formValues,
-      source: 'custom',
-      externalId: null,
-      quantityG: null,
-    })
-  }
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -205,6 +229,11 @@ export function FoodDiaryPanel({
                 size="sm"
                 className="min-w-[4.5rem] px-3"
                 onClick={() => dateInputRef.current?.showPicker?.()}
+                aria-label={
+                  logDate === todayKey
+                    ? 'Select date, currently Today'
+                    : `Select date, currently ${formatDayHeader(logDate)}`
+                }
               >
                 {logDate === todayKey ? 'Today' : formatDayHeader(logDate)}
               </Button>
@@ -220,7 +249,7 @@ export function FoodDiaryPanel({
                 }}
                 className="sr-only"
                 tabIndex={-1}
-                aria-hidden
+                aria-label="Food diary date"
               />
               <Button
                 type="button"
@@ -251,7 +280,7 @@ export function FoodDiaryPanel({
         {showForm && onAdd ? (
           <div className="border-border bg-muted/20 grid gap-4 rounded-lg border p-4">
             <div className="grid gap-1.5 sm:max-w-xs">
-              <Label>Meal</Label>
+              <Label htmlFor="food-diary-meal-type">Meal</Label>
               <Select
                 value={formValues.mealType}
                 onValueChange={(value) =>
@@ -261,7 +290,7 @@ export function FoodDiaryPanel({
                   }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="food-diary-meal-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,69 +304,30 @@ export function FoodDiaryPanel({
             </div>
 
             {manualMode ? (
-              <form onSubmit={handleManualAdd} className="grid gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="food-name">Food</Label>
-                  <Input
-                    id="food-name"
-                    placeholder="e.g. Homemade smoothie"
-                    value={formValues.foodName}
-                    onChange={(event) =>
-                      setFormValues((current) => ({
-                        ...current,
-                        foodName: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-5">
-                  {(
-                    [
-                      ['caloriesKcal', 'Calories'],
-                      ['proteinG', 'Protein (g)'],
-                      ['carbsG', 'Carbs (g)'],
-                      ['fatG', 'Fat (g)'],
-                      ['fiberG', 'Fiber (g)'],
-                    ] as const
-                  ).map(([field, label]) => (
-                    <div key={field} className="grid gap-1.5">
-                      <Label>{label}</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        placeholder="—"
-                        value={formValues[field] ?? ''}
-                        onChange={(event) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            [field]:
-                              event.target.value === ''
-                                ? null
-                                : Number(event.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setManualMode(false)}
-                  >
-                    Back to search
-                  </Button>
-                  <Button type="submit" size="sm" disabled={pending}>
-                    {pending ? 'Saving…' : 'Log food'}
-                  </Button>
-                </div>
-              </form>
+              <ManualFoodEntryForm
+                showFiber
+                submitLabel={pending ? 'Saving…' : 'Log food'}
+                disabled={pending}
+                onBack={() => setManualMode(false)}
+                onSubmit={(values) =>
+                  void submitEntry({
+                    logDate,
+                    mealType: formValues.mealType,
+                    foodName: values.foodName,
+                    source: 'custom',
+                    externalId: null,
+                    quantityG: values.quantityG,
+                    caloriesKcal: values.caloriesKcal,
+                    proteinG: values.proteinG,
+                    carbsG: values.carbsG,
+                    fatG: values.fatG,
+                    fiberG: values.fiberG,
+                  })
+                }
+              />
             ) : (
               <FoodSearchPicker
+                idPrefix="food-diary"
                 disabled={pending}
                 addLabel="Log food"
                 onAdd={handleCatalogAdd}
@@ -363,19 +353,33 @@ export function FoodDiaryPanel({
         ) : null}
 
         {groups.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {readOnly && onAdd
-              ? logDate === todayKey
-                ? 'No food logged for today. Add an entry on behalf of the client.'
-                : 'No food logged for this day.'
-              : readOnly
+          <EmptyState
+            icon={UtensilsCrossed}
+            title={
+              logDate === todayKey ? 'No food logged yet' : 'No food logged for this day'
+            }
+            description={
+              readOnly && onAdd
                 ? logDate === todayKey
-                  ? 'No food logged for today.'
-                  : 'No food logged for this day.'
-                : logDate === todayKey
-                  ? 'No food logged yet today. Tap Add food to start.'
-                  : 'No food logged for this day.'}
-          </p>
+                  ? 'Add an entry on behalf of the client.'
+                  : 'Nothing was logged for this date.'
+                : readOnly
+                  ? logDate === todayKey
+                    ? 'The client has not logged any food today.'
+                    : 'Nothing was logged for this date.'
+                  : logDate === todayKey
+                    ? 'Search USDA foods or enter a custom item to start your diary.'
+                    : 'Add food for this day if you forgot to log it earlier.'
+            }
+            action={
+              onAdd && !showForm
+                ? {
+                    label: 'Add food',
+                    onClick: () => setShowForm(true),
+                  }
+                : undefined
+            }
+          />
         ) : (
           <div className="grid gap-4">
             {groups.map((group) => (
@@ -430,24 +434,44 @@ export function FoodDiaryPanel({
               </div>
             ))}
 
-            {dayTotals.caloriesKcal > 0 ? (
-              <div className="border-border bg-muted/30 rounded-lg border px-4 py-3">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                  Daily totals
-                </p>
-                <p className="mt-1 text-sm font-medium">
-                  {Math.round(dayTotals.caloriesKcal)} kcal ·{' '}
-                  {Math.round(dayTotals.proteinG)}g P ·{' '}
-                  {Math.round(dayTotals.carbsG)}g C ·{' '}
-                  {Math.round(dayTotals.fatG)}g F
-                  {dayTotals.fiberG > 0
-                    ? ` · ${Math.round(dayTotals.fiberG)}g fiber`
-                    : ''}
-                </p>
-              </div>
-            ) : null}
           </div>
         )}
+
+        {showMacroProgress ? (
+          <div className="border-border border-t pt-4">
+            <div className="mb-3 space-y-1">
+              <p className="text-sm font-medium">Macro progress</p>
+              <p className="text-muted-foreground text-xs">
+                {hasNutritionTargets(profile)
+                  ? `Food diary vs coach targets for ${dateLabel}.`
+                  : `Food logged for ${dateLabel} — set macro targets to track progress.`}
+              </p>
+            </div>
+            {macroItems.length > 0 ? (
+              <MacroAdherenceBadges items={macroItems} />
+            ) : hasFoodLogged ? (
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {dayTotals.caloriesKcal > 0
+                  ? `${Math.round(dayTotals.caloriesKcal)} kcal`
+                  : null}
+                {dayTotals.proteinG > 0
+                  ? ` · ${Math.round(dayTotals.proteinG)}g protein`
+                  : null}
+                {dayTotals.carbsG > 0
+                  ? ` · ${Math.round(dayTotals.carbsG)}g carbs`
+                  : null}
+                {dayTotals.fatG > 0 ? ` · ${Math.round(dayTotals.fatG)}g fat` : null}
+                {dayTotals.fiberG > 0
+                  ? ` · ${Math.round(dayTotals.fiberG)}g fiber`
+                  : null}
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No food logged for this day yet.
+              </p>
+            )}
+          </div>
+        ) : null}
       </CardContent>
       {deleteConfirm.dialog}
     </Card>

@@ -3,7 +3,7 @@ import {
   isMissingTableError,
   SchemaSetupNotice,
 } from '@/components/library/schema-setup-notice'
-import { ClientNutritionPanel } from '@/components/nutrition/client-nutrition-panel'
+import { ClientDetailNutritionSection } from '@/components/clients/client-detail-nutrition-section'
 import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
 import type {
   BiologicalSex,
@@ -98,6 +98,7 @@ export async function ClientDetailNutritionPanel({
   const mealPlanAssignment = mealPlanAssignmentResult.data
     ? (mealPlanAssignmentResult.data as MealPlanAssignmentWithPlan)
     : null
+  const hasResolvableAssignment = Boolean(mealPlanAssignment?.meal_plan)
   const availableMealPlans = (mealPlansResult.data ?? []) as Pick<
     MealPlan,
     'id' | 'name' | 'status'
@@ -136,7 +137,7 @@ export async function ClientDetailNutritionPanel({
   }
 
   let planDays: MealPlanDayWithMeals[] = []
-  if (mealPlanAssignment) {
+  if (hasResolvableAssignment && mealPlanAssignment) {
     planDays = await fetchMealPlanDaysWithMeals(
       supabase,
       mealPlanAssignment.meal_plan_id
@@ -144,7 +145,7 @@ export async function ClientDetailNutritionPanel({
   }
 
   return (
-    <ClientNutritionPanel
+    <ClientDetailNutritionSection
       client={client}
       profile={nutritionProfile}
       logs={nutritionLogs}

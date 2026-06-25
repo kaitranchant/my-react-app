@@ -207,8 +207,11 @@ export function PortalNutritionSkeleton() {
     <div className="flex flex-col gap-6">
       <PortalPageHeaderSkeleton titleWidth="w-32" />
       <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-40 rounded-xl" />
       <Skeleton className="h-64 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
       <PortalSectionSkeleton rows={3} />
+      <Skeleton className="h-56 rounded-xl" />
       <Skeleton className="h-48 rounded-xl" />
     </div>
   )

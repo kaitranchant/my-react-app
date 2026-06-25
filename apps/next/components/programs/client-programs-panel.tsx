@@ -14,6 +14,7 @@ import {
 } from '@/app/(dashboard)/library/programs/actions'
 import { ProgramStatusBadge } from '@/components/programs/program-status-badge'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Card,
   CardContent,
@@ -64,6 +65,32 @@ export function ClientProgramsPanel({
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
 
+  const unassignConfirm = useConfirmDialog({
+    title: 'Remove program assignment?',
+    description:
+      'Workouts added from the program will be removed from the calendar.',
+    confirmLabel: 'Remove program',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await unassignProgramFromClient(clientId)
+      setPending(false)
+      if (result.success) {
+        const removedMessage =
+          result.removedCount > 0
+            ? ` ${result.removedCount} program workout${
+                result.removedCount === 1 ? '' : 's'
+              } removed from calendar.`
+            : ''
+        toast.success(`Program removed.${removedMessage}`)
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
   const assignablePrograms = availablePrograms.filter(
     (program) => program.status !== 'archived'
   )
@@ -103,27 +130,6 @@ export function ClientProgramsPanel({
     }
   }
 
-  async function onUnassign() {
-    if (!window.confirm(
-      'Remove this program assignment? Workouts added from the program will be removed from the calendar.'
-    )) return
-    setPending(true)
-    const result = await unassignProgramFromClient(clientId)
-    setPending(false)
-    if (result.success) {
-      const removedMessage =
-        result.removedCount > 0
-          ? ` ${result.removedCount} program workout${
-              result.removedCount === 1 ? '' : 's'
-            } removed from calendar.`
-          : ''
-      toast.success(`Program removed.${removedMessage}`)
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
   return (
     <div className="space-y-4">
       {activeAssignment ? (
@@ -156,7 +162,7 @@ export function ClientProgramsPanel({
               size="icon"
               className="size-8 shrink-0"
               disabled={pending}
-              onClick={onUnassign}
+              onClick={unassignConfirm.open}
             >
               <X className="size-4" />
               <span className="sr-only">Remove assignment</span>
@@ -261,6 +267,7 @@ export function ClientProgramsPanel({
           )}
         </CardContent>
       </Card>
+      {unassignConfirm.dialog}
     </div>
   )
 }

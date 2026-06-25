@@ -17,6 +17,7 @@ import { MealPlanStatusBadge } from '@/components/meal-plans/meal-plan-status-ba
 import { CreateClientMealPlanDialog } from '@/components/nutrition/create-client-meal-plan-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -54,11 +55,7 @@ import {
   assessMealPlanTargetAlignment,
   formatMealPlanTargetWarning,
 } from '@/lib/meal-plan-target-alignment'
-import {
-  formatMealMacros,
-  getTodayMealPlanDay,
-  MEAL_TYPE_LABELS,
-} from '@/lib/nutrition'
+import { getTodayMealPlanDay } from '@/lib/nutrition'
 import {
   computeMealPlanSummary,
 } from '@/lib/meal-plan-stats'
@@ -281,9 +278,9 @@ export function ClientMealPlanAssignmentCard({
     profile?.calories_kcal
   )
   const todayKey = toDateKey(new Date())
-  const { day: todayDay, planDayLabel, planComplete } = assignment
-    ? getTodayMealPlanDay(assignment, planDays, todayKey)
-    : { day: null, planDayLabel: null, planComplete: false }
+  const planComplete = assignment
+    ? getTodayMealPlanDay(assignment, planDays, todayKey).planComplete
+    : false
 
   const otherClientPlans = clientMealPlans.filter(
     (plan) => plan.id !== assignment?.meal_plan_id
@@ -331,7 +328,26 @@ export function ClientMealPlanAssignmentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {assignment ? (
+        {assignment && !assignment.meal_plan ? (
+          <div className="grid gap-3">
+            <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>
+                This client is linked to a meal plan that no longer exists. Remove
+                the assignment and choose a different plan.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive w-fit"
+              disabled={pending}
+              onClick={() => removeConfirm.open()}
+            >
+              {pending ? 'Removing…' : 'Remove broken assignment'}
+            </Button>
+          </div>
+        ) : assignment?.meal_plan ? (
           <div className="grid gap-4">
             <div className="grid gap-2">
               <p className="font-medium">{assignment.meal_plan.name}</p>
@@ -419,39 +435,14 @@ export function ClientMealPlanAssignmentCard({
                 {pending ? 'Removing…' : 'Remove'}
               </Button>
             </div>
-
-            {todayDay && todayDay.meals.length > 0 ? (
-              <div className="border-border bg-muted/20 rounded-lg border p-4">
-                <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
-                  Today&apos;s meals ({planDayLabel})
-                </p>
-                <ul className="grid gap-2">
-                  {todayDay.meals.map((meal) => {
-                    const macros = formatMealMacros(meal)
-                    return (
-                      <li key={meal.id} className="text-sm">
-                        <span className="text-muted-foreground">
-                          {MEAL_TYPE_LABELS[meal.meal_type]}:
-                        </span>{' '}
-                        <span className="font-medium">{meal.name}</span>
-                        {macros ? (
-                          <span className="text-muted-foreground">
-                            {' '}
-                            · {macros}
-                          </span>
-                        ) : null}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            ) : null}
           </div>
         ) : otherClientPlans.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No active meal plan assigned. Create a custom plan or assign a
-            library template.
-          </p>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="No meal plan assigned"
+            description="Create a custom plan for this client or assign a library template."
+            className="py-4"
+          />
         ) : null}
 
         {otherClientPlans.length > 0 ? (

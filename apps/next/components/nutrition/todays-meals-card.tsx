@@ -73,14 +73,19 @@ export function TodaysMealsCard({
             className="py-4"
           />
         ) : planComplete ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            You&apos;ve reached the end of your current meal plan. Ask your
-            coach for the next phase.
-          </p>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="Plan cycle complete"
+            description="You've reached the end of your current meal plan. Ask your coach for the next phase."
+            className="py-4"
+          />
         ) : !day || day.meals.length === 0 ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            No meals planned for today.
-          </p>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="No meals planned for today"
+            description="Your coach may still be building this day in your plan."
+            className="py-4"
+          />
         ) : (
           <div className="grid gap-4">
             {todayAlignment?.isMisaligned ? (

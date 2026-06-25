@@ -188,6 +188,7 @@ export function NutritionDietaryCard({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      aria-label={`Remove supplement ${supplement.name || 'entry'}`}
                       onClick={() =>
                         setSupplements((current) =>
                           current.filter((_, itemIndex) => itemIndex !== index)

@@ -32,6 +32,11 @@ export function RouteError({
         <p className="text-muted-foreground text-sm leading-relaxed">
           {description}
         </p>
+        {process.env.NODE_ENV === 'development' && error.message ? (
+          <p className="text-destructive/90 mt-3 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-left font-mono text-xs break-words">
+            {error.message}
+          </p>
+        ) : null}
       </div>
       <Button onClick={reset}>Try again</Button>
     </div>

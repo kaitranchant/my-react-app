@@ -9,12 +9,22 @@ import {
   E2E_COACH_PASSWORD,
   E2E_MEAL_PLAN_NAME,
   E2E_MEAL_PLAN_MEAL_NAME,
+  E2E_FOOD_SEARCH_QUERY,
   hasE2ECredentials,
   signOutFromApp,
 } from './fixtures'
 
-async function coachNutritionPage(page: import('@playwright/test').Page) {
+async function coachNutritionTrackingPage(page: import('@playwright/test').Page) {
   await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
+  await expect(page.getByRole('tab', { name: 'Tracking' })).toBeVisible()
+  await expect(page.getByText('Food diary').first()).toBeVisible({
+    timeout: 10_000,
+  })
+}
+
+async function coachNutritionSetupPage(page: import('@playwright/test').Page) {
+  await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition&section=setup`)
+  await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible()
   await expect(page.getByText('Macro targets').first()).toBeVisible({
     timeout: 10_000,
   })
@@ -57,6 +67,42 @@ async function assignMealPlanWithStartDate(
 }
 
 test.describe('Nutrition', () => {
+  test('portal home shows nutrition prompt when targets set and no log today', async ({
+    page,
+  }) => {
+    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+    test.setTimeout(60_000)
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
+    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page).toHaveURL(/\/dashboard/)
+
+    await coachNutritionSetupPage(page)
+    await page.getByLabel('Calories (kcal)').fill('2100')
+    await page.getByLabel('Protein (g)').fill('150')
+    await page.getByRole('button', { name: 'Save targets' }).click()
+    await expect(page.getByText('Nutrition targets saved.')).toBeVisible({
+      timeout: 10_000,
+    })
+
+    await signOutFromApp(page, 'E2E Coach')
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
+    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
+    await Promise.all([
+      page.waitForURL(/\/portal/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
+
+    await page.goto('/portal')
+    await expect(page.getByRole('link', { name: 'Log nutrition' })).toBeVisible({
+      timeout: 10_000,
+    })
+  })
+
   test('coach sets macro targets and client logs daily adherence', async ({
     page,
   }) => {
@@ -69,7 +115,7 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await coachNutritionPage(page)
+    await coachNutritionSetupPage(page)
     await page.getByLabel('Calories (kcal)').fill('2200')
     await page.getByLabel('Protein (g)').fill('160')
     await page.getByRole('button', { name: 'Save targets' }).click()
@@ -92,7 +138,7 @@ test.describe('Nutrition', () => {
     await expect(page.getByText('2200 kcal')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('160 g')).toBeVisible()
 
-    await page.getByRole('button', { name: '5' }).click()
+    await page.getByRole('button', { name: 'Adherence 5 of 5' }).click()
     await page.getByRole('button', { name: 'Log today' }).click()
     await expect(page.getByText('Nutrition log saved.')).toBeVisible({
       timeout: 10_000,
@@ -106,7 +152,7 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await coachNutritionPage(page)
+    await coachNutritionTrackingPage(page)
     await expect(page.getByText('5/5')).toBeVisible({ timeout: 10_000 })
   })
 
@@ -122,7 +168,7 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await coachNutritionPage(page)
+    await coachNutritionSetupPage(page)
     await page.getByRole('button', { name: 'Gluten-free' }).click()
     await page.getByRole('button', { name: 'Save dietary info' }).click()
     await expect(page.getByText('Dietary info saved.')).toBeVisible({
@@ -167,6 +213,61 @@ test.describe('Nutrition', () => {
     })
   })
 
+  test('client logs USDA food from catalog search', async ({ page }) => {
+    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+    test.setTimeout(60_000)
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
+    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
+    await Promise.all([
+      page.waitForURL(/\/portal/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
+
+    await page.goto('/portal/nutrition')
+    await page.getByRole('button', { name: 'Add food' }).click()
+    await page.getByLabel('Search foods').fill(E2E_FOOD_SEARCH_QUERY)
+
+    await expect(
+      page.getByRole('option').first().or(page.getByRole('alert'))
+    ).toBeVisible({ timeout: 15_000 })
+
+    if (await page.getByRole('alert').isVisible()) {
+      test.skip(true, 'Food catalog not configured in this environment')
+    }
+
+    await page.getByRole('option').first().click()
+    await page.getByRole('button', { name: 'Log food' }).click()
+    await expect(
+      page.locator('li').filter({ hasText: new RegExp(E2E_FOOD_SEARCH_QUERY, 'i') }).first()
+    ).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('portal adherence form syncs with food diary date', async ({ page }) => {
+    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+    test.setTimeout(60_000)
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
+    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
+    await Promise.all([
+      page.waitForURL(/\/portal/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
+
+    await page.goto('/portal/nutrition')
+    await page.getByRole('button', { name: 'Previous day' }).click()
+    await expect(page.getByRole('heading', { name: /Adherence for/i })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Adherence 3 of 5' }).click()
+    await page.getByRole('button', { name: /Save log|Update log/ }).click()
+    await expect(page.getByText('Nutrition log saved.')).toBeVisible({
+      timeout: 10_000,
+    })
+  })
+
   test('coach assigns meal plan and client sees today meals', async ({
     page,
   }) => {
@@ -179,7 +280,7 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
+    await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition&section=setup`)
     await expect(page.getByText('Meal plan', { exact: true }).first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Assign meal plan' }).click()
@@ -229,6 +330,7 @@ test.describe('Nutrition', () => {
     await expect(page).toHaveURL(/\/dashboard/)
 
     await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
+    await expect(page.getByRole('tab', { name: 'Tracking' })).toBeVisible()
     await page.getByRole('button', { name: 'Add food' }).click()
     await page
       .getByRole('button', { name: 'Enter food manually instead' })
@@ -264,11 +366,11 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await coachNutritionPage(page)
+    await coachNutritionTrackingPage(page)
     await expect(
       page.getByRole('heading', { name: /Log adherence for/i })
     ).toBeVisible()
-    await page.getByRole('button', { name: '4' }).click()
+    await page.getByRole('button', { name: 'Adherence 4 of 5' }).click()
     await page.getByLabel('Fiber (g)').fill('28')
     await page.getByLabel('Water (ml)').fill('2500')
     await page.getByRole('button', { name: /Save log|Update log/ }).click()
@@ -321,7 +423,7 @@ test.describe('Nutrition', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
 
-    await coachNutritionPage(page)
+    await coachNutritionSetupPage(page)
     await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
 
     const dayCountText = await mealPlanCard(page)

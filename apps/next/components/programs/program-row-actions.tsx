@@ -7,6 +7,7 @@ import { Archive, ArchiveRestore, CalendarDays, MoreHorizontal, Pencil, Trash2 }
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,26 @@ export function ProgramRowActions({ program }: { program: Program }) {
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${program.name}?`,
+    description:
+      'This removes the program and any assignment history.',
+    confirmLabel: 'Delete program',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteProgramRecord(program.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Program deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
   async function handleStatus(archive: boolean) {
     setPending(true)
     const result = await setProgramStatus(
@@ -35,25 +56,6 @@ export function ProgramRowActions({ program }: { program: Program }) {
     setPending(false)
     if (result.success) {
       toast.success(archive ? 'Program archived' : 'Program restored')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${program.name}? This removes the program and any assignment history.`
-      )
-    ) {
-      return
-    }
-    setPending(true)
-    const result = await deleteProgramRecord(program.id)
-    setPending(false)
-    if (result.success) {
-      toast.success('Program deleted')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -97,7 +99,7 @@ export function ProgramRowActions({ program }: { program: Program }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem variant="destructive" onSelect={deleteConfirm.open}>
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -109,6 +111,7 @@ export function ProgramRowActions({ program }: { program: Program }) {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {deleteConfirm.dialog}
     </>
   )
 }

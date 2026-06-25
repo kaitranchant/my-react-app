@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { deleteTeamRecord } from '@/app/(dashboard)/teams/actions'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,26 +31,25 @@ export function TeamRowActions({
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${team.name}? Members will be removed from the team but their calendars are unchanged.`
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
-    const result = await deleteTeamRecord(team.id)
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Team deleted')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${team.name}?`,
+    description:
+      'Members will be removed from the team but their calendars are unchanged.',
+    confirmLabel: 'Delete team',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteTeamRecord(team.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Team deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   if (!isPrimaryCoach) {
     return null
@@ -75,7 +75,7 @@ export function TeamRowActions({
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem variant="destructive" onSelect={deleteConfirm.open}>
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -88,6 +88,7 @@ export function TeamRowActions({
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {deleteConfirm.dialog}
     </>
   )
 }

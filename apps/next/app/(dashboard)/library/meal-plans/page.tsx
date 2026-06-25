@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { UtensilsCrossed } from 'lucide-react'
+import { Search, UtensilsCrossed } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -20,6 +20,8 @@ import { AddMealPlanButton } from '@/components/meal-plans/meal-plan-form-dialog
 import { MealPlanRowActions } from '@/components/meal-plans/meal-plan-row-actions'
 import { MealPlanStatusBadge } from '@/components/meal-plans/meal-plan-status-badge'
 import { LibraryLoadError } from '@/components/library/schema-setup-notice'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
 import type { MealPlan, MealPlanStatus } from 'app/types/database'
 
 export const metadata = {
@@ -41,9 +43,9 @@ function formatDate(value: string) {
 export default async function LibraryMealPlansPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; q?: string }>
 }) {
-  const { status } = await searchParams
+  const { status, q } = await searchParams
   const supabase = await createClient()
 
   let queryBuilder = supabase
@@ -54,6 +56,10 @@ export default async function LibraryMealPlansPage({
 
   if (status && isStatus(status)) {
     queryBuilder = queryBuilder.eq('status', status)
+  }
+
+  if (q && q.trim()) {
+    queryBuilder = queryBuilder.ilike('name', `%${q.trim()}%`)
   }
 
   const { data, error } = await queryBuilder
@@ -91,6 +97,14 @@ export default async function LibraryMealPlansPage({
     { label: 'Archived', value: 'archived' },
   ]
 
+  function buildFilterHref(filterStatus?: MealPlanStatus) {
+    const params = new URLSearchParams()
+    if (filterStatus) params.set('status', filterStatus)
+    if (q?.trim()) params.set('q', q.trim())
+    const query = params.toString()
+    return query ? `/library/meal-plans?${query}` : '/library/meal-plans'
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -104,9 +118,7 @@ export default async function LibraryMealPlansPage({
       <div className="flex flex-wrap gap-2">
         {statusFilters.map((filter) => {
           const active = filter.value ? status === filter.value : !status
-          const href = filter.value
-            ? `/library/meal-plans?status=${filter.value}`
-            : '/library/meal-plans'
+          const href = buildFilterHref(filter.value)
           return (
             <Link
               key={filter.label}
@@ -123,6 +135,26 @@ export default async function LibraryMealPlansPage({
         })}
       </div>
 
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/30 px-5 py-4">
+          <CardTitle className="text-muted-foreground">Search meal plans</CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 py-5">
+          <form action="/library/meal-plans" method="get" className="relative">
+            <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              name="q"
+              defaultValue={q ?? ''}
+              placeholder="Search by name, e.g. cut plan, high protein…"
+              className="pl-9"
+            />
+            {status && isStatus(status) ? (
+              <input type="hidden" name="status" value={status} />
+            ) : null}
+          </form>
+        </CardContent>
+      </Card>
+
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/30 px-5 py-4">
           <CardTitle className="text-muted-foreground">
@@ -137,20 +169,18 @@ export default async function LibraryMealPlansPage({
               sqlFile="apply-nutrition.sql"
             />
           ) : mealPlans.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-              <div className="empty-state-icon">
-                <UtensilsCrossed className="size-7" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium">No meal plans yet</p>
-                <p className="text-muted-foreground max-w-sm text-sm">
-                  {status
+            <div className="px-6 py-20">
+              <EmptyState
+                icon={UtensilsCrossed}
+                title="No meal plans yet"
+                description={
+                  status || q
                     ? 'No meal plans match this filter.'
-                    : 'Create your first meal plan template to assign to clients.'}
-                </p>
-              </div>
-              {!status ? (
-                <div className="pt-2">
+                    : 'Create your first meal plan template to assign to clients.'
+                }
+              />
+              {!status && !q ? (
+                <div className="mt-4 flex justify-center">
                   <AddMealPlanButton />
                 </div>
               ) : null}

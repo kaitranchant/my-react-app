@@ -14,6 +14,7 @@ import {
 } from '@/app/(dashboard)/library/programs/[programId]/phases/actions'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog,
   DialogContent,
@@ -96,6 +97,32 @@ export function ProgramPhasesPanel({
     null
   )
   const [pending, setPending] = React.useState(false)
+  const [phaseToDelete, setPhaseToDelete] = React.useState<ProgramPhase | null>(
+    null
+  )
+
+  const deleteConfirm = useConfirmDialog({
+    title: phaseToDelete ? `Remove "${phaseToDelete.name}"?` : 'Remove phase?',
+    description: 'Workouts in this day range are kept.',
+    confirmLabel: 'Remove phase',
+    destructive: true,
+    onConfirm: async () => {
+      if (!phaseToDelete) return
+
+      setPending(true)
+      const result = await deleteProgramPhase(programId, phaseToDelete.id)
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Phase removed')
+      setPhaseToDelete(null)
+      await refreshPhases()
+    },
+  })
 
   const activePhase = getPhaseForDayOffset(phases, selectedDayOffset)
 
@@ -148,26 +175,9 @@ export function ProgramPhasesPanel({
     }
   }
 
-  async function handleDelete(phase: ProgramPhase) {
-    if (
-      !window.confirm(
-        `Remove "${phase.name}"? Workouts in this day range are kept.`
-      )
-    ) {
-      return
-    }
-
-    setPending(true)
-    const result = await deleteProgramPhase(programId, phase.id)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Phase removed')
-    await refreshPhases()
+  function requestDelete(phase: ProgramPhase) {
+    setPhaseToDelete(phase)
+    deleteConfirm.open()
   }
 
   function handlePhaseClick(phase: ProgramPhase) {
@@ -257,7 +267,7 @@ export function ProgramPhasesPanel({
                     size="icon"
                     className="text-destructive size-7"
                     disabled={pending}
-                    onClick={() => handleDelete(phase)}
+                    onClick={() => requestDelete(phase)}
                     aria-label={`Delete ${phase.name}`}
                   >
                     <Trash2 className="size-3.5" />
@@ -383,6 +393,7 @@ export function ProgramPhasesPanel({
           </Form>
         </DialogContent>
       </Dialog>
+      {deleteConfirm.dialog}
     </div>
   )
 }

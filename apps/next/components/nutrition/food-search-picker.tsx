@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Loader2, Plus, Search } from 'lucide-react'
 
-import { searchFoodCatalog } from '@/app/(dashboard)/library/foods/catalog-actions'
+import { searchFoodCatalog } from '@/app/food-catalog-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ type FoodSearchPickerProps = {
   showManualEntry?: boolean
   onManualEntry?: () => void
   disabled?: boolean
+  idPrefix?: string
 }
 
 export function FoodSearchPicker({
@@ -30,7 +31,12 @@ export function FoodSearchPicker({
   showManualEntry = false,
   onManualEntry,
   disabled = false,
+  idPrefix: idPrefixProp,
 }: FoodSearchPickerProps) {
+  const generatedId = React.useId()
+  const idPrefix = idPrefixProp ?? generatedId
+  const searchId = `${idPrefix}-search`
+  const quantityId = `${idPrefix}-quantity`
   const [query, setQuery] = React.useState('')
   const [quantityG, setQuantityG] = React.useState(String(defaultQuantityG))
   const [results, setResults] = React.useState<FoodCatalogSearchResult[]>([])
@@ -100,11 +106,11 @@ export function FoodSearchPicker({
   return (
     <div className="grid gap-3">
       <div className="grid gap-2">
-        <Label htmlFor="food-search">Search foods</Label>
+        <Label htmlFor={searchId}>Search foods</Label>
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            id="food-search"
+            id={searchId}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search USDA foods, e.g. chicken breast"
@@ -119,7 +125,19 @@ export function FoodSearchPicker({
           Data from USDA FoodData Central. Quantities are in grams.
         </p>
         {catalogError ? (
-          <p className="text-destructive text-sm">{catalogError}</p>
+          <div
+            role="alert"
+            className="border-destructive/30 bg-destructive/5 rounded-lg border px-3 py-2 text-sm"
+          >
+            <p className="text-destructive">{catalogError}</p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Run{' '}
+              <code className="bg-muted rounded px-1 py-0.5">
+                yarn workspace next-app sync:food-catalog
+              </code>{' '}
+              from the repo root to load USDA foods.
+            </p>
+          </div>
         ) : null}
       </div>
 
@@ -132,6 +150,9 @@ export function FoodSearchPicker({
                 <li key={food.id}>
                   <button
                     type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    aria-label={`${food.name}, ${food.category}`}
                     className={`hover:bg-muted/50 w-full px-3 py-2 text-left ${
                       isSelected ? 'bg-muted/40' : ''
                     }`}
@@ -155,9 +176,9 @@ export function FoodSearchPicker({
 
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="grid gap-2">
-          <Label htmlFor="food-quantity">Quantity (g)</Label>
+          <Label htmlFor={quantityId}>Quantity (g)</Label>
           <Input
-            id="food-quantity"
+            id={quantityId}
             type="number"
             min="1"
             step="1"

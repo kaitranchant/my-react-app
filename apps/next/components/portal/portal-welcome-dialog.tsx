@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { CalendarCheck, CalendarDays, Sparkles } from 'lucide-react'
+import { CalendarCheck, CalendarDays, MessageSquare, Sparkles, UtensilsCrossed } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -62,8 +62,9 @@ export function PortalWelcomeDialog({ userId, coachName }: PortalWelcomeDialogPr
           </div>
           <DialogTitle>Welcome to your program</DialogTitle>
           <DialogDescription>
-            {coachName} is your coach. Start with today&apos;s workout, or share
-            a quick check-in so they can adjust your training.
+            {coachName} is your coach. Start with today&apos;s workout, share a
+            quick check-in, log nutrition, or send a message when you need
+            support.
           </DialogDescription>
         </DialogHeader>
 
@@ -78,6 +79,18 @@ export function PortalWelcomeDialog({ userId, coachName }: PortalWelcomeDialogPr
             <Link href="/portal/check-in" onClick={dismiss}>
               <CalendarCheck className="size-4" />
               Submit check-in
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/portal/nutrition" onClick={dismiss}>
+              <UtensilsCrossed className="size-4" />
+              Nutrition
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/portal/messages" onClick={dismiss}>
+              <MessageSquare className="size-4" />
+              Messages
             </Link>
           </Button>
         </div>

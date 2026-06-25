@@ -6,6 +6,7 @@ import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,25 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
   const [editOpen, setEditOpen] = React.useState(false)
   const [editExercise, setEditExercise] = React.useState<Exercise | null>(null)
   const [pending, setPending] = React.useState(false)
+
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${exercise.name}?`,
+    description: 'This permanently removes the exercise.',
+    confirmLabel: 'Delete exercise',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteExerciseRecord(exercise.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Exercise deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   async function openEditDialog() {
     setPending(true)
@@ -50,25 +70,6 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
     setPending(false)
     if (result.success) {
       toast.success(archive ? 'Exercise archived' : 'Exercise restored')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${exercise.name}? This permanently removes the exercise.`
-      )
-    ) {
-      return
-    }
-    setPending(true)
-    const result = await deleteExerciseRecord(exercise.id)
-    setPending(false)
-    if (result.success) {
-      toast.success('Exercise deleted')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -106,7 +107,7 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem variant="destructive" onSelect={deleteConfirm.open}>
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -120,6 +121,7 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
           onOpenChange={setEditOpen}
         />
       ) : null}
+      {deleteConfirm.dialog}
     </>
   )
 }

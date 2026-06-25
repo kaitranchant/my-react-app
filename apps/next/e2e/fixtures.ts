@@ -17,6 +17,7 @@ export const E2E_PROGRAM_NAME = 'E2E Test Program'
 export const E2E_WORKOUT_NAME = 'E2E Day 1 Workout'
 export const E2E_MEAL_PLAN_NAME = 'E2E Test Meal Plan'
 export const E2E_MEAL_PLAN_MEAL_NAME = 'E2E Test Breakfast'
+export const E2E_FOOD_SEARCH_QUERY = 'yogurt'
 export const E2E_CLIENT_ID =
   process.env.E2E_CLIENT_ID ?? 'cebb411a-1fa1-4939-ab5e-8d516d874df2'
 
@@ -64,6 +65,19 @@ export function teamIdFromUrl(url: string) {
 
 export { login }
 
+export async function dismissPortalWelcomeDialog(page: Page) {
+  const welcome = page.getByRole('dialog', { name: 'Welcome to your program' })
+  const appeared = await welcome
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (!appeared) return
+
+  await page.getByRole('button', { name: 'Explore on my own' }).click()
+  await expect(welcome).toBeHidden({ timeout: 10_000 })
+}
+
 export async function signOutFromApp(page: Page, userName: string) {
   await page
     .locator('[data-slot="dropdown-menu-trigger"]')
@@ -107,6 +121,7 @@ export const test = base.extend<E2EFixtures>({
   clientPage: async ({ page }, use) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
+    await dismissPortalWelcomeDialog(page)
     await use(page)
   },
 })

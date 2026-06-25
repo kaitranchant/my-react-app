@@ -21,6 +21,7 @@ import { ProgramPhasesPanel } from '@/components/programs/program-phases-panel'
 import { ProgramWorkoutBuilderModal } from '@/components/programs/program-workout-builder-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog,
   DialogContent,
@@ -136,6 +137,35 @@ export function ProgramCalendarPanel({
   const [copyStartWeek, setCopyStartWeek] = React.useState('')
   const [copyEndWeek, setCopyEndWeek] = React.useState('')
   const [phases, setPhases] = React.useState(initialPhases)
+
+  const deleteWorkoutConfirm = useConfirmDialog({
+    title: 'Remove workout from program?',
+    description: 'This removes the workout from this program day.',
+    confirmLabel: 'Remove workout',
+    destructive: true,
+    onConfirm: async () => {
+      if (!selectedWorkout) return
+
+      setPending(true)
+      const result = await deleteProgramScheduledWorkout(
+        programId,
+        selectedWorkout.id
+      )
+      setPending(false)
+
+      if (result.success) {
+        toast.success('Workout removed')
+        setSelectedWorkout(null)
+        setBuilderOpen(false)
+        setBuilderWorkout(null)
+        await refreshWeek()
+        return
+      }
+
+      toast.error(result.error)
+      throw new Error(result.error)
+    },
+  })
 
   const dayOffsets = getWeekDayOffsets(weekIndex)
   const loadableWorkouts = libraryWorkouts.filter(
@@ -519,25 +549,7 @@ export function ProgramCalendarPanel({
 
   async function handleDeleteWorkout() {
     if (!selectedWorkout) return
-    if (!window.confirm('Remove this workout from the program?')) return
-
-    setPending(true)
-    const result = await deleteProgramScheduledWorkout(
-      programId,
-      selectedWorkout.id
-    )
-    setPending(false)
-
-    if (result.success) {
-      toast.success('Workout removed')
-      setSelectedWorkout(null)
-      setBuilderOpen(false)
-      setBuilderWorkout(null)
-      await refreshWeek()
-      return
-    }
-
-    toast.error(result.error)
+    deleteWorkoutConfirm.open()
   }
 
   async function handleBuilderChanged() {
@@ -1021,6 +1033,7 @@ export function ProgramCalendarPanel({
           onCopy={openCopyDialog}
         />
       )}
+      {deleteWorkoutConfirm.dialog}
     </div>
   )
 }

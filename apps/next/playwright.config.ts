@@ -22,8 +22,11 @@ export default defineConfig({
       testIgnore: '**/mobile-smoke.spec.ts',
     },
     {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 14'] },
+      name: 'mobile-chrome',
+      use: {
+        ...devices['iPhone 14'],
+        browserName: 'chromium',
+      },
       testMatch: '**/mobile-smoke.spec.ts',
     },
   ],

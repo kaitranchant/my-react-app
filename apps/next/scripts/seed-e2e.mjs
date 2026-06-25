@@ -120,6 +120,21 @@ async function ensureExercise(coachId, name, muscleGroup) {
   return inserted.id
 }
 
+async function ensureE2ENutritionProfile(coachId, clientId) {
+  await supabase.from('client_nutrition_logs').delete().eq('client_id', clientId)
+
+  const { error } = await supabase.from('client_nutrition_profiles').upsert(
+    {
+      client_id: clientId,
+      coach_id: coachId,
+      calories_kcal: 2100,
+      protein_g: 150,
+    },
+    { onConflict: 'client_id' }
+  )
+  if (error) throw error
+}
+
 async function ensureE2EMealPlanTemplate(coachId, clientId) {
   await supabase.from('meal_plan_assignments').delete().eq('client_id', clientId)
   await supabase.from('client_food_diary_entries').delete().eq('client_id', clientId)
@@ -614,6 +629,7 @@ async function main() {
   }
 
   await ensureE2EMealPlanTemplate(coachId, clientId)
+  await ensureE2ENutritionProfile(coachId, clientId)
 
   console.log('E2E seed complete.')
   console.log(`  Coach:     ${COACH_EMAIL}`)
