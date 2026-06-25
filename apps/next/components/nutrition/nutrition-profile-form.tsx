@@ -341,7 +341,12 @@ function MacroTargetFields({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid gap-2">
+        <div className="sm:hidden">
+          <MacroInputModeToggle />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {MACRO_FIELD_CONFIG.map((config, index) => {
           const grams = values[config.field]
           const percent =
@@ -361,7 +366,11 @@ function MacroTargetFields({
               <div key={config.field} className="grid gap-2">
                 <Label htmlFor={config.inputId} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {config.label} (%)
-                  {index === 0 ? <MacroInputModeToggle /> : null}
+                  {index === 0 ? (
+                    <span className="hidden sm:inline">
+                      <MacroInputModeToggle />
+                    </span>
+                  ) : null}
                 </Label>
                 <Input
                   id={config.inputId}
@@ -390,7 +399,11 @@ function MacroTargetFields({
               <Label htmlFor={config.inputId} className="flex items-center justify-between gap-2">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {config.label} (g)
-                  {index === 0 ? <MacroInputModeToggle /> : null}
+                  {index === 0 ? (
+                    <span className="hidden sm:inline">
+                      <MacroInputModeToggle />
+                    </span>
+                  ) : null}
                 </span>
                 {percent != null ? (
                   <span className="text-primary text-xs font-medium tabular-nums">
@@ -422,6 +435,7 @@ function MacroTargetFields({
             onChange={(event) => onUpdate('fiberG', event.target.value)}
           />
         </div>
+      </div>
       </div>
 
       {macroInputMode === 'percent' && !hasCalories ? (
