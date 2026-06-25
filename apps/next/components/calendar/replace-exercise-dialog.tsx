@@ -3,20 +3,18 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 import { replaceScheduledExercise } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
-import { ensureCatalogExercise } from '@/app/(dashboard)/library/exercises/catalog-actions'
-import {
-  ExerciseCatalogPicker,
-  type CatalogExerciseSelection,
-} from '@/components/calendar/add-exercise-dialog'
 import {
   CustomExerciseTab,
   customExerciseQuickDefaults,
   customExerciseQuickSchema,
   type CustomExerciseQuickValues,
 } from '@/components/calendar/custom-exercise-tab'
+import { LibraryExerciseList } from '@/components/exercises/library-exercise-list'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,14 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
 import type { Exercise } from 'app/types/database'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 
-type ExerciseSource = 'catalog' | 'library' | 'custom'
+type ExerciseSource = 'library' | 'custom'
 
 type ReplaceExerciseDialogProps = {
   open: boolean
@@ -53,11 +47,8 @@ export function ReplaceExerciseDialog({
   onReplaced,
 }: ReplaceExerciseDialogProps) {
   const [pending, setPending] = React.useState(false)
-  const [source, setSource] = React.useState<ExerciseSource>('catalog')
-  const [catalogSelection, setCatalogSelection] =
-    React.useState<CatalogExerciseSelection | null>(null)
+  const [source, setSource] = React.useState<ExerciseSource>('library')
   const [libraryExerciseId, setLibraryExerciseId] = React.useState('')
-  const [libraryQuery, setLibraryQuery] = React.useState('')
   const [libraryExercises, setLibraryExercises] = React.useState(exercises)
 
   const customForm = useForm<CustomExerciseQuickValues>({
@@ -69,47 +60,17 @@ export function ReplaceExerciseDialog({
     setLibraryExercises(exercises)
   }, [exercises])
 
-  const importedExternalIds = React.useMemo(
-    () =>
-      libraryExercises
-        .map((exercise) => exercise.external_id)
-        .filter((id): id is string => Boolean(id)),
-    [libraryExercises]
-  )
-
-  const filteredLibrary = React.useMemo(() => {
-    const query = libraryQuery.trim().toLowerCase()
-    if (!query) return libraryExercises
-    return libraryExercises.filter((exercise) =>
-      exercise.name.toLowerCase().includes(query)
-    )
-  }, [libraryExercises, libraryQuery])
-
   const customName = customForm.watch('name')
 
   function resetDialog() {
-    setCatalogSelection(null)
     setLibraryExerciseId('')
-    setLibraryQuery('')
-    setSource('catalog')
+    setSource('library')
     customForm.reset(customExerciseQuickDefaults)
   }
 
   async function resolveExerciseId(): Promise<string | null> {
     if (source === 'library') {
       return libraryExerciseId || null
-    }
-
-    if (source === 'catalog' && catalogSelection) {
-      const ensured = await ensureCatalogExercise(
-        catalogSelection.externalId,
-        clientId
-      )
-      if (!ensured.success) {
-        toast.error(ensured.error)
-        return null
-      }
-      return ensured.exerciseId
     }
 
     if (source === 'custom') {
@@ -160,9 +121,6 @@ export function ReplaceExerciseDialog({
     const exerciseId = await resolveExerciseId()
     if (!exerciseId) {
       setPending(false)
-      if (source !== 'custom') {
-        toast.error('Select or create an exercise first.')
-      }
       return
     }
 
@@ -187,9 +145,7 @@ export function ReplaceExerciseDialog({
   const canSubmit =
     source === 'library'
       ? Boolean(libraryExerciseId)
-      : source === 'custom'
-        ? Boolean(customName?.trim())
-        : Boolean(catalogSelection)
+      : Boolean(customName?.trim())
 
   return (
     <Dialog
@@ -199,97 +155,55 @@ export function ReplaceExerciseDialog({
         if (!next) resetDialog()
       }}
     >
-      <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(92vh,820px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
           <DialogTitle>Replace exercise</DialogTitle>
           <p className="text-muted-foreground text-sm">
-            Swap <span className="text-foreground font-medium">{currentExerciseName}</span>{' '}
-            for a different exercise. Logged sets for this slot will be cleared.
+            Replacing <span className="font-medium">{currentExerciseName}</span>
           </p>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6">
           <Tabs
             value={source}
             onValueChange={(value) => setSource(value as ExerciseSource)}
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="catalog">Catalog</TabsTrigger>
-              <TabsTrigger value="library">My library</TabsTrigger>
+            <TabsList className="grid w-full shrink-0 grid-cols-2">
+              <TabsTrigger value="library">Library</TabsTrigger>
               <TabsTrigger value="custom">Custom</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="catalog" className="mt-4">
-              <ExerciseCatalogPicker
-                importedExternalIds={importedExternalIds}
-                selectedExternalId={catalogSelection?.externalId ?? null}
-                onSelect={(exercise) => {
-                  setCatalogSelection(exercise)
-                  setLibraryExerciseId('')
-                }}
+            <TabsContent
+              value="library"
+              className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <LibraryExerciseList
+                exercises={libraryExercises}
+                selectedId={libraryExerciseId || null}
+                onSelect={(exerciseId) => setLibraryExerciseId(exerciseId)}
+                className="min-h-[min(360px,48vh)]"
               />
             </TabsContent>
 
-            <TabsContent value="library" className="mt-4 space-y-3">
-              <Input
-                value={libraryQuery}
-                onChange={(event) => setLibraryQuery(event.target.value)}
-                placeholder="Search your library…"
-              />
-              <div className="max-h-[min(50vh,360px)] space-y-1 overflow-y-auto">
-                {filteredLibrary.length === 0 ? (
-                  <p className="text-muted-foreground py-6 text-center text-sm">
-                    No exercises found.
-                  </p>
-                ) : (
-                  filteredLibrary.map((exercise) => (
-                    <button
-                      key={exercise.id}
-                      type="button"
-                      onClick={() => {
-                        setLibraryExerciseId(exercise.id)
-                        setCatalogSelection(null)
-                      }}
-                      className={cn(
-                        'hover:bg-muted/60 w-full rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                        libraryExerciseId === exercise.id &&
-                          'border-brand bg-brand/5'
-                      )}
-                    >
-                      <span className="font-medium">{exercise.name}</span>
-                      {exercise.muscle_group && (
-                        <span className="text-muted-foreground ml-2 text-xs">
-                          {exercise.muscle_group}
-                        </span>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="custom" className="mt-4">
+            <TabsContent
+              value="custom"
+              className="mt-3 min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden"
+            >
               <CustomExerciseTab form={customForm} />
             </TabsContent>
           </Tabs>
         </div>
 
-        <div className="flex gap-2 border-t pt-4">
+        <div className="shrink-0 border-t px-4 py-4 sm:px-6">
           <Button
             type="button"
-            disabled={pending || !canSubmit}
+            className="w-full"
+            disabled={!canSubmit || pending}
             onClick={() => void handleReplace()}
-            className="flex-1"
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
             Replace exercise
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
           </Button>
         </div>
       </DialogContent>

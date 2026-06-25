@@ -8,7 +8,6 @@ import { Copy, Dumbbell, Layers, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
-import { ensureCatalogExercise } from '@/app/(dashboard)/library/exercises/catalog-actions'
 import {
   customExerciseQuickDefaults,
   customExerciseQuickSchema,
@@ -23,7 +22,7 @@ import { WorkoutArrangementPanel } from '@/components/calendar/workout-arrangeme
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { exerciseDbImageUrl } from '@/lib/exercisedb'
+import { exerciseDbImageUrl } from '@/lib/exercise-catalog'
 import { getNextSupersetGroup, getSupersetColor } from '@/lib/superset-groups'
 import {
   defaultPrescriptionValues,
@@ -55,7 +54,6 @@ type WorkoutBuilderProps = {
 
 function selectionLabel(selection: LibrarySelection | null): string | null {
   if (!selection) return null
-  if (selection.source === 'catalog') return selection.exercise.name
   if (selection.source === 'library') return selection.name
   return selection.name
 }
@@ -181,18 +179,6 @@ export function WorkoutBuilder({
       return librarySelection.exerciseId
     }
 
-    if (librarySelection?.source === 'catalog') {
-      const ensured = await ensureCatalogExercise(
-        librarySelection.exercise.externalId,
-        catalogClientId
-      )
-      if (!ensured.success) {
-        toast.error(ensured.error)
-        return null
-      }
-      return ensured.exerciseId
-    }
-
     if (
       librarySelection?.source === 'custom' ||
       customForm.getValues('name').trim()
@@ -296,9 +282,10 @@ export function WorkoutBuilder({
       ? selectedRow.exercise.name
       : selectionLabel(librarySelection)
 
-  const catalogExternalId =
-    librarySelection?.source === 'catalog'
-      ? librarySelection.exercise.externalId
+  const selectedExerciseExternalId =
+    librarySelection?.source === 'library'
+      ? (libraryExercises.find((e) => e.id === librarySelection.exerciseId)
+          ?.external_id ?? null)
       : selectedRow
         ? (libraryExercises.find((e) => e.id === selectedRow.exercise.id)
             ?.external_id ?? null)
@@ -417,11 +404,11 @@ export function WorkoutBuilder({
           {activeExerciseName ? (
             <div className="border-b px-4 py-3">
               <div className="flex items-center gap-3">
-                {catalogExternalId && (
+                {selectedExerciseExternalId && (
                   <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-md">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={exerciseDbImageUrl(catalogExternalId)}
+                      src={exerciseDbImageUrl(selectedExerciseExternalId)}
                       alt=""
                       className="size-12 object-cover"
                       loading="lazy"
@@ -488,11 +475,11 @@ export function WorkoutBuilder({
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="border-b px-4 py-3">
             <div className="flex items-center gap-3">
-              {catalogExternalId && (
+              {selectedExerciseExternalId && (
                 <div className="bg-muted size-12 shrink-0 overflow-hidden rounded-md">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={exerciseDbImageUrl(catalogExternalId)}
+                    src={exerciseDbImageUrl(selectedExerciseExternalId)}
                     alt=""
                     className="size-12 object-cover"
                     loading="lazy"

@@ -7,6 +7,10 @@ export type GymMemberStatus = 'active' | 'pending'
 export type GymInviteStatus = 'pending' | 'accepted' | 'revoked'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
 export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
+export type MealPlanStatus = 'draft' | 'active' | 'archived'
+export type MealPlanAssignmentStatus = 'active' | 'completed' | 'cancelled'
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'other'
+export type FoodSource = 'usda' | 'custom'
 export type TeamEventType =
   | 'practice'
   | 'check_in'
@@ -78,6 +82,12 @@ export type ClientGoalMilestoneType =
   | 'program_completion'
   | 'training_streak_days'
 export type ClientGoalProgressSource = 'inbody' | 'check_in' | 'prefer_inbody'
+export type NutritionSupplement = {
+  name: string
+  dosage: string | null
+  timing: string | null
+}
+
 export type WearableProvider =
   | 'whoop'
   | 'garmin'
@@ -2267,6 +2277,266 @@ export type Database = {
           },
         ]
       }
+      meal_plan_assignments: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          meal_plan_id: string
+          status: MealPlanAssignmentStatus
+          start_date: string
+          team_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          meal_plan_id: string
+          status?: MealPlanAssignmentStatus
+          start_date: string
+          team_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          meal_plan_id?: string
+          status?: MealPlanAssignmentStatus
+          start_date?: string
+          team_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'meal_plan_assignments_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'meal_plan_assignments_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'meal_plan_assignments_meal_plan_id_fkey'
+            columns: ['meal_plan_id']
+            isOneToOne: false
+            referencedRelation: 'meal_plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'meal_plan_assignments_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      meal_plan_days: {
+        Row: {
+          id: string
+          meal_plan_id: string
+          day_offset: number
+          label: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          meal_plan_id: string
+          day_offset: number
+          label?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          meal_plan_id?: string
+          day_offset?: number
+          label?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'meal_plan_days_meal_plan_id_fkey'
+            columns: ['meal_plan_id']
+            isOneToOne: false
+            referencedRelation: 'meal_plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      meal_plan_meals: {
+        Row: {
+          id: string
+          meal_plan_day_id: string
+          sort_order: number
+          meal_type: MealType
+          name: string
+          description: string | null
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          meal_plan_day_id: string
+          sort_order?: number
+          meal_type?: MealType
+          name: string
+          description?: string | null
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          meal_plan_day_id?: string
+          sort_order?: number
+          meal_type?: MealType
+          name?: string
+          description?: string | null
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'meal_plan_meals_meal_plan_day_id_fkey'
+            columns: ['meal_plan_day_id']
+            isOneToOne: false
+            referencedRelation: 'meal_plan_days'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      meal_plan_meal_foods: {
+        Row: {
+          id: string
+          meal_plan_meal_id: string
+          sort_order: number
+          food_name: string
+          source: FoodSource
+          external_id: string | null
+          quantity_g: number
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          meal_plan_meal_id: string
+          sort_order?: number
+          food_name: string
+          source?: FoodSource
+          external_id?: string | null
+          quantity_g: number
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          meal_plan_meal_id?: string
+          sort_order?: number
+          food_name?: string
+          source?: FoodSource
+          external_id?: string | null
+          quantity_g?: number
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'meal_plan_meal_foods_meal_plan_meal_id_fkey'
+            columns: ['meal_plan_meal_id']
+            isOneToOne: false
+            referencedRelation: 'meal_plan_meals'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      meal_plans: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string | null
+          name: string
+          description: string | null
+          status: MealPlanStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id?: string | null
+          name: string
+          description?: string | null
+          status?: MealPlanStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string | null
+          name?: string
+          description?: string | null
+          status?: MealPlanStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'meal_plans_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'meal_plans_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_inbody_scans: {
         Row: {
           id: string
@@ -2338,6 +2608,201 @@ export type Database = {
           },
           {
             foreignKeyName: 'client_inbody_scans_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_nutrition_logs: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          log_date: string
+          adherence_score: number
+          client_notes: string | null
+          fiber_g: number | null
+          water_ml: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          log_date: string
+          adherence_score: number
+          client_notes?: string | null
+          fiber_g?: number | null
+          water_ml?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          log_date?: string
+          adherence_score?: number
+          client_notes?: string | null
+          fiber_g?: number | null
+          water_ml?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_nutrition_logs_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_nutrition_logs_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_food_diary_entries: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          log_date: string
+          meal_type: MealType
+          food_name: string
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          fiber_g: number | null
+          sort_order: number
+          source: FoodSource | null
+          external_id: string | null
+          quantity_g: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          log_date: string
+          meal_type?: MealType
+          food_name: string
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          fiber_g?: number | null
+          sort_order?: number
+          source?: FoodSource | null
+          external_id?: string | null
+          quantity_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          log_date?: string
+          meal_type?: MealType
+          food_name?: string
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          fiber_g?: number | null
+          sort_order?: number
+          source?: FoodSource | null
+          external_id?: string | null
+          quantity_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_food_diary_entries_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_food_diary_entries_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_nutrition_profiles: {
+        Row: {
+          client_id: string
+          coach_id: string
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          fiber_g: number | null
+          water_ml: number | null
+          notes: string | null
+          dietary_restrictions: string | null
+          supplements: NutritionSupplement[]
+          client_nutrition_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          coach_id: string
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          fiber_g?: number | null
+          water_ml?: number | null
+          notes?: string | null
+          dietary_restrictions?: string | null
+          supplements?: NutritionSupplement[]
+          client_nutrition_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          coach_id?: string
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          fiber_g?: number | null
+          water_ml?: number | null
+          notes?: string | null
+          dietary_restrictions?: string | null
+          supplements?: NutritionSupplement[]
+          client_nutrition_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_nutrition_profiles_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: true
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_nutrition_profiles_coach_id_fkey'
             columns: ['coach_id']
             isOneToOne: false
             referencedRelation: 'profiles'
@@ -2797,6 +3262,10 @@ export type Database = {
       client_invite_status: ClientInviteStatus
       program_status: ProgramStatus
       program_assignment_status: ProgramAssignmentStatus
+      meal_plan_status: MealPlanStatus
+      meal_plan_assignment_status: MealPlanAssignmentStatus
+      meal_type: MealType
+      food_source: FoodSource
       team_event_type: TeamEventType
       team_event_rsvp_status: TeamEventRsvpStatus
       team_event_attendance_status: TeamEventAttendanceStatus
@@ -2837,6 +3306,71 @@ export type ProgramAssignmentInsert =
   Database['public']['Tables']['program_assignments']['Insert']
 export type ProgramAssignmentUpdate =
   Database['public']['Tables']['program_assignments']['Update']
+
+export type MealPlan = Database['public']['Tables']['meal_plans']['Row']
+export type MealPlanInsert = Database['public']['Tables']['meal_plans']['Insert']
+export type MealPlanUpdate = Database['public']['Tables']['meal_plans']['Update']
+export type MealPlanDay = Database['public']['Tables']['meal_plan_days']['Row']
+export type MealPlanDayInsert =
+  Database['public']['Tables']['meal_plan_days']['Insert']
+export type MealPlanDayUpdate =
+  Database['public']['Tables']['meal_plan_days']['Update']
+export type MealPlanMeal = Database['public']['Tables']['meal_plan_meals']['Row']
+export type MealPlanMealInsert =
+  Database['public']['Tables']['meal_plan_meals']['Insert']
+export type MealPlanMealUpdate =
+  Database['public']['Tables']['meal_plan_meals']['Update']
+export type MealPlanMealFood =
+  Database['public']['Tables']['meal_plan_meal_foods']['Row']
+export type MealPlanMealFoodInsert =
+  Database['public']['Tables']['meal_plan_meal_foods']['Insert']
+export type MealPlanMealFoodUpdate =
+  Database['public']['Tables']['meal_plan_meal_foods']['Update']
+
+export type MealPlanMealWithFoods = MealPlanMeal & {
+  foods: MealPlanMealFood[]
+}
+
+export type MealPlanAssignment =
+  Database['public']['Tables']['meal_plan_assignments']['Row']
+export type MealPlanAssignmentInsert =
+  Database['public']['Tables']['meal_plan_assignments']['Insert']
+export type MealPlanAssignmentUpdate =
+  Database['public']['Tables']['meal_plan_assignments']['Update']
+
+export type MealPlanWithAssignmentCount = MealPlan & {
+  assignment_count: number
+  day_count: number
+}
+
+export type MealPlanDayWithMeals = MealPlanDay & {
+  meals: MealPlanMealWithFoods[]
+}
+
+export type MealPlanAssignmentWithPlan = MealPlanAssignment & {
+  meal_plan: Pick<MealPlan, 'id' | 'name' | 'description'>
+}
+
+export type ClientNutritionProfile =
+  Database['public']['Tables']['client_nutrition_profiles']['Row']
+export type ClientNutritionProfileInsert =
+  Database['public']['Tables']['client_nutrition_profiles']['Insert']
+export type ClientNutritionProfileUpdate =
+  Database['public']['Tables']['client_nutrition_profiles']['Update']
+
+export type ClientNutritionLog =
+  Database['public']['Tables']['client_nutrition_logs']['Row']
+export type ClientNutritionLogInsert =
+  Database['public']['Tables']['client_nutrition_logs']['Insert']
+export type ClientNutritionLogUpdate =
+  Database['public']['Tables']['client_nutrition_logs']['Update']
+
+export type ClientFoodDiaryEntry =
+  Database['public']['Tables']['client_food_diary_entries']['Row']
+export type ClientFoodDiaryEntryInsert =
+  Database['public']['Tables']['client_food_diary_entries']['Insert']
+export type ClientFoodDiaryEntryUpdate =
+  Database['public']['Tables']['client_food_diary_entries']['Update']
 
 export type ProgramWithAssignmentCount = Program & {
   assignment_count: number

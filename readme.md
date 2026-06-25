@@ -7,7 +7,7 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Email/password authentication (sign up, sign in, sign out) with coach and client roles
 - Coach dashboard with stats, today's schedule, action items, and activity feed
 - Client management: list, search, filter, create, edit, archive, delete, notes, avatars, and invite flow
-- Training library: custom exercises, ExerciseDB catalog import, workout templates, and programs
+- Training library: custom exercises, bundled exercise catalog import, workout templates, and programs
 - Program builder: multi-week day-offset calendar with exercise prescriptions per workout
 - Program assignment: assign programs to clients and materialize workouts onto their calendar
 - Client calendar: schedule workouts, copy across dates, rich exercise builder, and workout logging
@@ -59,14 +59,17 @@ Wearables integrations are scaffolded (Whoop, Apple Health) but not yet live —
 2. Add environment variables in Vercel → Settings → Environment Variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `EXERCISEDB_RAPIDAPI_KEY` (optional, for ExerciseDB import)
-3. Apply database migrations **before** the first deploy (or after schema changes):
+3. Sync the bundled exercise catalog (once per environment / after clone):
+   ```sh
+   yarn workspace next-app sync:exercise-catalog
+   ```
+4. Apply database migrations **before** the first deploy (or after schema changes):
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
    This applies all migrations in `supabase/migrations/` (currently **0001–0074**). For one-off patches without the CLI, see the apply scripts below.
-4. Verify schema: `yarn db:check` (checks tables through migration **0074**)
-5. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
+5. Verify schema: `yarn db:check` (checks tables through migration **0074**)
+6. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 

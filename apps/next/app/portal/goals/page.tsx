@@ -22,6 +22,7 @@ export default async function PortalGoalsPage() {
   let progressContext: GoalProgressContext = {
     scans: [],
     checkIns: [],
+    nutritionLogs: [],
     prRecords: [],
     bestDurationByExerciseId: {},
     workouts: [],

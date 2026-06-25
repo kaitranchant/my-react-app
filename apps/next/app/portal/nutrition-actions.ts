@@ -1,0 +1,195 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+import {
+  normalizeSupplements,
+  nutritionLogValuesToRow,
+  nutritionProfileToFormValues,
+} from '@/lib/nutrition'
+import { requirePortalClientContext } from '@/lib/portal-client'
+import {
+  clientNutritionNotesSchema,
+  foodDiaryEntryFormSchema,
+  nutritionLogFormSchema,
+  type ClientNutritionNotesFormValues,
+  type FoodDiaryEntryFormValues,
+  type NutritionLogFormValues,
+} from '@/lib/validations/nutrition'
+
+export type ActionResult = { success: true } | { success: false; error: string }
+
+function revalidatePortalNutrition(clientId: string) {
+  revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/nutrition')
+  revalidatePath('/portal/goals')
+  revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/dashboard')
+}
+
+export async function submitNutritionLog(
+  values: NutritionLogFormValues
+): Promise<ActionResult> {
+  const parsed = nutritionLogFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: coachClient, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', ctx.client.id)
+    .maybeSingle()
+
+  if (clientError || !coachClient?.coach_id) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  const row = nutritionLogValuesToRow(
+    parsed.data,
+    ctx.client.id,
+    coachClient.coach_id
+  )
+
+  const { error } = await ctx.supabase
+    .from('client_nutrition_logs')
+    .upsert(row, { onConflict: 'client_id,log_date' })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+export async function addFoodDiaryEntry(
+  values: FoodDiaryEntryFormValues
+): Promise<ActionResult> {
+  const parsed = foodDiaryEntryFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: coachClient, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', ctx.client.id)
+    .maybeSingle()
+
+  if (clientError || !coachClient?.coach_id) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert({
+    client_id: ctx.client.id,
+    coach_id: coachClient.coach_id,
+    log_date: parsed.data.logDate,
+    meal_type: parsed.data.mealType,
+    food_name: parsed.data.foodName,
+    source: parsed.data.source ?? null,
+    external_id: parsed.data.externalId ?? null,
+    quantity_g: parsed.data.quantityG ?? null,
+    calories_kcal: parsed.data.caloriesKcal,
+    protein_g: parsed.data.proteinG,
+    carbs_g: parsed.data.carbsG,
+    fat_g: parsed.data.fatG,
+    fiber_g: parsed.data.fiberG,
+  })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+export async function deleteFoodDiaryEntry(
+  entryId: string
+): Promise<ActionResult> {
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { error } = await ctx.supabase
+    .from('client_food_diary_entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('client_id', ctx.client.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+export async function updateClientNutritionNotes(
+  values: ClientNutritionNotesFormValues
+): Promise<ActionResult> {
+  const parsed = clientNutritionNotesSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: coachClient, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', ctx.client.id)
+    .maybeSingle()
+
+  if (clientError || !coachClient?.coach_id) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  const { data: existingProfile } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .select('*')
+    .eq('client_id', ctx.client.id)
+    .maybeSingle()
+
+  const baseValues = nutritionProfileToFormValues(existingProfile)
+  const row = {
+    client_id: ctx.client.id,
+    coach_id: coachClient.coach_id,
+    calories_kcal: baseValues.caloriesKcal,
+    protein_g: baseValues.proteinG,
+    carbs_g: baseValues.carbsG,
+    fat_g: baseValues.fatG,
+    fiber_g: baseValues.fiberG,
+    water_ml: baseValues.waterMl,
+    notes: baseValues.notes,
+    dietary_restrictions: baseValues.dietaryRestrictions,
+    supplements: normalizeSupplements(baseValues.supplements),
+    client_nutrition_notes: parsed.data.clientNutritionNotes,
+  }
+
+  const { error } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .upsert(row, { onConflict: 'client_id' })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}

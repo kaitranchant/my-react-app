@@ -8,12 +8,16 @@ import {
   exerciseStatuses,
   type ExerciseFormValues,
 } from '@/lib/validations/exercise'
-import type { ExerciseStatus } from 'app/types/database'
+import type { Exercise, ExerciseStatus } from 'app/types/database'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
 export type CreateExerciseResult =
   | { success: true; exerciseId: string }
+  | { success: false; error: string }
+
+export type GetExerciseResult =
+  | { success: true; exercise: Exercise }
   | { success: false; error: string }
 
 async function requireUser() {
@@ -113,6 +117,28 @@ export async function setExerciseStatus(
 
   revalidateExercises()
   return { success: true }
+}
+
+export async function getExerciseRecord(id: string): Promise<GetExerciseResult> {
+  if (!id.trim()) {
+    return { success: false, error: 'Invalid exercise.' }
+  }
+
+  const { supabase } = await requireUser()
+  const { data, error } = await supabase
+    .from('exercises')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? 'Exercise not found.',
+    }
+  }
+
+  return { success: true, exercise: data as Exercise }
 }
 
 export async function deleteExerciseRecord(id: string): Promise<ActionResult> {

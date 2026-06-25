@@ -81,6 +81,13 @@ export function ClientDetailTabs({
 
   React.useEffect(() => {
     const tab = searchParams.get('tab')
+    const section = searchParams.get('section')
+
+    if (tab === 'progress' && section === 'nutrition') {
+      router.replace(buildUrl('nutrition'), { scroll: false })
+      return
+    }
+
     const resolvedMain = resolveClientDetailMainTab(tab)
 
     if (isLegacyTab(tab)) {
@@ -117,6 +124,7 @@ export function ClientDetailTabs({
         <TabsList className="w-max flex-nowrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="training">Training</TabsTrigger>
+          <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
           <TabsTrigger value="progress">Progress</TabsTrigger>
           {!hideMessagesTab ? (
             <TabsTrigger value="messages">Messages</TabsTrigger>
@@ -130,6 +138,10 @@ export function ClientDetailTabs({
 
       <TabsContent value="training" className="mt-4">
         {displayedTab === 'training' ? panel : null}
+      </TabsContent>
+
+      <TabsContent value="nutrition" className="mt-4">
+        {displayedTab === 'nutrition' ? panel : null}
       </TabsContent>
 
       <TabsContent value="progress" className="mt-4">

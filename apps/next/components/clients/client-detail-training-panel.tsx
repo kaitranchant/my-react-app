@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { ensureCoachCatalogSeeded } from '@/lib/coach-exercise-library.server'
 import { getMonthDateRange, toDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -34,6 +35,10 @@ export async function ClientDetailTrainingPanel({
   const coachPreferences = coachUserId
     ? await getCoachPreferencesForUser(coachUserId)
     : defaultCoachPreferences
+
+  if (coachUserId) {
+    await ensureCoachCatalogSeeded(supabase, coachUserId)
+  }
 
   const [
     { data: assignmentData },

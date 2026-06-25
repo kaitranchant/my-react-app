@@ -497,7 +497,7 @@ export function HabitGoalFields({
               ...values,
               habitSource: source as HabitGoalFormValues['habitSource'],
               targetValue:
-                source === 'nutrition_adherence' ? values.targetValue ?? 7 : null,
+                source === 'nutrition_adherence' ? values.targetValue ?? 4 : null,
             })
           }
           disabled={disabled}
@@ -516,14 +516,14 @@ export function HabitGoalFields({
       </div>
       {values.habitSource === 'nutrition_adherence' ? (
         <div className="grid gap-2">
-          <Label htmlFor="habit-adherence-target">Minimum avg (1–10)</Label>
+          <Label htmlFor="habit-adherence-target">Minimum avg (1–5)</Label>
           <Input
             id="habit-adherence-target"
             type="number"
             min="1"
-            max="10"
+            max="5"
             step="0.1"
-            value={values.targetValue ?? 7}
+            value={values.targetValue ?? 4}
             onChange={(event) =>
               onChange({
                 ...values,

@@ -1,10 +1,20 @@
 import type { ClientDetailMainTab } from '@/components/clients/client-detail-tab-skeletons'
 
-const MAIN_TABS = ['overview', 'training', 'progress', 'messages'] as const
+const MAIN_TABS = [
+  'overview',
+  'training',
+  'nutrition',
+  'progress',
+  'messages',
+] as const
 
 export function resolveClientDetailMainTab(
-  tab: string | null | undefined
+  tab: string | null | undefined,
+  section?: string | null | undefined
 ): ClientDetailMainTab {
+  if (tab === 'progress' && section === 'nutrition') {
+    return 'nutrition'
+  }
   if (tab && MAIN_TABS.includes(tab as ClientDetailMainTab)) {
     return tab as ClientDetailMainTab
   }

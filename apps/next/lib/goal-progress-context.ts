@@ -4,6 +4,7 @@ import type {
   ClientCheckIn,
   ClientGoalMetadata,
   ClientInbodyScan,
+  ClientNutritionLog,
   ClientProgramAssignment,
   ClientScheduledWorkout,
   Exercise,
@@ -13,6 +14,7 @@ import type {
 export type GoalProgressContext = {
   scans: ClientInbodyScan[]
   checkIns: ClientCheckIn[]
+  nutritionLogs: ClientNutritionLog[]
   prRecords: ExercisePrRecord[]
   bestDurationByExerciseId: Record<string, number>
   workouts: Pick<
@@ -76,6 +78,7 @@ export async function fetchGoalProgressContext(
   const [
     scansResult,
     checkInsResult,
+    nutritionLogsResult,
     prRecordsResult,
     durationLogsResult,
     workoutsResult,
@@ -94,6 +97,13 @@ export async function fetchGoalProgressContext(
       .eq('client_id', clientId)
       .gte('check_in_date', sinceDate)
       .order('check_in_date', { ascending: false })
+      .limit(100),
+    supabase
+      .from('client_nutrition_logs')
+      .select('*')
+      .eq('client_id', clientId)
+      .gte('log_date', sinceDate)
+      .order('log_date', { ascending: false })
       .limit(100),
     supabase
       .from('exercise_pr_records')
@@ -152,6 +162,7 @@ export async function fetchGoalProgressContext(
   return {
     scans: (scansResult.data ?? []) as ClientInbodyScan[],
     checkIns: (checkInsResult.data ?? []) as ClientCheckIn[],
+    nutritionLogs: (nutritionLogsResult.data ?? []) as ClientNutritionLog[],
     prRecords: (prRecordsResult.data ?? []) as ExercisePrRecord[],
     bestDurationByExerciseId: buildBestDurationByExerciseId(
       (durationLogsResult.data ?? []) as WorkoutLogDurationRow[]

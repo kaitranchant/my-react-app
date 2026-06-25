@@ -90,7 +90,8 @@ function resolveGoalHighlight(
         goal,
         context.workouts,
         context.checkIns,
-        coachPreferences
+        coachPreferences,
+        context.nutritionLogs
       )
       label = formatHabitGoalLabel(goal)
       break

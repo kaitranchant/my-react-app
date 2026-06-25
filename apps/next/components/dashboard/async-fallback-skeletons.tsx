@@ -98,6 +98,35 @@ export function BreadcrumbSkeleton() {
   return <Skeleton className="h-4 w-48" />
 }
 
+export function LibraryPageSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Skeleton className="h-4 w-full max-w-md" />
+        <Skeleton className="h-10 w-32 rounded-lg" />
+      </div>
+      <FilterPillsSkeleton count={4} />
+      <Skeleton className="h-28 rounded-xl" />
+      <div className="overflow-hidden rounded-xl border">
+        <div className="border-b bg-muted/30 px-5 py-4">
+          <Skeleton className="h-5 w-32" />
+        </div>
+        <div className="divide-y">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-4 px-5 py-4">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function PageHeaderSkeleton({
   titleWidth = 'w-36',
   description = true,

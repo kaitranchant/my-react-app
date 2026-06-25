@@ -1,5 +1,5 @@
 import { getExerciseDemoVideoUrl } from '@/lib/exercise-demo-video'
-import { exerciseDbImageUrl } from '@/lib/exercisedb'
+import { exerciseDbImageUrl } from '@/lib/exercise-catalog'
 import type { Exercise } from 'app/types/database'
 
 export type ExerciseMediaFields = Pick<
@@ -26,15 +26,14 @@ export function hasExerciseDemoVideo(
 }
 
 export function getExerciseMediaUrl(
-  exercise: Pick<Exercise, 'external_id' | 'image_url'>,
-  resolution = '360'
+  exercise: Pick<Exercise, 'external_id' | 'image_url'>
 ): string | null {
   if (exercise.image_url?.trim()) {
     return exercise.image_url.trim()
   }
 
   if (exercise.external_id?.trim()) {
-    return exerciseDbImageUrl(exercise.external_id.trim(), resolution)
+    return exerciseDbImageUrl(exercise.external_id.trim())
   }
 
   return null

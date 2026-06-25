@@ -328,7 +328,7 @@ function WorkoutLogExercise({
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
   const demoVideoUrl = getExerciseDemoVideoPublicUrl(mediaExercise)
-  const mediaUrl = getExerciseMediaUrl(mediaExercise, '180')
+  const mediaUrl = getExerciseMediaUrl(mediaExercise)
   const showMedia = hasExerciseMedia(mediaExercise)
   const showVideoThumbnail = Boolean(demoVideoUrl && !mediaUrl)
 

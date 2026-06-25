@@ -825,7 +825,7 @@ export function formatHabitGoalLabel(goal: ClientGoal): string {
   if (!source) return 'Habit goal'
 
   if (source === 'nutrition_adherence') {
-    return `Nutrition adherence: at least ${goal.target_value ?? 0}/10 avg`
+    return `Nutrition adherence: at least ${goal.target_value ?? 0}/5 avg`
   }
 
   const frequency = goal.habit_frequency ?? 0
@@ -859,11 +859,22 @@ function countCheckInsInWeek(checkIns: ClientCheckIn[], weekStart: string, weekE
 }
 
 function averageNutritionAdherenceInWeek(
+  nutritionLogs: import('app/types/database').ClientNutritionLog[],
   checkIns: ClientCheckIn[],
   weekStart: string,
   weekEnd: string
 ) {
-  const values = checkIns
+  const logValues = nutritionLogs
+    .filter(
+      (row) => row.log_date >= weekStart && row.log_date <= weekEnd
+    )
+    .map((row) => row.adherence_score)
+
+  if (logValues.length > 0) {
+    return logValues.reduce((sum, value) => sum + value, 0) / logValues.length
+  }
+
+  const checkInValues = checkIns
     .filter(
       (row) =>
         row.check_in_date >= weekStart &&
@@ -872,8 +883,8 @@ function averageNutritionAdherenceInWeek(
     )
     .map((row) => row.nutrition_adherence!)
 
-  if (values.length === 0) return null
-  return values.reduce((sum, value) => sum + value, 0) / values.length
+  if (checkInValues.length === 0) return null
+  return checkInValues.reduce((sum, value) => sum + value, 0) / checkInValues.length
 }
 
 export function computeHabitProgress(
@@ -883,7 +894,8 @@ export function computeHabitProgress(
     'status' | 'scheduled_date'
   >[],
   checkIns: ClientCheckIn[],
-  options?: GoalProgressOptions
+  options?: GoalProgressOptions,
+  nutritionLogs: import('app/types/database').ClientNutritionLog[] = []
 ): HabitGoalProgress {
   const weekRange = getWeekRange(
     options?.weekStartsOn ?? 'monday',
@@ -931,6 +943,7 @@ export function computeHabitProgress(
     detailLine = `${currentCount} of ${targetCount} check-in${targetCount === 1 ? '' : 's'} this week`
   } else {
     const average = averageNutritionAdherenceInWeek(
+      nutritionLogs,
       checkIns,
       weekRange.start,
       weekRange.end
@@ -938,8 +951,8 @@ export function computeHabitProgress(
     currentCount = average != null ? Math.round(average * 10) / 10 : 0
     detailLine =
       average != null
-        ? `${currentCount.toFixed(1)} avg adherence this week (target ${targetCount}/10)`
-        : 'No check-in adherence logged this week'
+        ? `${currentCount.toFixed(1)} avg adherence this week (target ${targetCount}/5)`
+        : 'No nutrition adherence logged this week'
     percent =
       average != null
         ? Math.min(100, Math.round((average / targetCount) * 100))

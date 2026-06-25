@@ -6,7 +6,7 @@ import type { CoachPreferences } from '@/lib/coach-preferences'
 
 type HabitGoalCardProps = {
   goal: ClientGoal
-  context: Pick<GoalProgressContext, 'workouts' | 'checkIns'>
+  context: Pick<GoalProgressContext, 'workouts' | 'checkIns' | 'nutritionLogs'>
   coachPreferences?: Pick<CoachPreferences, 'weekStartsOn' | 'timezone'>
   presentation?: 'default' | 'portal'
 }
@@ -21,7 +21,8 @@ export function HabitGoalCard({
     goal,
     context.workouts,
     context.checkIns,
-    coachPreferences
+    coachPreferences,
+    context.nutritionLogs
   )
   const label = formatHabitGoalLabel(goal)
 

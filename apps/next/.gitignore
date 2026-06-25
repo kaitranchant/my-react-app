@@ -37,4 +37,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-.vercel
+# Bundled Free ExerciseDB images (run sync:exercise-catalog to download)
+public/exercises/
+.tmp/

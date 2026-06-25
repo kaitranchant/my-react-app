@@ -16,6 +16,7 @@ import {
 import { ExerciseFormDialog } from '@/components/exercises/exercise-form-dialog'
 import {
   deleteExerciseRecord,
+  getExerciseRecord,
   setExerciseStatus,
 } from '@/app/(dashboard)/library/exercises/actions'
 import type { Exercise } from 'app/types/database'
@@ -23,7 +24,22 @@ import type { Exercise } from 'app/types/database'
 export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = React.useState(false)
+  const [editExercise, setEditExercise] = React.useState<Exercise | null>(null)
   const [pending, setPending] = React.useState(false)
+
+  async function openEditDialog() {
+    setPending(true)
+    const result = await getExerciseRecord(exercise.id)
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    setEditExercise(result.exercise)
+    setEditOpen(true)
+  }
 
   async function handleStatus(archive: boolean) {
     setPending(true)
@@ -74,7 +90,7 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+          <DropdownMenuItem onSelect={() => void openEditDialog()}>
             <Pencil className="size-4" />
             Edit
           </DropdownMenuItem>
@@ -97,11 +113,13 @@ export function ExerciseRowActions({ exercise }: { exercise: Exercise }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ExerciseFormDialog
-        exercise={exercise}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      {editExercise ? (
+        <ExerciseFormDialog
+          exercise={editExercise}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      ) : null}
     </>
   )
 }

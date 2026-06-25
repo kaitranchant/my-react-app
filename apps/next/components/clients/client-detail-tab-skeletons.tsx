@@ -3,6 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export type ClientDetailMainTab =
   | 'overview'
   | 'training'
+  | 'nutrition'
   | 'progress'
   | 'messages'
 
@@ -48,6 +49,16 @@ export function ClientProgressTabSkeleton() {
   )
 }
 
+export function ClientNutritionTabSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-64 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
+      <Skeleton className="h-56 rounded-xl" />
+    </div>
+  )
+}
+
 export function ClientMessagesTabSkeleton() {
   return (
     <div className="space-y-4">
@@ -60,6 +71,8 @@ export function clientDetailTabSkeleton(tab: ClientDetailMainTab) {
   switch (tab) {
     case 'training':
       return <ClientTrainingTabSkeleton />
+    case 'nutrition':
+      return <ClientNutritionTabSkeleton />
     case 'progress':
       return <ClientProgressTabSkeleton />
     case 'messages':

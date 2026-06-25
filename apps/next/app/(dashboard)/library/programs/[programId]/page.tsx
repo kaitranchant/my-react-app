@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 
 import { BreadcrumbSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { createClient } from '@/lib/supabase/server'
+import { ensureCoachCatalogSeeded } from '@/lib/coach-exercise-library.server'
 import { ProgramDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { ProgramCalendarPanel } from '@/components/programs/program-calendar-panel'
 import { AssignProgramDialog } from '@/components/programs/assign-program-dialog'
@@ -40,6 +41,13 @@ export default async function ProgramDetailPage({
 }) {
   const { programId } = await params
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    await ensureCoachCatalogSeeded(supabase, user.id)
+  }
 
   const { data: programData, error: programError } = await supabase
     .from('programs')

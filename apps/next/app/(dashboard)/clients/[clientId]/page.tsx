@@ -13,6 +13,7 @@ import { ClientQuickActions } from '@/components/clients/client-quick-actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { resolveClientDetailMainTab } from '@/lib/client-detail-tabs'
+import { ClientDetailNutritionPanel } from '@/components/clients/client-detail-nutrition-panel'
 import { ClientDetailMessagesPanel } from '@/components/clients/client-detail-messages-panel'
 import { ClientDetailOverviewPanel } from '@/components/clients/client-detail-overview-panel'
 import { ClientDetailProgressPanel } from '@/components/clients/client-detail-progress-panel'
@@ -39,7 +40,7 @@ export default async function ClientDetailPage({
   searchParams: Promise<{ tab?: string; section?: string; action?: string; date?: string }>
 }) {
   const { clientId } = await params
-  const { tab: initialTab } = await searchParams
+  const { tab: initialTab, section: initialSection } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -61,9 +62,9 @@ export default async function ClientDetailPage({
   const client = data as Client
   const coachSelf = isCoachSelfClient(client)
   const activeTab =
-    coachSelf && resolveClientDetailMainTab(initialTab) === 'messages'
+    coachSelf && resolveClientDetailMainTab(initialTab, initialSection) === 'messages'
       ? 'overview'
-      : resolveClientDetailMainTab(initialTab)
+      : resolveClientDetailMainTab(initialTab, initialSection)
   const viewerIsPrimaryCoach = user
     ? isPrimaryCoach(user.id, client)
     : false
@@ -171,6 +172,9 @@ export default async function ClientDetailPage({
               coachUserId={user?.id ?? null}
               isCoachSelf={coachSelf}
             />
+          ) : null}
+          {activeTab === 'nutrition' ? (
+            <ClientDetailNutritionPanel client={client} clientId={clientId} />
           ) : null}
           {activeTab === 'progress' ? (
             <ClientDetailProgressPanel

@@ -10,6 +10,7 @@ import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-se
 import { PortalHomeStatsRow } from '@/components/portal/portal-home-stats-row'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
 import { PortalProgramCard } from '@/components/portal/portal-program-card'
+import { PortalNutritionPrompt } from '@/components/portal/portal-nutrition-prompt'
 import { PortalReadinessPrompt } from '@/components/portal/portal-readiness-prompt'
 import { PortalRecentPrs } from '@/components/portal/portal-recent-prs'
 import { PortalTrainingConsistencyCard } from '@/components/portal/portal-training-consistency-card'
@@ -122,6 +123,7 @@ export default async function PortalPage() {
   let coachName = 'Coach'
   let sessionBookingEnabled = false
   let upcomingSessionCount = 0
+  let needsNutritionLogToday = false
 
   if (clientRecord?.id && user) {
     coachPreferences = await getPortalDisplayPreferences(
@@ -146,6 +148,7 @@ export default async function PortalPage() {
       coachNameResult,
       sessionBookingSettings,
       upcomingAppointments,
+      todayNutritionLogResult,
     ] = await Promise.all([
       supabase
         .from('program_assignments')
@@ -172,6 +175,12 @@ export default async function PortalPage() {
         nowIso,
         horizonIso
       ),
+      supabase
+        .from('client_nutrition_logs')
+        .select('id')
+        .eq('client_id', clientRecord.id)
+        .eq('log_date', coachTodayKey)
+        .maybeSingle(),
     ])
 
     if (
@@ -199,6 +208,7 @@ export default async function PortalPage() {
         appointment.status === 'scheduled' &&
         new Date(appointment.starts_at).getTime() >= Date.now()
     ).length
+    needsNutritionLogToday = !todayNutritionLogResult.data
 
     if (activeProgram && homeData) {
       programSummary = await fetchClientProgramSummary(
@@ -358,6 +368,7 @@ export default async function PortalPage() {
               status={homeData.checkInStatus}
               dueLabel={checkInDueLabel}
             />
+            <PortalNutritionPrompt needsLogToday={needsNutritionLogToday} />
             {submittedCheckInCard}
             {sessionBookingCard}
             <PortalActiveGoalsCard goals={goalHighlights} />
@@ -388,6 +399,7 @@ export default async function PortalPage() {
                 status={homeData.checkInStatus}
                 dueLabel={checkInDueLabel}
               />
+              <PortalNutritionPrompt needsLogToday={needsNutritionLogToday} />
               {submittedCheckInCard}
               {sessionBookingCard}
               <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
