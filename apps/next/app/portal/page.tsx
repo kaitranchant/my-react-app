@@ -149,6 +149,8 @@ export default async function PortalPage() {
       sessionBookingSettings,
       upcomingAppointments,
       todayNutritionLogResult,
+      nutritionProfileResult,
+      activeMealPlanResult,
     ] = await Promise.all([
       supabase
         .from('program_assignments')
@@ -181,6 +183,17 @@ export default async function PortalPage() {
         .eq('client_id', clientRecord.id)
         .eq('log_date', coachTodayKey)
         .maybeSingle(),
+      supabase
+        .from('client_nutrition_profiles')
+        .select('id')
+        .eq('client_id', clientRecord.id)
+        .maybeSingle(),
+      supabase
+        .from('meal_plan_assignments')
+        .select('id')
+        .eq('client_id', clientRecord.id)
+        .eq('status', 'active')
+        .maybeSingle(),
     ])
 
     if (
@@ -208,7 +221,11 @@ export default async function PortalPage() {
         appointment.status === 'scheduled' &&
         new Date(appointment.starts_at).getTime() >= Date.now()
     ).length
-    needsNutritionLogToday = !todayNutritionLogResult.data
+    const nutritionConfigured =
+      Boolean(nutritionProfileResult.data) ||
+      Boolean(activeMealPlanResult.data)
+    needsNutritionLogToday =
+      nutritionConfigured && !todayNutritionLogResult.data
 
     if (activeProgram && homeData) {
       programSummary = await fetchClientProgramSummary(

@@ -38,12 +38,14 @@ export function FoodSearchPicker({
     null
   )
   const [searching, setSearching] = React.useState(false)
+  const [catalogError, setCatalogError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const trimmed = query.trim()
     if (trimmed.length < 2) {
       setResults([])
       setSelected(null)
+      setCatalogError(null)
       return
     }
 
@@ -51,15 +53,23 @@ export function FoodSearchPicker({
     const timeout = window.setTimeout(async () => {
       setSearching(true)
       try {
-        const nextResults = await searchFoodCatalog(trimmed)
-        if (!cancelled) {
-          setResults(nextResults)
-          setSelected((current) =>
-            current && nextResults.some((food) => food.id === current.id)
-              ? current
-              : (nextResults[0] ?? null)
-          )
+        const response = await searchFoodCatalog(trimmed)
+        if (cancelled) return
+
+        if (!response.ok) {
+          setResults([])
+          setSelected(null)
+          setCatalogError(response.error)
+          return
         }
+
+        setCatalogError(null)
+        setResults(response.results)
+        setSelected((current) =>
+          current && response.results.some((food) => food.id === current.id)
+            ? current
+            : (response.results[0] ?? null)
+        )
       } finally {
         if (!cancelled) setSearching(false)
       }
@@ -108,6 +118,9 @@ export function FoodSearchPicker({
         <p className="text-muted-foreground text-xs">
           Data from USDA FoodData Central. Quantities are in grams.
         </p>
+        {catalogError ? (
+          <p className="text-destructive text-sm">{catalogError}</p>
+        ) : null}
       </div>
 
       {results.length > 0 ? (
@@ -136,7 +149,7 @@ export function FoodSearchPicker({
             })}
           </ul>
         </div>
-      ) : query.trim().length >= 2 && !searching ? (
+      ) : query.trim().length >= 2 && !searching && !catalogError ? (
         <p className="text-muted-foreground text-sm">No foods matched that search.</p>
       ) : null}
 
@@ -167,7 +180,13 @@ export function FoodSearchPicker({
       {preview ? (
         <p className="text-muted-foreground text-xs">
           {preview.quantityG} g {preview.foodName}:{' '}
-          {formatFoodMacrosShort(preview)}
+          {formatFoodMacrosShort({
+            caloriesKcal: preview.caloriesKcal,
+            proteinG: preview.proteinG,
+            carbsG: preview.carbsG,
+            fatG: preview.fatG,
+            fiberG: preview.fiberG ?? undefined,
+          })}
         </p>
       ) : null}
 

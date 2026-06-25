@@ -46,6 +46,7 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Portal account settings: notification preferences, weight unit, and optional browser push notifications (`/portal/account`)
 - Client email nudges: optional workout, check-in, unread digest, and appointment reminder emails (cron; requires `RESEND_API_KEY`)
 - Appointment reminders: coach and client email/push preferences for upcoming coaching sessions
+- Nutrition coaching: coach client Nutrition tab with macro targets, TDEE calculator, dietary restrictions, supplements, adherence trends, and coach notes; meal plan library with day editor and client assignment; USDA food search for meal plans and client food diary; client portal `/portal/nutrition` for macro targets, food diary, adherence logging, and today's meals
 
 ## What's coming
 
@@ -59,21 +60,22 @@ Wearables integrations are scaffolded (Whoop, Apple Health) but not yet live —
 2. Add environment variables in Vercel → Settings → Environment Variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. Sync the bundled exercise catalog (once per environment / after clone):
+3. Sync the bundled exercise and food catalogs (once per environment / after clone):
    ```sh
    yarn workspace next-app sync:exercise-catalog
+   yarn workspace next-app sync:food-catalog
    ```
 4. Apply database migrations **before** the first deploy (or after schema changes):
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0074**). For one-off patches without the CLI, see the apply scripts below.
-5. Verify schema: `yarn db:check` (checks tables through migration **0074**)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0079**). For one-off patches without the CLI, see the apply scripts below.
+5. Verify schema: `yarn db:check` (checks tables through migration **0079**)
 6. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0074 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0079 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -143,6 +145,8 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-coaching-session-booking.sql` | Session scheduling, availability, packs, appointments (0072) |
 | `apply-appointment-reminders.sql` | Appointment reminder prefs and dedupe (0073) |
 | `apply-scheduling-improvements.sql` | Session notes, pack pricing, rescheduled status (0074) |
+| `apply-nutrition.sql` | Macro targets, adherence logs, meal plans, food diary (0075–0078) |
+| `apply-food-library.sql` | USDA-backed meal foods and diary references (0079) |
 
 Migrations **0065–0068** (message media, broadcasts, team forum, realtime) have no standalone apply scripts — use `yarn db:push`.
 

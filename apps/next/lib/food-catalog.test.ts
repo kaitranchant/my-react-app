@@ -48,6 +48,20 @@ test('buildFoodSelectionSnapshot returns scaled diary/meal payload', () => {
   assert.equal(snapshot.proteinG, 45)
 })
 
+test('formatFoodMacrosShort includes fiber when present', async () => {
+  const { formatFoodMacrosShort } = await import('./food-catalog')
+
+  const withFiber = formatFoodMacrosShort({
+    caloriesKcal: 250,
+    proteinG: 10,
+    carbsG: 40,
+    fatG: 4,
+    fiberG: 6.5,
+  })
+
+  assert.match(withFiber, /6\.5 fiber/)
+})
+
 test('searchFoodCatalogRecords ranks prefix matches ahead of partial matches', () => {
   const catalog: FoodCatalogRecord[] = [
     {

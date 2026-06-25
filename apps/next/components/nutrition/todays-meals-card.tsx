@@ -11,28 +11,48 @@ import {
   getTodayMealPlanDay,
   MEAL_TYPE_LABELS,
 } from '@/lib/nutrition'
+import {
+  assessMealPlanTargetAlignment,
+  formatMealPlanTargetHintForClient,
+} from '@/lib/meal-plan-target-alignment'
+import { sumDayMacroTotals } from '@/lib/meal-plan-stats'
 import type {
+  ClientNutritionProfile,
   MealPlanAssignment,
   MealPlanDayWithMeals,
 } from 'app/types/database'
-import { UtensilsCrossed } from 'lucide-react'
+import { Info, UtensilsCrossed } from 'lucide-react'
 
 type TodaysMealsCardProps = {
   assignment: MealPlanAssignment | null
   days: MealPlanDayWithMeals[]
   todayKey?: string
+  profile?: ClientNutritionProfile | null
 }
 
 export function TodaysMealsCard({
   assignment,
   days,
   todayKey,
+  profile = null,
 }: TodaysMealsCardProps) {
   const { day, planComplete, planDayLabel } = getTodayMealPlanDay(
     assignment,
     days,
     todayKey
   )
+  const dayTotals = day ? sumDayMacroTotals(day) : null
+  const todayAlignment =
+    dayTotals && dayTotals.caloriesKcal > 0
+      ? assessMealPlanTargetAlignment(
+          {
+            dayCount: days.length,
+            avgDailyMacros: dayTotals,
+            hasMacroData: true,
+          },
+          profile?.calories_kcal
+        )
+      : null
 
   return (
     <Card>
@@ -63,6 +83,12 @@ export function TodaysMealsCard({
           </p>
         ) : (
           <div className="grid gap-4">
+            {todayAlignment?.isMisaligned ? (
+              <div className="flex gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-sm text-blue-900 dark:text-blue-100">
+                <Info className="mt-0.5 size-4 shrink-0" />
+                <p>{formatMealPlanTargetHintForClient(todayAlignment)}</p>
+              </div>
+            ) : null}
             {day.notes ? (
               <p className="text-muted-foreground text-sm">{day.notes}</p>
             ) : null}

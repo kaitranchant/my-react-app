@@ -61,6 +61,7 @@ const MACRO_NUTRIENT_IDS = {
   proteinG: '1003',
   fatG: '1004',
   carbsG: '1005',
+  fiberG: '1079',
 }
 
 async function downloadFile(url, destination) {
@@ -179,6 +180,9 @@ function buildFoodRecord({ id, name, category, per100g }) {
       proteinG: roundMacro(per100g.proteinG),
       fatG: roundMacro(per100g.fatG),
       carbsG: roundMacro(per100g.carbsG),
+      ...(per100g.fiberG != null
+        ? { fiberG: roundMacro(per100g.fiberG) }
+        : {}),
     },
   }
 }
@@ -226,6 +230,8 @@ async function loadSrLegacyFoods() {
       bucket.fatG = row.amount
     } else if (nutrientId === MACRO_NUTRIENT_IDS.carbsG) {
       bucket.carbsG = row.amount
+    } else if (nutrientId === MACRO_NUTRIENT_IDS.fiberG) {
+      bucket.fiberG = row.amount
     }
     nutrientsByFoodId.set(row.fdc_id, bucket)
   }

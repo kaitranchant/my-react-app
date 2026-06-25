@@ -3,6 +3,7 @@ export type FoodMacros = {
   proteinG: number
   carbsG: number
   fatG: number
+  fiberG?: number
 }
 
 export type FoodCatalogRecord = {
@@ -24,16 +25,21 @@ export type FoodSelectionSnapshot = {
   proteinG: number
   carbsG: number
   fatG: number
+  fiberG?: number | null
 }
 
 export function scaleFoodMacros(per100g: FoodMacros, quantityG: number): FoodMacros {
   const factor = quantityG / 100
-  return {
+  const scaled: FoodMacros = {
     caloriesKcal: roundMacro(per100g.caloriesKcal * factor),
     proteinG: roundMacro(per100g.proteinG * factor),
     carbsG: roundMacro(per100g.carbsG * factor),
     fatG: roundMacro(per100g.fatG * factor),
   }
+  if (per100g.fiberG != null) {
+    scaled.fiberG = roundMacro(per100g.fiberG * factor)
+  }
+  return scaled
 }
 
 export function buildFoodSelectionSnapshot(
@@ -51,7 +57,11 @@ export function buildFoodSelectionSnapshot(
 }
 
 export function formatFoodMacrosShort(macros: FoodMacros) {
-  return `${macros.caloriesKcal} kcal · ${macros.proteinG} P · ${macros.fatG} F · ${macros.carbsG} C`
+  const base = `${macros.caloriesKcal} kcal · ${macros.proteinG} P · ${macros.fatG} F · ${macros.carbsG} C`
+  if (macros.fiberG != null && macros.fiberG > 0) {
+    return `${base} · ${macros.fiberG} fiber`
+  }
+  return base
 }
 
 export function formatFoodQuantityLabel(quantityG: number, foodName: string) {

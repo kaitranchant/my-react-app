@@ -27,6 +27,8 @@ const BENCH_EXERCISE_NAME = 'E2E Bench Press'
 const DEADLIFT_EXERCISE_NAME = 'E2E Deadlift'
 const TEAM_NAME = 'E2E Leaderboard Team'
 const WORKOUT_NAME = 'E2E Day 1 Workout'
+const MEAL_PLAN_NAME = 'E2E Test Meal Plan'
+const MEAL_PLAN_MEAL_NAME = 'E2E Test Breakfast'
 
 if (!url || !serviceKey) {
   console.error(
@@ -116,6 +118,86 @@ async function ensureExercise(coachId, name, muscleGroup) {
 
   if (error) throw error
   return inserted.id
+}
+
+async function ensureE2EMealPlanTemplate(coachId, clientId) {
+  await supabase.from('meal_plan_assignments').delete().eq('client_id', clientId)
+  await supabase.from('client_food_diary_entries').delete().eq('client_id', clientId)
+
+  let mealPlanId
+  const { data: existingPlan } = await supabase
+    .from('meal_plans')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('name', MEAL_PLAN_NAME)
+    .is('client_id', null)
+    .maybeSingle()
+
+  if (existingPlan) {
+    mealPlanId = existingPlan.id
+    await supabase
+      .from('meal_plans')
+      .update({ status: 'active' })
+      .eq('id', mealPlanId)
+  } else {
+    const { data: inserted, error } = await supabase
+      .from('meal_plans')
+      .insert({
+        coach_id: coachId,
+        name: MEAL_PLAN_NAME,
+        description: 'Automated E2E meal plan template',
+        status: 'active',
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    mealPlanId = inserted.id
+  }
+
+  let dayId
+  const { data: existingDay } = await supabase
+    .from('meal_plan_days')
+    .select('id')
+    .eq('meal_plan_id', mealPlanId)
+    .eq('day_offset', 0)
+    .maybeSingle()
+
+  if (existingDay) {
+    dayId = existingDay.id
+  } else {
+    const { data: inserted, error } = await supabase
+      .from('meal_plan_days')
+      .insert({
+        meal_plan_id: mealPlanId,
+        day_offset: 0,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    dayId = inserted.id
+  }
+
+  const { data: existingMeal } = await supabase
+    .from('meal_plan_meals')
+    .select('id')
+    .eq('meal_plan_day_id', dayId)
+    .eq('name', MEAL_PLAN_MEAL_NAME)
+    .maybeSingle()
+
+  if (!existingMeal) {
+    const { error } = await supabase.from('meal_plan_meals').insert({
+      meal_plan_day_id: dayId,
+      sort_order: 0,
+      meal_type: 'breakfast',
+      name: MEAL_PLAN_MEAL_NAME,
+      description: 'Oats and eggs for E2E testing',
+      calories_kcal: 450,
+      protein_g: 25,
+      carbs_g: 50,
+      fat_g: 15,
+    })
+    if (error) throw error
+  }
 }
 
 async function ensureScheduledExercise({
@@ -531,12 +613,15 @@ async function main() {
     if (error) throw error
   }
 
+  await ensureE2EMealPlanTemplate(coachId, clientId)
+
   console.log('E2E seed complete.')
   console.log(`  Coach:     ${COACH_EMAIL}`)
   console.log(`  Gym coach: ${GYM_COACH_EMAIL}`)
   console.log(`  Client:    ${CLIENT_EMAIL}`)
   console.log(`  Program: ${PROGRAM_NAME} (assigned from ${startDate})`)
   console.log(`  Team: ${TEAM_NAME}`)
+  console.log(`  Meal plan template: ${MEAL_PLAN_NAME}`)
   console.log(`  Client ID: ${clientId}`)
 }
 

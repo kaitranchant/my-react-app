@@ -18,7 +18,7 @@ export function PortalNutritionPrompt({
     <section className="rounded-xl border border-brand/20 bg-brand/5 p-3 sm:rounded-2xl sm:p-4">
       <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-stretch lg:gap-3">
         <p className="min-w-0 flex-1 text-sm leading-snug font-medium lg:flex-none">
-          Log today&apos;s nutrition adherence
+          Rate today&apos;s nutrition adherence
         </p>
         <Button
           variant="brand"

@@ -202,6 +202,18 @@ export function PortalSessionsSkeleton() {
   )
 }
 
+export function PortalNutritionSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <PortalPageHeaderSkeleton titleWidth="w-32" />
+      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
+      <PortalSectionSkeleton rows={3} />
+      <Skeleton className="h-48 rounded-xl" />
+    </div>
+  )
+}
+
 export function PortalLeaderboardsSkeleton() {
   return (
     <div className="flex flex-col gap-6">

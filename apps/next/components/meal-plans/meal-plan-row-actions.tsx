@@ -19,6 +19,7 @@ import {
 } from '@/app/(dashboard)/library/meal-plans/actions'
 import { MealPlanFormDialog } from '@/components/meal-plans/meal-plan-form-dialog'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,26 @@ export function MealPlanRowActions({ mealPlan }: { mealPlan: MealPlan }) {
   const [editOpen, setEditOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${mealPlan.name}?`,
+    description:
+      'This removes the plan and any assignment history. This cannot be undone.',
+    confirmLabel: 'Delete plan',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await deleteMealPlanRecord(mealPlan.id)
+      setPending(false)
+      if (result.success) {
+        toast.success('Meal plan deleted')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
   async function handleStatus(archive: boolean) {
     setPending(true)
     const result = await setMealPlanStatus(
@@ -42,25 +63,6 @@ export function MealPlanRowActions({ mealPlan }: { mealPlan: MealPlan }) {
     setPending(false)
     if (result.success) {
       toast.success(archive ? 'Meal plan archived' : 'Meal plan restored')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete ${mealPlan.name}? This removes the plan and any assignment history.`
-      )
-    ) {
-      return
-    }
-    setPending(true)
-    const result = await deleteMealPlanRecord(mealPlan.id)
-    setPending(false)
-    if (result.success) {
-      toast.success('Meal plan deleted')
       router.refresh()
     } else {
       toast.error(result.error)
@@ -104,7 +106,10 @@ export function MealPlanRowActions({ mealPlan }: { mealPlan: MealPlan }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => deleteConfirm.open()}
+          >
             <Trash2 className="size-4" />
             Delete
           </DropdownMenuItem>
@@ -116,6 +121,7 @@ export function MealPlanRowActions({ mealPlan }: { mealPlan: MealPlan }) {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {deleteConfirm.dialog}
     </>
   )
 }

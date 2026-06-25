@@ -37,17 +37,24 @@ export function buildNutritionTrendPoints(
   limit = 7,
   macroItemsByDate?: Map<string, MacroAdherenceItem[]>
 ): NutritionTrendPoint[] {
-  return [...logs]
-    .sort((left, right) => left.log_date.localeCompare(right.log_date))
+  const logsByDate = new Map(logs.map((log) => [log.log_date, log]))
+  const allDates = new Set([
+    ...logs.map((log) => log.log_date),
+    ...Array.from(macroItemsByDate?.keys() ?? []),
+  ])
+
+  return Array.from(allDates)
+    .sort((left, right) => left.localeCompare(right))
     .slice(-limit)
-    .map((log) => {
-      const color = getAdherenceColor(log.adherence_score)
+    .map((dateKey) => {
+      const log = logsByDate.get(dateKey)
+      const color = getAdherenceColor(log?.adherence_score ?? null)
       return {
-        dateKey: log.log_date,
-        label: formatTrendDateLabel(log.log_date),
-        adherenceScore: log.adherence_score,
+        dateKey,
+        label: formatTrendDateLabel(dateKey),
+        adherenceScore: log?.adherence_score ?? null,
         colorClass: ADHERENCE_COLOR_CLASSES[color],
-        macroItems: macroItemsByDate?.get(log.log_date) ?? [],
+        macroItems: macroItemsByDate?.get(dateKey) ?? [],
       }
     })
 }

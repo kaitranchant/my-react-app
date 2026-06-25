@@ -1,5 +1,9 @@
 import { PortalNutritionPanel } from '@/components/portal/portal-nutrition-panel'
 import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
+import {
+  isMissingTableError,
+  SchemaSetupNotice,
+} from '@/components/library/schema-setup-notice'
 import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { toDateKey } from '@/lib/calendar'
@@ -27,6 +31,7 @@ export default async function PortalNutritionPage() {
   let assignment: MealPlanAssignment | null = null
   let planDays: MealPlanDayWithMeals[] = []
   let foodDiaryEntries: ClientFoodDiaryEntry[] = []
+  let nutritionSchemaError: string | null = null
 
   if (clientRecord?.id) {
     const todayKey = toDateKey(new Date())
@@ -75,6 +80,14 @@ export default async function PortalNutritionPage() {
     assignment = (assignmentResult.data ?? null) as MealPlanAssignment | null
     foodDiaryEntries = (foodDiaryResult.data ?? []) as ClientFoodDiaryEntry[]
 
+    nutritionSchemaError = [
+      profileResult.error,
+      todayLogResult.error,
+      logsResult.error,
+      assignmentResult.error,
+      foodDiaryResult.error,
+    ].find((error) => error && isMissingTableError(error.message))?.message ?? null
+
     if (assignment) {
       planDays = await fetchMealPlanDaysWithMeals(supabase, assignment.meal_plan_id)
     }
@@ -92,6 +105,15 @@ export default async function PortalNutritionPage() {
 
       {!clientRecord ? (
         <PortalUnlinkedState feature="track nutrition" />
+      ) : nutritionSchemaError ? (
+        <SchemaSetupNotice
+          tables={[
+            'client_nutrition_profiles',
+            'client_nutrition_logs',
+            'meal_plans',
+          ]}
+          sqlFile="apply-nutrition.sql"
+        />
       ) : (
         <PortalNutritionPanel
           profile={profile}

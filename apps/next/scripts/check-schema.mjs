@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0074.
+ * Verify hosted Supabase schema through migration 0079.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -673,6 +673,52 @@ await checkRestTable(
   '/rest/v1/coaching_appointments?select=pre_session_notes,post_session_notes,rescheduled_to_id&limit=1'
 )
 
+// Migration 0075 — nutrition coaching
+await checkRestTable(
+  'client_nutrition_profiles table',
+  '/rest/v1/client_nutrition_profiles?select=client_id,calories_kcal,protein_g,carbs_g,fat_g&limit=1'
+)
+await checkRestTable(
+  'client_nutrition_logs table',
+  '/rest/v1/client_nutrition_logs?select=id,client_id,log_date,adherence_score&limit=1'
+)
+await checkRestTable(
+  'meal_plans table',
+  '/rest/v1/meal_plans?select=id,name,status&limit=1'
+)
+await checkRestTable(
+  'meal_plan_assignments table',
+  '/rest/v1/meal_plan_assignments?select=id,client_id,meal_plan_id,status&limit=1'
+)
+
+// Migration 0076 — nutrition improvements
+await checkRestTable(
+  'client_nutrition_profiles v2 columns',
+  '/rest/v1/client_nutrition_profiles?select=fiber_g,water_ml,dietary_restrictions,supplements,client_nutrition_notes&limit=1'
+)
+await checkRestTable(
+  'client_food_diary_entries table',
+  '/rest/v1/client_food_diary_entries?select=id,client_id,log_date,meal_type,food_name&limit=1'
+)
+
+// Migration 0077 — client-specific meal plans
+await checkRestTable(
+  'meal_plans.client_id column',
+  '/rest/v1/meal_plans?select=client_id&limit=1'
+)
+
+// Migration 0078 — meal plan day labels
+await checkRestTable(
+  'meal_plan_days.label column',
+  '/rest/v1/meal_plan_days?select=label&limit=1'
+)
+
+// Migration 0079 — food library
+await checkRestTable(
+  'meal_plan_meal_foods table',
+  '/rest/v1/meal_plan_meal_foods?select=id,food_name,source,quantity_g&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -686,7 +732,7 @@ for (const { name, ok, detail } of checks) {
 
 if (failed) {
   console.error('\nSchema is incomplete. Fix options:')
-  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0074 in order):')
+  console.error('  1. Preferred — Supabase CLI (applies migrations 0001–0079 in order):')
   console.error('       npx supabase login && yarn db:link && yarn db:push')
   console.error('  2. Supabase Dashboard → SQL → run feature scripts as needed:')
   console.error('       supabase/apply-exercise-prs.sql              (0017 load / PRs)')
@@ -736,6 +782,8 @@ if (failed) {
   console.error('       supabase/apply-coaching-session-booking.sql  (0072 session booking)')
   console.error('       supabase/apply-appointment-reminders.sql     (0073 appointment reminders)')
   console.error('       supabase/apply-scheduling-improvements.sql   (0074 scheduling improvements)')
+  console.error('       supabase/apply-nutrition.sql                 (0075–0078 nutrition + meal plans)')
+  console.error('       supabase/apply-food-library.sql              (0079 food library + diary refs)')
   console.error('     Migrations 0065–0068 (message media, broadcasts, forum, realtime) — use yarn db:push.')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
@@ -744,7 +792,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0074 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders).'
+  '\nSchema looks good — migrations through 0079 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

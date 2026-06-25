@@ -24,14 +24,17 @@ export function NutritionTrendsChart({
   return (
     <div className={cn('grid gap-3', className)}>
       {points.map((point) => {
-        const score = point.adherenceScore ?? 0
-        const width = `${(score / 5) * 100}%`
+        const score = point.adherenceScore
+        const width =
+          score != null ? `${(score / 5) * 100}%` : score === null && point.macroItems.length > 0 ? '8%' : '0%'
 
         return (
           <div key={point.dateKey} className="grid gap-1.5">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{point.label}</span>
-              <span className="font-medium">{score}/5</span>
+              <span className="font-medium">
+                {score != null ? `${score}/5` : '—'}
+              </span>
             </div>
             <div className="bg-muted h-2.5 overflow-hidden rounded-full">
               <div

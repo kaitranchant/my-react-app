@@ -15,6 +15,8 @@ export const E2E_CLIENT_PASSWORD =
 export const E2E_CLIENT_NAME = 'E2E Test Client'
 export const E2E_PROGRAM_NAME = 'E2E Test Program'
 export const E2E_WORKOUT_NAME = 'E2E Day 1 Workout'
+export const E2E_MEAL_PLAN_NAME = 'E2E Test Meal Plan'
+export const E2E_MEAL_PLAN_MEAL_NAME = 'E2E Test Breakfast'
 export const E2E_CLIENT_ID =
   process.env.E2E_CLIENT_ID ?? 'cebb411a-1fa1-4939-ab5e-8d516d874df2'
 
@@ -63,7 +65,10 @@ export function teamIdFromUrl(url: string) {
 export { login }
 
 export async function signOutFromApp(page: Page, userName: string) {
-  await page.getByRole('button', { name: new RegExp(userName, 'i') }).click()
+  await page
+    .locator('[data-slot="dropdown-menu-trigger"]')
+    .filter({ hasText: userName })
+    .click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
 }

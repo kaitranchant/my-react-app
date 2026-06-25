@@ -58,7 +58,7 @@ export function SchemaSetupNotice({ tables, sqlFile }: SchemaSetupNoticeProps) {
   )
 }
 
-function isMissingTableError(message: string) {
+export function isMissingTableError(message: string) {
   return message.includes('Could not find the table')
 }
 

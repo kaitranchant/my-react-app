@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { addDaysToDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
 import {
   formatFoodDiaryEntryMacros,
@@ -41,6 +42,7 @@ type FoodDiaryPanelProps = {
   enableDateNavigation?: boolean
   onAdd?: (values: FoodDiaryEntryFormValues) => Promise<{ success: boolean; error?: string }>
   onDelete?: (entryId: string) => Promise<{ success: boolean; error?: string }>
+  onLogDateChange?: (logDate: string) => void
 }
 
 function createEmptyEntry(logDate: string): FoodDiaryEntryFormValues {
@@ -66,6 +68,7 @@ export function FoodDiaryPanel({
   enableDateNavigation = false,
   onAdd,
   onDelete,
+  onLogDateChange,
 }: FoodDiaryPanelProps) {
   const todayKey = toDateKey(new Date())
   const [selectedDate, setSelectedDate] = React.useState(initialLogDate)
@@ -80,8 +83,36 @@ export function FoodDiaryPanel({
   const [manualMode, setManualMode] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [deletePending, setDeletePending] = React.useState<string | null>(null)
+  const pendingDeleteEntryId = React.useRef<string | null>(null)
   const [formValues, setFormValues] = React.useState(createEmptyEntry(logDate))
   const dateInputRef = React.useRef<HTMLInputElement>(null)
+
+  const deleteConfirm = useConfirmDialog({
+    title: 'Remove food entry?',
+    description: 'This removes the item from the food diary for this day.',
+    confirmLabel: 'Remove entry',
+    destructive: true,
+    onConfirm: async () => {
+      const entryId = pendingDeleteEntryId.current
+      if (!entryId || !onDelete) return
+
+      setDeletePending(entryId)
+      const result = await onDelete(entryId)
+      setDeletePending(null)
+
+      if (!result.success) {
+        toast.error(result.error ?? 'Could not delete entry.')
+        throw new Error(result.error ?? 'Could not delete entry.')
+      }
+
+      toast.success('Entry removed.')
+      pendingDeleteEntryId.current = null
+    },
+  })
+
+  React.useEffect(() => {
+    onLogDateChange?.(logDate)
+  }, [logDate, onLogDateChange])
 
   React.useEffect(() => {
     setFormValues(createEmptyEntry(logDate))
@@ -122,8 +153,13 @@ export function FoodDiaryPanel({
       proteinG: snapshot.proteinG,
       carbsG: snapshot.carbsG,
       fatG: snapshot.fatG,
-      fiberG: null,
+      fiberG: snapshot.fiberG ?? null,
     })
+  }
+
+  function requestDelete(entryId: string) {
+    pendingDeleteEntryId.current = entryId
+    deleteConfirm.open()
   }
 
   async function handleManualAdd(event: React.FormEvent) {
@@ -137,29 +173,17 @@ export function FoodDiaryPanel({
     })
   }
 
-  async function handleDelete(entryId: string) {
-    if (!onDelete) return
-    setDeletePending(entryId)
-    const result = await onDelete(entryId)
-    setDeletePending(null)
-
-    if (!result.success) {
-      toast.error(result.error ?? 'Could not delete entry.')
-      return
-    }
-
-    toast.success('Entry removed.')
-  }
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1">
           <CardTitle>Food diary</CardTitle>
           <CardDescription>
-            {readOnly
-              ? 'Review what the client logged, grouped by meal.'
-              : 'Search USDA foods or enter a custom item with optional macros.'}
+            {onAdd && readOnly
+              ? 'Log food on behalf of the client, or remove incorrect entries.'
+              : readOnly
+                ? 'Review what the client logged. Remove incorrect entries if needed.'
+                : 'Search USDA foods or enter a custom item with optional macros.'}
           </CardDescription>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -211,7 +235,7 @@ export function FoodDiaryPanel({
               </Button>
             </div>
           ) : null}
-          {!readOnly && onAdd ? (
+          {onAdd ? (
             <Button
               size="sm"
               variant="outline"
@@ -224,7 +248,7 @@ export function FoodDiaryPanel({
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
-        {showForm && !readOnly ? (
+        {showForm && onAdd ? (
           <div className="border-border bg-muted/20 grid gap-4 rounded-lg border p-4">
             <div className="grid gap-1.5 sm:max-w-xs">
               <Label>Meal</Label>
@@ -340,13 +364,17 @@ export function FoodDiaryPanel({
 
         {groups.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            {readOnly
+            {readOnly && onAdd
               ? logDate === todayKey
-                ? 'No food logged for today.'
+                ? 'No food logged for today. Add an entry on behalf of the client.'
                 : 'No food logged for this day.'
-              : logDate === todayKey
-                ? 'No food logged yet today. Tap Add food to start.'
-                : 'No food logged for this day.'}
+              : readOnly
+                ? logDate === todayKey
+                  ? 'No food logged for today.'
+                  : 'No food logged for this day.'
+                : logDate === todayKey
+                  ? 'No food logged yet today. Tap Add food to start.'
+                  : 'No food logged for this day.'}
           </p>
         ) : (
           <div className="grid gap-4">
@@ -382,14 +410,15 @@ export function FoodDiaryPanel({
                             </p>
                           ) : null}
                         </div>
-                        {!readOnly && onDelete ? (
+                        {onDelete ? (
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             className="size-7 shrink-0"
                             disabled={deletePending === entry.id}
-                            onClick={() => handleDelete(entry.id)}
+                            onClick={() => requestDelete(entry.id)}
+                            aria-label={`Remove ${entry.food_name}`}
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
@@ -420,6 +449,7 @@ export function FoodDiaryPanel({
           </div>
         )}
       </CardContent>
+      {deleteConfirm.dialog}
     </Card>
   )
 }

@@ -573,9 +573,37 @@ export function NutritionProfileForm({
     }))
   }
 
+  function applyGoalCalorieAdjustment() {
+    if (goalContext?.suggestedCalorieAdjustment == null) return
+
+    setTdeeInputs((current) => ({
+      ...current,
+      goal: goalContext.suggestedTdeeGoal,
+    }))
+    const adjustment = goalContext.suggestedCalorieAdjustment
+    setValues((current) => ({
+      ...current,
+      caloriesKcal: Math.max(
+        0,
+        Math.round(tdeeResult.targetCalories + adjustment)
+      ),
+    }))
+    setEntryMode('manual')
+    setTdeeExpanded(true)
+  }
+
   return (
     <div className="grid gap-4">
-      {goalContext ? <NutritionGoalContextBanner context={goalContext} /> : null}
+      {goalContext ? (
+        <NutritionGoalContextBanner
+          context={goalContext}
+          onApplyCalorieAdjustment={
+            goalContext.suggestedCalorieAdjustment != null
+              ? applyGoalCalorieAdjustment
+              : undefined
+          }
+        />
+      ) : null}
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">

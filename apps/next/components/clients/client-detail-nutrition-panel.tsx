@@ -1,4 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import {
+  isMissingTableError,
+  SchemaSetupNotice,
+} from '@/components/library/schema-setup-notice'
 import { ClientNutritionPanel } from '@/components/nutrition/client-nutrition-panel'
 import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
 import type {
@@ -30,6 +34,7 @@ export async function ClientDetailNutritionPanel({
     nutritionLogsResult,
     mealPlanAssignmentResult,
     mealPlansResult,
+    clientMealPlansResult,
     foodDiaryResult,
     goalsResult,
     inbodyResult,
@@ -57,6 +62,11 @@ export async function ClientDetailNutritionPanel({
       .select('id, name, status')
       .is('client_id', null)
       .order('name', { ascending: true }),
+    supabase
+      .from('meal_plans')
+      .select('id, name, status, updated_at')
+      .eq('client_id', clientId)
+      .order('updated_at', { ascending: false }),
     supabase
       .from('client_food_diary_entries')
       .select('*')
@@ -92,12 +102,38 @@ export async function ClientDetailNutritionPanel({
     MealPlan,
     'id' | 'name' | 'status'
   >[]
+  const clientMealPlans = (clientMealPlansResult.data ?? []) as Pick<
+    MealPlan,
+    'id' | 'name' | 'status' | 'updated_at'
+  >[]
   const foodDiaryEntries = (foodDiaryResult.data ??
     []) as ClientFoodDiaryEntry[]
   const goals = (goalsResult.data ?? []) as ClientGoal[]
   const latestScan = (inbodyResult.data ?? null) as ClientInbodyScan | null
   const biologicalSex = (clientResult.data?.biological_sex ??
     null) as BiologicalSex | null
+
+  const schemaError = [
+    nutritionProfileResult.error,
+    nutritionLogsResult.error,
+    mealPlanAssignmentResult.error,
+    mealPlansResult.error,
+    clientMealPlansResult.error,
+    foodDiaryResult.error,
+  ].find((error) => error && isMissingTableError(error.message))
+
+  if (schemaError) {
+    return (
+      <SchemaSetupNotice
+        tables={[
+          'client_nutrition_profiles',
+          'client_nutrition_logs',
+          'meal_plans',
+        ]}
+        sqlFile="apply-nutrition.sql"
+      />
+    )
+  }
 
   let planDays: MealPlanDayWithMeals[] = []
   if (mealPlanAssignment) {
@@ -114,6 +150,7 @@ export async function ClientDetailNutritionPanel({
       logs={nutritionLogs}
       assignment={mealPlanAssignment}
       mealPlans={availableMealPlans}
+      clientMealPlans={clientMealPlans}
       planDays={planDays}
       foodDiaryEntries={foodDiaryEntries}
       goals={goals}

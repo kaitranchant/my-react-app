@@ -15,8 +15,8 @@ import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adhe
 import { NutritionDietarySummary } from '@/components/nutrition/nutrition-dietary-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
+import { MacroProgressCard } from '@/components/nutrition/macro-progress-card'
 import { ClientNutritionNotesCard } from '@/components/nutrition/client-nutrition-notes-card'
-import { MacroAdherenceBadges } from '@/components/nutrition/macro-adherence-badges'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -29,10 +29,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toDateKey } from '@/lib/calendar'
-import {
-  buildMacroAdherenceItems,
-  sumFoodDiaryMacros,
-} from '@/lib/food-diary'
 import {
   createEmptyNutritionLogValues,
   nutritionLogToFormValues,
@@ -64,6 +60,7 @@ export function PortalNutritionPanel({
 }: PortalNutritionPanelProps) {
   const router = useRouter()
   const todayKey = toDateKey(new Date())
+  const [viewedDate, setViewedDate] = React.useState(todayKey)
   const [pending, setPending] = React.useState(false)
   const [values, setValues] = React.useState(
     todayLog
@@ -95,16 +92,10 @@ export function PortalNutritionPanel({
     router.refresh()
   }
 
-  const todayFoodEntries = foodDiaryEntries.filter(
-    (entry) => entry.log_date === todayKey
-  )
-  const todayConsumed = sumFoodDiaryMacros(todayFoodEntries)
-  const todayMacroItems = buildMacroAdherenceItems(
-    todayConsumed,
-    profile,
-    values.waterMl,
-    values.fiberG
-  )
+  const viewedLog =
+    viewedDate === todayKey
+      ? todayLog
+      : (recentLogs.find((log) => log.log_date === viewedDate) ?? null)
 
   return (
     <div className="grid gap-6">
@@ -114,6 +105,7 @@ export function PortalNutritionPanel({
       <FoodDiaryPanel
         entries={foodDiaryEntries}
         enableDateNavigation
+        onLogDateChange={setViewedDate}
         onAdd={async (entryValues) => {
           const result = await addFoodDiaryEntry(entryValues)
           if (result.success) router.refresh()
@@ -126,19 +118,15 @@ export function PortalNutritionPanel({
         }}
       />
 
-      {todayMacroItems.length > 0 ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Today&apos;s macro progress</CardTitle>
-            <CardDescription>
-              Based on your food diary vs coach targets.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MacroAdherenceBadges items={todayMacroItems} />
-          </CardContent>
-        </Card>
-      ) : null}
+      <MacroProgressCard
+        profile={profile}
+        foodDiaryEntries={foodDiaryEntries}
+        logDate={viewedDate}
+        todayKey={todayKey}
+        nutritionLog={viewedLog}
+        waterMl={viewedDate === todayKey ? values.waterMl : null}
+        fiberG={viewedDate === todayKey ? values.fiberG : null}
+      />
 
       <Card>
         <CardHeader>
@@ -229,7 +217,12 @@ export function PortalNutritionPanel({
         initialNotes={profile?.client_nutrition_notes ?? null}
       />
 
-      <TodaysMealsCard assignment={assignment} days={planDays} todayKey={todayKey} />
+      <TodaysMealsCard
+        assignment={assignment}
+        days={planDays}
+        todayKey={todayKey}
+        profile={profile}
+      />
 
       <NutritionAdherenceSection
         logs={recentLogs}

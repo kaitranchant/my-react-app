@@ -6,14 +6,24 @@ import {
   assignMealPlanToClientInternal,
   cancelMealPlanAssignmentInternal,
 } from '@/lib/meal-plan-assignment'
-import { nutritionProfileValuesToRow, normalizeSupplements } from '@/lib/nutrition'
+import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
+import { appendDuplicatedMealPlanDays } from '@/lib/meal-plan-extend'
+import {
+  nutritionLogValuesToRow,
+  nutritionProfileValuesToRow,
+  normalizeSupplements,
+} from '@/lib/nutrition'
 import { requireClientAccess } from '@/lib/gym-access'
 import {
   mealPlanAssignmentFormSchema,
   clientMealPlanFormSchema,
   nutritionProfileFormSchema,
   type ClientMealPlanFormValues,
+  type FoodDiaryEntryFormValues,
   type NutritionProfileFormValues,
+  foodDiaryEntryFormSchema,
+  nutritionLogFormSchema,
+  type NutritionLogFormValues,
 } from '@/lib/validations/nutrition'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -142,6 +152,143 @@ export async function createClientMealPlan(
   revalidatePath('/library/meal-plans')
   revalidatePath(`/library/meal-plans/${mealPlan.id}`)
   return { success: true, mealPlanId: mealPlan.id }
+}
+
+export async function addClientFoodDiaryEntry(
+  clientId: string,
+  values: FoodDiaryEntryFormValues
+): Promise<ActionResult> {
+  const parsed = foodDiaryEntryFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert({
+    client_id: clientId,
+    coach_id: ctx.user.id,
+    log_date: parsed.data.logDate,
+    meal_type: parsed.data.mealType,
+    food_name: parsed.data.foodName,
+    source: parsed.data.source ?? null,
+    external_id: parsed.data.externalId ?? null,
+    quantity_g: parsed.data.quantityG ?? null,
+    calories_kcal: parsed.data.caloriesKcal,
+    protein_g: parsed.data.proteinG,
+    carbs_g: parsed.data.carbsG,
+    fat_g: parsed.data.fatG,
+    fiber_g: parsed.data.fiberG,
+  })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateNutritionPaths(clientId)
+  return { success: true }
+}
+
+export async function deleteClientFoodDiaryEntry(
+  clientId: string,
+  entryId: string
+): Promise<ActionResult> {
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('client_food_diary_entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('client_id', clientId)
+    .eq('coach_id', ctx.user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateNutritionPaths(clientId)
+  return { success: true }
+}
+
+export async function extendMealPlanAssignment(
+  clientId: string
+): Promise<ActionResult> {
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { data: assignment, error: assignmentError } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .select('id, meal_plan_id')
+    .eq('client_id', clientId)
+    .eq('coach_id', ctx.user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: 'No active meal plan assignment found.' }
+  }
+
+  const planDays = await fetchMealPlanDaysWithMeals(
+    ctx.supabase,
+    assignment.meal_plan_id
+  )
+
+  const result = await appendDuplicatedMealPlanDays(
+    ctx.supabase,
+    assignment.meal_plan_id,
+    planDays
+  )
+
+  if (!result.success) {
+    return result
+  }
+
+  await ctx.supabase
+    .from('meal_plans')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', assignment.meal_plan_id)
+    .eq('coach_id', ctx.user.id)
+
+  revalidateNutritionPaths(clientId)
+  revalidatePath('/library/meal-plans')
+  revalidatePath(`/library/meal-plans/${assignment.meal_plan_id}`)
+  return { success: true }
+}
+
+export async function submitClientNutritionLog(
+  clientId: string,
+  values: NutritionLogFormValues
+): Promise<ActionResult> {
+  const parsed = nutritionLogFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const row = nutritionLogValuesToRow(parsed.data, clientId, ctx.user.id)
+
+  const { error } = await ctx.supabase
+    .from('client_nutrition_logs')
+    .upsert(row, { onConflict: 'client_id,log_date' })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateNutritionPaths(clientId)
+  return { success: true }
 }
 
 export async function cancelMealPlanAssignment(

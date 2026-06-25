@@ -17,6 +17,7 @@ import {
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
 import { MacroTotalsBadges } from '@/components/nutrition/macro-totals-badges'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Card,
   CardContent,
@@ -75,8 +76,33 @@ function snapshotToMealFoodValues(
 export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
+  const pendingDeleteDayId = React.useRef<string | null>(null)
   const nextDayOffset =
     days.length > 0 ? Math.max(...days.map((day) => day.day_offset)) + 1 : 0
+
+  const deleteDayConfirm = useConfirmDialog({
+    title: 'Delete this day?',
+    description: 'This removes the day and all of its meals and foods.',
+    confirmLabel: 'Delete day',
+    destructive: true,
+    onConfirm: async () => {
+      const dayId = pendingDeleteDayId.current
+      if (!dayId) return
+
+      setPending(true)
+      const result = await deleteMealPlanDay(mealPlanId, dayId)
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Day deleted.')
+      pendingDeleteDayId.current = null
+      router.refresh()
+    },
+  })
 
   async function handleAddDay() {
     setPending(true)
@@ -95,52 +121,44 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
     router.refresh()
   }
 
-  async function handleDeleteDay(dayId: string) {
-    if (!window.confirm('Delete this day and all of its meals?')) return
-
-    setPending(true)
-    const result = await deleteMealPlanDay(mealPlanId, dayId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Day deleted.')
-    router.refresh()
+  function requestDeleteDay(dayId: string) {
+    pendingDeleteDayId.current = dayId
+    deleteDayConfirm.open()
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          {days.length} day{days.length === 1 ? '' : 's'} in this plan
-        </p>
-        <Button size="sm" disabled={pending} onClick={handleAddDay}>
-          <Plus className="size-4" />
-          Add day
-        </Button>
-      </div>
+    <>
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-muted-foreground text-sm">
+            {days.length} day{days.length === 1 ? '' : 's'} in this plan
+          </p>
+          <Button size="sm" disabled={pending} onClick={handleAddDay}>
+            <Plus className="size-4" />
+            Add day
+          </Button>
+        </div>
 
-      {days.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-10 text-center text-sm">
-            Add a day to start building meals for this plan.
-          </CardContent>
-        </Card>
-      ) : (
-        days.map((day) => (
-          <MealPlanDayCard
-            key={day.id}
-            mealPlanId={mealPlanId}
-            day={day}
-            disabled={pending}
-            onDeleteDay={() => handleDeleteDay(day.id)}
-          />
-        ))
-      )}
-    </div>
+        {days.length === 0 ? (
+          <Card>
+            <CardContent className="text-muted-foreground py-10 text-center text-sm">
+              Add a day to start building meals for this plan.
+            </CardContent>
+          </Card>
+        ) : (
+          days.map((day) => (
+            <MealPlanDayCard
+              key={day.id}
+              mealPlanId={mealPlanId}
+              day={day}
+              disabled={pending}
+              onDeleteDay={() => requestDeleteDay(day.id)}
+            />
+          ))
+        )}
+      </div>
+      {deleteDayConfirm.dialog}
+    </>
   )
 }
 
@@ -157,6 +175,11 @@ function MealPlanDayCard({
 }) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
+  const pendingDeleteMealId = React.useRef<string | null>(null)
+  const pendingDeleteFood = React.useRef<{
+    mealId: string
+    foodId: string
+  } | null>(null)
   const [label, setLabel] = React.useState(day.label ?? '')
   const [mealType, setMealType] = React.useState<(typeof mealTypes)[number]>('breakfast')
   const [mealName, setMealName] = React.useState('')
@@ -167,6 +190,59 @@ function MealPlanDayCard({
   const [expandedMealId, setExpandedMealId] = React.useState<string | null>(null)
   const defaultDayName = `Day ${day.day_offset + 1}`
   const dayTotals = sumDayMacroTotals(day)
+
+  const deleteMealConfirm = useConfirmDialog({
+    title: 'Delete this meal?',
+    description: 'This removes the meal and all foods assigned to it.',
+    confirmLabel: 'Delete meal',
+    destructive: true,
+    onConfirm: async () => {
+      const mealId = pendingDeleteMealId.current
+      if (!mealId) return
+
+      setPending(true)
+      const result = await deleteMealPlanMeal(mealPlanId, mealId)
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Meal deleted.')
+      pendingDeleteMealId.current = null
+      router.refresh()
+    },
+  })
+
+  const deleteFoodConfirm = useConfirmDialog({
+    title: 'Remove this food?',
+    description: 'This removes the food from the meal.',
+    confirmLabel: 'Remove food',
+    destructive: true,
+    onConfirm: async () => {
+      const target = pendingDeleteFood.current
+      if (!target) return
+
+      setPending(true)
+      const result = await deleteMealPlanMealFood(
+        mealPlanId,
+        target.mealId,
+        target.foodId
+      )
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+
+      toast.success('Food removed.')
+      pendingDeleteFood.current = null
+      router.refresh()
+    },
+  })
+
   const draftTotals = React.useMemo(() => {
     if (draftFoods.length === 0) return null
 
@@ -264,17 +340,8 @@ function MealPlanDayCard({
   }
 
   async function handleDeleteMeal(mealId: string) {
-    setPending(true)
-    const result = await deleteMealPlanMeal(mealPlanId, mealId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Meal deleted.')
-    router.refresh()
+    pendingDeleteMealId.current = mealId
+    deleteMealConfirm.open()
   }
 
   async function handleAddFoodToMeal(
@@ -300,17 +367,8 @@ function MealPlanDayCard({
   }
 
   async function handleDeleteMealFood(mealId: string, foodId: string) {
-    setPending(true)
-    const result = await deleteMealPlanMealFood(mealPlanId, mealId, foodId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Food removed.')
-    router.refresh()
+    pendingDeleteFood.current = { mealId, foodId }
+    deleteFoodConfirm.open()
   }
 
   return (
@@ -550,6 +608,8 @@ function MealPlanDayCard({
           </div>
         </form>
       </CardContent>
+      {deleteMealConfirm.dialog}
+      {deleteFoodConfirm.dialog}
     </Card>
   )
 }

@@ -41,3 +41,9 @@ export function formatMealPlanTargetWarning(
 
   return `${alignment.planCalories.toLocaleString()} kcal is ${delta.toLocaleString()} above the ${alignment.targetCalories.toLocaleString()} target.`
 }
+
+export function formatMealPlanTargetHintForClient(
+  alignment: MealPlanTargetAlignment
+): string {
+  return `Today's meals total about ${alignment.planCalories.toLocaleString()} kcal. Your daily target is ${alignment.targetCalories.toLocaleString()} kcal — follow the plan as a guide and talk to your coach if portions need adjusting.`
+}

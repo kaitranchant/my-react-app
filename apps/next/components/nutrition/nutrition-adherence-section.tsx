@@ -23,7 +23,10 @@ import {
   buildMacroAdherenceItems,
   sumFoodDiaryMacros,
 } from '@/lib/food-diary'
-import { buildNutritionTrendPoints } from '@/lib/nutrition-trends'
+import {
+  averageAdherenceScore,
+  buildNutritionTrendPoints,
+} from '@/lib/nutrition-trends'
 import type {
   ClientFoodDiaryEntry,
   ClientNutritionLog,
@@ -64,21 +67,40 @@ export function NutritionAdherenceSection({
 
   const macroItemsByDate = React.useMemo(() => {
     const map = new Map<string, ReturnType<typeof buildMacroAdherenceItems>>()
-    for (const log of logs) {
-      const dayEntries = entriesByDate.get(log.log_date) ?? []
+    const allDates = new Set([
+      ...logs.map((log) => log.log_date),
+      ...Array.from(entriesByDate.keys()),
+    ])
+
+    for (const dateKey of Array.from(allDates)) {
+      const log = logs.find((entry) => entry.log_date === dateKey)
+      const dayEntries = entriesByDate.get(dateKey) ?? []
+      if (dayEntries.length === 0 && !log) continue
+
       const consumed = sumFoodDiaryMacros(dayEntries)
       map.set(
-        log.log_date,
-        buildMacroAdherenceItems(consumed, profile, log.water_ml, log.fiber_g)
+        dateKey,
+        buildMacroAdherenceItems(
+          consumed,
+          profile,
+          log?.water_ml ?? null,
+          log?.fiber_g ?? null
+        )
       )
     }
     return map
   }, [entriesByDate, logs, profile])
 
   const trendPoints = buildNutritionTrendPoints(logs, limit, macroItemsByDate)
-  const historyLogs = [...logs]
-    .sort((left, right) => right.log_date.localeCompare(left.log_date))
-    .slice(0, limit)
+  const periodLogs = logs.filter((log) =>
+    trendPoints.some((point) => point.dateKey === log.log_date)
+  )
+  const averageScore = averageAdherenceScore(periodLogs)
+  const historyPoints = [...trendPoints].reverse()
+  const logsByDate = React.useMemo(
+    () => new Map(logs.map((log) => [log.log_date, log])),
+    [logs]
+  )
 
   const subject = clientName ? `${clientName}'s` : 'Your'
 
@@ -90,6 +112,12 @@ export function NutritionAdherenceSection({
           <CardDescription>
             {subject} daily nutrition scores. Green = on track, amber = partial,
             red = off plan.
+            {averageScore != null ? (
+              <>
+                {' '}
+                Avg {averageScore}/5 in this period.
+              </>
+            ) : null}
           </CardDescription>
         </div>
         <Select
@@ -113,28 +141,28 @@ export function NutritionAdherenceSection({
           <NutritionTrendsChart points={trendPoints} />
         ) : (
           <p className="text-muted-foreground text-sm">
-            No daily nutrition logs in this period yet.
+            No nutrition activity in this period yet.
           </p>
         )}
 
-        {historyLogs.length > 0 ? (
+        {historyPoints.length > 0 ? (
           <div className="border-border border-t pt-4">
             <p className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wide">
               Daily log history
             </p>
             <ul className="divide-border divide-y">
-              {historyLogs.map((log) => {
-                const macroItems = macroItemsByDate.get(log.log_date) ?? []
+              {historyPoints.map((point) => {
+                const log = logsByDate.get(point.dateKey)
 
                 return (
                   <li
-                    key={log.id}
+                    key={point.dateKey}
                     className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
                   >
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-medium">
-                          {new Date(`${log.log_date}T12:00:00`).toLocaleDateString(
+                          {new Date(`${point.dateKey}T12:00:00`).toLocaleDateString(
                             undefined,
                             {
                               weekday: 'short',
@@ -143,18 +171,20 @@ export function NutritionAdherenceSection({
                             }
                           )}
                         </p>
-                        {log.client_notes ? (
+                        {log?.client_notes ? (
                           <p className="text-muted-foreground text-sm">
                             {log.client_notes}
                           </p>
                         ) : null}
                       </div>
                       <p className="text-sm font-medium">
-                        {formatAdherenceScore(log.adherence_score)}
+                        {log
+                          ? formatAdherenceScore(log.adherence_score)
+                          : 'Food logged — no score'}
                       </p>
                     </div>
-                    {macroItems.length > 0 ? (
-                      <MacroAdherenceBadges items={macroItems} />
+                    {point.macroItems.length > 0 ? (
+                      <MacroAdherenceBadges items={point.macroItems} />
                     ) : null}
                   </li>
                 )
