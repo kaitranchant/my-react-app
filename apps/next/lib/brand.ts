@@ -1,5 +1,4 @@
 export const APP_NAME = 'SwiftCoach'
-export const APP_TAGLINE = 'COACHING PLATFORM'
 export const APP_DESCRIPTION =
   'Professional coaching platform for trainers, therapists, and wellness coaches — built for momentum.'
 

@@ -20,6 +20,7 @@ export function WingMark({ className, variant = 'default' }: WingMarkProps) {
       fill="none"
       aria-hidden
       className={cn(
+        'block',
         variant === 'default' ? 'text-brand' : 'text-white',
         className
       )}
