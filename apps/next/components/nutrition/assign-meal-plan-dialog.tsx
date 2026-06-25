@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { UserPlus, ExternalLink } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -13,6 +13,7 @@ import {
   cancelMealPlanAssignment,
 } from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { CreateClientMealPlanDialog } from '@/components/nutrition/create-client-meal-plan-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -48,23 +49,28 @@ import {
 } from '@/components/ui/select'
 import { toDateKey } from '@/lib/calendar'
 import {
+  assessMealPlanTargetAlignment,
+  formatMealPlanTargetWarning,
+} from '@/lib/meal-plan-target-alignment'
+import {
   formatMealMacros,
   getTodayMealPlanDay,
   MEAL_TYPE_LABELS,
 } from '@/lib/nutrition'
 import {
   computeMealPlanSummary,
-  formatMealPlanSummary,
 } from '@/lib/meal-plan-stats'
 import {
   mealPlanAssignmentFormSchema,
   type MealPlanAssignmentFormValues,
 } from '@/lib/validations/nutrition'
 import type {
+  ClientNutritionProfile,
   MealPlan,
   MealPlanAssignmentWithPlan,
   MealPlanDayWithMeals,
 } from 'app/types/database'
+import { AlertTriangle } from 'lucide-react'
 
 type AssignMealPlanDialogProps = {
   clientId: string
@@ -191,6 +197,7 @@ type ClientMealPlanAssignmentCardProps = {
   assignment: MealPlanAssignmentWithPlan | null
   mealPlans: Pick<MealPlan, 'id' | 'name' | 'status'>[]
   planDays?: MealPlanDayWithMeals[]
+  profile?: ClientNutritionProfile | null
 }
 
 export function ClientMealPlanAssignmentCard({
@@ -199,17 +206,24 @@ export function ClientMealPlanAssignmentCard({
   assignment,
   mealPlans,
   planDays = [],
+  profile = null,
 }: ClientMealPlanAssignmentCardProps) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
 
   const summary = computeMealPlanSummary(planDays)
+  const targetAlignment = assessMealPlanTargetAlignment(
+    summary,
+    profile?.calories_kcal
+  )
   const todayKey = toDateKey(new Date())
   const { day: todayDay, planDayLabel } = assignment
     ? getTodayMealPlanDay(assignment, planDays, todayKey)
     : { day: null, planDayLabel: null }
 
   async function handleCancel() {
+    if (!window.confirm('Remove this meal plan assignment?')) return
+
     setPending(true)
     const result = await cancelMealPlanAssignment(clientId)
     setPending(false)
@@ -243,38 +257,69 @@ export function ClientMealPlanAssignmentCard({
       <CardContent>
         {assignment ? (
           <div className="grid gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="grid gap-1">
-                <p className="font-medium">{assignment.meal_plan.name}</p>
-                <p className="text-muted-foreground text-sm">
-                  {summary.dayCount > 0
-                    ? `${summary.dayCount}-day plan`
-                    : 'Plan'}{' '}
-                  · Started{' '}
-                  {new Date(
-                    `${assignment.start_date}T12:00:00`
-                  ).toLocaleDateString()}
-                </p>
-                {formatMealPlanSummary(summary) ? (
-                  <p className="text-muted-foreground text-sm">
-                    {formatMealPlanSummary(summary)}
-                  </p>
-                ) : null}
-                <Link
-                  href={`/library/meal-plans/${assignment.meal_plan_id}`}
-                  className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
-                >
+            <div className="grid gap-2">
+              <p className="font-medium">{assignment.meal_plan.name}</p>
+              <p className="text-muted-foreground text-sm">
+                {summary.dayCount > 0
+                  ? `${summary.dayCount}-day`
+                  : 'Plan'}{' '}
+                · Started{' '}
+                {new Date(`${assignment.start_date}T12:00:00`).toLocaleDateString(
+                  undefined,
+                  { month: 'short', day: 'numeric', year: 'numeric' }
+                )}
+              </p>
+              {summary.avgDailyMacros ? (
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="secondary" className="tabular-nums">
+                    {summary.avgDailyMacros.caloriesKcal.toLocaleString()} kcal
+                  </Badge>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {summary.avgDailyMacros.proteinG}g P
+                  </Badge>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {summary.avgDailyMacros.carbsG}g C
+                  </Badge>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {summary.avgDailyMacros.fatG}g F
+                  </Badge>
+                </div>
+              ) : null}
+              {targetAlignment?.isMisaligned ? (
+                <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                  <p>{formatMealPlanTargetWarning(targetAlignment)}</p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                size="sm"
+                className="w-full"
+                asChild
+              >
+                <Link href={`/library/meal-plans/${assignment.meal_plan_id}`}>
                   Quick view
-                  <ExternalLink className="size-3.5" />
                 </Link>
-              </div>
+              </Button>
+              <AssignMealPlanDialog
+                clientId={clientId}
+                mealPlans={mealPlans}
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full">
+                    Change plan
+                  </Button>
+                }
+              />
               <Button
                 variant="outline"
                 size="sm"
+                className="text-destructive hover:text-destructive w-full"
                 disabled={pending}
                 onClick={handleCancel}
               >
-                {pending ? 'Cancelling…' : 'Cancel assignment'}
+                {pending ? 'Removing…' : 'Remove'}
               </Button>
             </div>
 

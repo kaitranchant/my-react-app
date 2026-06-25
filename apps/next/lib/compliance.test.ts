@@ -7,6 +7,8 @@ import {
   countMissedWorkouts,
   countSessionCompliance,
   filterComplianceRows,
+  parseComplianceFilter,
+  parseComplianceSort,
   sortComplianceRows,
 } from './compliance'
 
@@ -75,6 +77,8 @@ describe('compliance row helpers', () => {
       clientId: 'a',
       clientName: 'Zoe',
       avatarUrl: null,
+      gymId: null,
+      teamIds: [],
       issues: [{ kind: 'inactive' as const, priority: 'medium' as const, label: 'Inactive', href: '/clients/a' }],
       issueCount: 1,
       highestPriority: 'medium' as const,
@@ -90,6 +94,8 @@ describe('compliance row helpers', () => {
       clientId: 'b',
       clientName: 'Alex',
       avatarUrl: null,
+      gymId: null,
+      teamIds: [],
       issues: [],
       issueCount: 0,
       highestPriority: null,
@@ -119,6 +125,12 @@ describe('compliance row helpers', () => {
     assert.equal(summary.clientsNeedingAttention, 1)
     assert.equal(summary.missedWorkouts7d, 2)
     assert.equal(summary.inactiveClients, 1)
+  })
+
+  it('parses compliance filter from URL params', () => {
+    assert.equal(parseComplianceFilter(undefined), 'all')
+    assert.equal(parseComplianceFilter('all'), 'all')
+    assert.equal(parseComplianceFilter('needs_attention'), 'needs_attention')
   })
 })
 

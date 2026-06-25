@@ -127,6 +127,8 @@ export async function fetchComplianceDashboardRows(
     clientId: client.id,
     clientName: client.full_name,
     avatarUrl: client.avatar_url,
+    gymId: client.gym_id ?? null,
+    teamIds: client.memberships?.map((membership) => membership.team.id) ?? [],
     workouts: workoutsByClientId.get(client.id) ?? [],
     hasCheckInThisPeriod: checkInPeriodClientIds.has(client.id),
     pendingCheckInReviews: pendingCheckInsByClientId.get(client.id) ?? 0,

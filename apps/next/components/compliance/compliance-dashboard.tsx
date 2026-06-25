@@ -10,7 +10,7 @@ import {
   MessageSquare,
   Users,
 } from 'lucide-react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import { Badge } from '@/components/ui/badge'
@@ -40,10 +40,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { CoachTeam } from '@/lib/attendance'
+import type { AttendanceScope, CoachTeam } from '@/lib/attendance'
+import { attendanceScopeToParams, parseAttendanceScope } from '@/lib/attendance'
 import {
   buildComplianceSummary,
   filterComplianceRows,
+  filterComplianceRowsByScope,
   formatDaysSinceSession,
   formatSessionCompliance,
   getComplianceIssueTone,
@@ -51,6 +53,7 @@ import {
   parseComplianceSort,
   sortComplianceRows,
   type ComplianceClientRow,
+  type ComplianceFilter,
   type ComplianceSort,
 } from '@/lib/compliance'
 import { cn } from '@/lib/utils'
@@ -220,30 +223,84 @@ export function ComplianceDashboard({
   checkInPeriodLabel,
   initialClientId = null,
 }: ComplianceDashboardProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const filter = parseComplianceFilter(searchParams.get('filter') ?? undefined)
-  const sort = parseComplianceSort(searchParams.get('sort') ?? undefined)
+  const filterFromUrl = parseComplianceFilter(searchParams.get('filter') ?? undefined)
+  const sortFromUrl = parseComplianceSort(searchParams.get('sort') ?? undefined)
+  const gymIds = React.useMemo(() => new Set(gyms.map((gym) => gym.id)), [gyms])
+  const scopeFromUrl = parseAttendanceScope(
+    searchParams.get('scope') ?? undefined,
+    searchParams.get('team') ?? undefined,
+    gymIds,
+    gyms,
+    teams
+  )
 
-  const filteredRows = filterComplianceRows(rows, filter)
+  const [filter, setFilter] = React.useState<ComplianceFilter>(filterFromUrl)
+  const [sort, setSort] = React.useState<ComplianceSort>(sortFromUrl)
+  const [scope, setScope] = React.useState<AttendanceScope>(scopeFromUrl)
+
+  const scopedRows = filterComplianceRowsByScope(rows, scope, teams)
+  const filteredRows = filterComplianceRows(scopedRows, filter)
   const visibleRows = sortComplianceRows(filteredRows, sort)
-  const summary = buildComplianceSummary(rows)
+  const summary = buildComplianceSummary(scopedRows)
 
   const [expandedClientId, setExpandedClientId] = React.useState<string | null>(
     initialClientId
   )
 
-  function updateParam(key: string, value: string | null) {
+  function syncUrlParams(next: {
+    filter: ComplianceFilter
+    sort: ComplianceSort
+    scope: AttendanceScope
+  }) {
     const params = new URLSearchParams(searchParams.toString())
-    if (!value) {
-      params.delete(key)
+
+    if (next.filter === 'all') {
+      params.delete('filter')
     } else {
-      params.set(key, value)
+      params.set('filter', next.filter)
     }
+
+    if (next.sort === 'issues') {
+      params.delete('sort')
+    } else {
+      params.set('sort', next.sort)
+    }
+
+    const { scope: scopeParam, team: teamParam } = attendanceScopeToParams(
+      next.scope
+    )
+    if (scopeParam) {
+      params.set('scope', scopeParam)
+    } else {
+      params.delete('scope')
+    }
+    if (teamParam) {
+      params.set('team', teamParam)
+    } else {
+      params.delete('team')
+    }
+
     const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
+    window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname)
+  }
+
+  function handleFilterChange(value: string) {
+    const nextFilter = value === 'needs_attention' ? 'needs_attention' : 'all'
+    setFilter(nextFilter)
+    syncUrlParams({ filter: nextFilter, sort, scope })
+  }
+
+  function handleSortChange(value: ComplianceSort) {
+    setSort(value)
+    syncUrlParams({ filter, sort: value, scope })
+  }
+
+  function handleScopeChange(nextScope: AttendanceScope) {
+    setScope(nextScope)
+    syncUrlParams({ filter, sort, scope: nextScope })
   }
 
   if (rows.length === 0) {
@@ -294,7 +351,12 @@ export function ComplianceDashboard({
         </CardContent>
       </Card>
 
-      <AttendanceScopeTabs gyms={gyms} teams={teams} />
+      <AttendanceScopeTabs
+        gyms={gyms}
+        teams={teams}
+        scope={scope}
+        onScopeChange={handleScopeChange}
+      />
 
       <Card>
         <CardHeader className="gap-3 border-b px-4 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
@@ -315,16 +377,9 @@ export function ComplianceDashboard({
                   label: 'Needs attention',
                 },
               ]}
-              onChange={(value) =>
-                updateParam('filter', value === 'all' ? null : value)
-              }
+              onChange={handleFilterChange}
             />
-            <Select
-              value={sort}
-              onValueChange={(value: ComplianceSort) =>
-                updateParam('sort', value === 'issues' ? null : value)
-              }
-            >
+            <Select value={sort} onValueChange={handleSortChange}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>

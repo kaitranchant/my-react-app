@@ -2,11 +2,16 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  computeMacroPercents,
   formatAdherenceScore,
   formatMealPlanDayLabel,
   getMealPlanDayOffset,
   getTodayMealPlanDay,
+  gramsFromMacroPercent,
   groupDaysWithMeals,
+  isMacroSplitBalanced,
+  macroPercentFromGrams,
+  sumMacroPercentTotal,
 } from './nutrition'
 import type {
   MealPlanAssignment,
@@ -95,4 +100,25 @@ test('formatMealPlanDayLabel uses custom label or falls back to Day N', () => {
 test('formatAdherenceScore includes label text from check-in scale', () => {
   assert.match(formatAdherenceScore(5), /5\/5/)
   assert.match(formatAdherenceScore(1), /Off plan/)
+})
+
+test('sumMacroPercentTotal adds protein, carbs, and fat percentages', () => {
+  const percents = computeMacroPercents({
+    calories_kcal: 2975,
+    protein_g: 145,
+    carbs_g: 413,
+    fat_g: 83,
+  } as never)
+
+  assert.equal(sumMacroPercentTotal(percents), 100)
+  assert.equal(isMacroSplitBalanced(sumMacroPercentTotal(percents)!), true)
+})
+
+test('gramsFromMacroPercent and macroPercentFromGrams convert macro splits', () => {
+  const calories = 2975
+  const proteinPercent = 19
+  const proteinG = gramsFromMacroPercent(calories, proteinPercent, 'protein')
+
+  assert.equal(proteinG, 141)
+  assert.equal(macroPercentFromGrams(calories, proteinG, 'protein'), proteinPercent)
 })

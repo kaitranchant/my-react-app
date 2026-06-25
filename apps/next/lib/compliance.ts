@@ -3,6 +3,11 @@ import { isAcwrLoadAlert } from '@/lib/load-analytics'
 import { getDaysSinceLastSession } from '@/lib/client-metrics'
 import { PROACTIVE_INACTIVE_DAYS_THRESHOLD } from '@/lib/proactive-alerts'
 import type { ClientDashboardAlertContext } from '@/lib/proactive-alerts'
+import {
+  clientMatchesAttendanceScope,
+  type AttendanceScope,
+  type CoachTeam,
+} from '@/lib/attendance'
 
 export type ComplianceIssueKind =
   | 'missed_workout'
@@ -31,6 +36,8 @@ export type ComplianceClientInput = {
   clientId: string
   clientName: string
   avatarUrl: string | null
+  gymId: string | null
+  teamIds: string[]
   workouts: ComplianceWorkoutRow[]
   hasCheckInThisPeriod: boolean
   pendingCheckInReviews: number
@@ -43,6 +50,8 @@ export type ComplianceClientRow = {
   clientId: string
   clientName: string
   avatarUrl: string | null
+  gymId: string | null
+  teamIds: string[]
   issues: ComplianceIssue[]
   issueCount: number
   highestPriority: 'high' | 'medium' | 'low' | null
@@ -264,6 +273,8 @@ export function buildComplianceClientRow(
     clientId: input.clientId,
     clientName: input.clientName,
     avatarUrl: input.avatarUrl,
+    gymId: input.gymId,
+    teamIds: input.teamIds,
     issues,
     issueCount: issues.length,
     highestPriority: highestIssuePriority(issues),
@@ -342,6 +353,20 @@ export function filterComplianceRows(
   return rows
 }
 
+export function filterComplianceRowsByScope(
+  rows: ComplianceClientRow[],
+  scope: AttendanceScope,
+  teams: CoachTeam[]
+): ComplianceClientRow[] {
+  return rows.filter((row) =>
+    clientMatchesAttendanceScope(
+      { gymId: row.gymId ?? null, teamIds: row.teamIds ?? [] },
+      scope,
+      teams
+    )
+  )
+}
+
 export function buildComplianceSummary(
   rows: ComplianceClientRow[]
 ): ComplianceSummary {
@@ -377,8 +402,8 @@ export function buildComplianceSummary(
 export function parseComplianceFilter(
   value: string | undefined
 ): ComplianceFilter {
-  if (value === 'all') return 'all'
-  return 'needs_attention'
+  if (value === 'needs_attention') return 'needs_attention'
+  return 'all'
 }
 
 export function parseComplianceSort(value: string | undefined): ComplianceSort {

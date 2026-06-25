@@ -4,11 +4,21 @@ import type {
   ClientNutritionProfile,
 } from 'app/types/database'
 import { formatCompositionGoalLabel } from '@/lib/goal-progress'
+import type { NutritionGoal } from '@/lib/tdee-calculator'
 
 export type NutritionGoalContext = {
   headline: string
   detail: string | null
   suggestedCalorieAdjustment: number | null
+  suggestedTdeeGoal: NutritionGoal
+}
+
+export function compositionGoalDirectionToTdeeGoal(
+  direction: ClientGoal['direction'] | null | undefined
+): NutritionGoal {
+  if (direction === 'increase') return 'gain'
+  if (direction === 'decrease') return 'lose'
+  return 'maintain'
 }
 
 export function buildNutritionGoalContext(
@@ -30,6 +40,7 @@ export function buildNutritionGoalContext(
 
   let headline: string
   let suggestedCalorieAdjustment: number | null = null
+  const suggestedTdeeGoal = compositionGoalDirectionToTdeeGoal(direction)
 
   if (direction === 'increase') {
     headline = `Client is in a building phase — suggested calorie surplus of 250–300 kcal.`
@@ -51,6 +62,7 @@ export function buildNutritionGoalContext(
     headline,
     detail: details.join(' · '),
     suggestedCalorieAdjustment,
+    suggestedTdeeGoal,
   }
 }
 

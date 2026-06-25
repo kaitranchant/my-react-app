@@ -54,7 +54,7 @@ export default async function PortalNutritionPage() {
         .select('*')
         .eq('client_id', clientRecord.id)
         .order('log_date', { ascending: false })
-        .limit(30),
+        .limit(90),
       supabase
         .from('meal_plan_assignments')
         .select('*')

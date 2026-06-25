@@ -21,6 +21,7 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchComplianceDashboardRows } from '@/lib/compliance-queries'
 import {
   filterComplianceRows,
+  filterComplianceRowsByScope,
   parseComplianceFilter,
   parseComplianceSort,
   sortComplianceRows,
@@ -63,13 +64,6 @@ export default async function CompliancePage({
   const coachGyms = user ? await getGymsForCoach(user.id) : []
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
   const coachTeams = user ? await fetchCoachTeams(supabase, user.id) : []
-  const scope = parseAttendanceScope(
-    scopeParam,
-    teamParam,
-    coachGymIds,
-    coachGyms,
-    coachTeams
-  )
 
   const todayKey = getCoachDateKey(coachPreferences.timezone)
   const { start: weekStart, end: weekEnd } = getWeekRange(
@@ -88,7 +82,7 @@ export default async function CompliancePage({
 
   const clients = user
     ? await fetchAttendanceClients(supabase, {
-        scope,
+        scope: { kind: 'all' },
         coachGymIds,
         userId: user.id,
       })
@@ -107,8 +101,18 @@ export default async function CompliancePage({
     : []
 
   const filter = parseComplianceFilter(filterParam)
+  const scope = parseAttendanceScope(
+    scopeParam,
+    teamParam,
+    coachGymIds,
+    coachGyms,
+    coachTeams
+  )
   const visibleCount = sortComplianceRows(
-    filterComplianceRows(rows, filter),
+    filterComplianceRows(
+      filterComplianceRowsByScope(rows, scope, coachTeams),
+      filter
+    ),
     parseComplianceSort(sortParam)
   ).length
 

@@ -196,6 +196,51 @@ export function computeMacroPercents(profile: ClientNutritionProfile | null) {
   return { protein, carbs, fat }
 }
 
+export function sumMacroPercentTotal(
+  percents: ReturnType<typeof computeMacroPercents>
+): number | null {
+  if (
+    percents.protein == null &&
+    percents.carbs == null &&
+    percents.fat == null
+  ) {
+    return null
+  }
+
+  return (percents.protein ?? 0) + (percents.carbs ?? 0) + (percents.fat ?? 0)
+}
+
+export function isMacroSplitBalanced(total: number): boolean {
+  return total >= 99 && total <= 101
+}
+
+export type MacroNutrient = 'protein' | 'carbs' | 'fat'
+
+const CALORIES_PER_MACRO_GRAM: Record<MacroNutrient, number> = {
+  protein: 4,
+  carbs: 4,
+  fat: 9,
+}
+
+export function gramsFromMacroPercent(
+  caloriesKcal: number,
+  percent: number,
+  macro: MacroNutrient
+): number {
+  const caloriesForMacro = (caloriesKcal * percent) / 100
+  return Math.round(caloriesForMacro / CALORIES_PER_MACRO_GRAM[macro])
+}
+
+export function macroPercentFromGrams(
+  caloriesKcal: number,
+  grams: number,
+  macro: MacroNutrient
+): number {
+  return Math.round(
+    ((grams * CALORIES_PER_MACRO_GRAM[macro]) / caloriesKcal) * 100
+  )
+}
+
 export function daysBetweenDateKeys(startDateKey: string, endDateKey: string) {
   const start = new Date(`${startDateKey}T12:00:00`)
   const end = new Date(`${endDateKey}T12:00:00`)

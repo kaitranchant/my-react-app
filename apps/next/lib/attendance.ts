@@ -566,6 +566,64 @@ export function teamsForAttendanceScope(
   return teams.filter((team) => team.gym_id === scope.gymId)
 }
 
+export type AttendanceScopeClient = {
+  gymId: string | null
+  teamIds: string[]
+}
+
+export function clientMatchesAttendanceScope(
+  client: AttendanceScopeClient,
+  scope: AttendanceScope,
+  teams: CoachTeam[]
+): boolean {
+  const teamIds = client.teamIds ?? []
+
+  if (scope.teamId) {
+    return teamIds.includes(scope.teamId)
+  }
+
+  if (scope.kind === 'personal') {
+    if (client.gymId != null) {
+      return false
+    }
+
+    return !teamIds.some((teamId) => {
+      const team = teams.find((entry) => entry.id === teamId)
+      return team?.gym_id != null
+    })
+  }
+
+  if (scope.kind === 'gym') {
+    if (client.gymId === scope.gymId) {
+      return true
+    }
+
+    return teamIds.some((teamId) => {
+      const team = teams.find((entry) => entry.id === teamId)
+      return team?.gym_id === scope.gymId
+    })
+  }
+
+  return true
+}
+
+export function attendanceScopeToParams(scope: AttendanceScope): {
+  scope: string | null
+  team: string | null
+} {
+  let scopeParam: string | null = null
+  if (scope.kind === 'personal') {
+    scopeParam = 'personal'
+  } else if (scope.kind === 'gym') {
+    scopeParam = scope.gymId
+  }
+
+  return {
+    scope: scopeParam,
+    team: scope.teamId ?? null,
+  }
+}
+
 function parseAttendanceBaseScope(
   rawScope: string,
   coachGymIds: Set<string>,

@@ -4,9 +4,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { FilterPills } from '@/components/ui/filter-pills'
 import {
+  attendanceScopeToParams,
   parseAttendanceScope,
   teamBelongsToBaseScope,
   teamsForAttendanceScope,
+  type AttendanceScope,
   type CoachTeam,
 } from '@/lib/attendance'
 
@@ -15,7 +17,7 @@ type GymTab = {
   name: string
 }
 
-function baseScopeValue(scope: ReturnType<typeof parseAttendanceScope>) {
+function baseScopeValue(scope: AttendanceScope) {
   if (scope.kind === 'personal') {
     return 'personal'
   }
@@ -28,22 +30,27 @@ function baseScopeValue(scope: ReturnType<typeof parseAttendanceScope>) {
 export function AttendanceScopeTabs({
   gyms,
   teams,
+  scope: controlledScope,
+  onScopeChange,
 }: {
   gyms: GymTab[]
   teams: CoachTeam[]
+  scope?: AttendanceScope
+  onScopeChange?: (scope: AttendanceScope) => void
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const gymIds = gyms.map((gym) => gym.id)
-  const scope = parseAttendanceScope(
+  const scopeFromUrl = parseAttendanceScope(
     searchParams.get('scope') ?? undefined,
     searchParams.get('team') ?? undefined,
     new Set(gymIds),
     gyms,
     teams
   )
+  const scope = controlledScope ?? scopeFromUrl
   const baseValue = baseScopeValue(scope)
   const visibleTeams = teamsForAttendanceScope(teams, scope)
   const selectedTeamId =
@@ -51,48 +58,78 @@ export function AttendanceScopeTabs({
       ? scope.teamId
       : null
 
-  function pushParams(params: URLSearchParams) {
+  function applyScope(nextScope: AttendanceScope) {
+    if (onScopeChange) {
+      onScopeChange(nextScope)
+      return
+    }
+
+    const params = new URLSearchParams(searchParams.toString())
+    const { scope: scopeParam, team: teamParam } =
+      attendanceScopeToParams(nextScope)
+
+    if (scopeParam) {
+      params.set('scope', scopeParam)
+    } else {
+      params.delete('scope')
+    }
+
+    if (teamParam) {
+      params.set('team', teamParam)
+    } else {
+      params.delete('team')
+    }
+
     const query = params.toString()
     router.push(query ? `${pathname}?${query}` : pathname)
   }
 
   function handleBaseScopeChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const nextBase =
+      value === 'all'
+        ? ({ kind: 'all' } as const)
+        : value === 'personal'
+          ? ({ kind: 'personal' } as const)
+          : ({ kind: 'gym', gymId: value } as const)
 
-    if (value === 'all') {
-      params.delete('scope')
-    } else {
-      params.set('scope', value)
-    }
+    let nextScope: AttendanceScope = nextBase
 
-    const teamId = params.get('team')
-    if (teamId) {
-      const team = teams.find((entry) => entry.id === teamId)
-      const nextBase =
-        value === 'all'
-          ? ({ kind: 'all' } as const)
-          : value === 'personal'
-            ? ({ kind: 'personal' } as const)
-            : ({ kind: 'gym', gymId: value } as const)
-
-      if (!team || !teamBelongsToBaseScope(team, nextBase)) {
-        params.delete('team')
+    if (scope.teamId) {
+      const team = teams.find((entry) => entry.id === scope.teamId)
+      if (team && teamBelongsToBaseScope(team, nextBase)) {
+        nextScope = { ...nextBase, teamId: scope.teamId }
       }
     }
 
-    pushParams(params)
+    applyScope(nextScope)
   }
 
   function handleTeamChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-
     if (value === 'all-teams') {
-      params.delete('team')
-    } else {
-      params.set('team', value)
+      const { teamId: _teamId, ...baseScope } = scope
+      applyScope(baseScope)
+      return
     }
 
-    pushParams(params)
+    const team = teams.find((entry) => entry.id === value)
+    if (!team) {
+      return
+    }
+
+    let baseScope: AttendanceScope =
+      scope.kind === 'gym'
+        ? scope
+        : scope.kind === 'personal'
+          ? scope
+          : { kind: 'all' }
+
+    if (!teamBelongsToBaseScope(team, baseScope)) {
+      baseScope = team.gym_id
+        ? { kind: 'gym', gymId: team.gym_id }
+        : { kind: 'personal' }
+    }
+
+    applyScope({ ...baseScope, teamId: value })
   }
 
   const locationOptions = [

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
-import { toDateKey } from '@/lib/calendar'
+import { addDaysToDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
 import {
   formatFoodDiaryEntryMacros,
   groupFoodDiaryByMeal,
@@ -38,6 +38,7 @@ type FoodDiaryPanelProps = {
   entries: ClientFoodDiaryEntry[]
   logDate?: string
   readOnly?: boolean
+  enableDateNavigation?: boolean
   onAdd?: (values: FoodDiaryEntryFormValues) => Promise<{ success: boolean; error?: string }>
   onDelete?: (entryId: string) => Promise<{ success: boolean; error?: string }>
 }
@@ -60,16 +61,27 @@ function createEmptyEntry(logDate: string): FoodDiaryEntryFormValues {
 
 export function FoodDiaryPanel({
   entries,
-  logDate = toDateKey(new Date()),
+  logDate: initialLogDate = toDateKey(new Date()),
   readOnly = false,
+  enableDateNavigation = false,
   onAdd,
   onDelete,
 }: FoodDiaryPanelProps) {
+  const todayKey = toDateKey(new Date())
+  const [selectedDate, setSelectedDate] = React.useState(initialLogDate)
+  const logDate = enableDateNavigation ? selectedDate : initialLogDate
+
+  React.useEffect(() => {
+    if (!enableDateNavigation) {
+      setSelectedDate(initialLogDate)
+    }
+  }, [enableDateNavigation, initialLogDate])
   const [showForm, setShowForm] = React.useState(false)
   const [manualMode, setManualMode] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [deletePending, setDeletePending] = React.useState<string | null>(null)
   const [formValues, setFormValues] = React.useState(createEmptyEntry(logDate))
+  const dateInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     setFormValues(createEmptyEntry(logDate))
@@ -146,20 +158,70 @@ export function FoodDiaryPanel({
           <CardTitle>Food diary</CardTitle>
           <CardDescription>
             {readOnly
-              ? 'What the client logged today, grouped by meal.'
+              ? 'Review what the client logged, grouped by meal.'
               : 'Search USDA foods or enter a custom item with optional macros.'}
           </CardDescription>
         </div>
-        {!readOnly && onAdd ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowForm((current) => !current)}
-          >
-            <Plus className="size-4" />
-            Add food
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {enableDateNavigation ? (
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => setSelectedDate((current) => addDaysToDateKey(current, -1))}
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-w-[4.5rem] px-3"
+                onClick={() => dateInputRef.current?.showPicker?.()}
+              >
+                {logDate === todayKey ? 'Today' : formatDayHeader(logDate)}
+              </Button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={logDate}
+                max={todayKey}
+                onChange={(event) => {
+                  if (event.target.value) {
+                    setSelectedDate(event.target.value)
+                  }
+                }}
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8"
+                disabled={logDate >= todayKey}
+                onClick={() => setSelectedDate((current) => addDaysToDateKey(current, 1))}
+                aria-label="Next day"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+          {!readOnly && onAdd ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowForm((current) => !current)}
+            >
+              <Plus className="size-4" />
+              Add food
+            </Button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="grid gap-4">
         {showForm && !readOnly ? (
@@ -279,8 +341,12 @@ export function FoodDiaryPanel({
         {groups.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {readOnly
-              ? 'No food logged for this day.'
-              : 'No food logged yet today. Tap Add food to start.'}
+              ? logDate === todayKey
+                ? 'No food logged for today.'
+                : 'No food logged for this day.'
+              : logDate === todayKey
+                ? 'No food logged yet today. Tap Add food to start.'
+                : 'No food logged for this day.'}
           </p>
         ) : (
           <div className="grid gap-4">

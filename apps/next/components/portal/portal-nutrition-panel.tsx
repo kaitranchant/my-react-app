@@ -11,7 +11,8 @@ import {
 } from '@/app/portal/nutrition-actions'
 import { MacroTargetsCard } from '@/components/nutrition/macro-targets-card'
 import { NutritionAdherenceSelector } from '@/components/nutrition/nutrition-adherence-selector'
-import { NutritionTrendsChart } from '@/components/nutrition/nutrition-trends-chart'
+import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
+import { NutritionDietarySummary } from '@/components/nutrition/nutrition-dietary-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
 import { ClientNutritionNotesCard } from '@/components/nutrition/client-nutrition-notes-card'
@@ -36,7 +37,6 @@ import {
   createEmptyNutritionLogValues,
   nutritionLogToFormValues,
 } from '@/lib/nutrition'
-import { buildNutritionTrendPoints } from '@/lib/nutrition-trends'
 import type {
   ClientFoodDiaryEntry,
   ClientNutritionLog,
@@ -106,31 +106,14 @@ export function PortalNutritionPanel({
     values.fiberG
   )
 
-  const macroItemsByDate = new Map<string, ReturnType<typeof buildMacroAdherenceItems>>()
-  const entriesByDate = new Map<string, ClientFoodDiaryEntry[]>()
-  for (const entry of foodDiaryEntries) {
-    const existing = entriesByDate.get(entry.log_date) ?? []
-    existing.push(entry)
-    entriesByDate.set(entry.log_date, existing)
-  }
-  for (const log of recentLogs) {
-    const dayEntries = entriesByDate.get(log.log_date) ?? []
-    const consumed = sumFoodDiaryMacros(dayEntries)
-    macroItemsByDate.set(
-      log.log_date,
-      buildMacroAdherenceItems(consumed, profile, log.water_ml, log.fiber_g)
-    )
-  }
-
-  const trendPoints = buildNutritionTrendPoints(recentLogs, 7, macroItemsByDate)
-
   return (
     <div className="grid gap-6">
       <MacroTargetsCard profile={profile} />
+      <NutritionDietarySummary profile={profile} />
 
       <FoodDiaryPanel
         entries={foodDiaryEntries}
-        logDate={todayKey}
+        enableDateNavigation
         onAdd={async (entryValues) => {
           const result = await addFoodDiaryEntry(entryValues)
           if (result.success) router.refresh()
@@ -248,17 +231,11 @@ export function PortalNutritionPanel({
 
       <TodaysMealsCard assignment={assignment} days={planDays} todayKey={todayKey} />
 
-      {trendPoints.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent adherence</CardTitle>
-            <CardDescription>Your last 7 daily nutrition logs.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <NutritionTrendsChart points={trendPoints} />
-          </CardContent>
-        </Card>
-      ) : null}
+      <NutritionAdherenceSection
+        logs={recentLogs}
+        profile={profile}
+        foodDiaryEntries={foodDiaryEntries}
+      />
     </div>
   )
 }

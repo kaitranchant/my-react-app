@@ -10,10 +10,9 @@ import {
   computeMacroPercents,
   formatMacroValue,
   hasNutritionTargets,
-  parseSupplements,
 } from '@/lib/nutrition'
 import type { ClientNutritionProfile } from 'app/types/database'
-import { AlertTriangle, Pill, Target } from 'lucide-react'
+import { Target } from 'lucide-react'
 
 type MacroTargetsCardProps = {
   profile: ClientNutritionProfile | null
@@ -25,7 +24,6 @@ export function MacroTargetsCard({
   description = 'Daily macro targets set by your coach.',
 }: MacroTargetsCardProps) {
   const percents = computeMacroPercents(profile)
-  const supplements = parseSupplements(profile?.supplements)
 
   const targets = [
     {
@@ -60,8 +58,6 @@ export function MacroTargetsCard({
     },
   ].filter((entry) => entry.value != null)
 
-  const restrictions = profile?.dietary_restrictions?.trim()
-
   return (
     <Card>
       <CardHeader>
@@ -93,43 +89,15 @@ export function MacroTargetsCard({
               ))}
             </div>
             {profile?.notes ? (
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {profile.notes}
-              </p>
+              <div className="border-border border-t pt-4">
+                <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+                  Coach guidance
+                </p>
+                <p className="text-sm leading-relaxed">{profile.notes}</p>
+              </div>
             ) : null}
           </div>
         )}
-
-        {restrictions || supplements.length > 0 ? (
-          <div className="border-border mt-4 grid gap-3 border-t pt-4">
-            {restrictions ? (
-              <div className="flex gap-2 text-sm">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                <div>
-                  <p className="font-medium">Dietary restrictions</p>
-                  <p className="text-muted-foreground">{restrictions}</p>
-                </div>
-              </div>
-            ) : null}
-            {supplements.length > 0 ? (
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-                  <Pill className="size-4" />
-                  Supplements
-                </p>
-                <ul className="text-muted-foreground grid gap-1 text-sm">
-                  {supplements.map((supplement, index) => (
-                    <li key={`${supplement.name}-${index}`}>
-                      {supplement.name}
-                      {supplement.dosage ? ` · ${supplement.dosage}` : ''}
-                      {supplement.timing ? ` · ${supplement.timing}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   )

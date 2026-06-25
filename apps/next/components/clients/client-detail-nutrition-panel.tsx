@@ -45,7 +45,7 @@ export async function ClientDetailNutritionPanel({
       .select('*')
       .eq('client_id', clientId)
       .order('log_date', { ascending: false })
-      .limit(30),
+      .limit(90),
     supabase
       .from('meal_plan_assignments')
       .select('*, meal_plan:meal_plans(id, name, description)')
