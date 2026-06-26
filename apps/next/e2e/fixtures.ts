@@ -1,4 +1,12 @@
-import { test as base, expect, type Page } from '@playwright/test'
+import path from 'node:path'
+
+import { test as base, expect, type Browser, type Page } from '@playwright/test'
+
+const authDir = path.join(__dirname, '.auth')
+export const coachAuthFile = path.join(authDir, 'coach.json')
+export const clientAuthFile = path.join(authDir, 'client.json')
+
+const LOGIN_TIMEOUT_MS = 30_000
 
 export const E2E_COACH_EMAIL =
   process.env.E2E_COACH_EMAIL ?? 'e2e-coach@coaching-app.test'
@@ -26,7 +34,7 @@ export const hasE2ECredentials = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-async function login(
+async function loginOnce(
   page: Page,
   email: string,
   password: string,
@@ -36,9 +44,28 @@ async function login(
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await Promise.all([
-    page.waitForURL(expectedPath, { timeout: 20_000 }),
+    page.waitForURL(expectedPath, { timeout: LOGIN_TIMEOUT_MS }),
     page.getByRole('button', { name: 'Sign in' }).click(),
   ])
+}
+
+async function login(
+  page: Page,
+  email: string,
+  password: string,
+  expectedPath: RegExp
+) {
+  try {
+    await loginOnce(page, email, password, expectedPath)
+  } catch {
+    await loginOnce(page, email, password, expectedPath)
+  }
+}
+
+async function pageFromStorageState(browser: Browser, storageState: string) {
+  const context = await browser.newContext({ storageState })
+  const page = await context.newPage()
+  return { context, page }
 }
 
 export async function expandSidebarGroup(page: Page, groupLabel: string) {
@@ -174,19 +201,31 @@ type E2EFixtures = {
 
 export const test = base.extend<E2EFixtures>({
   coachPage: [
-    async ({ page }, use) => {
+    async ({ browser }, use) => {
       test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-      await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
-      await use(page)
+      const { context, page } = await pageFromStorageState(browser, coachAuthFile)
+      try {
+        await page.goto('/dashboard')
+        await page.waitForURL(/\/dashboard/, { timeout: LOGIN_TIMEOUT_MS })
+        await use(page)
+      } finally {
+        await context.close()
+      }
     },
     { timeout: 60_000 },
   ],
   clientPage: [
-    async ({ page }, use) => {
+    async ({ browser }, use) => {
       test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-      await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
-      await dismissPortalWelcomeDialog(page)
-      await use(page)
+      const { context, page } = await pageFromStorageState(browser, clientAuthFile)
+      try {
+        await page.goto('/portal')
+        await page.waitForURL(/\/portal/, { timeout: LOGIN_TIMEOUT_MS })
+        await dismissPortalWelcomeDialog(page)
+        await use(page)
+      } finally {
+        await context.close()
+      }
     },
     { timeout: 90_000 },
   ],

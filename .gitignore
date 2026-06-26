@@ -76,6 +76,7 @@ build/**
 test-results/
 playwright-report/
 playwright/.cache/
+apps/next/e2e/.auth/
 
 .pnp.*
 .yarn/*

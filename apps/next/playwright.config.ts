@@ -18,9 +18,14 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
       name: 'desktop-chrome',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/mobile-smoke.spec.ts',
+      testIgnore: ['**/mobile-smoke.spec.ts', '**/auth.setup.ts'],
+      dependencies: ['setup'],
     },
     {
       name: 'mobile-chrome',
@@ -29,6 +34,7 @@ export default defineConfig({
         browserName: 'chromium',
       },
       testMatch: '**/mobile-smoke.spec.ts',
+      dependencies: ['setup'],
     },
   ],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
