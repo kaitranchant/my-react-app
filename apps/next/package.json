@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "check:supabase": "node scripts/check-supabase.mjs",
     "check:schema": "node scripts/check-schema.mjs",
+    "check:query-perf": "node scripts/check-query-perf.mjs",
     "seed:e2e": "node scripts/seed-e2e.mjs",
     "backfill:prs": "tsx scripts/backfill-pr-records.ts",
     "sync:exercise-catalog": "node scripts/sync-exercise-catalog.mjs",

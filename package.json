@@ -16,7 +16,8 @@
     "web": "yarn workspace next-app dev",
     "db:link": "npx supabase link",
     "db:push": "npx supabase db push",
-    "db:check": "yarn workspace next-app check:schema"
+    "db:check": "yarn workspace next-app check:schema",
+    "check:query-perf": "yarn workspace next-app check:query-perf"
   },
   "packageManager": "yarn@4.7.0",
   "eslintConfig": {
