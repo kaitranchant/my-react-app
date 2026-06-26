@@ -68,6 +68,25 @@ async function pageFromStorageState(browser: Browser, storageState: string) {
   return { context, page }
 }
 
+async function ensureCoachSession(page: Page) {
+  await page.goto('/dashboard')
+  if (page.url().includes('/login')) {
+    await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
+    return
+  }
+  await page.waitForURL(/\/dashboard/, { timeout: LOGIN_TIMEOUT_MS })
+}
+
+async function ensureClientSession(page: Page) {
+  await page.goto('/portal')
+  if (page.url().includes('/login')) {
+    await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
+  } else {
+    await page.waitForURL(/\/portal/, { timeout: LOGIN_TIMEOUT_MS })
+  }
+  await dismissPortalWelcomeDialog(page)
+}
+
 export async function expandSidebarGroup(page: Page, groupLabel: string) {
   const group = page.getByRole('button', { name: groupLabel, exact: true })
   if ((await group.getAttribute('aria-expanded')) !== 'true') {
@@ -205,23 +224,20 @@ export const test = base.extend<E2EFixtures>({
       test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
       const { context, page } = await pageFromStorageState(browser, coachAuthFile)
       try {
-        await page.goto('/dashboard')
-        await page.waitForURL(/\/dashboard/, { timeout: LOGIN_TIMEOUT_MS })
+        await ensureCoachSession(page)
         await use(page)
       } finally {
         await context.close()
       }
     },
-    { timeout: 60_000 },
+    { timeout: 90_000 },
   ],
   clientPage: [
     async ({ browser }, use) => {
       test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
       const { context, page } = await pageFromStorageState(browser, clientAuthFile)
       try {
-        await page.goto('/portal')
-        await page.waitForURL(/\/portal/, { timeout: LOGIN_TIMEOUT_MS })
-        await dismissPortalWelcomeDialog(page)
+        await ensureClientSession(page)
         await use(page)
       } finally {
         await context.close()
