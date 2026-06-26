@@ -65,13 +65,28 @@ export default async function PortalAccountPage() {
     <SettingsSection
       id="notifications"
       title="Notifications"
-      description="Choose email alerts and enable browser pop-ups for background notifications."
+      description="Email alerts and optional browser pop-ups while the portal is open."
     >
-      <PortalNotificationSettings
-        defaultValues={notificationPreferences}
-        emailDeliveryEnabled={emailDeliveryEnabled}
-      />
-      <WebPushSettings role="client" />
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium">Email alerts</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Choose which events send email from your coach&apos;s workspace.
+          </p>
+        </div>
+        <PortalNotificationSettings
+          defaultValues={notificationPreferences}
+          emailDeliveryEnabled={emailDeliveryEnabled}
+        />
+        <div className="space-y-1 border-t pt-6">
+          <h3 className="text-sm font-medium">Browser notifications</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Pop-ups when this tab is in the background. Uses the email alert
+            toggles above to decide which events can notify you.
+          </p>
+        </div>
+        <WebPushSettings role="client" />
+      </div>
     </SettingsSection>
   )
 

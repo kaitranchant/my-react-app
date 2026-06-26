@@ -2,6 +2,7 @@ import { getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import { getCheckInPeriodBounds, getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
 import {
   defaultCoachPreferences,
+  getCoachDateKey,
   type CoachPreferences,
 } from '@/lib/coach-preferences'
 import {
@@ -31,7 +32,8 @@ import {
 import {
   type PortalNavBadges,
 } from '@/lib/portal-nav-badges'
-import { getCoachDateKey } from '@/lib/coach-preferences'
+import { clientNeedsTeamAttention } from '@/lib/portal-teams'
+import { fetchClientCoachingAppointments } from '@/lib/session-booking-queries'
 import type {
   CalendarDaySummary,
   ClientCheckIn,
@@ -297,6 +299,8 @@ export async function fetchPortalNavBadges(
     coachPreferences.timezone
   )
   const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+  const nowIso = new Date().toISOString()
+  const sessionHorizonIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
   const [
     messageHighlight,
@@ -305,6 +309,8 @@ export async function fetchPortalNavBadges(
     todayNutritionLogResult,
     nutritionProfileResult,
     activeMealPlanResult,
+    upcomingSessions,
+    teamAttention,
   ] = await Promise.all([
     fetchPortalMessageHighlight(supabase, clientId),
     fetchPortalFormReviewHighlight(supabase, clientId),
@@ -334,6 +340,13 @@ export async function fetchPortalNavBadges(
       .eq('client_id', clientId)
       .eq('status', 'active')
       .maybeSingle(),
+    fetchClientCoachingAppointments(
+      supabase,
+      clientId,
+      nowIso,
+      sessionHorizonIso
+    ),
+    clientNeedsTeamAttention(supabase, clientId),
   ])
 
   const periodCheckIn =
@@ -345,11 +358,16 @@ export async function fetchPortalNavBadges(
     Boolean(nutritionProfileResult.data) || Boolean(activeMealPlanResult.data)
   const nutritionDue =
     nutritionConfigured && !todayNutritionLogResult.data
+  const sessionSoon = upcomingSessions.some(
+    (appointment) => appointment.status === 'scheduled'
+  )
 
   return {
     unreadMessages: messageHighlight?.unreadCount ?? 0,
-    pendingFormReviews: formReviewHighlight?.pendingCount ?? 0,
+    unreadFormReviewReplies: formReviewHighlight?.unreadReplyCount ?? 0,
     checkInDue,
     nutritionDue,
+    sessionSoon,
+    teamAttention,
   }
 }

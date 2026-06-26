@@ -250,6 +250,26 @@ export function ComplianceDashboard({
     initialClientId
   )
 
+  React.useEffect(() => {
+    setFilter(filterFromUrl)
+    setSort(sortFromUrl)
+    setScope(scopeFromUrl)
+  }, [filterFromUrl, sortFromUrl, scopeFromUrl])
+
+  React.useEffect(() => {
+    if (initialClientId) {
+      setExpandedClientId(initialClientId)
+    }
+  }, [initialClientId])
+
+  React.useEffect(() => {
+    if (!initialClientId) return
+    const row = document.querySelector(
+      `[data-compliance-client-id="${initialClientId}"]`
+    )
+    row?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [initialClientId, visibleRows.length])
+
   function syncUrlParams(next: {
     filter: ComplianceFilter
     sort: ComplianceSort
@@ -321,7 +341,7 @@ export function ComplianceDashboard({
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-4 py-4 sm:gap-6 sm:py-5 lg:grid-cols-4 xl:grid-cols-5">
+        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-4 py-4 sm:gap-6 sm:py-5 lg:grid-cols-4 xl:grid-cols-6">
           <SummaryStat
             label="Need attention"
             value={summary.clientsNeedingAttention}
@@ -333,6 +353,11 @@ export function ComplianceDashboard({
             tone="warning"
           />
           <SummaryStat
+            label="Overdue check-ins"
+            value={summary.overdueCheckIns}
+            tone="warning"
+          />
+          <SummaryStat
             label="Unread messages"
             value={summary.unreadMessages}
             tone="warning"
@@ -340,6 +365,26 @@ export function ComplianceDashboard({
           <SummaryStat
             label="Check-ins to review"
             value={summary.pendingCheckInReviews}
+            tone="warning"
+          />
+          <SummaryStat
+            label="Form reviews pending"
+            value={summary.pendingFormReviews}
+            tone="warning"
+          />
+          <SummaryStat
+            label="No nutrition log today"
+            value={summary.missingNutritionLogs}
+            tone="warning"
+          />
+          <SummaryStat
+            label="Elevated load"
+            value={summary.elevatedLoadClients}
+            tone="warning"
+          />
+          <SummaryStat
+            label="Inactive clients"
+            value={summary.inactiveClients}
             tone="warning"
           />
           <SummaryStat
@@ -421,7 +466,14 @@ export function ComplianceDashboard({
                   </TableHeader>
                   <TableBody>
                     {visibleRows.map((row) => (
-                      <TableRow key={row.clientId}>
+                      <TableRow
+                        key={row.clientId}
+                        data-compliance-client-id={row.clientId}
+                        className={cn(
+                          initialClientId === row.clientId &&
+                            'bg-brand/5 ring-brand/30 ring-1 ring-inset'
+                        )}
+                      >
                         <TableCell className="max-w-[220px]">
                           <PersonRow
                             as="div"

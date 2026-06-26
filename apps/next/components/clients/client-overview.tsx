@@ -10,6 +10,7 @@ import {
   PlayCircle,
   SkipForward,
   TrendingUp,
+  UtensilsCrossed,
   Zap,
 } from 'lucide-react'
 
@@ -241,6 +242,14 @@ type ClientOverviewProps = {
   onOpenCalendar?: () => void
   onOpenCheckIns?: () => void
   onOpenPrograms?: () => void
+  onOpenNutrition?: () => void
+  nutritionSnapshot?: {
+    hasTargets: boolean
+    hasMealPlan: boolean
+    lastLogDate: string | null
+    avgAdherence7d: number | null
+    loggedToday: boolean
+  } | null
 }
 
 export function ClientOverview({
@@ -258,6 +267,8 @@ export function ClientOverview({
   onOpenCalendar,
   onOpenCheckIns,
   onOpenPrograms,
+  onOpenNutrition,
+  nutritionSnapshot = null,
 }: ClientOverviewProps) {
   const weekDays = getWeekDayLabels(weekStartsOn)
   const sessionsByDate = new Map(
@@ -564,6 +575,61 @@ export function ClientOverview({
         </div>
 
       <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+        {nutritionSnapshot && onOpenNutrition ? (
+          <Card className="gap-0 py-0">
+            <CardHeader className="flex flex-row items-center justify-between px-5 pt-5 pb-0">
+              <SectionLabel>Nutrition</SectionLabel>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-brand h-8 px-2"
+                onClick={onOpenNutrition}
+              >
+                Open
+                <ArrowRight className="size-3.5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-0 px-5 pb-5">
+              <DetailRow
+                label="Macro targets"
+                value={nutritionSnapshot.hasTargets ? 'Set' : 'Not set'}
+              />
+              <DetailRow
+                label="Meal plan"
+                value={nutritionSnapshot.hasMealPlan ? 'Assigned' : 'None'}
+              />
+              <DetailRow
+                label="Last log"
+                value={
+                  nutritionSnapshot.lastLogDate
+                    ? new Date(
+                        `${nutritionSnapshot.lastLogDate}T12:00:00`
+                      ).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : '—'
+                }
+              />
+              <DetailRow
+                label="7-day adherence"
+                value={
+                  nutritionSnapshot.avgAdherence7d != null
+                    ? `${nutritionSnapshot.avgAdherence7d}/5`
+                    : '—'
+                }
+              />
+              {!nutritionSnapshot.loggedToday &&
+              (nutritionSnapshot.hasTargets || nutritionSnapshot.hasMealPlan) ? (
+                <p className="text-status-warning-foreground helper-text flex items-center gap-1.5 pt-3">
+                  <UtensilsCrossed className="size-3.5 shrink-0" />
+                  No nutrition log today
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="gap-0 py-0">
           <CardHeader className="px-5 pt-5 pb-0">
             <SectionLabel>Client profile</SectionLabel>

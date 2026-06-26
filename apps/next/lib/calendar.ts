@@ -214,9 +214,10 @@ export function getMatchingDatesInRange(
 
 export function getWeekDayLabels(
   weekStartsOn: WeekStartsOn = 'monday',
-  referenceDate = new Date()
+  referenceDate = new Date(),
+  todayKeyOverride?: string
 ): { label: string; dateKey: string; isToday: boolean }[] {
-  const todayKey = toDateKey(new Date())
+  const todayKey = todayKeyOverride ?? toDateKey(new Date())
   const labels =
     weekStartsOn === 'monday'
       ? (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const)

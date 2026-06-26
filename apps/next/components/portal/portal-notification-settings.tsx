@@ -66,7 +66,7 @@ const notificationOptions: NotificationOption[] = [
     key: 'notifyAppointmentReminders',
     label: 'Session reminders',
     description:
-      'Email and browser alerts before your scheduled coaching sessions.',
+      'Email before your scheduled coaching sessions. Browser pop-ups also use this when enabled below.',
   },
 ]
 
@@ -104,7 +104,12 @@ export function PortalNotificationSettings({
   }
 
   return (
-    <div>
+    <div className="space-y-1">
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Email alerts below are sent by the server. In-tab browser pop-ups (while
+        the portal is open in the background) respect the same toggles and also
+        require the browser notifications switch.
+      </p>
       {notificationOptions.map((option) => (
         <SettingsRow
           key={option.key}

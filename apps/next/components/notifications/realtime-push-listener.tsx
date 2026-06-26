@@ -3,12 +3,14 @@
 import * as React from 'react'
 
 import { createClient } from '@/lib/supabase/client'
+import type { PortalNotificationPreferences } from '@/lib/portal-notification-preferences'
 import { showBrowserNotification } from '@/lib/web-push/client'
 
 type RealtimePushListenerProps = {
   role: 'coach' | 'client'
   userId: string
   clientId?: string | null
+  notificationPrefs?: PortalNotificationPreferences
 }
 
 function shouldNotify(): boolean {
@@ -24,12 +26,14 @@ export function RealtimePushListener({
   role,
   userId,
   clientId,
+  notificationPrefs,
 }: RealtimePushListenerProps) {
   React.useEffect(() => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
       return
     }
 
+    const prefs = notificationPrefs
     const supabase = createClient()
     const channels: ReturnType<typeof supabase.channel>[] = []
 
@@ -169,6 +173,10 @@ export function RealtimePushListener({
               return
             }
 
+            if (prefs && !prefs.notifyCoachMessages) {
+              return
+            }
+
             const preview =
               message.message_type === 'voice'
                 ? 'Voice message from your coach'
@@ -207,6 +215,10 @@ export function RealtimePushListener({
               return
             }
 
+            if (prefs && !prefs.notifyCheckInReviews) {
+              return
+            }
+
             if (!shouldNotify()) {
               return
             }
@@ -214,7 +226,7 @@ export function RealtimePushListener({
             showBrowserNotification({
               title: 'Check-in feedback',
               body: 'Your coach reviewed your check-in.',
-              url: '/portal/progress',
+              url: '/portal/check-in',
               tag: `client-check-in-review-${clientId}`,
             })
           }
@@ -253,6 +265,10 @@ export function RealtimePushListener({
               return
             }
 
+            if (prefs && !prefs.notifyFormReviewReplies) {
+              return
+            }
+
             if (!shouldNotify()) {
               return
             }
@@ -277,7 +293,7 @@ export function RealtimePushListener({
         void supabase.removeChannel(channel)
       }
     }
-  }, [role, userId, clientId])
+  }, [role, userId, clientId, notificationPrefs])
 
   return null
 }

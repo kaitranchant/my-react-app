@@ -257,7 +257,8 @@ Requires migrations **0059** and **0060** (`apply-portal-coach-display-name.sql`
 - [ ] Navigate to **Progress** (via More) — mobile stats include **ACWR**; **8-week volume** chart and load-balance card are visible
 - [ ] New client with no messages: **From your coach** shows a "Message your coach" CTA instead of hiding the section
 - [ ] Coach sends a message → **Messages** tab icon shows an unread badge; open and read — badge clears on refresh
-- [ ] Submit a form review → **More** menu shows a badge on **Form Review** while pending
+- [ ] With nutrition targets set and no log today: **More** menu shows a badge on **Nutrition**; **Log nutrition** prompt appears on home
+- [ ] Coach replies to a form review → **Form Review** badge appears until the client opens `/portal/form-review`
 - [ ] `/portal/check-in` shows **Your wellness trends** when prior check-ins exist (sleep, energy, soreness)
 - [ ] Navigate between `/portal`, `/portal/sessions`, and `/portal/workouts` — loading skeletons appear briefly (not a blank page)
 - [ ] Visit a bad coach URL (e.g. `/clients/not-a-real-id` on a missing client) — friendly **Page not found** with link back to dashboard
@@ -283,7 +284,8 @@ Requires migrations **0072–0074** (`apply-coaching-session-booking.sql`, `appl
 
 Uses existing client, check-in, messaging, and load data — no separate migration.
 
-- [ ] Sign in as coach → **Compliance** (`/compliance`) — summary stats load (need attention, missed workouts, unread messages, etc.)
+- [ ] Sign in as coach → **Compliance** (`/compliance`) — summary stats load (need attention, missed workouts, overdue check-ins, unread messages, form reviews pending, no nutrition log today, etc.)
+- [ ] Clients with nutrition targets but no log today show **No nutrition log today** with a link to the client Nutrition tab
 - [ ] Use gym/team scope tabs to filter the roster
 - [ ] Click **Needs attention** filter — only clients with open issues appear
 - [ ] Expand a client row — issue chips show with links (missed workout, overdue check-in, unread message, etc.)

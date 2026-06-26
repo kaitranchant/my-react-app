@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Minus } from 'lucide-react'
 
-import { getWeekDayLabels } from '@/lib/calendar'
+import { getWeekDayLabels, parseDateKey } from '@/lib/calendar'
 import { getWorkoutToneContainerClass } from '@/lib/status-colors'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ type PortalWeekStripProps = {
   weekSessions: CalendarDaySummary[]
   workoutsHref?: string
   weekStartsOn?: import('app/types/database').WeekStartsOn
+  todayKey?: string
 }
 
 const STATUS_LEGEND = [
@@ -46,8 +47,13 @@ export function PortalWeekStrip({
   weekSessions,
   workoutsHref = '/portal/workouts',
   weekStartsOn = 'monday',
+  todayKey,
 }: PortalWeekStripProps) {
-  const weekDays = getWeekDayLabels(weekStartsOn)
+  const weekDays = getWeekDayLabels(
+    weekStartsOn,
+    todayKey ? parseDateKey(todayKey) : new Date(),
+    todayKey
+  )
   const sessionsByDate = new Map(
     weekSessions.map((session) => [session.scheduled_date, session])
   )

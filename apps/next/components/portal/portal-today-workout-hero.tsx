@@ -15,6 +15,7 @@ type PortalTodayWorkoutHeroProps = {
   todayWorkout: CalendarDaySummary | null
   workoutStatus: WorkoutStatus | null
   streak: number
+  showStreakBadge?: boolean
 }
 
 function getWorkoutSubtext(
@@ -62,6 +63,7 @@ export function PortalTodayWorkoutHero({
   todayWorkout,
   workoutStatus,
   streak,
+  showStreakBadge = true,
 }: PortalTodayWorkoutHeroProps) {
   const isRestDay = !todayWorkout
 
@@ -117,7 +119,7 @@ export function PortalTodayWorkoutHero({
           {getWorkoutSubtext(isRestDay, workoutStatus)}
         </p>
 
-        {streak > 0 ? (
+        {showStreakBadge && streak > 0 ? (
           <Badge variant="outline" className="hidden w-fit sm:inline-flex">
             {streak}-day streak
           </Badge>

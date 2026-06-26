@@ -9,6 +9,7 @@ import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
 import { PortalSidebar } from '@/components/portal/portal-sidebar'
 import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
 import type { PortalNavBadges } from '@/lib/portal-nav-badges'
+import type { PortalNotificationPreferences } from '@/lib/portal-notification-preferences'
 import { cn } from '@/lib/utils'
 
 const PORTAL_IMMERSIVE_LOG_ROUTE = /^\/portal\/workouts\/[^/]+\/log(?:\/|$)/
@@ -22,6 +23,7 @@ type PortalShellProps = {
   avatarUrl?: string | null
   userId: string
   clientId?: string | null
+  notificationPrefs?: PortalNotificationPreferences
 }
 
 export function PortalShell({
@@ -33,13 +35,19 @@ export function PortalShell({
   avatarUrl,
   userId,
   clientId,
+  notificationPrefs,
 }: PortalShellProps) {
   const pathname = usePathname()
   const immersiveLog = PORTAL_IMMERSIVE_LOG_ROUTE.test(pathname)
 
   return (
     <div className="fixed inset-0 flex overflow-hidden">
-      <RealtimePushListener role="client" userId={userId} clientId={clientId} />
+      <RealtimePushListener
+        role="client"
+        userId={userId}
+        clientId={clientId}
+        notificationPrefs={notificationPrefs}
+      />
       <a
         href="#main-content"
         className="bg-background focus:ring-ring sr-only fixed left-4 top-4 z-50 rounded-md px-4 py-2 text-sm font-medium shadow-lg focus:not-sr-only focus:outline-none focus:ring-2"

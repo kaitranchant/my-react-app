@@ -90,7 +90,7 @@ function ScheduleDialog({
             {clients.map((client) => (
               <li key={client.id}>
                 <Link
-                  href={`/clients/${client.id}`}
+                  href={`/clients/${client.id}?tab=training&section=calendar`}
                   className="hover:bg-accent flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors"
                 >
                   <span className="font-medium">{client.full_name}</span>

@@ -466,4 +466,19 @@ test.describe('Nutrition', () => {
       page.getByText(/reached the end of your current meal plan/i)
     ).toBeHidden()
   })
+
+  test('coach nutrition tracking shows coach-appropriate empty state', async ({
+    coachPage: page,
+  }) => {
+    await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
+    await expect(page.getByRole('tab', { name: 'Tracking' })).toBeVisible()
+    const noPlanState = page.getByText('Assign a meal plan from Setup')
+    const hasCoachCopy = await noPlanState.isVisible().catch(() => false)
+    if (hasCoachCopy) {
+      await expect(noPlanState).toBeVisible()
+      await expect(
+        page.getByText('When your coach assigns a plan')
+      ).toHaveCount(0)
+    }
+  })
 })

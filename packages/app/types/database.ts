@@ -1839,6 +1839,7 @@ export type Database = {
           coach_annotations: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at: string | null
+          client_viewed_at: string | null
           scheduled_workout_id: string | null
           scheduled_exercise_id: string | null
           created_at: string
@@ -1858,6 +1859,7 @@ export type Database = {
           coach_annotations?: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at?: string | null
+          client_viewed_at?: string | null
           scheduled_workout_id?: string | null
           scheduled_exercise_id?: string | null
           created_at?: string
@@ -1877,6 +1879,7 @@ export type Database = {
           coach_annotations?: Json
           uploaded_by?: CheckInSubmittedBy
           reviewed_at?: string | null
+          client_viewed_at?: string | null
           scheduled_workout_id?: string | null
           scheduled_exercise_id?: string | null
           created_at?: string

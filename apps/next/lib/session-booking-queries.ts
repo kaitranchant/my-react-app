@@ -30,6 +30,20 @@ export async function fetchCoachSessionBookingSettings(
   return parseSessionBookingSettings(data)
 }
 
+export async function fetchPortalSessionBookingSettings(
+  supabase: SupabaseClient
+): Promise<SessionBookingSettings> {
+  const { data, error } = await supabase.rpc(
+    'get_portal_session_booking_settings'
+  )
+
+  if (error || !data) {
+    return parseSessionBookingSettings(null)
+  }
+
+  return parseSessionBookingSettings(data as Partial<SessionBookingSettings>)
+}
+
 export async function fetchCoachAvailabilityRules(
   supabase: SupabaseClient,
   coachId: string
@@ -220,9 +234,11 @@ export async function fetchAvailableSlotsForCoach(
   dateKeys: string[],
   coachPreferences: CoachPreferences,
   referenceDate = new Date(),
-  options?: { ignoreMinNotice?: boolean }
+  options?: { ignoreMinNotice?: boolean; settings?: SessionBookingSettings }
 ) {
-  const settings = await fetchCoachSessionBookingSettings(supabase, coachId)
+  const settings =
+    options?.settings ??
+    (await fetchCoachSessionBookingSettings(supabase, coachId))
 
   const [rules, exceptions, appointments] = await Promise.all([
     fetchCoachAvailabilityRules(supabase, coachId),

@@ -29,7 +29,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
-import { getCoachDateKey } from '@/lib/coach-preferences'
+import { getCoachDateKey, formatCoachLongDate } from '@/lib/coach-preferences'
 import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import { fetchClientProgramSummary } from '@/lib/client-program-progress'
 import { fetchCoachDisplayName } from '@/lib/portal-coach-name'
@@ -44,7 +44,7 @@ import { getPortalClientContext } from '@/lib/portal-client'
 import { fetchClientNextTeamEvent } from '@/lib/portal-teams'
 import {
   fetchClientCoachingAppointments,
-  fetchCoachSessionBookingSettings,
+  fetchPortalSessionBookingSettings,
 } from '@/lib/session-booking-queries'
 import { createClient } from '@/lib/supabase/server'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
@@ -126,13 +126,14 @@ export default async function PortalPage() {
   let sessionBookingEnabled = false
   let upcomingSessionCount = 0
   let needsNutritionLogToday = false
+  let coachTodayKey: string | undefined
 
   if (clientRecord?.id && user) {
     coachPreferences = await getPortalDisplayPreferences(
       user.id,
       clientRecord.coach_id
     )
-    const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+    coachTodayKey = getCoachDateKey(coachPreferences.timezone)
 
     const nowIso = new Date().toISOString()
     const horizonIso = new Date(
@@ -172,7 +173,7 @@ export default async function PortalPage() {
       fetchPortalFormReviewHighlight(supabase, clientRecord.id),
       fetchPortalMessageHighlight(supabase, clientRecord.id),
       fetchCoachDisplayName(supabase, clientRecord.coach_id),
-      fetchCoachSessionBookingSettings(supabase, clientRecord.coach_id),
+      fetchPortalSessionBookingSettings(supabase),
       fetchClientCoachingAppointments(
         supabase,
         clientRecord.id,
@@ -251,11 +252,13 @@ export default async function PortalPage() {
 
   const firstName = name.split(/\s+/)[0] ?? name
 
-  const shortDateLabel = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'long',
-    day: 'numeric',
-  })
+  const shortDateLabel = coachPreferences
+    ? formatCoachLongDate(coachPreferences.timezone)
+    : new Date().toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'long',
+        day: 'numeric',
+      })
 
   const todayWorkoutStatus = todayWorkout
     ? getWorkoutDisplayStatus(
@@ -288,6 +291,7 @@ export default async function PortalPage() {
         <PortalWeekStrip
           weekSessions={homeData.weekSessions}
           weekStartsOn={weekStartsOn}
+          todayKey={coachTodayKey}
         />
       </CardContent>
     </Card>
@@ -358,7 +362,7 @@ export default async function PortalPage() {
             <PortalCheckInSuccessBanner />
           </Suspense>
           <div className="flex items-baseline justify-between gap-3">
-            <h1 className="text-base font-semibold sm:text-lg">
+            <h1 className="page-title">
               {getGreeting()}, {firstName}
             </h1>
             <p className="text-muted-foreground shrink-0 text-sm">
@@ -370,6 +374,7 @@ export default async function PortalPage() {
             todayWorkout={todayWorkout}
             workoutStatus={todayWorkoutStatus}
             streak={homeData.streak}
+            showStreakBadge={false}
           />
 
           <PortalHomeStatsRow
@@ -378,8 +383,9 @@ export default async function PortalPage() {
             lastActive={homeData.lastActive}
           />
 
-          {/* Mobile: single-column stack matching mockup order */}
+          {/* Mobile: hero and week context first, then prompts */}
           <div className="flex flex-col gap-4 lg:hidden">
+            {weekCard}
             <PortalFromCoachSection
               coachName={coachName}
               messageHighlight={messageHighlight}
@@ -393,7 +399,6 @@ export default async function PortalPage() {
             {submittedCheckInCard}
             {sessionBookingCard}
             <PortalActiveGoalsCard goals={goalHighlights} />
-            {weekCard}
             <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
             {programCard}
             {heatmapCard}

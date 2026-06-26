@@ -20,7 +20,7 @@ export function PortalFormReviewStatusCard({
   highlight,
   coachName = 'Coach',
 }: PortalFormReviewStatusCardProps) {
-  const pendingCount = highlight?.pendingCount ?? 0
+  const unreadReplyCount = highlight?.unreadReplyCount ?? 0
   const recentCoachReply = highlight?.recentCoachReply ?? null
 
   return (
@@ -32,9 +32,9 @@ export function PortalFormReviewStatusCard({
               <Video className="text-brand size-5" />
               Form review
             </span>
-            {pendingCount > 0 ? (
-              <Badge variant="secondary">
-                {pendingCount} awaiting review
+            {unreadReplyCount > 0 ? (
+              <Badge variant="default">
+                {unreadReplyCount} new repl{unreadReplyCount === 1 ? 'y' : 'ies'}
               </Badge>
             ) : null}
           </CardTitle>
@@ -43,10 +43,6 @@ export function PortalFormReviewStatusCard({
           {recentCoachReply ? (
             <p className="text-brand text-sm font-medium leading-relaxed">
               {formatFormReviewCoachReplyMessage(recentCoachReply, coachName)}
-            </p>
-          ) : pendingCount > 0 ? (
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Your coach will review your latest submission soon.
             </p>
           ) : (
             <p className="text-muted-foreground text-sm leading-relaxed">

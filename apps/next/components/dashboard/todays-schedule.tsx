@@ -97,7 +97,7 @@ export function TodaysSchedule({ sessions }: TodaysScheduleProps) {
               return (
                 <li key={session.id}>
                   <Link
-                    href={`/clients/${session.client_id}`}
+                    href={`/clients/${session.client_id}?tab=training&section=calendar`}
                     className="hover:bg-muted/60 flex items-start gap-3 rounded-lg p-3 transition-colors"
                   >
                     <div

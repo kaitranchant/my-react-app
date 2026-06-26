@@ -6,7 +6,7 @@ import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
-import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings } from '@/lib/session-booking-queries'
+import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchPortalSessionBookingSettings } from '@/lib/session-booking-queries'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import { createClient } from '@/lib/supabase/server'
@@ -209,6 +209,7 @@ async function validateBookableSlot(options: {
   startsAt: string
   sessionPackId?: string | null
   ignoreMinNotice?: boolean
+  settings?: Awaited<ReturnType<typeof fetchCoachSessionBookingSettings>>
 }): Promise<
   | { ok: false; error: string }
   | {
@@ -221,7 +222,9 @@ async function validateBookableSlot(options: {
 > {
   const supabase = await createClient()
   const coachPreferences = await getCoachPreferencesForUser(options.coachId)
-  const settings = await fetchCoachSessionBookingSettings(supabase, options.coachId)
+  const settings =
+    options.settings ??
+    (await fetchCoachSessionBookingSettings(supabase, options.coachId))
   const dateKey = getDateKeyFromInstant(options.startsAt, coachPreferences.timezone)
 
   const slots = await fetchAvailableSlotsForCoach(
@@ -230,7 +233,7 @@ async function validateBookableSlot(options: {
     [dateKey],
     coachPreferences,
     new Date(),
-    { ignoreMinNotice: options.ignoreMinNotice }
+    { ignoreMinNotice: options.ignoreMinNotice, settings }
   )
 
   const matchingSlot = slots.find((slot) => slot.startsAt === options.startsAt)
@@ -418,10 +421,7 @@ export async function bookCoachingAppointmentAsClient(
     return { success: false, error: 'Invalid appointment data.' }
   }
 
-  const settings = await fetchCoachSessionBookingSettings(
-    portalCtx.supabase,
-    portalCtx.client.coach_id
-  )
+  const settings = await fetchPortalSessionBookingSettings(portalCtx.supabase)
 
   if (!settings.session_booking_enabled) {
     return { success: false, error: 'Session booking is not enabled by your coach.' }
@@ -432,6 +432,7 @@ export async function bookCoachingAppointmentAsClient(
     clientId: portalCtx.client.id,
     startsAt: parsed.data.startsAt,
     sessionPackId: parsed.data.sessionPackId,
+    settings,
   })
 
   if (!validation.ok) {
@@ -805,10 +806,7 @@ export async function getClientAvailableSlots(dateKey: string) {
     return { success: false as const, error: portalCtx.error }
   }
 
-  const settings = await fetchCoachSessionBookingSettings(
-    portalCtx.supabase,
-    portalCtx.client.coach_id
-  )
+  const settings = await fetchPortalSessionBookingSettings(portalCtx.supabase)
 
   if (!settings.session_booking_enabled) {
     return {
@@ -824,7 +822,9 @@ export async function getClientAvailableSlots(dateKey: string) {
     portalCtx.supabase,
     portalCtx.client.coach_id,
     [dateKey],
-    coachPreferences
+    coachPreferences,
+    new Date(),
+    { settings }
   )
 
   return { success: true as const, slots, settings }

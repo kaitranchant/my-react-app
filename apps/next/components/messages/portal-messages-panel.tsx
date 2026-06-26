@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+
 import {
   markPortalMessagesRead,
   sendPortalMessage,
@@ -21,6 +23,16 @@ export function PortalMessagesPanel({
   messages,
   schemaError = null,
 }: PortalMessagesPanelProps) {
+  const router = useRouter()
+
+  async function handleMarkRead() {
+    const result = await markPortalMessagesRead()
+    if (result.success) {
+      router.refresh()
+    }
+    return result
+  }
+
   return (
     <ClientMessagesPanel
       variant="client"
@@ -30,7 +42,7 @@ export function PortalMessagesPanel({
       schemaError={schemaError}
       onSend={sendPortalMessage}
       onSendVoice={sendPortalVoiceMessage}
-      onMarkRead={markPortalMessagesRead}
+      onMarkRead={handleMarkRead}
     />
   )
 }

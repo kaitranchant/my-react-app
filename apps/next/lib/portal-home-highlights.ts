@@ -4,7 +4,6 @@ import {
 } from '@/lib/coach-preferences'
 import {
   hasFormReviewCoachReply,
-  isFormReviewPending,
 } from '@/lib/form-reviews'
 import { getMessagePreviewText } from '@/lib/message-media'
 import {
@@ -36,7 +35,7 @@ export type PortalGoalHighlight = {
 }
 
 export type PortalFormReviewHighlight = {
-  pendingCount: number
+  unreadReplyCount: number
   recentCoachReply: {
     id: string
     title: string | null
@@ -191,7 +190,7 @@ export async function fetchPortalFormReviewHighlight(
   const { data, error } = await supabase
     .from('client_form_reviews')
     .select(
-      'id, title, content_type, reviewed_at, coach_feedback, coach_annotations, exercise:exercises(id, name)'
+      'id, title, content_type, reviewed_at, coach_feedback, coach_annotations, client_viewed_at, exercise:exercises(id, name)'
     )
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
@@ -209,8 +208,11 @@ export async function fetchPortalFormReviewHighlight(
     }
   })
 
-  const pendingCount = reviews.filter((review) =>
-    isFormReviewPending(review)
+  const unreadReplyCount = reviews.filter(
+    (review) =>
+      review.reviewed_at != null &&
+      hasFormReviewCoachReply(review) &&
+      review.client_viewed_at == null
   ).length
 
   const recentCoachReply = reviews.find(
@@ -218,7 +220,7 @@ export async function fetchPortalFormReviewHighlight(
   )
 
   return {
-    pendingCount,
+    unreadReplyCount,
     recentCoachReply: recentCoachReply
       ? {
           id: recentCoachReply.id,

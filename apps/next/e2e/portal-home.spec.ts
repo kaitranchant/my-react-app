@@ -60,10 +60,28 @@ test.describe('Portal home — mobile nav', () => {
       test.skip(true, 'Check-in not due for E2E client in this period')
     }
 
-    await expect(moreButton.locator('.bg-brand')).toBeVisible()
+    await expect(moreButton.getByTestId('portal-nav-badge')).toBeVisible()
     await moreButton.click()
     await expect(
-      page.getByRole('link', { name: 'Check-in' }).locator('.bg-brand')
+      page.getByRole('link', { name: 'Check-in' }).getByTestId('portal-nav-badge')
+    ).toBeVisible()
+  })
+
+  test('nutrition badge appears in more menu when log is due', async ({
+    clientPage: page,
+  }) => {
+    await page.goto('/portal')
+    await dismissPortalWelcomeDialog(page)
+
+    const nutritionPrompt = page.getByRole('link', { name: 'Log nutrition', exact: true })
+    const hasNutritionDue = await nutritionPrompt.isVisible().catch(() => false)
+    if (!hasNutritionDue) {
+      test.skip(true, 'Nutrition log not due for E2E client today')
+    }
+
+    await page.getByRole('button', { name: 'More navigation' }).click()
+    await expect(
+      page.getByRole('link', { name: 'Nutrition' }).getByTestId('portal-nav-badge')
     ).toBeVisible()
   })
 })

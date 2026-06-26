@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0079.
+ * Verify hosted Supabase schema through migration 0081.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -719,6 +719,31 @@ await checkRestTable(
   '/rest/v1/meal_plan_meal_foods?select=id,food_name,source,quantity_g&limit=1'
 )
 
+// Migration 0080 — form review client viewed tracking
+await checkRestTable(
+  'client_form_reviews client_viewed_at column',
+  '/rest/v1/client_form_reviews?select=client_viewed_at&limit=1'
+)
+
+// Migration 0081 — portal session booking settings RPC
+await check('get_portal_session_booking_settings RPC', async () => {
+  const res = await fetch(
+    `${url}/rest/v1/rpc/get_portal_session_booking_settings`,
+    {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -792,7 +817,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0079 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library).'
+  '\nSchema looks good — migrations through 0081 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library, form review viewed tracking, portal session booking settings RPC).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

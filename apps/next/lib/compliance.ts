@@ -15,6 +15,8 @@ export type ComplianceIssueKind =
   | 'pending_check_in_review'
   | 'unread_message'
   | 'pending_form_review'
+  | 'missing_nutrition_log'
+  | 'no_meal_plan_assigned'
   | 'elevated_load'
   | 'injury_flag'
   | 'inactive'
@@ -43,6 +45,9 @@ export type ComplianceClientInput = {
   pendingCheckInReviews: number
   unreadMessages: number
   pendingFormReviews: number
+  nutritionConfigured: boolean
+  hasNutritionLogToday: boolean
+  hasMealPlanAssigned: boolean
   loadContext: ClientDashboardAlertContext | null
 }
 
@@ -62,6 +67,9 @@ export type ComplianceClientRow = {
   pendingCheckInReviews: number
   unreadMessages: number
   pendingFormReviews: number
+  nutritionConfigured: boolean
+  hasNutritionLogToday: boolean
+  hasMealPlanAssigned: boolean
 }
 
 export type ComplianceSummary = {
@@ -72,6 +80,7 @@ export type ComplianceSummary = {
   pendingCheckInReviews: number
   unreadMessages: number
   pendingFormReviews: number
+  missingNutritionLogs: number
   elevatedLoadClients: number
   injuryFlagClients: number
   inactiveClients: number
@@ -176,7 +185,7 @@ export function buildComplianceClientRow(
         input.pendingCheckInReviews === 1
           ? 'Check-in awaiting review'
           : `${input.pendingCheckInReviews} check-ins awaiting review`,
-      href: '/check-ins',
+      href: `/clients/${input.clientId}?tab=progress&section=check-ins`,
     })
   }
 
@@ -189,6 +198,24 @@ export function buildComplianceClientRow(
           ? 'Form review awaiting feedback'
           : `${input.pendingFormReviews} form reviews awaiting feedback`,
       href: '/form-review',
+    })
+  }
+
+  if (input.nutritionConfigured && !input.hasNutritionLogToday) {
+    issues.push({
+      kind: 'missing_nutrition_log',
+      priority: 'medium',
+      label: 'No nutrition log today',
+      href: `/clients/${input.clientId}?tab=nutrition`,
+    })
+  }
+
+  if (input.nutritionConfigured && !input.hasMealPlanAssigned) {
+    issues.push({
+      kind: 'no_meal_plan_assigned',
+      priority: 'low',
+      label: 'No meal plan assigned',
+      href: `/clients/${input.clientId}?tab=nutrition&section=setup`,
     })
   }
 
@@ -286,6 +313,9 @@ export function buildComplianceClientRow(
     pendingCheckInReviews: input.pendingCheckInReviews,
     unreadMessages: input.unreadMessages,
     pendingFormReviews: input.pendingFormReviews,
+    nutritionConfigured: input.nutritionConfigured,
+    hasNutritionLogToday: input.hasNutritionLogToday,
+    hasMealPlanAssigned: input.hasMealPlanAssigned,
   }
 }
 
@@ -387,6 +417,9 @@ export function buildComplianceSummary(
       (sum, row) => sum + row.pendingFormReviews,
       0
     ),
+    missingNutritionLogs: rows.filter(
+      (row) => row.nutritionConfigured && !row.hasNutritionLogToday
+    ).length,
     elevatedLoadClients: rows.filter((row) =>
       row.issues.some((issue) => issue.kind === 'elevated_load')
     ).length,

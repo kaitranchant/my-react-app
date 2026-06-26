@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { ClientNutritionSetupPanel } from '@/components/nutrition/client-nutrition-setup-panel'
 import { ClientNutritionTrackingPanel } from '@/components/nutrition/client-nutrition-tracking-panel'
@@ -29,8 +29,12 @@ export function resolveNutritionSection(section: string | null): NutritionSectio
   return 'tracking'
 }
 
-function buildNutritionSectionUrl(pathname: string, section: NutritionSection) {
-  const params = new URLSearchParams(window.location.search)
+function buildNutritionSectionUrl(
+  pathname: string,
+  section: NutritionSection,
+  searchParams: URLSearchParams
+) {
+  const params = new URLSearchParams(searchParams.toString())
   params.set('tab', 'nutrition')
   if (section === 'tracking') {
     params.delete('section')
@@ -69,6 +73,7 @@ export function ClientDetailNutritionSection({
   biologicalSex,
 }: ClientDetailNutritionSectionProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const urlSection = searchParams.get('section')
   const [nutritionSection, setNutritionSection] = React.useState<NutritionSection>(
@@ -82,7 +87,9 @@ export function ClientDetailNutritionSection({
   function handleNutritionSectionChange(value: string) {
     const section = value as NutritionSection
     setNutritionSection(section)
-    window.history.replaceState(null, '', buildNutritionSectionUrl(pathname, section))
+    router.replace(buildNutritionSectionUrl(pathname, section, searchParams), {
+      scroll: false,
+    })
   }
 
   return (

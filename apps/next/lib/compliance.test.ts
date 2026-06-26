@@ -43,6 +43,9 @@ describe('buildComplianceClientRow', () => {
         pendingCheckInReviews: 1,
         unreadMessages: 2,
         pendingFormReviews: 0,
+        nutritionConfigured: false,
+        hasNutritionLogToday: false,
+        hasMealPlanAssigned: false,
         loadContext: {
           clientId: 'client-1',
           clientName: 'Alex Rivera',
@@ -89,6 +92,9 @@ describe('compliance row helpers', () => {
       pendingCheckInReviews: 0,
       unreadMessages: 0,
       pendingFormReviews: 0,
+      nutritionConfigured: false,
+      hasNutritionLogToday: false,
+      hasMealPlanAssigned: false,
     },
     {
       clientId: 'b',
@@ -106,6 +112,9 @@ describe('compliance row helpers', () => {
       pendingCheckInReviews: 0,
       unreadMessages: 0,
       pendingFormReviews: 0,
+      nutritionConfigured: false,
+      hasNutritionLogToday: false,
+      hasMealPlanAssigned: false,
     },
   ]
 

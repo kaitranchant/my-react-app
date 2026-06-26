@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { PortalShell } from '@/components/portal/portal-shell'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
+import { getPortalNotificationPreferencesForUser } from '@/lib/portal-notification-preferences-server'
 import { fetchPortalNavBadges } from '@/lib/portal-data'
 import { emptyPortalNavBadges } from '@/lib/portal-nav-badges'
 import { clientHasTeamMembership } from '@/lib/portal-teams'
@@ -38,16 +39,16 @@ export default async function PortalLayout({
     : false
 
   let navBadges = emptyPortalNavBadges
+  let notificationPrefs = undefined
   if (portalCtx?.client?.id && user) {
     const coachPreferences = await getPortalDisplayPreferences(
       user.id,
       portalCtx.client.coach_id
     )
-    navBadges = await fetchPortalNavBadges(
-      supabase,
-      portalCtx.client.id,
-      coachPreferences
-    )
+    ;[navBadges, notificationPrefs] = await Promise.all([
+      fetchPortalNavBadges(supabase, portalCtx.client.id, coachPreferences),
+      getPortalNotificationPreferencesForUser(user.id),
+    ])
   }
 
   const name =
@@ -66,6 +67,7 @@ export default async function PortalLayout({
       avatarUrl={avatarUrl}
       userId={user.id}
       clientId={portalCtx?.client?.id ?? null}
+      notificationPrefs={notificationPrefs}
     >
       {children}
     </PortalShell>

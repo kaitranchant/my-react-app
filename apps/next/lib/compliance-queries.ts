@@ -42,6 +42,9 @@ export async function fetchComplianceDashboardRows(
     periodCheckInsResult,
     pendingCheckInsResult,
     pendingFormReviewsResult,
+    nutritionProfilesResult,
+    activeMealPlansResult,
+    todayNutritionLogsResult,
     inbox,
     loadAlerts,
   ] = await Promise.all([
@@ -68,6 +71,20 @@ export async function fetchComplianceDashboardRows(
       .eq('coach_id', options.coachId)
       .is('reviewed_at', null)
       .in('client_id', clientIds),
+    supabase
+      .from('client_nutrition_profiles')
+      .select('client_id')
+      .in('client_id', clientIds),
+    supabase
+      .from('meal_plan_assignments')
+      .select('client_id')
+      .in('client_id', clientIds)
+      .eq('status', 'active'),
+    supabase
+      .from('client_nutrition_logs')
+      .select('client_id')
+      .in('client_id', clientIds)
+      .eq('log_date', options.todayKey),
     fetchCoachInbox(supabase, options.coachId),
     fetchCoachDashboardLoadAlerts(
       supabase,
@@ -111,6 +128,16 @@ export async function fetchComplianceDashboardRows(
     )
   }
 
+  const nutritionProfileClientIds = new Set(
+    (nutritionProfilesResult.data ?? []).map((row) => row.client_id as string)
+  )
+  const activeMealPlanClientIds = new Set(
+    (activeMealPlansResult.data ?? []).map((row) => row.client_id as string)
+  )
+  const todayNutritionLogClientIds = new Set(
+    (todayNutritionLogsResult.data ?? []).map((row) => row.client_id as string)
+  )
+
   const unreadByClientId = new Map(
     inbox.conversations.map((conversation) => [
       conversation.clientId,
@@ -134,6 +161,11 @@ export async function fetchComplianceDashboardRows(
     pendingCheckInReviews: pendingCheckInsByClientId.get(client.id) ?? 0,
     unreadMessages: unreadByClientId.get(client.id) ?? 0,
     pendingFormReviews: pendingFormReviewsByClientId.get(client.id) ?? 0,
+    nutritionConfigured:
+      nutritionProfileClientIds.has(client.id) ||
+      activeMealPlanClientIds.has(client.id),
+    hasNutritionLogToday: todayNutritionLogClientIds.has(client.id),
+    hasMealPlanAssigned: activeMealPlanClientIds.has(client.id),
     loadContext: loadContextByClientId.get(client.id) ?? null,
   }))
 

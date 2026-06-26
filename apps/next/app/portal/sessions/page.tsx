@@ -5,7 +5,7 @@ import { getPortalClientContext } from '@/lib/portal-client'
 import {
   fetchClientCoachingAppointments,
   fetchClientSessionPacks,
-  fetchCoachSessionBookingSettings,
+  fetchPortalSessionBookingSettings,
   getPortalBookingDateKeys,
 } from '@/lib/session-booking-queries'
 import { redirect } from 'next/navigation'
@@ -28,7 +28,7 @@ export default async function PortalSessionsPage() {
 
   const [settings, coachPreferences, appointments, sessionPacks] =
     await Promise.all([
-      fetchCoachSessionBookingSettings(supabase, client.coach_id),
+      fetchPortalSessionBookingSettings(supabase),
       getCoachPreferencesForUser(client.coach_id),
       fetchClientCoachingAppointments(
         supabase,

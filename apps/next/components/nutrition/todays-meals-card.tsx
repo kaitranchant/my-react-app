@@ -28,6 +28,7 @@ type TodaysMealsCardProps = {
   days: MealPlanDayWithMeals[]
   todayKey?: string
   profile?: ClientNutritionProfile | null
+  audience?: 'coach' | 'client'
 }
 
 export function TodaysMealsCard({
@@ -35,6 +36,7 @@ export function TodaysMealsCard({
   days,
   todayKey,
   profile = null,
+  audience = 'client',
 }: TodaysMealsCardProps) {
   const { day, planComplete, planDayLabel } = getTodayMealPlanDay(
     assignment,
@@ -61,7 +63,9 @@ export function TodaysMealsCard({
         <CardDescription>
           {assignment
             ? planDayLabel ?? 'Meals from your assigned plan.'
-            : 'Your coach can assign a meal plan for daily guidance.'}
+            : audience === 'coach'
+              ? 'Assign a meal plan for daily guidance.'
+              : 'Your coach can assign a meal plan for daily guidance.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,21 +73,33 @@ export function TodaysMealsCard({
           <EmptyState
             icon={UtensilsCrossed}
             title="No meal plan assigned"
-            description="When your coach assigns a plan, today's meals will appear here."
+            description={
+              audience === 'coach'
+                ? 'Assign a meal plan from Setup to show daily meals here.'
+                : "When your coach assigns a plan, today's meals will appear here."
+            }
             className="py-4"
           />
         ) : planComplete ? (
           <EmptyState
             icon={UtensilsCrossed}
             title="Plan cycle complete"
-            description="You've reached the end of your current meal plan. Ask your coach for the next phase."
+            description={
+              audience === 'coach'
+                ? 'Extend or assign a new meal plan for the next phase.'
+                : "You've reached the end of your current meal plan. Ask your coach for the next phase."
+            }
             className="py-4"
           />
         ) : !day || day.meals.length === 0 ? (
           <EmptyState
             icon={UtensilsCrossed}
             title="No meals planned for today"
-            description="Your coach may still be building this day in your plan."
+            description={
+              audience === 'coach'
+                ? 'Add meals to this day in the meal plan builder.'
+                : 'Your coach may still be building this day in your plan.'
+            }
             className="py-4"
           />
         ) : (

@@ -41,4 +41,21 @@ test.describe('Seeded client visibility', () => {
     await page.goto('/clients')
     await expect(page.getByText(E2E_CLIENT_NAME)).toBeVisible({ timeout: 15_000 })
   })
+
+  test('global search finds seeded client', async ({ coachPage: page }) => {
+    await page.goto('/dashboard')
+    await page
+      .getByRole('button', { name: /Search clients/i })
+      .first()
+      .click()
+    const searchInput = page.getByPlaceholder(/Search clients/i)
+    await expect(searchInput).toBeVisible({ timeout: 10_000 })
+    await searchInput.fill(E2E_CLIENT_NAME)
+    await expect(page.getByText(E2E_CLIENT_NAME).first()).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByText(E2E_CLIENT_NAME).first().click()
+    await expect(page).toHaveURL(new RegExp('/clients/'))
+    await expect(page.getByText(E2E_CLIENT_NAME).first()).toBeVisible()
+  })
 })

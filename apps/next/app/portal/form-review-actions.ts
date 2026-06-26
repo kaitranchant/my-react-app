@@ -318,3 +318,25 @@ export async function listClientFormReviews(): Promise<ClientFormReviewWithUrl[]
 
   return attachSignedUrlsToFormReviews(supabase, reviews)
 }
+
+export async function markClientFormReviewsAsViewed(): Promise<void> {
+  const supabase = await createClient()
+  const portalCtx = await getPortalClientContext()
+  const client = portalCtx?.client
+
+  if (!client) {
+    return
+  }
+
+  const now = new Date().toISOString()
+
+  await supabase
+    .from('client_form_reviews')
+    .update({ client_viewed_at: now })
+    .eq('client_id', client.id)
+    .not('reviewed_at', 'is', null)
+    .is('client_viewed_at', null)
+
+  revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/form-review')
+}

@@ -17,12 +17,19 @@ import { Target } from 'lucide-react'
 type MacroTargetsCardProps = {
   profile: ClientNutritionProfile | null
   description?: string
+  audience?: 'coach' | 'client'
 }
 
 export function MacroTargetsCard({
   profile,
-  description = 'Daily macro targets set by your coach.',
+  description,
+  audience = 'client',
 }: MacroTargetsCardProps) {
+  const defaultDescription =
+    audience === 'coach'
+      ? 'Daily macro targets for this client.'
+      : 'Daily macro targets set by your coach.'
+  const resolvedDescription = description ?? defaultDescription
   const percents = computeMacroPercents(profile)
 
   const targets = [
@@ -62,14 +69,18 @@ export function MacroTargetsCard({
     <Card>
       <CardHeader>
         <CardTitle>Macro targets</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>{resolvedDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         {!hasNutritionTargets(profile) ? (
           <EmptyState
             icon={Target}
             title="No macro targets yet"
-            description="Your coach can set daily calorie and macro targets here."
+            description={
+              audience === 'coach'
+                ? 'Set daily calorie and macro targets in Setup.'
+                : 'Your coach can set daily calorie and macro targets here.'
+            }
             className="py-4"
           />
         ) : (

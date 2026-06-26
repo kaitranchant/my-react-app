@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import { getMonthDateRange, getWeekDayLabels, toDateKey } from '@/lib/calendar'
-import { defaultCoachPreferences } from '@/lib/coach-preferences'
+import { getMonthDateRange, getWeekDayLabels, toDateKey, addDaysToDateKey } from '@/lib/calendar'
+import { defaultCoachPreferences, getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
+import { hasNutritionTargets } from '@/lib/nutrition'
+import { averageAdherenceScore } from '@/lib/nutrition-trends'
 import { ClientDetailOverviewSection } from '@/components/clients/client-detail-overview-section'
 import type {
   CalendarDaySummary,
@@ -38,12 +40,19 @@ export async function ClientDetailOverviewPanel({
     new Date(today.getFullYear(), today.getMonth(), today.getDate() - 90)
   )
 
+  const coachTodayKey = getCoachDateKey(coachPreferences.timezone)
+  const nutritionLookbackStart = addDaysToDateKey(coachTodayKey, -6)
+
   const [
     { data: assignmentData },
     weekResult,
     recentWorkoutsResult,
     streakWorkoutsResult,
     checkInsResult,
+    nutritionProfileResult,
+    activeMealPlanResult,
+    recentNutritionLogsResult,
+    todayNutritionLogResult,
   ] = await Promise.all([
     supabase
       .from('program_assignments')
@@ -80,6 +89,30 @@ export async function ClientDetailOverviewPanel({
       .eq('client_id', clientId)
       .order('check_in_date', { ascending: false })
       .limit(50),
+    supabase
+      .from('client_nutrition_profiles')
+      .select('*')
+      .eq('client_id', clientId)
+      .maybeSingle(),
+    supabase
+      .from('meal_plan_assignments')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    supabase
+      .from('client_nutrition_logs')
+      .select('*')
+      .eq('client_id', clientId)
+      .gte('log_date', nutritionLookbackStart)
+      .lte('log_date', coachTodayKey)
+      .order('log_date', { ascending: false }),
+    supabase
+      .from('client_nutrition_logs')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('log_date', coachTodayKey)
+      .maybeSingle(),
   ])
 
   const activeAssignment = assignmentData
@@ -91,6 +124,15 @@ export async function ClientDetailOverviewPanel({
   const streakWorkouts = (streakWorkoutsResult.data ??
     []) as ClientWorkoutActivity[]
   const checkIns = (checkInsResult.data ?? []) as ClientCheckIn[]
+  const nutritionProfile = nutritionProfileResult.data ?? null
+  const recentNutritionLogs = recentNutritionLogsResult.data ?? []
+  const nutritionSnapshot = {
+    hasTargets: hasNutritionTargets(nutritionProfile),
+    hasMealPlan: Boolean(activeMealPlanResult.data),
+    lastLogDate: recentNutritionLogs[0]?.log_date ?? null,
+    avgAdherence7d: averageAdherenceScore(recentNutritionLogs),
+    loggedToday: Boolean(todayNutritionLogResult.data),
+  }
 
   const [loadMetrics, trainingConsistency] = await Promise.all([
     fetchClientLoadMetrics(supabase, clientId),
@@ -118,6 +160,7 @@ export async function ClientDetailOverviewPanel({
       recentPrs={loadMetrics.recentPrs}
       trainingConsistency={trainingConsistency}
       coachPreferences={coachPreferences}
+      nutritionSnapshot={nutritionSnapshot}
     />
   )
 }

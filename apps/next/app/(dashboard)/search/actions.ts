@@ -9,6 +9,7 @@ export type GlobalSearchResultType =
   | 'workout'
   | 'program'
   | 'exercise'
+  | 'meal_plan'
 
 export type GlobalSearchResult = {
   id: string
@@ -41,7 +42,7 @@ export async function globalSearch(
 
   const term = `%${trimmed}%`
 
-  const [clientsRes, workoutsRes, programsRes, exercisesRes] =
+  const [clientsRes, workoutsRes, programsRes, exercisesRes, mealPlansRes] =
     await Promise.all([
       supabase
         .from('clients')
@@ -68,13 +69,22 @@ export async function globalSearch(
         .ilike('name', term)
         .order('name')
         .limit(RESULT_LIMIT),
+      supabase
+        .from('meal_plans')
+        .select('id, name, description')
+        .eq('coach_id', user.id)
+        .is('client_id', null)
+        .ilike('name', term)
+        .order('name')
+        .limit(RESULT_LIMIT),
     ])
 
   const queryError =
     clientsRes.error ??
     workoutsRes.error ??
     programsRes.error ??
-    exercisesRes.error
+    exercisesRes.error ??
+    mealPlansRes.error
 
   if (queryError) {
     return { success: false, error: queryError.message }
@@ -108,6 +118,13 @@ export async function globalSearch(
       title: exercise.name,
       subtitle: exercise.muscle_group ?? undefined,
       href: `/library/exercises?q=${encodeURIComponent(exercise.name)}`,
+    })),
+    ...(mealPlansRes.data ?? []).map((mealPlan) => ({
+      id: mealPlan.id,
+      type: 'meal_plan' as const,
+      title: mealPlan.name,
+      subtitle: mealPlan.description ?? undefined,
+      href: `/library/meal-plans/${mealPlan.id}`,
     })),
   ]
 

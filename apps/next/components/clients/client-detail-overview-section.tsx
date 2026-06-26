@@ -36,6 +36,13 @@ type ClientDetailOverviewSectionProps = {
   recentPrs?: RecentPrHighlight[]
   trainingConsistency?: TrainingConsistencyHeatmap | null
   coachPreferences?: CoachPreferences
+  nutritionSnapshot?: {
+    hasTargets: boolean
+    hasMealPlan: boolean
+    lastLogDate: string | null
+    avgAdherence7d: number | null
+    loggedToday: boolean
+  } | null
 }
 
 export function ClientDetailOverviewSection({
@@ -49,6 +56,7 @@ export function ClientDetailOverviewSection({
   recentPrs = [],
   trainingConsistency = null,
   coachPreferences = undefined,
+  nutritionSnapshot = null,
 }: ClientDetailOverviewSectionProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -64,6 +72,10 @@ export function ClientDetailOverviewSection({
 
   function openCheckIns() {
     router.replace(`${pathname}?tab=progress&section=check-ins`, { scroll: false })
+  }
+
+  function openNutrition() {
+    router.replace(`${pathname}?tab=nutrition`, { scroll: false })
   }
 
   const onboardingProgress = coachPreferences
@@ -107,6 +119,8 @@ export function ClientDetailOverviewSection({
         onOpenCalendar={() => openTraining('calendar')}
         onOpenCheckIns={openCheckIns}
         onOpenPrograms={() => openTraining('programs')}
+        onOpenNutrition={openNutrition}
+        nutritionSnapshot={nutritionSnapshot}
       />
       <ClientNotesEditor clientId={client.id} initialNotes={client.notes} />
     </>

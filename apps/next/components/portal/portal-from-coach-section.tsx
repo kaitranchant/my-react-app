@@ -48,10 +48,10 @@ export function PortalFromCoachSection({
   const latestMessage = messageHighlight?.latestCoachMessage ?? null
   const unreadCount = messageHighlight?.unreadCount ?? 0
   const coachReply = formReviewHighlight?.recentCoachReply ?? null
-  const pendingFormReviews = formReviewHighlight?.pendingCount ?? 0
+  const unreadFormReviewReplies = formReviewHighlight?.unreadReplyCount ?? 0
 
   const hasContent =
-    latestMessage != null || coachReply != null || pendingFormReviews > 0
+    latestMessage != null || coachReply != null || unreadFormReviewReplies > 0
 
   if (!hasContent) {
     return (
@@ -118,30 +118,18 @@ export function PortalFromCoachSection({
             <div className="flex items-start gap-3">
               <Video className="text-brand mt-0.5 size-4 shrink-0" />
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium">Form review reply</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">Form review reply</p>
+                  {unreadFormReviewReplies > 0 ? (
+                    <Badge variant="default">New</Badge>
+                  ) : null}
+                </div>
                 <p className="line-clamp-3 text-sm leading-relaxed">
                   <span className="font-medium">{coachName}</span>
                   <span className="text-muted-foreground"> replied to </span>
                   <span className="text-muted-foreground">
                     {formatFormReviewCoachReplySubject(coachReply)}
                   </span>
-                </p>
-              </div>
-              <ArrowRight className="text-muted-foreground mt-1 size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
-            </div>
-          </Link>
-        ) : !latestMessage && pendingFormReviews > 0 ? (
-          <Link
-            href="/portal/form-review"
-            className="group block py-3 first:pt-0 last:pb-0"
-          >
-            <div className="flex items-start gap-3">
-              <Video className="text-brand mt-0.5 size-4 shrink-0" />
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium">Form review</p>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {pendingFormReviews} submission
-                  {pendingFormReviews === 1 ? '' : 's'} awaiting review
                 </p>
               </div>
               <ArrowRight className="text-muted-foreground mt-1 size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />

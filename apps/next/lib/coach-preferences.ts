@@ -66,6 +66,20 @@ export function getCoachDateKey(
   }).format(referenceDate)
 }
 
+/** Long date label in the coach timezone, e.g. "Thu, June 25". */
+export function formatCoachLongDate(
+  timezone: CoachPreferences['timezone'] = 'auto',
+  referenceDate = new Date()
+): string {
+  const iana = resolveCoachTimezone(timezone)
+  return new Intl.DateTimeFormat('en-US', {
+    ...(iana ? { timeZone: iana } : {}),
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+  }).format(referenceDate)
+}
+
 export function parseCoachPreferences(
   row?: ProfilePreferenceRow | null
 ): CoachPreferences {

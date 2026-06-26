@@ -30,6 +30,25 @@ test.describe('Mobile smoke — client portal', () => {
     })
     await expect(page.getByText('Food diary').first()).toBeVisible()
   })
+
+  test('primary tabs reach sessions and messages', async ({ clientPage: page }) => {
+    await page.getByRole('link', { name: 'Sessions', exact: true }).click()
+    await expect(page).toHaveURL(/\/portal\/sessions/)
+    await page.getByRole('link', { name: 'Messages', exact: true }).click()
+    await expect(page).toHaveURL(/\/portal\/messages/)
+  })
+
+  test('immersive workout log hides bottom nav', async ({ clientPage: page }) => {
+    await page.goto('/portal/workouts')
+    const startLink = page.getByRole('link', { name: /Start workout|Continue workout/i }).first()
+    const hasWorkout = await startLink.isVisible().catch(() => false)
+    if (!hasWorkout) {
+      test.skip(true, 'No actionable workout for immersive log test')
+    }
+    await startLink.click()
+    await expect(page).toHaveURL(/\/portal\/workouts\/[^/]+\/log/)
+    await expect(page.getByRole('navigation')).toHaveCount(0)
+  })
 })
 
 test.describe('Mobile smoke — coach dashboard', () => {

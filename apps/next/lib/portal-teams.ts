@@ -180,3 +180,44 @@ export async function fetchClientNextTeamEvent(
 
   return best
 }
+
+/** True when the client has an upcoming team event that still needs an RSVP. */
+export async function clientNeedsTeamAttention(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<boolean> {
+  const teams = await fetchClientTeams(supabase, clientId)
+  if (!teams.length) return false
+
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const horizonKey = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+
+  for (const team of teams) {
+    const { data: events } = await supabase
+      .from('team_events')
+      .select('id')
+      .eq('team_id', team.id)
+      .gte('event_date', todayKey)
+      .lte('event_date', horizonKey)
+
+    if (!events?.length) continue
+
+    for (const event of events) {
+      const { data: status } = await supabase
+        .from('team_event_member_status')
+        .select('rsvp_status')
+        .eq('event_id', event.id)
+        .eq('client_id', clientId)
+        .maybeSingle()
+
+      const rsvp = (status?.rsvp_status as TeamEventRsvpStatus) ?? 'no_response'
+      if (rsvp === 'no_response') {
+        return true
+      }
+    }
+  }
+
+  return false
+}

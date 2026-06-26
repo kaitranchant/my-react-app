@@ -81,6 +81,7 @@ export function ClientNutritionTrackingPanel({
         days={planDays}
         todayKey={todayKey}
         profile={profile}
+        audience="coach"
       />
 
       <FoodDiaryPanel

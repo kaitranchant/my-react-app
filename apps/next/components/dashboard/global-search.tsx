@@ -8,6 +8,7 @@ import {
   Loader2,
   Search,
   Users,
+  UtensilsCrossed,
 } from 'lucide-react'
 
 import {
@@ -31,6 +32,7 @@ const GROUP_LABELS: Record<GlobalSearchResultType, string> = {
   workout: 'Workouts',
   program: 'Programs',
   exercise: 'Exercises',
+  meal_plan: 'Meal plans',
 }
 
 const GROUP_ORDER: GlobalSearchResultType[] = [
@@ -38,6 +40,7 @@ const GROUP_ORDER: GlobalSearchResultType[] = [
   'workout',
   'program',
   'exercise',
+  'meal_plan',
 ]
 
 const TYPE_ICONS: Record<
@@ -48,6 +51,14 @@ const TYPE_ICONS: Record<
   workout: Dumbbell,
   program: ClipboardList,
   exercise: Dumbbell,
+  meal_plan: UtensilsCrossed,
+}
+
+function getSearchShortcutLabel() {
+  if (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform)) {
+    return '⌘ K'
+  }
+  return 'Ctrl K'
 }
 
 function groupResults(results: GlobalSearchResult[]) {
@@ -134,6 +145,7 @@ export function GlobalSearch() {
 
   const groupedResults = groupResults(results)
   const hasQuery = query.trim().length > 0
+  const shortcutLabel = getSearchShortcutLabel()
 
   return (
     <>
@@ -146,7 +158,7 @@ export function GlobalSearch() {
         <Search className="size-4 shrink-0" />
         <span className="truncate">Search clients, workouts, programs…</span>
         <kbd className="bg-muted text-muted-foreground pointer-events-none ml-auto hidden rounded border px-1.5 py-0.5 text-[10px] font-medium lg:inline-block">
-          Ctrl K
+          {shortcutLabel}
         </kbd>
       </Button>
 
@@ -165,11 +177,11 @@ export function GlobalSearch() {
         open={open}
         onOpenChange={setOpen}
         title="Search"
-        description="Search clients, workouts, programs, and exercises"
+        description="Search clients, workouts, programs, exercises, and meal plans"
         shouldFilter={false}
       >
         <CommandInput
-          placeholder="Search clients, workouts, programs, exercises…"
+          placeholder="Search clients, workouts, programs, exercises, meal plans…"
           value={query}
           onValueChange={setQuery}
         />

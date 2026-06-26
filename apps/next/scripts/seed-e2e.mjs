@@ -120,6 +120,40 @@ async function ensureExercise(coachId, name, muscleGroup) {
   return inserted.id
 }
 
+async function ensureE2EScheduling(coachId, clientId) {
+  await supabase.from('coaching_appointments').delete().eq('client_id', clientId)
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      session_booking_enabled: true,
+      default_session_duration_minutes: 60,
+      booking_buffer_minutes: 0,
+      booking_min_notice_hours: 0,
+      booking_max_days_ahead: 60,
+      default_session_location: 'E2E Studio',
+      booking_requires_session_pack: false,
+    })
+    .eq('id', coachId)
+
+  if (profileError) throw profileError
+
+  await supabase.from('coach_availability_rules').delete().eq('coach_id', coachId)
+
+  const rules = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+    coach_id: coachId,
+    day_of_week: day,
+    start_time: '09:00:00',
+    end_time: '17:00:00',
+  }))
+
+  const { error: rulesError } = await supabase
+    .from('coach_availability_rules')
+    .insert(rules)
+
+  if (rulesError) throw rulesError
+}
+
 async function ensureE2ENutritionProfile(coachId, clientId) {
   await supabase.from('client_nutrition_logs').delete().eq('client_id', clientId)
 
@@ -630,6 +664,7 @@ async function main() {
 
   await ensureE2EMealPlanTemplate(coachId, clientId)
   await ensureE2ENutritionProfile(coachId, clientId)
+  await ensureE2EScheduling(coachId, clientId)
 
   console.log('E2E seed complete.')
   console.log(`  Coach:     ${COACH_EMAIL}`)
@@ -638,6 +673,7 @@ async function main() {
   console.log(`  Program: ${PROGRAM_NAME} (assigned from ${startDate})`)
   console.log(`  Team: ${TEAM_NAME}`)
   console.log(`  Meal plan template: ${MEAL_PLAN_NAME}`)
+  console.log(`  Scheduling: self-booking enabled, Mon–Sun 09:00–17:00`)
   console.log(`  Client ID: ${clientId}`)
 }
 
