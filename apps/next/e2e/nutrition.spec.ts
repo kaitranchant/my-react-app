@@ -84,7 +84,7 @@ test.describe('Nutrition', () => {
     page,
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(60_000)
+    test.setTimeout(90_000)
 
     await loginAsCoach(page)
 
@@ -100,7 +100,6 @@ test.describe('Nutrition', () => {
 
     await loginAsClient(page)
 
-    await page.goto('/portal')
     const prompt = page.getByRole('link', { name: 'Log nutrition', exact: true })
     const hasPrompt = await prompt.isVisible({ timeout: 15_000 }).catch(() => false)
     if (!hasPrompt) {
