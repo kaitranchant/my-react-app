@@ -888,7 +888,7 @@ async function fetchVolumeRows(
   const logRows = await fetchLogRowsForClients(
     supabase,
     clientIds,
-    bounds.start ?? shiftDateKey(bounds.end, -365)
+    bounds.start ?? shiftDateKey(bounds.end, -90)
   )
 
   const volumeByClientId = new Map<string, number>()

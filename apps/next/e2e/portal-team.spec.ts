@@ -10,16 +10,8 @@ import {
   login,
   signOutFromApp,
   teamIdFromUrl,
+  todayDateKey,
 } from './fixtures'
-
-function tomorrowDateKey() {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 test.describe('Portal team', () => {
   test('client sees team announcements and can RSVP to events', async ({
@@ -31,7 +23,7 @@ test.describe('Portal team', () => {
     const teamName = `E2E Portal Team ${Date.now()}`
     const eventTitle = `E2E Practice ${Date.now()}`
     const announcementText = `E2E team announcement ${Date.now()}`
-    const eventDate = tomorrowDateKey()
+    const eventDate = todayDateKey()
 
     await page.goto('/teams')
     await page.getByRole('button', { name: 'Create team' }).click()
@@ -63,9 +55,16 @@ test.describe('Portal team', () => {
 
     await page.getByRole('tab', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: 'Add event' }).click()
-    await page.getByLabel('Title').fill(eventTitle)
-    await page.getByLabel('Date').fill(eventDate)
-    await page.getByRole('button', { name: 'Add event', exact: true }).click()
+    const eventDialog = page.getByRole('dialog', { name: 'Add team event' })
+    await eventDialog.getByLabel('Title').fill(eventTitle)
+    await eventDialog.getByLabel('Date').fill(eventDate)
+    await eventDialog.getByRole('button', { name: 'Add event', exact: true }).click()
+    await expect(page.getByText('Event added to team schedule')).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(eventDialog).toBeHidden({ timeout: 15_000 })
+    await page.reload()
+    await page.getByRole('tab', { name: 'Schedule' }).click()
     await expect(page.getByText(eventTitle)).toBeVisible({ timeout: 15_000 })
 
     await signOutFromApp(page, 'E2E Coach')

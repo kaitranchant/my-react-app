@@ -337,6 +337,5 @@ export async function markClientFormReviewsAsViewed(): Promise<void> {
     .not('reviewed_at', 'is', null)
     .is('client_viewed_at', null)
 
-  revalidatePath('/portal', 'layout')
   revalidatePath('/portal/form-review')
 }

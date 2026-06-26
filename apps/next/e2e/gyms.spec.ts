@@ -5,6 +5,7 @@ import {
   E2E_CLIENT_NAME,
   E2E_GYM_COACH_EMAIL,
   E2E_GYM_COACH_PASSWORD,
+  clientRosterLink,
   login,
 } from './fixtures'
 
@@ -63,7 +64,7 @@ test.describe('Gyms', () => {
     await expect(gymCoachPage).toHaveURL(/\/dashboard/, { timeout: 15_000 })
 
     await gymCoachPage.goto(inviteUrl)
-    await expect(gymCoachPage.getByText(`Join ${gymName}`)).toBeVisible({
+    await expect(gymCoachPage.getByText(`Join ${gymName}`).first()).toBeVisible({
       timeout: 15_000,
     })
     await gymCoachPage.getByRole('button', { name: 'Accept invite' }).click()
@@ -73,11 +74,13 @@ test.describe('Gyms', () => {
     ).toBeVisible({ timeout: 15_000 })
 
     await gymCoachPage.goto('/clients')
-    await expect(gymCoachPage.getByText(E2E_CLIENT_NAME)).toBeVisible({
+    await expect(
+      gymCoachPage.locator('table').getByText(E2E_CLIENT_NAME)
+    ).toBeVisible({
       timeout: 15_000,
     })
 
-    await gymCoachPage.getByRole('link', { name: E2E_CLIENT_NAME }).click()
+    await clientRosterLink(gymCoachPage, E2E_CLIENT_NAME).click()
     await expect(
       gymCoachPage.getByRole('heading', { name: E2E_CLIENT_NAME })
     ).toBeVisible({ timeout: 15_000 })

@@ -111,61 +111,66 @@ async function recordNudgeSent(
   }
 }
 
-async function countUnreadCoachMessages(
+async function fetchUnreadCoachMessagesForClients(
   admin: AdminClient,
-  clientId: string
-): Promise<{ unreadCount: number; latestPreview: string | null }> {
-  const [latestResult, threadResult] = await Promise.all([
-    admin
-      .from('client_messages')
-      .select('body, created_at, message_type')
-      .eq('client_id', clientId)
-      .eq('sender_role', 'coach')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from('client_message_threads')
-      .select('client_last_read_at')
-      .eq('client_id', clientId)
-      .maybeSingle(),
+  clientIds: string[]
+): Promise<
+  Map<string, { unreadCount: number; latestPreview: string | null }>
+> {
+  const result = new Map<
+    string,
+    { unreadCount: number; latestPreview: string | null }
+  >()
+
+  if (clientIds.length === 0) {
+    return result
+  }
+
+  const [unreadResult, latestResult] = await Promise.all([
+    admin.rpc('get_client_unread_from_coach', { p_client_ids: clientIds }),
+    admin.rpc('get_client_latest_coach_messages', { p_client_ids: clientIds }),
   ])
 
-  const latestMessage = latestResult.data
-  if (!latestMessage) {
-    return { unreadCount: 0, latestPreview: null }
+  const unreadByClientId = new Map<string, number>()
+  for (const row of unreadResult.data ?? []) {
+    unreadByClientId.set(
+      row.client_id as string,
+      Number(row.unread_count ?? 0)
+    )
   }
 
-  const previewText = getMessagePreviewText({
-    message_type: latestMessage.message_type ?? 'text',
-    body: latestMessage.body,
-  })
-  const preview =
-    previewText.length > 280 ? `${previewText.slice(0, 277)}…` : previewText
-
-  const clientLastReadAt = threadResult.data?.client_last_read_at
-  if (!clientLastReadAt) {
-    const { count } = await admin
-      .from('client_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('client_id', clientId)
-      .eq('sender_role', 'coach')
-
-    return { unreadCount: count ?? 1, latestPreview: preview }
+  const latestByClientId = new Map<
+    string,
+    { body: string | null; message_type: string | null }
+  >()
+  for (const row of latestResult.data ?? []) {
+    latestByClientId.set(row.client_id as string, {
+      body: row.body as string | null,
+      message_type: row.message_type as string | null,
+    })
   }
 
-  const { count, error } = await admin
-    .from('client_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('client_id', clientId)
-    .eq('sender_role', 'coach')
-    .gt('created_at', clientLastReadAt)
+  for (const clientId of clientIds) {
+    const latest = latestByClientId.get(clientId)
+    if (!latest) {
+      result.set(clientId, { unreadCount: 0, latestPreview: null })
+      continue
+    }
 
-  if (error) {
-    return { unreadCount: 0, latestPreview: null }
+    const previewText = getMessagePreviewText({
+      message_type: (latest.message_type ?? 'text') as 'text' | 'voice',
+      body: latest.body,
+    })
+    const preview =
+      previewText.length > 280 ? `${previewText.slice(0, 277)}…` : previewText
+
+    result.set(clientId, {
+      unreadCount: unreadByClientId.get(clientId) ?? 0,
+      latestPreview: preview,
+    })
   }
 
-  return { unreadCount: count ?? 0, latestPreview: preview }
+  return result
 }
 
 async function getClientEmail(
@@ -316,6 +321,16 @@ export async function sendClientEmailNudges(
       clientIds,
       'unread_digest',
       [todayKey]
+    )
+
+    const digestClientIds = coachClients
+      .filter(
+        (client) => prefsByUserId.get(client.user_id)?.notifyUnreadDigest
+      )
+      .map((client) => client.id)
+    const unreadDigestByClientId = await fetchUnreadCoachMessagesForClients(
+      admin,
+      digestClientIds
     )
 
     for (const client of coachClients) {
@@ -475,7 +490,10 @@ export async function sendClientEmailNudges(
         } else {
           try {
             const { unreadCount, latestPreview } =
-              await countUnreadCoachMessages(admin, client.id)
+              unreadDigestByClientId.get(client.id) ?? {
+                unreadCount: 0,
+                latestPreview: null,
+              }
 
             if (unreadCount === 0) {
               results.push({

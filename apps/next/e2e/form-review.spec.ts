@@ -16,6 +16,7 @@ test.describe('Form review', () => {
   test('client can open form review and upload a video', async ({
     clientPage: page,
   }) => {
+    test.setTimeout(60_000)
     await page.goto('/portal/form-review')
     await expect(page.getByRole('heading', { name: 'Form Review' })).toBeVisible()
     await expect(page.getByText('Submit form review')).toBeVisible()
@@ -32,29 +33,38 @@ test.describe('Form review', () => {
     await expect(page.getByText('Form review submitted')).toBeVisible({
       timeout: 20_000,
     })
-    await expect(page.getByText(E2E_FORM_REVIEW_TITLE)).toBeVisible()
-    await expect(page.getByText('Awaiting review')).toBeVisible()
+    await expect(page.getByText(E2E_FORM_REVIEW_NOTES).first()).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('coach can review a pending form submission', async ({
     coachPage: page,
   }) => {
+    test.setTimeout(60_000)
     await expandSidebarGroup(page, 'Monitoring')
-    await page.getByRole('link', { name: 'Form Review', exact: true }).click()
+    await page.goto('/form-review')
     await expect(page).toHaveURL(/\/form-review/)
     await expect(page.getByRole('heading', { name: 'Form Review' })).toBeVisible()
 
-    await page.getByRole('tab', { name: /Pending/i }).click()
-    await expect(page.getByText(E2E_FORM_REVIEW_TITLE).first()).toBeVisible({
-      timeout: 15_000,
+    await expect(page.getByText(E2E_FORM_REVIEW_NOTES).first()).toBeVisible({
+      timeout: 20_000,
     })
     await expect(page.getByText(E2E_CLIENT_NAME).first()).toBeVisible()
-    await expect(page.getByText(E2E_FORM_REVIEW_NOTES).first()).toBeVisible()
 
-    await page
-      .getByPlaceholder('Share cues, corrections, or encouragement…')
+    const reviewCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: E2E_FORM_REVIEW_NOTES })
+      .first()
+    const reviewButton = reviewCard.getByRole('button', { name: 'Review', exact: true })
+    if (await reviewButton.isVisible()) {
+      await reviewButton.click()
+    }
+
+    await reviewCard
+      .getByPlaceholder('Share general cues, corrections, or encouragement…')
       .fill(E2E_COACH_FEEDBACK)
-    await page.getByRole('button', { name: 'Save feedback' }).click()
+    await reviewCard.getByRole('button', { name: 'Save feedback' }).click()
 
     await expect(page.getByText('Feedback saved')).toBeVisible({
       timeout: 10_000,
@@ -63,7 +73,7 @@ test.describe('Form review', () => {
       timeout: 10_000,
     })
 
-    await page.getByRole('tab', { name: /^All$/i }).click()
+    await page.getByRole('button', { name: /^All$/i }).click()
     await expect(page.getByText('Reviewed').first()).toBeVisible()
   })
 

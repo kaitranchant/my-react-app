@@ -21,7 +21,9 @@ import {
 import { parseTrackingOptions } from '@/lib/scheduled-exercise'
 import type { createClient } from '@/lib/supabase/server'
 import type { RecentPrHighlight } from '@/lib/pr-records'
-import { fetchRecentPrHighlights } from '@/lib/pr-records'
+import {
+  fetchRecentPrHighlightsForClients,
+} from '@/lib/pr-records'
 import type { ClientScheduledWorkout } from 'app/types/database'
 
 type HistoricalLogRow = {
@@ -45,9 +47,11 @@ type HistoricalLogRow = {
 type WorkoutRow = Pick<
   ClientScheduledWorkout,
   'id' | 'scheduled_date' | 'status' | 'completed_at'
->
+> & { client_id?: string }
 
 type CheckInRow = CheckInReadinessInput
+
+type CheckInQueryRow = CheckInRow & { client_id: string }
 
 export type ClientLoadSummary = {
   clientId: string
@@ -141,11 +145,15 @@ export function buildSessionRowsFromWorkouts(
   return buildDailyMetricRows(sessionsByDate)
 }
 
-export async function fetchClientLogRows(
+export async function fetchLogRowsForClients(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  clientId: string,
+  clientIds: string[],
   startDateKey: string
 ): Promise<HistoricalLogRow[]> {
+  if (clientIds.length === 0) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('workout_log_sets')
     .select(
@@ -158,7 +166,7 @@ export async function fetchClientLogRows(
       client_scheduled_workouts!inner (id, client_id, scheduled_date, completed_at, status)
     `
     )
-    .eq('client_scheduled_workouts.client_id', clientId)
+    .in('client_scheduled_workouts.client_id', clientIds)
     .eq('client_scheduled_workouts.status', 'completed')
     .gte('client_scheduled_workouts.scheduled_date', startDateKey)
 
@@ -169,15 +177,42 @@ export async function fetchClientLogRows(
   return data as HistoricalLogRow[]
 }
 
-export async function fetchClientWorkouts(
+export function groupLogRowsByClientId(
+  rows: HistoricalLogRow[]
+): Map<string, HistoricalLogRow[]> {
+  const grouped = new Map<string, HistoricalLogRow[]>()
+
+  for (const row of rows) {
+    const clientId = row.client_scheduled_workouts.client_id
+    const existing = grouped.get(clientId) ?? []
+    existing.push(row)
+    grouped.set(clientId, existing)
+  }
+
+  return grouped
+}
+
+export async function fetchClientLogRows(
   supabase: Awaited<ReturnType<typeof createClient>>,
   clientId: string,
   startDateKey: string
+): Promise<HistoricalLogRow[]> {
+  return fetchLogRowsForClients(supabase, [clientId], startDateKey)
+}
+
+export async function fetchWorkoutsForClients(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientIds: string[],
+  startDateKey: string
 ): Promise<WorkoutRow[]> {
+  if (clientIds.length === 0) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('client_scheduled_workouts')
-    .select('id, scheduled_date, status, completed_at')
-    .eq('client_id', clientId)
+    .select('id, client_id, scheduled_date, status, completed_at')
+    .in('client_id', clientIds)
     .gte('scheduled_date', startDateKey)
     .order('scheduled_date', { ascending: true })
 
@@ -188,25 +223,75 @@ export async function fetchClientWorkouts(
   return data as WorkoutRow[]
 }
 
+export function groupWorkoutsByClientId(
+  workouts: WorkoutRow[]
+): Map<string, WorkoutRow[]> {
+  const grouped = new Map<string, WorkoutRow[]>()
+
+  for (const workout of workouts) {
+    const clientId = workout.client_id
+    if (!clientId) continue
+    const existing = grouped.get(clientId) ?? []
+    existing.push(workout)
+    grouped.set(clientId, existing)
+  }
+
+  return grouped
+}
+
+export async function fetchClientWorkouts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  startDateKey: string
+): Promise<WorkoutRow[]> {
+  const workouts = await fetchWorkoutsForClients(
+    supabase,
+    [clientId],
+    startDateKey
+  )
+  return workouts.map(({ client_id: _clientId, ...workout }) => workout)
+}
+
+export async function fetchLatestCheckInsForClients(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientIds: string[]
+): Promise<Map<string, CheckInRow>> {
+  if (clientIds.length === 0) {
+    return new Map()
+  }
+
+  const { data, error } = await supabase
+    .from('client_check_ins')
+    .select(
+      'client_id, check_in_date, sleep_hours, sleep_quality, energy_level, calm_level, soreness_level, has_pain'
+    )
+    .in('client_id', clientIds)
+    .order('check_in_date', { ascending: false })
+
+  if (error || !data) {
+    return new Map()
+  }
+
+  const latestByClientId = new Map<string, CheckInRow>()
+  for (const row of data as CheckInQueryRow[]) {
+    if (latestByClientId.has(row.client_id)) {
+      continue
+    }
+    const { client_id: _clientId, ...checkIn } = row
+    latestByClientId.set(row.client_id, checkIn)
+  }
+
+  return latestByClientId
+}
+
 export async function fetchLatestCheckIn(
   supabase: Awaited<ReturnType<typeof createClient>>,
   clientId: string
 ): Promise<CheckInRow | null> {
-  const { data, error } = await supabase
-    .from('client_check_ins')
-    .select(
-      'check_in_date, sleep_hours, sleep_quality, energy_level, calm_level, soreness_level, has_pain'
-    )
-    .eq('client_id', clientId)
-    .order('check_in_date', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (error || !data) {
-    return null
-  }
-
-  return data as CheckInRow
+  const latestByClientId = await fetchLatestCheckInsForClients(supabase, [
+    clientId,
+  ])
+  return latestByClientId.get(clientId) ?? null
 }
 
 function countSessionCompliance(
@@ -246,39 +331,47 @@ export async function fetchCoachDashboardLoadAlerts(
   eightWeeksAgo.setDate(today.getDate() - 7 * 8)
   const startDateKey = toDateKey(eightWeeksAgo)
   const recentCheckInCutoff = toDateKey(new Date(Date.now() - 7 * 86_400_000))
+  const clientIds = clients.map((client) => client.id)
 
-  const results = await Promise.all(
-    clients.map(async (client) => {
-      const [logRows, workouts, latestCheckIn] = await Promise.all([
-        fetchClientLogRows(supabase, client.id, startDateKey),
-        fetchClientWorkouts(supabase, client.id, startDateKey),
-        fetchLatestCheckIn(supabase, client.id),
-      ])
+  const [allLogRows, allWorkouts, latestCheckInsByClientId] = await Promise.all([
+    fetchLogRowsForClients(supabase, clientIds, startDateKey),
+    fetchWorkoutsForClients(supabase, clientIds, startDateKey),
+    fetchLatestCheckInsForClients(supabase, clientIds),
+  ])
 
-      const tonnageRows = buildVolumeRowsFromLogData(logRows)
-      const volumeRowsForAcwr = tonnageRows.map((row) => ({
-        dateKey: row.dateKey,
-        volume: row.value,
-      }))
-      const acwr = calcAcwr(volumeRowsForAcwr, today)
-      const hasInjuryFlag = Boolean(
-        latestCheckIn?.has_pain &&
-          latestCheckIn.check_in_date >= recentCheckInCutoff
-      )
+  const logRowsByClientId = groupLogRowsByClientId(allLogRows)
+  const workoutsByClientId = groupWorkoutsByClientId(allWorkouts)
 
-      return {
-        clientId: client.id,
-        clientName: client.full_name,
-        daysSinceLastSession: getDaysSinceLastSession(
-          workouts as Parameters<typeof getDaysSinceLastSession>[0]
-        ),
-        acwrRatio: acwr.ratio,
-        acwrRiskLevel: acwr.riskLevel,
-        hasInjuryFlag,
-        elevatedLoad: isAcwrLoadAlert(acwr.riskLevel, acwr.ratio),
-      }
-    })
-  )
+  const results = clients.map((client) => {
+    const logRows = logRowsByClientId.get(client.id) ?? []
+    const workouts = (workoutsByClientId.get(client.id) ?? []).map(
+      ({ client_id: _clientId, ...workout }) => workout
+    )
+    const latestCheckIn = latestCheckInsByClientId.get(client.id) ?? null
+
+    const tonnageRows = buildVolumeRowsFromLogData(logRows)
+    const volumeRowsForAcwr = tonnageRows.map((row) => ({
+      dateKey: row.dateKey,
+      volume: row.value,
+    }))
+    const acwr = calcAcwr(volumeRowsForAcwr, today)
+    const hasInjuryFlag = Boolean(
+      latestCheckIn?.has_pain &&
+        latestCheckIn.check_in_date >= recentCheckInCutoff
+    )
+
+    return {
+      clientId: client.id,
+      clientName: client.full_name,
+      daysSinceLastSession: getDaysSinceLastSession(
+        workouts as Parameters<typeof getDaysSinceLastSession>[0]
+      ),
+      acwrRatio: acwr.ratio,
+      acwrRiskLevel: acwr.riskLevel,
+      hasInjuryFlag,
+      elevatedLoad: isAcwrLoadAlert(acwr.riskLevel, acwr.ratio),
+    }
+  })
 
   return {
     elevatedLoadCount: results.filter((result) => result.elevatedLoad).length,
@@ -307,91 +400,109 @@ export async function fetchCoachLoadSummaries(
   supabase: Awaited<ReturnType<typeof createClient>>,
   clients: { id: string; full_name: string; avatar_url?: string | null }[]
 ): Promise<ClientLoadSummary[]> {
+  if (clients.length === 0) {
+    return []
+  }
+
   const today = new Date()
   const eightWeeksAgo = new Date(today)
   eightWeeksAgo.setDate(today.getDate() - 7 * 8)
   const startDateKey = toDateKey(eightWeeksAgo)
   const thisWeek = getDateRangeBounds('this_week', today)
+  const recentCheckInCutoff = toDateKey(new Date(Date.now() - 7 * 86_400_000))
+  const clientIds = clients.map((client) => client.id)
 
-  const summaries = await Promise.all(
-    clients.map(async (client) => {
-      const [logRows, workouts, recentPrs, latestCheckIn] = await Promise.all([
-        fetchClientLogRows(supabase, client.id, startDateKey),
-        fetchClientWorkouts(supabase, client.id, startDateKey),
-        fetchRecentPrHighlights(supabase, client.id, 3),
-        fetchLatestCheckIn(supabase, client.id),
-      ])
+  const [
+    allLogRows,
+    allWorkouts,
+    latestCheckInsByClientId,
+    recentPrsByClientId,
+  ] = await Promise.all([
+    fetchLogRowsForClients(supabase, clientIds, startDateKey),
+    fetchWorkoutsForClients(supabase, clientIds, startDateKey),
+    fetchLatestCheckInsForClients(supabase, clientIds),
+    fetchRecentPrHighlightsForClients(supabase, clientIds, 3),
+  ])
 
-      const tonnageRows = buildVolumeRowsFromLogData(logRows)
-      const sessionRows = buildSessionRowsFromWorkouts(workouts)
-      const timeRows = buildTimeRowsFromLogData(logRows)
-      const volumeRowsForAcwr = tonnageRows.map((row) => ({
-        dateKey: row.dateKey,
-        volume: row.value,
+  const logRowsByClientId = groupLogRowsByClientId(allLogRows)
+  const workoutsByClientId = groupWorkoutsByClientId(allWorkouts)
+
+  const summaries = clients.map((client) => {
+    const logRows = logRowsByClientId.get(client.id) ?? []
+    const workouts = (workoutsByClientId.get(client.id) ?? []).map(
+      ({ client_id: _clientId, ...workout }) => workout
+    )
+    const recentPrs = recentPrsByClientId.get(client.id) ?? []
+    const latestCheckIn = latestCheckInsByClientId.get(client.id) ?? null
+
+    const tonnageRows = buildVolumeRowsFromLogData(logRows)
+    const sessionRows = buildSessionRowsFromWorkouts(workouts)
+    const timeRows = buildTimeRowsFromLogData(logRows)
+    const volumeRowsForAcwr = tonnageRows.map((row) => ({
+      dateKey: row.dateKey,
+      volume: row.value,
+    }))
+    const acwr = calcAcwr(volumeRowsForAcwr, today)
+    const weeklyTonnage = aggregateWeeklyVolume(volumeRowsForAcwr, 8, today).map(
+      (bucket) => ({
+        weekStart: bucket.weekStart,
+        weekEnd: bucket.weekEnd,
+        value: bucket.volume,
+      })
+    )
+    const weeklySessions = aggregateWeeklyMetric(sessionRows, 8, today)
+    const weeklyTime = aggregateWeeklyMetric(timeRows, 8, today)
+    const daysSinceLastSession = getDaysSinceLastSession(
+      workouts.map((workout) => ({
+        id: workout.id,
+        name: '',
+        status: workout.status,
+        scheduled_date: workout.scheduled_date,
+        started_at: null,
+        completed_at: workout.completed_at,
+        updated_at: workout.completed_at ?? workout.scheduled_date,
       }))
-      const acwr = calcAcwr(volumeRowsForAcwr, today)
-      const weeklyTonnage = aggregateWeeklyVolume(volumeRowsForAcwr, 8, today).map(
-        (bucket) => ({
-          weekStart: bucket.weekStart,
-          weekEnd: bucket.weekEnd,
-          value: bucket.volume,
-        })
-      )
-      const weeklySessions = aggregateWeeklyMetric(sessionRows, 8, today)
-      const weeklyTime = aggregateWeeklyMetric(timeRows, 8, today)
-      const daysSinceLastSession = getDaysSinceLastSession(
-        workouts.map((workout) => ({
-          id: workout.id,
-          name: '',
-          status: workout.status,
-          scheduled_date: workout.scheduled_date,
-          started_at: null,
-          completed_at: workout.completed_at,
-          updated_at: workout.completed_at ?? workout.scheduled_date,
-        }))
-      )
-      const readiness = getBlendedReadinessLevel(
-        workouts.map((workout) => ({
-          id: workout.id,
-          name: '',
-          status: workout.status,
-          scheduled_date: workout.scheduled_date,
-          started_at: null,
-          completed_at: workout.completed_at,
-          updated_at: workout.completed_at ?? workout.scheduled_date,
-        })),
-        latestCheckIn
-      )
-      const hasReadinessData =
-        daysSinceLastSession !== null ||
-        isRecentCheckIn(latestCheckIn, 14)
+    )
+    const readiness = getBlendedReadinessLevel(
+      workouts.map((workout) => ({
+        id: workout.id,
+        name: '',
+        status: workout.status,
+        scheduled_date: workout.scheduled_date,
+        started_at: null,
+        completed_at: workout.completed_at,
+        updated_at: workout.completed_at ?? workout.scheduled_date,
+      })),
+      latestCheckIn
+    )
+    const hasReadinessData =
+      daysSinceLastSession !== null ||
+      isRecentCheckIn(latestCheckIn, 14)
 
-      return {
-        clientId: client.id,
-        clientName: client.full_name,
-        avatarUrl: client.avatar_url ?? null,
-        tonnageRows,
-        sessionRows,
-        timeRows,
-        workouts,
-        weeklyTonnage,
-        weeklySessions,
-        weeklyTime,
-        acwrRatio: acwr.ratio,
-        acwrLabel: formatAcwrLabel(acwr),
-        acwrRiskLevel: acwr.riskLevel,
-        daysSinceLastSession,
-        readinessLabel: hasReadinessData ? readiness.label : 'No data',
-        readinessVariant: hasReadinessData ? readiness.variant : 'secondary',
-        hasInjuryFlag: Boolean(
-          latestCheckIn?.has_pain &&
-            latestCheckIn.check_in_date >=
-              toDateKey(new Date(Date.now() - 7 * 86_400_000))
-        ),
-        recentPrs,
-      } satisfies ClientLoadSummary
-    })
-  )
+    return {
+      clientId: client.id,
+      clientName: client.full_name,
+      avatarUrl: client.avatar_url ?? null,
+      tonnageRows,
+      sessionRows,
+      timeRows,
+      workouts,
+      weeklyTonnage,
+      weeklySessions,
+      weeklyTime,
+      acwrRatio: acwr.ratio,
+      acwrLabel: formatAcwrLabel(acwr),
+      acwrRiskLevel: acwr.riskLevel,
+      daysSinceLastSession,
+      readinessLabel: hasReadinessData ? readiness.label : 'No data',
+      readinessVariant: hasReadinessData ? readiness.variant : 'secondary',
+      hasInjuryFlag: Boolean(
+        latestCheckIn?.has_pain &&
+          latestCheckIn.check_in_date >= recentCheckInCutoff
+      ),
+      recentPrs,
+    } satisfies ClientLoadSummary
+  })
 
   return summaries.sort(
     (a, b) =>

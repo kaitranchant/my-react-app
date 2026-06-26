@@ -27,7 +27,9 @@ test.describe('Coach auth and client management', () => {
 
     await expect(page.getByText('Client added')).toBeVisible({ timeout: 15_000 })
     await expect(dialog).toBeHidden({ timeout: 15_000 })
-    await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 15_000 })
+    await expect(
+      page.locator('table').getByText(uniqueName)
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   test('coach dashboard loads with navigation', async ({ coachPage: page }) => {
@@ -38,8 +40,21 @@ test.describe('Coach auth and client management', () => {
 
 test.describe('Seeded client visibility', () => {
   test('coach can find seeded E2E client', async ({ coachPage: page }) => {
+    test.setTimeout(60_000)
     await page.goto('/clients')
-    await expect(page.getByText(E2E_CLIENT_NAME)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+
+    const clearFilters = page.getByRole('button', { name: 'Clear filters' })
+    if (await clearFilters.isVisible().catch(() => false)) {
+      await clearFilters.click()
+    }
+
+    await page.getByPlaceholder('Search clients…').fill(E2E_CLIENT_NAME)
+    await expect(
+      page
+        .getByRole('link', { name: E2E_CLIENT_NAME, exact: true })
+        .filter({ visible: true })
+    ).toBeVisible({ timeout: 30_000 })
   })
 
   test('global search finds seeded client', async ({ coachPage: page }) => {
@@ -51,10 +66,10 @@ test.describe('Seeded client visibility', () => {
     const searchInput = page.getByPlaceholder(/Search clients/i)
     await expect(searchInput).toBeVisible({ timeout: 10_000 })
     await searchInput.fill(E2E_CLIENT_NAME)
-    await expect(page.getByText(E2E_CLIENT_NAME).first()).toBeVisible({
-      timeout: 15_000,
-    })
-    await page.getByText(E2E_CLIENT_NAME).first().click()
+    await expect(
+      page.getByRole('option').filter({ hasText: E2E_CLIENT_NAME })
+    ).toBeVisible({ timeout: 15_000 })
+    await page.keyboard.press('Enter')
     await expect(page).toHaveURL(new RegExp('/clients/'))
     await expect(page.getByText(E2E_CLIENT_NAME).first()).toBeVisible()
   })

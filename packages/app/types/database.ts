@@ -3257,6 +3257,43 @@ export type Database = {
         }
         Returns: string
       }
+      count_coach_unread_messages: {
+        Args: { p_coach_id: string }
+        Returns: number
+      }
+      get_coach_unread_by_client: {
+        Args: { p_coach_id: string }
+        Returns: {
+          client_id: string
+          unread_count: number
+        }[]
+      }
+      get_coach_latest_messages: {
+        Args: { p_coach_id: string }
+        Returns: {
+          client_id: string
+          body: string | null
+          sender_role: MessageSenderRole
+          created_at: string
+          message_type: ClientMessageType
+        }[]
+      }
+      get_client_unread_from_coach: {
+        Args: { p_client_ids: string[] }
+        Returns: {
+          client_id: string
+          unread_count: number
+        }[]
+      }
+      get_client_latest_coach_messages: {
+        Args: { p_client_ids: string[] }
+        Returns: {
+          client_id: string
+          body: string | null
+          created_at: string
+          message_type: ClientMessageType
+        }[]
+      }
     }
     Enums: {
       client_coaching_type: ClientCoachingType

@@ -43,14 +43,22 @@ test.describe('Attendance', () => {
 
     await page.getByRole('tab', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: 'Add event' }).click()
-    await page.getByLabel('Title').fill(eventTitle)
-    await page.getByRole('button', { name: 'Add event', exact: true }).click()
-    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
+    const eventDialog = page.getByRole('dialog', { name: 'Add team event' })
+    await eventDialog.getByLabel('Title').fill(eventTitle)
+    await eventDialog.getByRole('button', { name: 'Add event', exact: true }).click()
+    await expect(page.getByText('Event added to team schedule')).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(eventDialog).toBeHidden({ timeout: 15_000 })
     await expect(page.getByText(eventTitle)).toBeVisible({ timeout: 15_000 })
 
     await page.goto('/attendance')
     await expect(page.getByRole('heading', { name: 'Attendance' })).toBeVisible()
-    await page.getByRole('tab', { name: teamName }).click()
+    await page
+      .locator('div')
+      .filter({ has: page.getByText('Filter by team') })
+      .getByRole('button', { name: teamName })
+      .click()
     await expect(page.getByText(eventTitle)).toBeVisible()
 
     const eventCard = page.locator('li').filter({ hasText: eventTitle })
@@ -91,7 +99,11 @@ test.describe('Attendance', () => {
 
     await expandSidebarGroup(page, 'Clients')
     await page.getByRole('link', { name: 'Attendance', exact: true }).click()
-    await page.getByRole('tab', { name: teamName }).click()
+    await page
+      .locator('div')
+      .filter({ has: page.getByText('Filter by team') })
+      .getByRole('button', { name: teamName })
+      .click()
 
     const clientRows = page.getByRole('listitem').filter({ hasText: E2E_CLIENT_NAME })
     await expect(clientRows).toHaveCount(1)

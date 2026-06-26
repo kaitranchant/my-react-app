@@ -22,13 +22,19 @@ test.describe('Client messaging', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
     await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/portal/)
+    await Promise.all([
+      page.waitForURL(/\/portal/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
 
     await page.goto('/portal/messages')
     await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible()
-    await page.getByPlaceholder('Write a message…').fill(clientMessage)
-    await page.getByRole('button', { name: 'Send message' }).click()
+    const clientTextarea = page.getByPlaceholder('Write a message…')
+    await clientTextarea.click()
+    await clientTextarea.fill(clientMessage)
+    const clientSend = page.getByRole('button', { name: 'Send message' })
+    await expect(clientSend).toBeEnabled({ timeout: 5_000 })
+    await clientSend.click()
     await expect(page.getByText(clientMessage)).toBeVisible({ timeout: 10_000 })
 
     await signOutFromApp(page, E2E_CLIENT_NAME)
@@ -45,8 +51,12 @@ test.describe('Client messaging', () => {
       page.locator('.whitespace-pre-wrap').filter({ hasText: clientMessage }).last()
     ).toBeVisible({ timeout: 15_000 })
 
-    await page.getByPlaceholder('Write a message…').fill(coachReply)
-    await page.getByRole('button', { name: 'Send message' }).click()
+    const coachTextarea = page.getByPlaceholder('Write a message…')
+    await coachTextarea.click()
+    await coachTextarea.fill(coachReply)
+    const coachSend = page.getByRole('button', { name: 'Send message' })
+    await expect(coachSend).toBeEnabled({ timeout: 5_000 })
+    await coachSend.click()
     await expect(
       page.locator('.whitespace-pre-wrap').filter({ hasText: coachReply }).last()
     ).toBeVisible({ timeout: 10_000 })

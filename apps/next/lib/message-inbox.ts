@@ -1,8 +1,8 @@
+import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type {
   Client,
-  ClientMessage,
   ClientMessageThread,
   ClientMessageType,
   Database,
@@ -29,6 +29,19 @@ export type CoachInboxData = {
 }
 
 type ClientRow = Pick<Client, 'id' | 'full_name' | 'avatar_url'>
+
+type LatestMessageRow = {
+  client_id: string
+  body: string | null
+  sender_role: MessageSenderRole
+  created_at: string
+  message_type: ClientMessageType
+}
+
+type UnreadByClientRow = {
+  client_id: string
+  unread_count: number
+}
 
 function truncatePreview(body: string, maxLength = 72) {
   const normalized = body.replace(/\s+/g, ' ').trim()
@@ -68,14 +81,59 @@ export function sortInboxConversations(
   })
 }
 
-export async function fetchCoachInbox(
+function isMissingMessagingSchema(errorMessage: string | null | undefined) {
+  return Boolean(errorMessage?.includes('Could not find the table'))
+}
+
+async function fetchCoachInboxUnreadCountImpl(
+  supabase: SupabaseClient<Database>,
+  coachId: string
+): Promise<number> {
+  const { data, error } = await supabase.rpc('count_coach_unread_messages', {
+    p_coach_id: coachId,
+  })
+
+  if (error) {
+    if (isMissingMessagingSchema(error.message)) {
+      return 0
+    }
+    return 0
+  }
+
+  return Number(data ?? 0)
+}
+
+export const fetchCoachInboxUnreadCount = cache(fetchCoachInboxUnreadCountImpl)
+
+export async function fetchCoachInboxUnreadByClient(
+  supabase: SupabaseClient<Database>,
+  coachId: string
+): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('get_coach_unread_by_client', {
+    p_coach_id: coachId,
+  })
+
+  if (error || !data) {
+    return new Map()
+  }
+
+  return new Map(
+    (data as UnreadByClientRow[]).map((row) => [
+      row.client_id,
+      Number(row.unread_count),
+    ])
+  )
+}
+
+async function fetchCoachInboxImpl(
   supabase: SupabaseClient<Database>,
   coachId: string
 ): Promise<CoachInboxData> {
   const [
     { data: clientsData, error: clientsError },
     { data: threadsData, error: threadsError },
-    { data: messagesData, error: messagesError },
+    { data: latestMessagesData, error: latestMessagesError },
+    { data: unreadByClientData, error: unreadByClientError },
   ] = await Promise.all([
     supabase
       .from('clients')
@@ -85,66 +143,40 @@ export async function fetchCoachInbox(
       .order('full_name', { ascending: true }),
     supabase
       .from('client_message_threads')
-      .select('*')
+      .select('client_id, coach_last_read_at, last_message_at')
       .eq('coach_id', coachId),
-    supabase
-      .from('client_messages')
-      .select('client_id, body, sender_role, created_at, message_type')
-      .eq('coach_id', coachId)
-      .order('created_at', { ascending: false })
-      .limit(500),
+    supabase.rpc('get_coach_latest_messages', { p_coach_id: coachId }),
+    supabase.rpc('get_coach_unread_by_client', { p_coach_id: coachId }),
   ])
 
   const schemaError =
     clientsError?.message ??
     threadsError?.message ??
-    messagesError?.message ??
+    latestMessagesError?.message ??
+    unreadByClientError?.message ??
     null
 
-  if (schemaError?.includes('Could not find the table')) {
+  if (isMissingMessagingSchema(schemaError)) {
     return { conversations: [], schemaError, totalUnread: 0 }
   }
 
   const clients = (clientsData ?? []) as ClientRow[]
-  const threads = (threadsData ?? []) as ClientMessageThread[]
-  const messages = (messagesData ?? []) as Pick<
-    ClientMessage,
-    'client_id' | 'body' | 'sender_role' | 'created_at' | 'message_type'
+  const threads = (threadsData ?? []) as Pick<
+    ClientMessageThread,
+    'client_id' | 'coach_last_read_at' | 'last_message_at'
   >[]
+  const latestMessages = (latestMessagesData ?? []) as LatestMessageRow[]
+  const unreadRows = (unreadByClientData ?? []) as UnreadByClientRow[]
 
   const threadsByClientId = new Map(
     threads.map((thread) => [thread.client_id, thread])
   )
-
-  const latestByClientId = new Map<
-    string,
-    Pick<
-      ClientMessage,
-      'body' | 'sender_role' | 'created_at' | 'message_type'
-    >
-  >()
-  const unreadByClientId = new Map<string, number>()
-
-  for (const message of messages) {
-    if (!latestByClientId.has(message.client_id)) {
-      latestByClientId.set(message.client_id, message)
-    }
-
-    if (message.sender_role !== 'client') continue
-
-    const thread = threadsByClientId.get(message.client_id)
-    const lastReadAt = thread?.coach_last_read_at
-      ? new Date(thread.coach_last_read_at).getTime()
-      : 0
-    const messageAt = new Date(message.created_at).getTime()
-
-    if (messageAt > lastReadAt) {
-      unreadByClientId.set(
-        message.client_id,
-        (unreadByClientId.get(message.client_id) ?? 0) + 1
-      )
-    }
-  }
+  const latestByClientId = new Map(
+    latestMessages.map((message) => [message.client_id, message])
+  )
+  const unreadByClientId = new Map(
+    unreadRows.map((row) => [row.client_id, Number(row.unread_count)])
+  )
 
   const conversations = clients.map((client) => {
     const thread = threadsByClientId.get(client.id)
@@ -179,6 +211,8 @@ export async function fetchCoachInbox(
     totalUnread,
   }
 }
+
+export const fetchCoachInbox = cache(fetchCoachInboxImpl)
 
 export function getDefaultInboxClientId(
   conversations: InboxConversation[]

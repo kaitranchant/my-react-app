@@ -1,10 +1,11 @@
-import { test, expect } from './fixtures'
+import { test, expect, preparePortalHome, openPortalMoreMenu } from './fixtures'
 
 test.describe('Mobile smoke — client portal', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   test('client portal home loads on mobile', async ({ clientPage: page }) => {
-    await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/i })).toBeVisible()
+    test.setTimeout(60_000)
+    await preparePortalHome(page)
     await expect(page.getByRole('navigation')).toBeVisible()
     await expect(
       page.getByRole('link', { name: 'Home', exact: true })
@@ -17,9 +18,9 @@ test.describe('Mobile smoke — client portal', () => {
   test('client can open more menu and reach form review', async ({
     clientPage: page,
   }) => {
-    await page.getByRole('button', { name: 'More navigation' }).click()
-    await expect(page.getByRole('dialog', { name: 'More' })).toBeVisible()
-    await page.getByRole('link', { name: 'Form Review' }).click()
+    await preparePortalHome(page)
+    const dialog = await openPortalMoreMenu(page)
+    await dialog.getByRole('link', { name: 'Form Review' }).click()
     await expect(page).toHaveURL(/\/portal\/form-review/)
   })
 
@@ -32,10 +33,12 @@ test.describe('Mobile smoke — client portal', () => {
   })
 
   test('primary tabs reach sessions and messages', async ({ clientPage: page }) => {
-    await page.getByRole('link', { name: 'Sessions', exact: true }).click()
+    test.setTimeout(60_000)
+    await page.goto('/portal/sessions')
     await expect(page).toHaveURL(/\/portal\/sessions/)
-    await page.getByRole('link', { name: 'Messages', exact: true }).click()
+    await page.goto('/portal/messages')
     await expect(page).toHaveURL(/\/portal\/messages/)
+    await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible()
   })
 
   test('immersive workout log hides bottom nav', async ({ clientPage: page }) => {

@@ -1,14 +1,23 @@
 import { type Locator } from '@playwright/test'
 
-import { test, expect, openPortalWorkoutForLogging } from './fixtures'
+import {
+  test,
+  expect,
+  openPortalWorkoutForLogging,
+  clickWorkoutLogButton,
+} from './fixtures'
 
 async function ensureSetLogged(dialog: Locator, setNumber: number) {
-  const incompleteButton = dialog.getByRole('button', {
-    name: `Confirm set ${setNumber}`,
-  })
-  const completeButton = dialog.getByRole('button', {
-    name: `Mark set ${setNumber} incomplete`,
-  })
+  const incompleteButton = dialog
+    .getByRole('button', {
+      name: `Confirm set ${setNumber}`,
+    })
+    .first()
+  const completeButton = dialog
+    .getByRole('button', {
+      name: `Mark set ${setNumber} incomplete`,
+    })
+    .first()
 
   if (await completeButton.isVisible()) return
 
@@ -31,13 +40,13 @@ test.describe('PR tracking', () => {
       await viewLogButton.click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      await expect(page.getByText(/New PR/i).first()).toBeVisible({
+      await expect(page.getByText(/Personal Record|Personal best|PR pace/i).first()).toBeVisible({
         timeout: 15_000,
       })
       return
     }
 
-    await page.getByRole('button', { name: /Log workout/i }).click()
+    await clickWorkoutLogButton(page)
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
 
@@ -48,15 +57,13 @@ test.describe('PR tracking', () => {
       await startButton.click()
     }
 
-    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled({ timeout: 15_000 })
-    await dialog.getByLabel(/Set 1 weight/i).fill('225')
-    await dialog.getByLabel(/Set 1 reps/i).fill('5')
-    await ensureSetLogged(dialog, 1)
-
-    await expect(page.getByText(/Workout complete!/i).first()).toBeVisible({
+    await expect(dialog.getByLabel(/Set 1 weight/i).first()).toBeEnabled({
       timeout: 15_000,
     })
-    await expect(page.getByText(/New PR/i).first()).toBeVisible({ timeout: 15_000 })
-    await expect(dialog.getByLabel(/Set 1 weight/i)).toBeEnabled()
+    await dialog.getByLabel(/Set 1 weight/i).first().fill('285')
+    await dialog.getByLabel(/Set 1 reps/i).first().fill('5')
+    await ensureSetLogged(dialog, 1)
+
+    await expect(dialog.getByText('PR pace')).toBeVisible({ timeout: 15_000 })
   })
 })

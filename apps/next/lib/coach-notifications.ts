@@ -1,4 +1,7 @@
-import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
+import {
+  fetchCoachNavBadges,
+  type CoachNavBadges,
+} from '@/lib/dashboard-queries'
 import type { createClient } from '@/lib/supabase/server'
 
 export type CoachNotificationItem = {
@@ -19,7 +22,8 @@ export type CoachNotificationItem = {
 
 export async function fetchCoachNotificationItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  coachId: string
+  coachId: string,
+  prefetchedBadges?: CoachNavBadges
 ): Promise<CoachNotificationItem[]> {
   const [
     badges,
@@ -29,7 +33,7 @@ export async function fetchCoachNotificationItems(
     recentCheckIns,
     recentWorkouts,
   ] = await Promise.all([
-    fetchCoachNavBadges(supabase, coachId),
+    prefetchedBadges ?? fetchCoachNavBadges(supabase, coachId),
     supabase
       .from('client_check_ins')
       .select('*', { count: 'exact', head: true })

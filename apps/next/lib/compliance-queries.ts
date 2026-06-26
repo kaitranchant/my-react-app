@@ -6,7 +6,7 @@ import {
   type ComplianceClientRow,
   type ComplianceWorkoutRow,
 } from '@/lib/compliance'
-import { fetchCoachInbox } from '@/lib/message-inbox'
+import { fetchCoachInboxUnreadByClient } from '@/lib/message-inbox'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import type { createClient } from '@/lib/supabase/server'
 
@@ -85,7 +85,7 @@ export async function fetchComplianceDashboardRows(
       .select('client_id')
       .in('client_id', clientIds)
       .eq('log_date', options.todayKey),
-    fetchCoachInbox(supabase, options.coachId),
+    fetchCoachInboxUnreadByClient(supabase, options.coachId),
     fetchCoachDashboardLoadAlerts(
       supabase,
       clients.map((client) => ({
@@ -138,12 +138,7 @@ export async function fetchComplianceDashboardRows(
     (todayNutritionLogsResult.data ?? []).map((row) => row.client_id as string)
   )
 
-  const unreadByClientId = new Map(
-    inbox.conversations.map((conversation) => [
-      conversation.clientId,
-      conversation.unreadCount,
-    ])
-  )
+  const unreadByClientId = inbox
 
   const loadContextByClientId = new Map(
     loadAlerts.clientContexts.map((context) => [context.clientId, context])

@@ -38,12 +38,46 @@ if (!url || !serviceKey) {
   process.exit(1)
 }
 
+const PRODUCTION_URL_PATTERNS = [
+  /^https:\/\/[a-z0-9]+\.supabase\.co$/i,
+]
+
+function looksLikeProductionSupabaseUrl(supabaseUrl) {
+  if (!PRODUCTION_URL_PATTERNS.some((pattern) => pattern.test(supabaseUrl))) {
+    return false
+  }
+  if (
+    process.env.E2E_ALLOW_PRODUCTION_SEED === '1' ||
+    process.env.NODE_ENV === 'test'
+  ) {
+    return false
+  }
+  return !supabaseUrl.includes('localhost') && !supabaseUrl.includes('127.0.0.1')
+}
+
+if (looksLikeProductionSupabaseUrl(url)) {
+  console.error(
+    'Refusing to run E2E seed against a hosted Supabase project.\n' +
+      'Point NEXT_PUBLIC_SUPABASE_URL at local/staging, or set E2E_ALLOW_PRODUCTION_SEED=1 to override.'
+  )
+  process.exit(1)
+}
+
 const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
 function todayKey() {
   const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function dateKeyDaysAgo(days) {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -163,6 +197,7 @@ async function ensureE2ENutritionProfile(coachId, clientId) {
       coach_id: coachId,
       calories_kcal: 2100,
       protein_g: 150,
+      dietary_restrictions: null,
     },
     { onConflict: 'client_id' }
   )
@@ -203,28 +238,27 @@ async function ensureE2EMealPlanTemplate(coachId, clientId) {
     mealPlanId = inserted.id
   }
 
-  let dayId
-  const { data: existingDay } = await supabase
+  const { data: existingDays } = await supabase
     .from('meal_plan_days')
     .select('id')
     .eq('meal_plan_id', mealPlanId)
-    .eq('day_offset', 0)
-    .maybeSingle()
 
-  if (existingDay) {
-    dayId = existingDay.id
-  } else {
-    const { data: inserted, error } = await supabase
-      .from('meal_plan_days')
-      .insert({
-        meal_plan_id: mealPlanId,
-        day_offset: 0,
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    dayId = inserted.id
+  for (const day of existingDays ?? []) {
+    await supabase.from('meal_plan_meals').delete().eq('meal_plan_day_id', day.id)
+    await supabase.from('meal_plan_days').delete().eq('id', day.id)
   }
+
+  let dayId
+  const { data: insertedDay, error: dayError } = await supabase
+    .from('meal_plan_days')
+    .insert({
+      meal_plan_id: mealPlanId,
+      day_offset: 0,
+    })
+    .select('id')
+    .single()
+  if (dayError) throw dayError
+  dayId = insertedDay.id
 
   const { data: existingMeal } = await supabase
     .from('meal_plan_meals')
@@ -557,16 +591,7 @@ async function main() {
     .eq('id', clientId)
 
   const achievedAt = `${startDate}T12:00:00.000Z`
-  await supabase.from('client_check_ins').upsert(
-    {
-      client_id: clientId,
-      coach_id: coachId,
-      check_in_date: startDate,
-      weight: 180,
-      submitted_by: 'coach',
-    },
-    { onConflict: 'client_id,check_in_date' }
-  )
+  await supabase.from('exercise_pr_records').delete().eq('client_id', clientId)
 
   const prRows = [
     {
@@ -611,6 +636,18 @@ async function main() {
     const { error } = await supabase.from('exercise_pr_records').insert(row)
     if (error) throw error
   }
+
+  const { error: bodyweightCheckInError } = await supabase
+    .from('client_check_ins')
+    .insert({
+      client_id: clientId,
+      coach_id: coachId,
+      check_in_date: dateKeyDaysAgo(7),
+      weight: 200,
+      submitted_by: 'client',
+      reviewed_at: achievedAt,
+    })
+  if (bodyweightCheckInError) throw bodyweightCheckInError
 
   let teamId
   const { data: existingTeam } = await supabase

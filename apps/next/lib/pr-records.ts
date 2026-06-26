@@ -156,11 +156,67 @@ export async function fetchRecentPrHighlights(
   clientId: string,
   limit = 5
 ): Promise<RecentPrHighlight[]> {
+  const highlightsByClient = await fetchRecentPrHighlightsForClients(
+    supabase,
+    [clientId],
+    limit
+  )
+  return highlightsByClient.get(clientId) ?? []
+}
+
+type PrHighlightRow = {
+  id: string
+  client_id: string
+  record_type: 'e1rm' | 'top_set'
+  e1rm: number | null
+  weight: number | null
+  reps: number | null
+  achieved_at: string
+  exercise: { name: string } | null
+}
+
+function mapPrRowToHighlight(row: Omit<PrHighlightRow, 'client_id'>): RecentPrHighlight {
+  const achievedAt = row.achieved_at
+  const recordType = row.record_type
+  const e1rm = row.e1rm
+  const weight = row.weight
+  const reps = row.reps
+
+  let label = 'PR'
+  if (recordType === 'e1rm' && e1rm != null) {
+    label = `${e1rm} lb e1RM`
+  } else if (weight != null && reps != null) {
+    label = `${weight} × ${reps}`
+  }
+
+  return {
+    id: row.id,
+    exerciseName: row.exercise?.name ?? 'Exercise',
+    label,
+    date: new Date(achievedAt).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    }),
+    achievedAt,
+  }
+}
+
+export async function fetchRecentPrHighlightsForClients(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientIds: string[],
+  limitPerClient = 5
+): Promise<Map<string, RecentPrHighlight[]>> {
+  const result = new Map<string, RecentPrHighlight[]>()
+  if (clientIds.length === 0) {
+    return result
+  }
+
   const { data, error } = await supabase
     .from('exercise_pr_records')
     .select(
       `
       id,
+      client_id,
       record_type,
       e1rm,
       weight,
@@ -169,40 +225,24 @@ export async function fetchRecentPrHighlights(
       exercise:exercises(name)
     `
     )
-    .eq('client_id', clientId)
+    .in('client_id', clientIds)
     .order('achieved_at', { ascending: false })
-    .limit(limit)
 
   if (error || !data) {
-    return []
+    return result
   }
 
-  return data.map((row) => {
-    const exercise = row.exercise as { name: string } | null
-    const achievedAt = row.achieved_at as string
-    const recordType = row.record_type as 'e1rm' | 'top_set'
-    const e1rm = row.e1rm as number | null
-    const weight = row.weight as number | null
-    const reps = row.reps as number | null
-
-    let label = 'PR'
-    if (recordType === 'e1rm' && e1rm != null) {
-      label = `${e1rm} lb e1RM`
-    } else if (weight != null && reps != null) {
-      label = `${weight} × ${reps}`
+  for (const row of data as PrHighlightRow[]) {
+    const clientId = row.client_id
+    const existing = result.get(clientId) ?? []
+    if (existing.length >= limitPerClient) {
+      continue
     }
+    existing.push(mapPrRowToHighlight(row))
+    result.set(clientId, existing)
+  }
 
-    return {
-      id: row.id as string,
-      exerciseName: exercise?.name ?? 'Exercise',
-      label,
-      date: new Date(achievedAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
-      achievedAt,
-    }
-  })
+  return result
 }
 
 export function calcWorkoutVolumeFromLogData(

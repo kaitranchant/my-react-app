@@ -38,8 +38,8 @@ export function RealtimePushListener({
     const channels: ReturnType<typeof supabase.channel>[] = []
 
     if (role === 'coach') {
-      const messagesChannel = supabase
-        .channel(`coach-push-messages:${userId}`)
+      const coachChannel = supabase
+        .channel(`coach-push:${userId}`)
         .on(
           'postgres_changes',
           {
@@ -77,11 +77,6 @@ export function RealtimePushListener({
             })
           }
         )
-        .subscribe()
-      channels.push(messagesChannel)
-
-      const checkInsChannel = supabase
-        .channel(`coach-push-check-ins:${userId}`)
         .on(
           'postgres_changes',
           {
@@ -112,11 +107,6 @@ export function RealtimePushListener({
             })
           }
         )
-        .subscribe()
-      channels.push(checkInsChannel)
-
-      const formReviewsChannel = supabase
-        .channel(`coach-push-form-reviews:${userId}`)
         .on(
           'postgres_changes',
           {
@@ -148,12 +138,12 @@ export function RealtimePushListener({
           }
         )
         .subscribe()
-      channels.push(formReviewsChannel)
+      channels.push(coachChannel)
     }
 
     if (role === 'client' && clientId) {
-      const messagesChannel = supabase
-        .channel(`client-push-messages:${clientId}`)
+      const clientChannel = supabase
+        .channel(`client-push:${clientId}`)
         .on(
           'postgres_changes',
           {
@@ -194,11 +184,6 @@ export function RealtimePushListener({
             })
           }
         )
-        .subscribe()
-      channels.push(messagesChannel)
-
-      const checkInReviewChannel = supabase
-        .channel(`client-push-check-in-review:${clientId}`)
         .on(
           'postgres_changes',
           {
@@ -231,11 +216,6 @@ export function RealtimePushListener({
             })
           }
         )
-        .subscribe()
-      channels.push(checkInReviewChannel)
-
-      const formReviewReplyChannel = supabase
-        .channel(`client-push-form-review-reply:${clientId}`)
         .on(
           'postgres_changes',
           {
@@ -285,7 +265,7 @@ export function RealtimePushListener({
           }
         )
         .subscribe()
-      channels.push(formReviewReplyChannel)
+      channels.push(clientChannel)
     }
 
     return () => {

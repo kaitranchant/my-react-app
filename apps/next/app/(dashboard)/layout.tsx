@@ -28,10 +28,12 @@ export default async function DashboardLayout({
   const name =
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
-  const [navBadges, notifications] = await Promise.all([
-    fetchCoachNavBadges(supabase, user.id),
-    fetchCoachNotificationItems(supabase, user.id),
-  ])
+  const navBadges = await fetchCoachNavBadges(supabase, user.id)
+  const notifications = await fetchCoachNotificationItems(
+    supabase,
+    user.id,
+    navBadges
+  )
 
   return (
     <DashboardShell

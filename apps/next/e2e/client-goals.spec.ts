@@ -45,8 +45,10 @@ test.describe('Client goals', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
     await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard/)
+    await Promise.all([
+      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
 
     await coachGoalsPage(page)
 
@@ -74,9 +76,12 @@ test.describe('Client goals', () => {
     await expect(
       page.getByRole('heading', { name: 'Goals', exact: true })
     ).toBeVisible()
-    await expect(
-      page.getByText(/Steps: at least 10,?000 steps/i).first()
-    ).toBeVisible({ timeout: 10_000 })
+    const goal = page
+      .getByText(/Steps: at least 10,?000 steps/i)
+      .filter({ visible: true })
+      .first()
+    await goal.scrollIntoViewIfNeeded()
+    await expect(goal).toBeVisible({ timeout: 10_000 })
   })
 
   test('coach can add a performance goal', async ({ page }) => {
@@ -86,8 +91,10 @@ test.describe('Client goals', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
     await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard/)
+    await Promise.all([
+      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
 
     await coachGoalsPage(page)
     await page.getByRole('button', { name: 'Add goal' }).click()
@@ -110,8 +117,10 @@ test.describe('Client goals', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
     await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard/)
+    await Promise.all([
+      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
 
     await coachGoalsPage(page)
     await page.getByRole('button', { name: 'Add goal' }).click()
@@ -134,8 +143,10 @@ test.describe('Client goals', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
     await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard/)
+    await Promise.all([
+      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
 
     await coachGoalsPage(page)
     await page.getByRole('button', { name: 'Add goal' }).click()

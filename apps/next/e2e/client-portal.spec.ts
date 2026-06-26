@@ -1,14 +1,18 @@
 import { type Locator } from '@playwright/test'
 
-import { test, expect, E2E_WORKOUT_NAME, openPortalWorkoutForLogging } from './fixtures'
+import { test, expect, E2E_WORKOUT_NAME, openPortalWorkoutForLogging, clickWorkoutLogButton, preparePortalHome } from './fixtures'
 
 async function ensureSetLogged(dialog: Locator, setNumber: number) {
-  const incompleteButton = dialog.getByRole('button', {
-    name: `Confirm set ${setNumber}`,
-  })
-  const completeButton = dialog.getByRole('button', {
-    name: `Mark set ${setNumber} incomplete`,
-  })
+  const incompleteButton = dialog
+    .getByRole('button', {
+      name: `Confirm set ${setNumber}`,
+    })
+    .first()
+  const completeButton = dialog
+    .getByRole('button', {
+      name: `Mark set ${setNumber} incomplete`,
+    })
+    .first()
 
   if (await completeButton.isVisible()) return
 
@@ -22,9 +26,8 @@ test.describe('Client portal logging', () => {
   test('client sees portal dashboard with scheduled workout', async ({
     clientPage: page,
   }) => {
-    await expect(
-      page.getByRole('heading', { name: /Good (morning|afternoon|evening)/i })
-    ).toBeVisible({ timeout: 15_000 })
+    test.setTimeout(60_000)
+    await preparePortalHome(page)
     await expect(page.getByText("Today's workout").first()).toBeVisible({
       timeout: 15_000,
     })
@@ -50,7 +53,7 @@ test.describe('Client portal logging', () => {
       return
     }
 
-    await page.getByRole('button', { name: /Log workout/i }).click()
+    await clickWorkoutLogButton(page)
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
 

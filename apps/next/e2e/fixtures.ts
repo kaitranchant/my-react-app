@@ -63,12 +63,17 @@ export function teamIdFromUrl(url: string) {
   return url.match(/\/teams\/([^/?#]+)/)?.[1] ?? null
 }
 
+/** Desktop clients roster link (avoids hidden mobile card duplicates). */
+export function clientRosterLink(page: Page, name: string) {
+  return page.locator('table').getByRole('link', { name, exact: true })
+}
+
 export { login }
 
 export async function dismissPortalWelcomeDialog(page: Page) {
   const welcome = page.getByRole('dialog', { name: 'Welcome to your program' })
   const appeared = await welcome
-    .waitFor({ state: 'visible', timeout: 10_000 })
+    .waitFor({ state: 'visible', timeout: 15_000 })
     .then(() => true)
     .catch(() => false)
 
@@ -76,6 +81,30 @@ export async function dismissPortalWelcomeDialog(page: Page) {
 
   await page.getByRole('button', { name: 'Explore on my own' }).click()
   await expect(welcome).toBeHidden({ timeout: 10_000 })
+}
+
+/** Open the portal overflow ("More") sheet on mobile layouts. */
+export async function openPortalMoreMenu(page: Page) {
+  await dismissPortalWelcomeDialog(page)
+  const moreButton = page.getByRole('button', { name: 'More navigation' })
+  await moreButton.scrollIntoViewIfNeeded()
+  await expect(moreButton).toBeVisible({ timeout: 15_000 })
+  await moreButton.click()
+  const dialog = page.getByRole('dialog', { name: 'More' })
+  await expect(dialog).toBeVisible({ timeout: 10_000 })
+  return dialog
+}
+/** Dismiss welcome overlay and wait for portal home hero content. */
+export async function preparePortalHome(page: Page) {
+  if (!page.url().includes('/portal')) {
+    await page.goto('/portal')
+  }
+
+  await dismissPortalWelcomeDialog(page)
+
+  await expect(
+    page.getByRole('heading', { name: /Good (morning|afternoon|evening)/i })
+  ).toBeVisible({ timeout: 30_000 })
 }
 
 export async function signOutFromApp(page: Page, userName: string) {
@@ -99,12 +128,43 @@ function todayDateKey() {
   return `${y}-${m}-${day}`
 }
 
+export { todayDateKey }
+
 export async function openPortalWorkoutForLogging(page: Page) {
   const today = todayDateKey()
   await page.goto(`/portal/workouts?date=${today}`)
   await expect(
-    page.getByRole('button', { name: new RegExp(E2E_WORKOUT_NAME) }).first()
+    page.getByRole('button', {
+      name: /Log workout|Continue log|View log|Resume workout/i,
+    }).or(
+      page.getByRole('link', {
+        name: /Start workout|Continue workout|Resume workout/i,
+      })
+    )
   ).toBeVisible({ timeout: 15_000 })
+}
+
+export async function openPortalImmersiveWorkoutLog(page: Page) {
+  const today = todayDateKey()
+  await page.goto(`/portal/workouts?date=${today}`)
+  const link = page
+    .getByRole('link', {
+      name: /Start workout|Continue workout|Resume workout/i,
+    })
+    .first()
+  await expect(link).toBeVisible({ timeout: 15_000 })
+  await link.click()
+  await expect(page).toHaveURL(/\/portal\/workouts\/[^/]+\/log/, {
+    timeout: 15_000,
+  })
+}
+
+export async function clickWorkoutLogButton(page: Page) {
+  await page
+    .getByRole('button', {
+      name: /Log workout|Continue log|View log|Resume workout/i,
+    })
+    .click()
 }
 
 type E2EFixtures = {
@@ -113,17 +173,23 @@ type E2EFixtures = {
 }
 
 export const test = base.extend<E2EFixtures>({
-  coachPage: async ({ page }, use) => {
-    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
-    await use(page)
-  },
-  clientPage: async ({ page }, use) => {
-    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
-    await dismissPortalWelcomeDialog(page)
-    await use(page)
-  },
+  coachPage: [
+    async ({ page }, use) => {
+      test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+      await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
+      await use(page)
+    },
+    { timeout: 60_000 },
+  ],
+  clientPage: [
+    async ({ page }, use) => {
+      test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
+      await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
+      await dismissPortalWelcomeDialog(page)
+      await use(page)
+    },
+    { timeout: 90_000 },
+  ],
 })
 
 export { expect }
