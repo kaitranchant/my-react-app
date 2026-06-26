@@ -11,9 +11,19 @@ import {
   E2E_MEAL_PLAN_MEAL_NAME,
   E2E_FOOD_SEARCH_QUERY,
   hasE2ECredentials,
+  login,
   signOutFromApp,
   dismissPortalWelcomeDialog,
 } from './fixtures'
+
+async function loginAsCoach(page: import('@playwright/test').Page) {
+  await login(page, E2E_COACH_EMAIL, E2E_COACH_PASSWORD, /\/dashboard/)
+}
+
+async function loginAsClient(page: import('@playwright/test').Page) {
+  await login(page, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD, /\/portal/)
+  await dismissPortalWelcomeDialog(page)
+}
 
 async function coachNutritionTrackingPage(page: import('@playwright/test').Page) {
   await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
@@ -76,13 +86,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
     await page.getByLabel('Calories (kcal)').fill('2100')
@@ -94,16 +98,9 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal')
-    await dismissPortalWelcomeDialog(page)
     const prompt = page.getByRole('link', { name: 'Log nutrition', exact: true })
     const hasPrompt = await prompt.isVisible({ timeout: 15_000 }).catch(() => false)
     if (!hasPrompt) {
@@ -118,13 +115,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
     await page.getByLabel('Calories (kcal)').fill('2200')
@@ -136,13 +127,7 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await expect(page.getByRole('heading', { name: 'Nutrition' })).toBeVisible()
@@ -157,13 +142,7 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, E2E_CLIENT_NAME)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionTrackingPage(page)
     await expect(page.getByText('5/5 — Perfect').first()).toBeVisible({
@@ -177,13 +156,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
     const glutenFree = page.getByRole('button', { name: 'Gluten-free' })
@@ -199,14 +172,7 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
-    await dismissPortalWelcomeDialog(page)
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     const restriction = page.getByText('Gluten-free').first()
@@ -220,13 +186,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await page.getByRole('button', { name: 'Add food' }).first().click()
@@ -246,13 +206,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await page.getByRole('button', { name: 'Add food' }).first().click()
@@ -277,13 +231,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await page.getByRole('button', { name: 'Previous day' }).click()
@@ -303,13 +251,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(90_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition&section=setup`)
     await expect(page.getByText('Meal plan', { exact: true }).first()).toBeVisible()
@@ -333,13 +275,7 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await expect(page.getByText("Today's meals", { exact: true })).toBeVisible()
@@ -354,13 +290,7 @@ test.describe('Nutrition', () => {
 
     const foodName = 'E2E coach logged banana'
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition`)
     await expect(page.getByRole('tab', { name: 'Tracking' })).toBeVisible()
@@ -375,17 +305,11 @@ test.describe('Nutrition', () => {
     await expect(page.getByText('Food logged.')).toBeVisible({
       timeout: 10_000,
     })
-    await expect(page.getByText(foodName)).toBeVisible()
+    await expect(page.getByText(foodName)).toBeVisible({ timeout: 10_000 })
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await expect(page.getByText(foodName)).toBeVisible({ timeout: 10_000 })
@@ -395,13 +319,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionTrackingPage(page)
     await expect(page.getByText(/Log adherence for/i).first()).toBeVisible()
@@ -423,13 +341,7 @@ test.describe('Nutrition', () => {
 
     const planName = `E2E builder plan ${Date.now()}`
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await page.goto('/library/meal-plans')
     await page.getByRole('button', { name: 'New meal plan' }).click()
@@ -456,13 +368,7 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(90_000)
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_COACH_EMAIL)
-    await page.getByLabel('Password').fill(E2E_COACH_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
     await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
@@ -491,13 +397,7 @@ test.describe('Nutrition', () => {
 
     await signOutFromApp(page, 'E2E Coach')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(E2E_CLIENT_EMAIL)
-    await page.getByLabel('Password').fill(E2E_CLIENT_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/portal/, { timeout: 20_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
+    await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
     await expect(page.getByText("Today's meals", { exact: true })).toBeVisible()
