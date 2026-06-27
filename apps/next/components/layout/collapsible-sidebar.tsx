@@ -35,7 +35,7 @@ function CollapsibleSidebarAside({
       <div
         className={cn(
           'flex h-16 shrink-0 items-center',
-          expanded ? 'justify-start px-5' : 'justify-center px-0'
+          expanded ? 'justify-start px-3' : 'justify-center px-0'
         )}
       >
         {header}
