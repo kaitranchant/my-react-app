@@ -270,7 +270,7 @@ export function ClientAvatarUpload({
           <p className="text-muted-foreground text-xs font-medium">
             Or choose an icon
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {CLIENT_AVATAR_PRESETS.map((preset) => {
               const Icon = preset.icon
               const isSelected = activePresetId === preset.id
@@ -283,7 +283,7 @@ export function ClientAvatarUpload({
                   disabled={disabled || uploading}
                   onClick={() => void handlePresetSelect(preset.id)}
                   className={cn(
-                    'flex items-center justify-center rounded-full transition-all',
+                    'flex shrink-0 items-center justify-center rounded-full transition-all',
                     presetButtonSizes[size],
                     preset.className,
                     isSelected
