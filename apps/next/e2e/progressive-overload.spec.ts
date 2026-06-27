@@ -4,8 +4,8 @@ test.describe('Progressive overload', () => {
   test('coach progressive overload inbox loads without schema errors', async ({
     coachPage: page,
   }) => {
-    await expectSidebarLink(page, 'Programming', 'Progressive Overload')
-    await page.getByRole('link', { name: 'Progressive Overload', exact: true }).click()
+    await expectSidebarLink(page, 'Programming', 'Prog. Overload')
+    await page.getByRole('link', { name: 'Prog. Overload', exact: true }).click()
 
     await expect(page).toHaveURL(/\/progressive-overload/, { timeout: 15_000 })
     await expect(

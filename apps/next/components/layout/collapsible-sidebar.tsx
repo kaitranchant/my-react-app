@@ -29,7 +29,7 @@ function CollapsibleSidebarAside({
       onMouseLeave={() => setExpanded(false)}
       className={cn(
         'bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r transition-[width,box-shadow] duration-200 ease-out',
-        expanded ? 'w-[260px] shadow-lg' : 'w-16'
+        expanded ? 'w-[240px] shadow-lg' : 'w-16'
       )}
     >
       <div

@@ -121,7 +121,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Library', href: '/library', icon: LibraryBig },
 
       {
-        label: 'Progressive Overload',
+        label: 'Prog. Overload',
         href: '/progressive-overload',
         icon: TrendingUp,
       },
