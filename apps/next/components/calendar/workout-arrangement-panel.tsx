@@ -6,6 +6,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -528,6 +529,9 @@ export function WorkoutArrangementPanel({
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
     }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -741,7 +745,7 @@ export function WorkoutArrangementPanel({
     return panelBody(
       <div
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto',
+          'min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
           reordering && 'pointer-events-none opacity-70'
         )}
       >
@@ -770,7 +774,7 @@ export function WorkoutArrangementPanel({
   return panelBody(
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto',
+        'min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
         reordering && 'pointer-events-none opacity-70'
       )}
     >

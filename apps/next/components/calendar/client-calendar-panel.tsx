@@ -22,9 +22,11 @@ import {
   copyScheduledWorkoutToDateRange,
   createScheduledWorkout,
   deleteScheduledWorkout,
+  getCalendarCopyTargetClients,
   getCalendarMonthData,
   getSchedulableWorkoutTemplates,
   scheduleProgramWorkoutTemplateToDate,
+  type CalendarCopyTargetClient,
   type SchedulableWorkoutTemplate,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
@@ -148,6 +150,11 @@ export function ClientCalendarPanel({
   const [copyWeekdays, setCopyWeekdays] = React.useState<number[]>([
     ...ALL_WEEKDAY_VALUES,
   ])
+  const [copyTargetClientId, setCopyTargetClientId] = React.useState(clientId)
+  const [copyTargetClients, setCopyTargetClients] = React.useState<
+    CalendarCopyTargetClient[]
+  >([])
+  const [copyClientsLoading, setCopyClientsLoading] = React.useState(false)
   const [libraryOpen, setLibraryOpen] = React.useState(false)
   const [libraryDate, setLibraryDate] = React.useState(initialSelectedDate)
   const [libraryTemplateKey, setLibraryTemplateKey] = React.useState('')
@@ -222,10 +229,40 @@ export function ClientCalendarPanel({
       return 0
     }
 
+    const excludeDates =
+      copyTargetClientId === clientId && workout
+        ? [workout.scheduled_date]
+        : []
+
     return getMatchingDatesInRange(copyStartDate, copyEndDate, copyWeekdays, {
-      excludeDates: workout ? [workout.scheduled_date] : [],
+      excludeDates,
     }).length
-  }, [copyStartDate, copyEndDate, copyWeekdays, workout])
+  }, [
+    copyStartDate,
+    copyEndDate,
+    copyWeekdays,
+    workout,
+    copyTargetClientId,
+    clientId,
+  ])
+
+  const copyTargetClientName = React.useMemo(() => {
+    if (copyTargetClientId === clientId) {
+      return clientName
+    }
+    return (
+      copyTargetClients.find((entry) => entry.id === copyTargetClientId)
+        ?.full_name ?? 'selected client'
+    )
+  }, [copyTargetClientId, clientId, clientName, copyTargetClients])
+
+  const showCopyClientPicker =
+    !personalMode && copyTargetClients.length > 1
+
+  const copySingleDateConflict =
+    copyTargetClientId === clientId &&
+    workout != null &&
+    copySingleDate === workout.scheduled_date
 
   const loadSchedulableTemplates = React.useCallback(async () => {
     setTemplatesLoading(true)
@@ -452,7 +489,23 @@ export function ClientCalendarPanel({
     setCopyStartDate(today)
     setCopyEndDate(addDaysToDateKey(today, 28))
     setCopyWeekdays([...ALL_WEEKDAY_VALUES])
+    setCopyTargetClientId(clientId)
     setCopyOpen(true)
+
+    if (personalMode) {
+      setCopyTargetClients([])
+      return
+    }
+
+    setCopyClientsLoading(true)
+    void getCalendarCopyTargetClients(clientId).then((result) => {
+      setCopyClientsLoading(false)
+      if (result.success) {
+        setCopyTargetClients(result.clients)
+        return
+      }
+      toast.error(result.error)
+    })
   }
 
   function toggleCopyWeekday(weekday: number) {
@@ -539,7 +592,7 @@ export function ClientCalendarPanel({
   async function handleCopySingleDay() {
     if (!workout || !copySingleDate) return
 
-    if (copySingleDate === workout.scheduled_date) {
+    if (copySingleDateConflict) {
       toast.error('Pick a different day than the source workout.')
       return
     }
@@ -548,12 +601,17 @@ export function ClientCalendarPanel({
     const result = await copyScheduledWorkoutToDate(
       clientId,
       workout.id,
-      copySingleDate
+      copySingleDate,
+      copyTargetClientId
     )
     setPending(false)
 
     if (result.success) {
-      toast.success(`Workout copied to ${formatDayHeader(copySingleDate)}.`)
+      const destinationLabel =
+        copyTargetClientId === clientId
+          ? formatDayHeader(copySingleDate)
+          : `${formatDayHeader(copySingleDate)} for ${copyTargetClientName}`
+      toast.success(`Workout copied to ${destinationLabel}.`)
       setCopyOpen(false)
       await refreshCalendar()
       return
@@ -578,7 +636,8 @@ export function ClientCalendarPanel({
       workout.id,
       copyStartDate,
       copyEndDate,
-      copyWeekdays
+      copyWeekdays,
+      copyTargetClientId
     )
     setPending(false)
 
@@ -589,10 +648,12 @@ export function ClientCalendarPanel({
               result.skippedCount === 1 ? '' : 's'
             } that already had workouts.`
           : ''
+      const clientSuffix =
+        copyTargetClientId === clientId ? '' : ` for ${copyTargetClientName}`
       toast.success(
         `Workout copied to ${result.copiedCount} day${
           result.copiedCount === 1 ? '' : 's'
-        }.${skippedMessage}`
+        }${clientSuffix}.${skippedMessage}`
       )
       setCopyOpen(false)
       await refreshCalendar()
@@ -858,7 +919,7 @@ export function ClientCalendarPanel({
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Copy workout to dates</DialogTitle>
+            <DialogTitle>Copy workout</DialogTitle>
           </DialogHeader>
           <Tabs
             value={copyMode}
@@ -872,10 +933,39 @@ export function ClientCalendarPanel({
               <TabsTrigger value="range">Date range</TabsTrigger>
             </TabsList>
 
+            {showCopyClientPicker ? (
+              <div className="space-y-2">
+                <label htmlFor="copy-target-client" className="text-sm font-medium">
+                  Copy to client
+                </label>
+                <Select
+                  value={copyTargetClientId}
+                  onValueChange={setCopyTargetClientId}
+                  disabled={copyClientsLoading || pending}
+                >
+                  <SelectTrigger id="copy-target-client">
+                    <SelectValue
+                      placeholder={
+                        copyClientsLoading ? 'Loading clients…' : 'Select a client'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {copyTargetClients.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.id}>
+                        {entry.full_name}
+                        {entry.id === clientId ? ' (current)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
             <TabsContent value="single" className="mt-0 space-y-4">
               <div className="space-y-2">
                 <label htmlFor="copy-single-date" className="text-sm font-medium">
-                  Copy to
+                  Copy to date
                 </label>
                 <Input
                   id="copy-single-date"
@@ -885,24 +975,31 @@ export function ClientCalendarPanel({
                 />
               </div>
 
-              {copySingleDate && workout && copySingleDate === workout.scheduled_date && (
+              {copySingleDateConflict && (
                 <p className="text-destructive text-sm">
-                  Choose a day other than {formatDayHeader(workout.scheduled_date)}.
+                  Choose a day other than {formatDayHeader(workout!.scheduled_date)}.
                 </p>
               )}
 
-              {copySingleDate &&
-                workout &&
-                copySingleDate !== workout.scheduled_date && (
-                  <p className="text-muted-foreground text-sm">
-                    Copy this workout to{' '}
-                    <span className="text-foreground font-medium">
-                      {formatDayHeader(copySingleDate)}
-                    </span>
-                    . If that day already has a workout, the copy will be
-                    blocked.
-                  </p>
-                )}
+              {copySingleDate && !copySingleDateConflict && (
+                <p className="text-muted-foreground text-sm">
+                  Copy this workout to{' '}
+                  <span className="text-foreground font-medium">
+                    {formatDayHeader(copySingleDate)}
+                  </span>
+                  {copyTargetClientId !== clientId ? (
+                    <>
+                      {' '}
+                      on{' '}
+                      <span className="text-foreground font-medium">
+                        {copyTargetClientName}
+                      </span>
+                      &apos;s calendar
+                    </>
+                  ) : null}
+                  . If that day already has a workout, the copy will be blocked.
+                </p>
+              )}
 
               <Button
                 type="button"
@@ -910,13 +1007,16 @@ export function ClientCalendarPanel({
                 disabled={
                   pending ||
                   !copySingleDate ||
-                  (workout != null && copySingleDate === workout.scheduled_date)
+                  copySingleDateConflict ||
+                  copyClientsLoading
                 }
                 onClick={handleCopySingleDay}
               >
                 {pending && <Loader2 className="size-4 animate-spin" />}
                 {copySingleDate
-                  ? `Copy to ${formatDayHeader(copySingleDate)}`
+                  ? copyTargetClientId !== clientId
+                    ? `Copy to ${copyTargetClientName}`
+                    : `Copy to ${formatDayHeader(copySingleDate)}`
                   : 'Copy workout'}
               </Button>
             </TabsContent>
@@ -978,8 +1078,11 @@ export function ClientCalendarPanel({
             {copyTargetCount > 0 && (
               <p className="text-muted-foreground text-sm">
                 Up to {copyTargetCount} matching day
-                {copyTargetCount === 1 ? '' : 's'} in this range. Days that
-                already have workouts will be skipped.
+                {copyTargetCount === 1 ? '' : 's'} in this range
+                {copyTargetClientId !== clientId
+                  ? ` on ${copyTargetClientName}'s calendar`
+                  : ''}
+                . Days that already have workouts will be skipped.
               </p>
             )}
 
@@ -991,13 +1094,20 @@ export function ClientCalendarPanel({
                 !copyStartDate ||
                 !copyEndDate ||
                 copyWeekdays.length === 0 ||
-                copyTargetCount === 0
+                copyTargetCount === 0 ||
+                copyClientsLoading
               }
               onClick={handleCopyDay}
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {copyTargetCount > 0
-                ? `Copy to ${copyTargetCount} day${copyTargetCount === 1 ? '' : 's'}`
+                ? copyTargetClientId !== clientId
+                  ? `Copy to ${copyTargetCount} day${
+                      copyTargetCount === 1 ? '' : 's'
+                    } for ${copyTargetClientName}`
+                  : `Copy to ${copyTargetCount} day${
+                      copyTargetCount === 1 ? '' : 's'
+                    }`
                 : 'Copy workout'}
             </Button>
             </TabsContent>

@@ -9,7 +9,12 @@ import {
   type OrderedExerciseRow,
 } from '@/lib/workout-exercise-order'
 import { createClient } from '@/lib/supabase/server'
-import { requireClientAccess } from '@/lib/gym-access'
+import {
+  canCoachAccessClient,
+  getGymIdsForCoach,
+  requireClientAccess,
+} from '@/lib/gym-access'
+import { sortByLastName } from '@/lib/person-name'
 import {
   copyWorkoutRangeSchema,
   dateKeySchema,
@@ -23,6 +28,7 @@ import {
 } from '@/lib/validations/calendar'
 import type {
   CalendarDaySummary,
+  Client,
   ClientScheduledWorkoutWithExercises,
   ScheduledExerciseBlock,
   ScheduledExerciseRepMode,
@@ -57,6 +63,15 @@ export type SchedulableWorkoutTemplate = {
 
 export type SchedulableWorkoutTemplatesResult =
   | { success: true; templates: SchedulableWorkoutTemplate[] }
+  | { success: false; error: string }
+
+export type CalendarCopyTargetClient = {
+  id: string
+  full_name: string
+}
+
+export type CalendarCopyTargetClientsResult =
+  | { success: true; clients: CalendarCopyTargetClient[] }
   | { success: false; error: string }
 
 async function requireUser() {
@@ -1086,25 +1101,145 @@ export async function moveScheduledExercise(
   return { success: true }
 }
 
+type CopyExerciseRow = ClientScheduledWorkoutWithExercises['exercises'][number]
+
+function mapCopiedExerciseRows(
+  scheduledWorkoutId: string,
+  exercises: CopyExerciseRow[]
+) {
+  return exercises.map((row) => ({
+    scheduled_workout_id: scheduledWorkoutId,
+    exercise_id: row.exercise_id,
+    sort_order: row.sort_order,
+    sets: row.sets,
+    reps: row.reps,
+    prescription: row.prescription,
+    superset_group: row.superset_group,
+    exercise_block: row.exercise_block,
+    workout_notes: row.workout_notes,
+    rep_mode: row.rep_mode,
+    each_side: row.each_side,
+    tempo: row.tempo,
+    rest_seconds: row.rest_seconds,
+    weight_percent: row.weight_percent,
+    rpe_target: row.rpe_target,
+    tracking_options: row.tracking_options,
+  }))
+}
+
+async function resolveWorkoutCopyTargets(
+  sourceClientId: string,
+  targetClientId?: string
+): Promise<
+  | {
+      supabase: Awaited<ReturnType<typeof createClient>>
+      user: { id: string }
+      sourceClientId: string
+      targetClientId: string
+    }
+  | { error: string }
+> {
+  const sourceCtx = await requireClient(sourceClientId)
+  if (!sourceCtx) {
+    return { error: 'Client not found.' }
+  }
+
+  const resolvedTargetId = targetClientId?.trim() || sourceClientId
+  if (resolvedTargetId === sourceClientId) {
+    return {
+      supabase: sourceCtx.supabase,
+      user: sourceCtx.user,
+      sourceClientId,
+      targetClientId: resolvedTargetId,
+    }
+  }
+
+  const targetCtx = await requireClient(resolvedTargetId)
+  if (!targetCtx) {
+    return { error: 'Target client not found.' }
+  }
+
+  return {
+    supabase: sourceCtx.supabase,
+    user: sourceCtx.user,
+    sourceClientId,
+    targetClientId: resolvedTargetId,
+  }
+}
+
+function revalidateWorkoutCopyCalendars(
+  sourceClientId: string,
+  targetClientId: string
+) {
+  revalidateClientCalendar(targetClientId)
+  if (targetClientId !== sourceClientId) {
+    revalidateClientCalendar(sourceClientId)
+  }
+}
+
+export async function getCalendarCopyTargetClients(
+  sourceClientId: string
+): Promise<CalendarCopyTargetClientsResult> {
+  const ctx = await requireClient(sourceClientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user } = ctx
+  const coachGymIds = await getGymIdsForCoach(user.id)
+
+  const orFilters = [`coach_id.eq.${user.id}`]
+  if (coachGymIds.length > 0) {
+    orFilters.push(`gym_id.in.(${coachGymIds.join(',')})`)
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, full_name, coach_id, gym_id, status')
+    .or(orFilters.join(','))
+    .neq('status', 'archived')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  const rows = (data ?? []) as Pick<
+    Client,
+    'id' | 'full_name' | 'coach_id' | 'gym_id' | 'status'
+  >[]
+
+  const clients = sortByLastName(
+    rows.filter((row) => canCoachAccessClient(user.id, row, coachGymIds)),
+    (row) => row.full_name
+  ).map((row) => ({
+    id: row.id,
+    full_name: row.full_name,
+  }))
+
+  return { success: true, clients }
+}
+
 export async function copyScheduledWorkoutToDate(
   clientId: string,
   sourceWorkoutId: string,
-  targetDate: string
+  targetDate: string,
+  targetClientId?: string
 ): Promise<CreateScheduledWorkoutResult> {
   const parsedDate = dateKeySchema.safeParse(targetDate)
   if (!parsedDate.success) {
     return { success: false, error: 'Invalid date.' }
   }
 
-  const ctx = await requireClient(clientId)
-  if (!ctx) {
-    return { success: false, error: 'Client not found.' }
+  const targets = await resolveWorkoutCopyTargets(clientId, targetClientId)
+  if ('error' in targets) {
+    return { success: false, error: targets.error }
   }
 
-  const { supabase, user } = ctx
+  const { supabase, user, sourceClientId, targetClientId: resolvedTargetId } =
+    targets
 
   const source = await fetchWorkoutWithExercises(supabase, sourceWorkoutId)
-  if (!source || source.client_id !== clientId) {
+  if (!source || source.client_id !== sourceClientId) {
     return { success: false, error: 'Source workout not found.' }
   }
 
@@ -1112,7 +1247,7 @@ export async function copyScheduledWorkoutToDate(
     .from('client_scheduled_workouts')
     .insert({
       coach_id: user.id,
-      client_id: clientId,
+      client_id: resolvedTargetId,
       scheduled_date: parsedDate.data,
       name: source.name,
       notes: source.notes,
@@ -1134,26 +1269,7 @@ export async function copyScheduledWorkoutToDate(
   if (source.exercises.length > 0) {
     const { error: exercisesError } = await supabase
       .from('scheduled_workout_exercises')
-      .insert(
-        source.exercises.map((row) => ({
-          scheduled_workout_id: created.id,
-          exercise_id: row.exercise_id,
-          sort_order: row.sort_order,
-          sets: row.sets,
-          reps: row.reps,
-          prescription: row.prescription,
-          superset_group: row.superset_group,
-          exercise_block: row.exercise_block,
-          workout_notes: row.workout_notes,
-          rep_mode: row.rep_mode,
-          each_side: row.each_side,
-          tempo: row.tempo,
-          rest_seconds: row.rest_seconds,
-          weight_percent: row.weight_percent,
-          rpe_target: row.rpe_target,
-          tracking_options: row.tracking_options,
-        }))
-      )
+      .insert(mapCopiedExerciseRows(created.id, source.exercises))
 
     if (exercisesError) {
       await supabase
@@ -1164,7 +1280,7 @@ export async function copyScheduledWorkoutToDate(
     }
   }
 
-  revalidateClientCalendar(clientId)
+  revalidateWorkoutCopyCalendars(sourceClientId, resolvedTargetId)
   return { success: true, workoutId: created.id }
 }
 
@@ -1175,7 +1291,8 @@ export async function copyScheduledWorkoutToDateRange(
   sourceWorkoutId: string,
   startDate: string,
   endDate: string,
-  weekdays: number[]
+  weekdays: number[],
+  targetClientId?: string
 ): Promise<CopyScheduledWorkoutRangeResult> {
   const parsed = copyWorkoutRangeSchema.safeParse({
     startDate,
@@ -1189,15 +1306,16 @@ export async function copyScheduledWorkoutToDateRange(
     }
   }
 
-  const ctx = await requireClient(clientId)
-  if (!ctx) {
-    return { success: false, error: 'Client not found.' }
+  const targets = await resolveWorkoutCopyTargets(clientId, targetClientId)
+  if ('error' in targets) {
+    return { success: false, error: targets.error }
   }
 
-  const { supabase, user } = ctx
+  const { supabase, user, sourceClientId, targetClientId: resolvedTargetId } =
+    targets
 
   const source = await fetchWorkoutWithExercises(supabase, sourceWorkoutId)
-  if (!source || source.client_id !== clientId) {
+  if (!source || source.client_id !== sourceClientId) {
     return { success: false, error: 'Source workout not found.' }
   }
 
@@ -1205,7 +1323,10 @@ export async function copyScheduledWorkoutToDateRange(
     parsed.data.startDate,
     parsed.data.endDate,
     parsed.data.weekdays,
-    { excludeDates: [source.scheduled_date] }
+    {
+      excludeDates:
+        resolvedTargetId === sourceClientId ? [source.scheduled_date] : [],
+    }
   )
 
   if (candidateDates.length === 0) {
@@ -1225,7 +1346,7 @@ export async function copyScheduledWorkoutToDateRange(
   const { data: existingRows, error: existingError } = await supabase
     .from('client_scheduled_workouts')
     .select('scheduled_date')
-    .eq('client_id', clientId)
+    .eq('client_id', resolvedTargetId)
     .gte('scheduled_date', parsed.data.startDate)
     .lte('scheduled_date', parsed.data.endDate)
 
@@ -1251,7 +1372,7 @@ export async function copyScheduledWorkoutToDateRange(
     .insert(
       targetDates.map((scheduledDate) => ({
         coach_id: user.id,
-        client_id: clientId,
+        client_id: resolvedTargetId,
         scheduled_date: scheduledDate,
         name: source.name,
         notes: source.notes,
@@ -1266,24 +1387,7 @@ export async function copyScheduledWorkoutToDateRange(
 
   if (source.exercises.length > 0) {
     const exerciseRows = createdWorkouts.flatMap((created) =>
-      source.exercises.map((row) => ({
-        scheduled_workout_id: created.id,
-        exercise_id: row.exercise_id,
-        sort_order: row.sort_order,
-        sets: row.sets,
-        reps: row.reps,
-        prescription: row.prescription,
-        superset_group: row.superset_group,
-        exercise_block: row.exercise_block,
-        workout_notes: row.workout_notes,
-        rep_mode: row.rep_mode,
-        each_side: row.each_side,
-        tempo: row.tempo,
-        rest_seconds: row.rest_seconds,
-        weight_percent: row.weight_percent,
-        rpe_target: row.rpe_target,
-        tracking_options: row.tracking_options,
-      }))
+      mapCopiedExerciseRows(created.id, source.exercises)
     )
 
     const { error: exercisesError } = await supabase
@@ -1302,7 +1406,7 @@ export async function copyScheduledWorkoutToDateRange(
     }
   }
 
-  revalidateClientCalendar(clientId)
+  revalidateWorkoutCopyCalendars(sourceClientId, resolvedTargetId)
   return {
     success: true,
     copiedCount: targetDates.length,

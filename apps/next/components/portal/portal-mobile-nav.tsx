@@ -63,7 +63,7 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
 
   return (
     <>
-      <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
             const active = isPortalNavItemActive(pathname, item.href)

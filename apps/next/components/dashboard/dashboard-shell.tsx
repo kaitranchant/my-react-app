@@ -55,18 +55,18 @@ export function DashboardShell({
         <header
           className={cn(
             'bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6',
-            immersiveLog && 'hidden md:flex'
+            immersiveLog && 'hidden lg:flex'
           )}
         >
-          <div className="min-w-0 flex-1 md:hidden">
+          <div className="min-w-0 flex-1 lg:hidden">
             <BrandLogo />
           </div>
-          <div className="hidden min-w-0 flex-1 md:flex md:items-center">
+          <div className="hidden min-w-0 flex-1 lg:flex lg:items-center">
             <GlobalSearch />
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <CoachNotificationCenter items={notifications} />
-            <div className="md:hidden">
+            <div className="lg:hidden">
               <GlobalSearch />
             </div>
             <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
@@ -77,7 +77,7 @@ export function DashboardShell({
           tabIndex={-1}
           className={cn(
             'app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8',
-            immersiveLog ? 'p-0 md:p-6 lg:p-8' : 'pb-24 md:pb-6 lg:pb-8'
+            immersiveLog ? 'p-0 lg:p-6 lg:p-8' : 'pb-24 lg:pb-8'
           )}
         >
           {children}

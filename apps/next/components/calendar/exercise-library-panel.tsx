@@ -80,7 +80,7 @@ export function ExerciseLibraryPanel({
 
         <TabsContent
           value="custom"
-          className="mt-3 min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden"
+          className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-y-contain data-[state=inactive]:hidden"
         >
           <CustomExerciseTab form={customForm} />
           {customName?.trim() && (
