@@ -25,6 +25,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { Button } from '@/components/ui/button'
 import { FetchErrorState } from '@/components/ui/fetch-error-state'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
+import { sortByLastName } from '@/lib/person-name'
 import { clientStatuses } from '@/lib/validations/client'
 import type { Client, ClientStatus, ClientTeamMembership } from 'app/types/database'
 
@@ -63,11 +64,7 @@ export default async function ClientsPage({
           ? rawScope
           : 'all'
 
-  let queryBuilder = supabase
-    .from('clients')
-    .select('*', { count: 'exact' })
-    .order('is_coach_self', { ascending: false })
-    .order('created_at', { ascending: false })
+  let queryBuilder = supabase.from('clients').select('*', { count: 'exact' })
 
   if (user && scope === 'personal') {
     queryBuilder = queryBuilder.is('gym_id', null)
@@ -93,7 +90,7 @@ export default async function ClientsPage({
   const from = (requestedPage - 1) * CLIENTS_PAGE_SIZE
   const to = from + CLIENTS_PAGE_SIZE - 1
 
-  const { data, error, count } = await queryBuilder.range(from, to)
+  const { data, error, count } = await queryBuilder
   const totalCount = count ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / CLIENTS_PAGE_SIZE))
 
@@ -108,7 +105,10 @@ export default async function ClientsPage({
   }
 
   const page = Math.min(requestedPage, totalPages)
-  const clients = (data ?? []) as Client[]
+  const clients = sortByLastName(
+    (data ?? []) as Client[],
+    (client) => client.full_name
+  ).slice(from, to + 1)
 
   const coachNamesById = new Map<string, string>()
   const gymNamesById = new Map(coachGyms.map((gym) => [gym.id, gym.name]))
