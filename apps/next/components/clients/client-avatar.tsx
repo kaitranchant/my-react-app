@@ -216,7 +216,7 @@ export function ClientAvatarUpload({
     (activePresetId ? undefined : (avatarUrl ?? undefined))
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('min-w-0 space-y-3', className)}>
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -266,11 +266,11 @@ export function ClientAvatarUpload({
       </div>
 
       {showPresetPicker && (
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <p className="text-muted-foreground text-xs font-medium">
             Or choose an icon
           </p>
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <div className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1">
             {CLIENT_AVATAR_PRESETS.map((preset) => {
               const Icon = preset.icon
               const isSelected = activePresetId === preset.id
