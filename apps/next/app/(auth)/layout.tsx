@@ -25,6 +25,9 @@ export default function AuthLayout({
       </div>
 
       <div className="flex min-h-screen flex-col p-6 sm:p-10 lg:min-h-0 lg:justify-center">
+        <div className="mb-8 self-start lg:hidden">
+          <SwiftWordmark className="h-9 w-auto" />
+        </div>
         <div className="flex flex-1 flex-col items-center justify-center lg:flex-none">
           <BrandLogo
             className="mb-8 justify-center"
