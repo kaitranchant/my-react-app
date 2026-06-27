@@ -7,7 +7,7 @@ import { MoreHorizontal } from 'lucide-react'
 
 import {
   getCoachNavBadgeCount,
-  getDashboardOverflowMobileNavItems,
+  getDashboardOverflowMobileNavGroups,
   getDashboardPrimaryMobileNavItems,
 } from '@/lib/dashboard-mobile-nav'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
@@ -67,7 +67,8 @@ export function DashboardMobileBottomNav({
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const primaryItems = getDashboardPrimaryMobileNavItems()
-  const overflowItems = getDashboardOverflowMobileNavItems()
+  const overflowGroups = getDashboardOverflowMobileNavGroups()
+  const overflowItems = overflowGroups.flatMap((group) => group.items)
   const overflowActive = overflowItems.some((item) =>
     isNavItemActive(pathname, item.href)
   )
@@ -135,33 +136,42 @@ export function DashboardMobileBottomNav({
           <SheetHeader className="border-b px-4 pb-3 text-left">
             <SheetTitle>More</SheetTitle>
           </SheetHeader>
-          <div className="grid max-h-[calc(min(70vh,28rem)-4.5rem)] grid-cols-2 gap-1 overflow-y-auto overscroll-y-contain p-2">
-            {overflowItems.map((item) => {
-              const Icon = item.icon
-              const active = isNavItemActive(pathname, item.href)
-              const badgeCount = getCoachNavBadgeCount(item.href, badges)
+          <div className="max-h-[calc(min(70vh,28rem)-4.5rem)] space-y-4 overflow-y-auto overscroll-y-contain p-2">
+            {overflowGroups.map((group) => (
+              <div key={group.label} className="space-y-1">
+                <p className="section-header text-muted-foreground px-2 pt-1">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon
+                    const active = isNavItemActive(pathname, item.href)
+                    const badgeCount = getCoachNavBadgeCount(item.href, badges)
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => setMoreOpen(false)}
-                  className={cn(
-                    'flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-brand/10 text-brand'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <span className="relative shrink-0">
-                    <Icon className={cn('size-5', active && 'text-brand')} />
-                    <NavBadge count={badgeCount} />
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => setMoreOpen(false)}
+                        className={cn(
+                          'flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-brand/10 text-brand'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <span className="relative shrink-0">
+                          <Icon className={cn('size-5', active && 'text-brand')} />
+                          <NavBadge count={badgeCount} />
+                        </span>
+                        <span>{item.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </SheetContent>
       </Sheet>

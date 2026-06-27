@@ -8,7 +8,7 @@ test.describe('Mobile smoke — client portal', () => {
     await preparePortalHome(page)
     await expect(page.getByRole('navigation')).toBeVisible()
     await expect(
-      page.getByRole('link', { name: 'Home', exact: true })
+      page.getByRole('link', { name: 'Dashboard', exact: true })
     ).toBeVisible()
     await expect(
       page.getByRole('link', { name: 'Workouts', exact: true })

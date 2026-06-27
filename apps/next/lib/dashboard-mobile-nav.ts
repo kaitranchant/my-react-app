@@ -45,6 +45,19 @@ export function getDashboardOverflowMobileNavItems(): NavItem[] {
   )
 }
 
+export function getDashboardOverflowMobileNavGroups(): NavGroup[] {
+  const overflowHrefs = new Set(
+    getDashboardOverflowMobileNavItems().map((item) => item.href)
+  )
+
+  return getFilteredNavGroups()
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => overflowHrefs.has(item.href)),
+    }))
+    .filter((group) => group.items.length > 0)
+}
+
 export function getCoachNavBadgeCount(
   href: string,
   badges: {

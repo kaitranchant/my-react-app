@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation'
 import { MoreHorizontal } from 'lucide-react'
 
 import {
-  getPortalOverflowMobileNavItems,
+  getPortalOverflowMobileNavGroups,
   getPortalPrimaryMobileNavItems,
+  isPortalNavItemActive,
   type PortalNavItem,
 } from '@/components/portal/portal-nav'
 import { PortalNavIconBadge } from '@/components/portal/portal-nav-badge'
@@ -23,12 +24,6 @@ import { cn } from '@/lib/utils'
 
 type PortalMobileNavProps = {
   showTeamNav?: boolean
-}
-
-function isNavItemActive(pathname: string, href: string) {
-  return href === '/portal'
-    ? pathname === '/portal'
-    : pathname === href || pathname.startsWith(`${href}/`)
 }
 
 function NavIcon({
@@ -55,9 +50,10 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
   const badges = usePortalNavBadges()
   const [moreOpen, setMoreOpen] = useState(false)
   const primaryItems = getPortalPrimaryMobileNavItems(showTeamNav)
-  const overflowItems = getPortalOverflowMobileNavItems(showTeamNav)
+  const overflowGroups = getPortalOverflowMobileNavGroups(showTeamNav)
+  const overflowItems = overflowGroups.flatMap((group) => group.items)
   const overflowActive = overflowItems.some((item) =>
-    isNavItemActive(pathname, item.href)
+    isPortalNavItemActive(pathname, item.href)
   )
   const overflowBadgeCount = overflowItems.reduce(
     (total, item) =>
@@ -70,7 +66,7 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
       <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
-            const active = isNavItemActive(pathname, item.href)
+            const active = isPortalNavItemActive(pathname, item.href)
             const badgeCount = resolvePortalNavBadgeCount(item.href, badges, pathname)
 
             return (
@@ -124,33 +120,46 @@ export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
           <SheetHeader className="border-b px-4 pb-3 text-left">
             <SheetTitle>More</SheetTitle>
           </SheetHeader>
-          <div className="grid max-h-[calc(min(70vh,28rem)-4.5rem)] grid-cols-2 gap-1 overflow-y-auto overscroll-y-contain p-2">
-            {overflowItems.map((item) => {
-              const Icon = item.icon
-              const active = isNavItemActive(pathname, item.href)
-              const badgeCount = resolvePortalNavBadgeCount(item.href, badges, pathname)
+          <div className="max-h-[calc(min(70vh,28rem)-4.5rem)] space-y-4 overflow-y-auto overscroll-y-contain p-2">
+            {overflowGroups.map((group) => (
+              <div key={group.label} className="space-y-1">
+                <p className="section-header text-muted-foreground px-2 pt-1">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon
+                    const active = isPortalNavItemActive(pathname, item.href)
+                    const badgeCount = resolvePortalNavBadgeCount(
+                      item.href,
+                      badges,
+                      pathname
+                    )
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => setMoreOpen(false)}
-                  className={cn(
-                    'flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-brand/10 text-brand'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <span className="relative shrink-0">
-                    <Icon className={cn('size-5', active && 'text-brand')} />
-                    <PortalNavIconBadge count={badgeCount} />
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => setMoreOpen(false)}
+                        className={cn(
+                          'flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-brand/10 text-brand'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <span className="relative shrink-0">
+                          <Icon className={cn('size-5', active && 'text-brand')} />
+                          <PortalNavIconBadge count={badgeCount} />
+                        </span>
+                        <span>{item.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </SheetContent>
       </Sheet>
