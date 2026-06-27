@@ -14,7 +14,7 @@ export function BrandLogo({
   if (showWordmark) {
     return (
       <SwiftWordmark
-        className={cn('h-7 w-auto -translate-y-1', className)}
+        className={cn('h-7 w-auto translate-x-1 -translate-y-1', className)}
       />
     )
   }
