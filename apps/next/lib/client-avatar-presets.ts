@@ -357,6 +357,8 @@ export const CLIENT_AVATAR_PRESETS: ClientAvatarPreset[] = [
   },
 ]
 
+export const CLIENT_AVATAR_QUICK_PRESETS = CLIENT_AVATAR_PRESETS.slice(0, 10)
+
 const presetById = new Map(
   CLIENT_AVATAR_PRESETS.map((preset) => [preset.id, preset])
 )

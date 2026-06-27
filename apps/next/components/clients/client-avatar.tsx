@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -13,8 +13,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   CLIENT_AVATAR_PRESETS,
+  CLIENT_AVATAR_QUICK_PRESETS,
   getClientAvatarPreset,
   parseClientAvatarPreset,
+  type ClientAvatarPreset,
   type ClientAvatarPresetId,
 } from '@/lib/client-avatar-presets'
 import { cn } from '@/lib/utils'
@@ -57,6 +59,41 @@ const presetButtonSizes = {
   lg: 'size-10',
 } as const
 
+function PresetIconButton({
+  preset,
+  size,
+  isSelected,
+  disabled,
+  onSelect,
+}: {
+  preset: ClientAvatarPreset
+  size: 'sm' | 'md' | 'lg'
+  isSelected: boolean
+  disabled: boolean
+  onSelect: () => void
+}) {
+  const Icon = preset.icon
+
+  return (
+    <button
+      type="button"
+      title={preset.label}
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-full transition-all',
+        presetButtonSizes[size],
+        preset.className,
+        isSelected ? 'ring-brand ring-2 ring-offset-2' : 'hover:scale-105'
+      )}
+      aria-label={`${preset.label} icon`}
+      aria-pressed={isSelected}
+    >
+      <Icon className={presetIconSizes[size]} aria-hidden />
+    </button>
+  )
+}
+
 function PresetAvatarContent({
   presetId,
   name,
@@ -97,10 +134,14 @@ export function ClientAvatarUpload({
   const [uploading, setUploading] = React.useState(false)
   const [localPresetId, setLocalPresetId] =
     React.useState<ClientAvatarPresetId | null>(selectedPresetId)
+  const [moreOpen, setMoreOpen] = React.useState(false)
 
   const savedPresetId = parseClientAvatarPreset(avatarUrl)
   const activePresetId =
     localPresetId ?? selectedPresetId ?? savedPresetId ?? null
+  const moreSelectionActive =
+    activePresetId !== null &&
+    !CLIENT_AVATAR_QUICK_PRESETS.some((preset) => preset.id === activePresetId)
 
   React.useEffect(() => {
     setLocalPresetId(selectedPresetId)
@@ -270,34 +311,50 @@ export function ClientAvatarUpload({
           <p className="text-muted-foreground text-xs font-medium">
             Or choose an icon
           </p>
-          <div className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1">
-            {CLIENT_AVATAR_PRESETS.map((preset) => {
-              const Icon = preset.icon
-              const isSelected = activePresetId === preset.id
-
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  title={preset.label}
-                  disabled={disabled || uploading}
-                  onClick={() => void handlePresetSelect(preset.id)}
-                  className={cn(
-                    'flex shrink-0 items-center justify-center rounded-full transition-all',
-                    presetButtonSizes[size],
-                    preset.className,
-                    isSelected
-                      ? 'ring-brand ring-2 ring-offset-2'
-                      : 'hover:scale-105'
-                  )}
-                  aria-label={`${preset.label} icon`}
-                  aria-pressed={isSelected}
-                >
-                  <Icon className={presetIconSizes[size]} aria-hidden />
-                </button>
-              )
-            })}
+          <div className="flex flex-wrap gap-2">
+            {CLIENT_AVATAR_QUICK_PRESETS.map((preset) => (
+              <PresetIconButton
+                key={preset.id}
+                preset={preset}
+                size={size}
+                isSelected={activePresetId === preset.id}
+                disabled={disabled || uploading}
+                onSelect={() => void handlePresetSelect(preset.id)}
+              />
+            ))}
+            <button
+              type="button"
+              disabled={disabled || uploading}
+              onClick={() => setMoreOpen((open) => !open)}
+              className={cn(
+                'text-muted-foreground bg-muted hover:bg-muted/80 flex shrink-0 items-center justify-center rounded-full transition-all',
+                presetButtonSizes[size],
+                moreOpen || moreSelectionActive
+                  ? 'ring-brand ring-2 ring-offset-2'
+                  : 'hover:scale-105'
+              )}
+              aria-expanded={moreOpen}
+              aria-label="More profile icons"
+            >
+              <Plus className={presetIconSizes[size]} aria-hidden />
+            </button>
           </div>
+          {moreOpen ? (
+            <div className="bg-muted/30 rounded-lg border p-3">
+              <div className="flex flex-wrap gap-2">
+                {CLIENT_AVATAR_PRESETS.map((preset) => (
+                  <PresetIconButton
+                    key={preset.id}
+                    preset={preset}
+                    size={size}
+                    isSelected={activePresetId === preset.id}
+                    disabled={disabled || uploading}
+                    onSelect={() => void handlePresetSelect(preset.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </div>
