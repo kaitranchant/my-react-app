@@ -5,7 +5,6 @@ import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useAppMainScrollLock } from '@/lib/hooks/use-app-main-scroll-lock'
 
 function Sheet({
   ...props
@@ -55,8 +54,6 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
 }) {
-  useAppMainScrollLock()
-
   return (
     <SheetPortal>
       <SheetOverlay />

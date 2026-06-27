@@ -1,9 +1,8 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react'
 
 import { cn } from '@/lib/utils'
-import { usePrefersHover } from '@/lib/use-prefers-hover'
 import {
   SidebarExpandProvider,
   useSidebarExpand,
@@ -23,23 +22,23 @@ function CollapsibleSidebarAside({
   children: ReactNode
 }) {
   const { expanded, setExpanded } = useSidebarExpand()
-  const prefersHover = usePrefersHover()
+
+  function handleHeaderPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== 'touch') return
+    setExpanded(!expanded)
+  }
 
   return (
     <aside
-      onMouseEnter={() => prefersHover && setExpanded(true)}
-      onMouseLeave={() => prefersHover && setExpanded(false)}
-      onClick={(event) => {
-        if (prefersHover) return
-        if ((event.target as HTMLElement).closest('a')) return
-        setExpanded(!expanded)
-      }}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
       className={cn(
         'bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r transition-[width,box-shadow] duration-200 ease-out',
         expanded ? 'w-[240px] shadow-lg' : 'w-16'
       )}
     >
       <div
+        onPointerUp={handleHeaderPointerUp}
         className={cn(
           'flex h-16 shrink-0 items-center',
           expanded ? 'justify-start px-3' : 'justify-center px-0'

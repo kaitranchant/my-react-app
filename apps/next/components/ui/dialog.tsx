@@ -4,7 +4,6 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
-import { useAppMainScrollLock } from '@/lib/hooks/use-app-main-scroll-lock'
 import { cn } from '@/lib/utils'
 
 function Dialog({
@@ -56,8 +55,6 @@ function DialogContent({
   /** Top-anchor within the viewport instead of vertical center (for tall modals on tablets). */
   viewport?: boolean
 }) {
-  useAppMainScrollLock()
-
   return (
     <DialogPortal>
       <DialogOverlay />
