@@ -155,7 +155,10 @@ export function ReplaceExerciseDialog({
         if (!next) resetDialog()
       }}
     >
-      <DialogContent className="flex max-h-[min(92vh,820px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent
+        viewport
+        className="flex max-h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),820px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      >
         <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
           <DialogTitle>Replace exercise</DialogTitle>
           <p className="text-muted-foreground text-sm">

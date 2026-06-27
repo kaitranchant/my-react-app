@@ -62,10 +62,10 @@ export function PortalShell({
           <header
             className={cn(
               'bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6',
-              immersiveLog && 'hidden lg:flex'
+              immersiveLog && 'hidden md:flex'
             )}
           >
-            <div className="min-w-0 flex-1 lg:hidden">
+            <div className="min-w-0 flex-1 md:hidden">
               <BrandLogo />
             </div>
             <div className="shrink-0">
@@ -82,13 +82,13 @@ export function PortalShell({
             tabIndex={-1}
             className={cn(
               'app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8',
-              immersiveLog ? 'p-0 lg:p-6 lg:p-8' : 'pb-24 sm:pb-24 lg:pb-8'
+              immersiveLog ? 'p-0 md:p-6 lg:p-8' : 'pb-24 sm:pb-24 md:pb-6 lg:pb-8'
             )}
           >
             <div
               className={cn(
                 'mx-auto w-full max-w-6xl',
-                immersiveLog && 'max-w-none lg:max-w-6xl'
+                immersiveLog && 'max-w-none md:max-w-6xl'
               )}
             >
               {children}

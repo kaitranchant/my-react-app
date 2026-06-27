@@ -4,6 +4,7 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
+import { useAppMainScrollLock } from '@/lib/hooks/use-app-main-scroll-lock'
 import { cn } from '@/lib/utils'
 
 function Dialog({
@@ -49,15 +50,24 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  viewport = false,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** Top-anchor within the viewport instead of vertical center (for tall modals on tablets). */
+  viewport?: boolean
+}) {
+  useAppMainScrollLock()
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 shadow-elevated duration-200 sm:max-w-lg',
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] gap-4 rounded-xl border p-6 shadow-elevated duration-200 sm:max-w-lg',
+          viewport
+            ? 'top-[max(0.75rem,env(safe-area-inset-top))] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] translate-y-0'
+            : 'top-[50%] translate-y-[-50%]',
           className
         )}
         {...props}

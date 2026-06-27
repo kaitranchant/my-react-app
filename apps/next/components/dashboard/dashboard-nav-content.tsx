@@ -136,7 +136,7 @@ function NavGroupSection({
   onNavigate?: () => void
   forceOpen?: boolean
 }) {
-  const { expanded, setExpanded } = useSidebarExpand()
+  const { expanded } = useSidebarExpand()
   const hasActiveItem = groupHasActiveItem(pathname, group)
   const [open, setOpen] = useState(hasActiveItem || forceOpen)
   const GroupIcon = group.icon
@@ -154,12 +154,9 @@ function NavGroupSection({
         title={group.label}
         aria-expanded={open}
         onClick={() => {
-          if (!expanded) {
-            setExpanded(true)
-            setOpen(true)
-            return
+          if (expanded) {
+            setOpen((current) => !current)
           }
-          setOpen((current) => !current)
         }}
         className={sidebarGroupButtonClass(hasActiveItem, expanded)}
       >

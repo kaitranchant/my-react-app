@@ -118,7 +118,10 @@ export function ExerciseDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogContent
+          viewport
+          className="flex max-h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),900px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        >
           <DialogHeader className="shrink-0 border-b px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
               <div className="min-w-0 space-y-2">

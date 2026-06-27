@@ -132,7 +132,10 @@ export function ProgramWorkoutBuilderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92dvh,900px)] max-h-[92dvh] w-[min(96vw,1400px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
+      <DialogContent
+        viewport
+        className="flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),900px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(96vw,1400px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]"
+      >
         <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
           <DialogDescription className="sr-only">

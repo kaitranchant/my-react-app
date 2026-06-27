@@ -2093,7 +2093,10 @@ export function WorkoutLogScreen({
   return (
     <>
       <Dialog open={active} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="flex h-[min(92vh,900px)] max-h-[92vh] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
+        <DialogContent
+          viewport
+          className="flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),900px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]"
+        >
           {logContent}
         </DialogContent>
       </Dialog>

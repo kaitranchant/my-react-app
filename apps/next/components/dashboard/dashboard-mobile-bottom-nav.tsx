@@ -79,7 +79,7 @@ export function DashboardMobileBottomNav({
 
   return (
     <>
-      <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
             const active = isNavItemActive(pathname, item.href)

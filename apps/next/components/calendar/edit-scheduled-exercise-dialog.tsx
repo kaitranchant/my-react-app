@@ -76,7 +76,10 @@ export function EditScheduledExerciseDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-3xl">
+      <DialogContent
+        viewport
+        className="flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col overflow-hidden sm:max-w-3xl"
+      >
         <DialogHeader>
           <DialogTitle>{row.exercise.name}</DialogTitle>
         </DialogHeader>

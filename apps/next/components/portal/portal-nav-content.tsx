@@ -118,7 +118,7 @@ function NavGroupSection({
   forceOpen?: boolean
 }) {
   const badges = usePortalNavBadges()
-  const { expanded, setExpanded } = useSidebarExpand()
+  const { expanded } = useSidebarExpand()
   const hasActiveItem = group.items.some((item) =>
     isPortalNavItemActive(pathname, item.href)
   )
@@ -138,12 +138,9 @@ function NavGroupSection({
         title={group.label}
         aria-expanded={open}
         onClick={() => {
-          if (!expanded) {
-            setExpanded(true)
-            setOpen(true)
-            return
+          if (expanded) {
+            setOpen((current) => !current)
           }
-          setOpen((current) => !current)
         }}
         className={sidebarGroupButtonClass(hasActiveItem, expanded)}
       >

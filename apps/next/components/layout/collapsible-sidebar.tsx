@@ -22,60 +22,41 @@ function CollapsibleSidebarAside({
   header: ReactNode
   children: ReactNode
 }) {
-  const { expanded, setExpanded, collapse } = useSidebarExpand()
+  const { expanded, setExpanded } = useSidebarExpand()
   const prefersHover = usePrefersHover()
 
-  function toggleExpanded() {
-    setExpanded(!expanded)
-  }
-
   return (
-    <>
-      {!prefersHover && expanded ? (
-        <button
-          type="button"
-          aria-label="Close navigation menu"
-          className="fixed inset-0 z-30 bg-black/20"
-          onClick={collapse}
-        />
-      ) : null}
-
-      <aside
-        onMouseEnter={() => prefersHover && setExpanded(true)}
-        onMouseLeave={() => prefersHover && setExpanded(false)}
+    <aside
+      onMouseEnter={() => prefersHover && setExpanded(true)}
+      onMouseLeave={() => prefersHover && setExpanded(false)}
+      onClick={(event) => {
+        if (prefersHover) return
+        if ((event.target as HTMLElement).closest('a')) return
+        setExpanded(!expanded)
+      }}
+      className={cn(
+        'bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r transition-[width,box-shadow] duration-200 ease-out',
+        expanded ? 'w-[240px] shadow-lg' : 'w-16'
+      )}
+    >
+      <div
         className={cn(
-          'bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r transition-[width,box-shadow] duration-200 ease-out',
-          expanded ? 'w-[240px] shadow-lg' : 'w-16'
+          'flex h-16 shrink-0 items-center',
+          expanded ? 'justify-start px-3' : 'justify-center px-0'
         )}
       >
-        <button
-          type="button"
-          aria-label={expanded ? 'Collapse navigation menu' : 'Expand navigation menu'}
-          aria-expanded={expanded}
-          onClick={() => {
-            if (!prefersHover) {
-              toggleExpanded()
-            }
-          }}
-          className={cn(
-            'flex h-16 shrink-0 items-center border-0 bg-transparent p-0 text-inherit',
-            expanded ? 'cursor-default justify-start px-3' : 'justify-center px-0',
-            prefersHover && 'pointer-events-none'
-          )}
-        >
-          {header}
-        </button>
+        {header}
+      </div>
 
-        <div
-          className={cn(
-            'flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain pb-6',
-            expanded ? 'px-3' : 'px-2'
-          )}
-        >
-          {children}
-        </div>
-      </aside>
-    </>
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-6',
+          expanded ? 'px-3' : 'px-2'
+        )}
+      >
+        {children}
+      </div>
+    </aside>
   )
 }
 

@@ -215,7 +215,10 @@ export function AddExerciseDialog({
           <span className="sm:hidden">Add</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex h-[min(92vh,920px)] max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent
+        viewport
+        className="flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),920px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+      >
         <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4">
           <DialogTitle>Add exercise</DialogTitle>
         </DialogHeader>
