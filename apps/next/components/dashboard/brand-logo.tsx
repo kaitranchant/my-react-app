@@ -1,31 +1,27 @@
 import { BirdMark } from '@/components/brand/bird-mark'
+import { SwiftWordmark } from '@/components/brand/swift-wordmark'
 import { cn } from '@/lib/utils'
 
 export function BrandLogo({
   className,
   markClassName,
-  showText = false,
-  textClassName,
+  showWordmark = false,
 }: {
   className?: string
   markClassName?: string
-  showText?: boolean
-  textClassName?: string
+  showWordmark?: boolean
 }) {
+  if (showWordmark) {
+    return (
+      <SwiftWordmark
+        className={cn('h-7 w-auto translate-x-2 -translate-y-1', className)}
+      />
+    )
+  }
+
   return (
-    <div className={cn('font-sans flex items-center gap-2.5', className)}>
+    <div className={cn('font-sans flex items-center', className)}>
       <BirdMark className={cn('h-7 w-8 shrink-0', markClassName)} />
-      {showText && (
-        <span
-          className={cn(
-            'text-sm font-bold tracking-tight leading-none whitespace-nowrap',
-            textClassName
-          )}
-        >
-          <span className="text-foreground">Swift</span>
-          <span className="text-brand">Coach</span>
-        </span>
-      )}
     </div>
   )
 }

@@ -10,7 +10,7 @@ import { PortalNavContent } from '@/components/portal/portal-nav-content'
 function SidebarHeader() {
   const { expanded } = useSidebarExpand()
 
-  return <BrandLogo showText={expanded} />
+  return <BrandLogo showWordmark={expanded} />
 }
 
 type PortalSidebarProps = {

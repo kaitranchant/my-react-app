@@ -10,7 +10,7 @@ import {
 function SidebarHeader() {
   const { expanded } = useSidebarExpand()
 
-  return <BrandLogo showText={expanded} />
+  return <BrandLogo showWordmark={expanded} />
 }
 
 export function Sidebar({ badges }: { badges?: import('@/lib/dashboard-queries').CoachNavBadges }) {
