@@ -78,6 +78,10 @@ const withTurpopack = {
  * @type {import('next').NextConfig}
  */
 module.exports = {
+  serverActions: {
+    bodySizeLimit: '12mb',
+  },
+
   transpilePackages: [
     'react-native',
     'react-native-web',

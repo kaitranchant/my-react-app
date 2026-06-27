@@ -4,9 +4,11 @@ import * as React from 'react'
 import { Loader2, ScanLine } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { parseCoachInbodyScanImage } from '@/app/(dashboard)/inbody/actions'
 import { Button } from '@/components/ui/button'
-import { processProgressPhotoImage } from '@/lib/progress-photo-client'
+import {
+  parseCoachInbodyScanImageViaApi,
+  processInbodyScanImage,
+} from '@/lib/inbody-scan-client'
 import { cn } from '@/lib/utils'
 import type { InbodyScanFormValues } from '@/lib/validations/inbody-scan'
 
@@ -46,11 +48,8 @@ export function InbodyScanPhotoUpload({
 
     try {
       setIsScanning(true)
-      const processed = await processProgressPhotoImage(file)
-      const formData = new FormData()
-      formData.set('file', processed)
-
-      const result = await parseCoachInbodyScanImage(clientId, formData)
+      const processed = await processInbodyScanImage(file)
+      const result = await parseCoachInbodyScanImageViaApi(clientId, processed)
       setIsScanning(false)
 
       if (!result.success) {
@@ -81,7 +80,7 @@ export function InbodyScanPhotoUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           className="sr-only"
           disabled={disabled || isScanning}
           onChange={handleFileChange}
