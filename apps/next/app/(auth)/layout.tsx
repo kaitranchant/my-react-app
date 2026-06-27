@@ -1,4 +1,4 @@
-import { BrandLogo } from '@/components/dashboard/brand-logo'
+import { SwiftWordmark } from '@/components/brand/swift-wordmark'
 
 export default function AuthLayout({
   children,
@@ -7,8 +7,8 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_minmax(0,28rem)] xl:grid-cols-2">
-      <div className="auth-panel-bg relative hidden flex-col justify-between overflow-hidden border-r p-10 lg:flex">
-        <BrandLogo />
+      <div className="auth-panel-bg relative hidden flex-col items-start justify-between overflow-hidden border-r p-10 lg:flex">
+        <SwiftWordmark className="h-10 w-auto" />
         <div className="max-w-md space-y-5">
           <h2 className="text-4xl font-semibold tracking-tight text-balance leading-[1.1]">
             Run your coaching business from one place.
@@ -23,11 +23,13 @@ export default function AuthLayout({
         </p>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-8 p-6 sm:p-10">
-        <div className="lg:hidden">
-          <BrandLogo />
+      <div className="flex min-h-screen flex-col p-6 sm:p-10 lg:min-h-0 lg:justify-center">
+        <div className="mb-8 self-start lg:hidden">
+          <SwiftWordmark className="h-9 w-auto" />
         </div>
-        <div className="w-full max-w-sm">{children}</div>
+        <div className="flex flex-1 flex-col items-center justify-center lg:flex-none">
+          <div className="w-full max-w-sm">{children}</div>
+        </div>
       </div>
     </div>
   )
