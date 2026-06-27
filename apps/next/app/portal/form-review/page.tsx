@@ -1,7 +1,6 @@
 import { listClientFormReviews } from '@/app/portal/form-review-actions'
 import { FormReviewUploadCard } from '@/components/form-review/form-review-upload-card'
 import { PortalFormReviewList } from '@/components/form-review/portal-form-review-list'
-import { PortalFormReviewViewTracker } from '@/components/form-review/portal-form-review-view-tracker'
 import { PortalUnlinkedState } from '@/components/portal/portal-unlinked-state'
 import { getPortalClientContext } from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
@@ -47,7 +46,6 @@ export default async function PortalFormReviewPage() {
         <PortalUnlinkedState feature="submit form reviews" />
       ) : (
         <>
-          <PortalFormReviewViewTracker />
           <FormReviewUploadCard exercises={exercises} />
           <PortalFormReviewList reviews={reviews} />
         </>

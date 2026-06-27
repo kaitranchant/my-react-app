@@ -319,23 +319,31 @@ export async function listClientFormReviews(): Promise<ClientFormReviewWithUrl[]
   return attachSignedUrlsToFormReviews(supabase, reviews)
 }
 
-export async function markClientFormReviewsAsViewed(): Promise<void> {
+export async function markClientFormReviewsAsViewed(): Promise<
+  { success: true } | { success: false; error: string }
+> {
   const supabase = await createClient()
   const portalCtx = await getPortalClientContext()
   const client = portalCtx?.client
 
   if (!client) {
-    return
+    return { success: false, error: 'Client profile not found.' }
   }
 
   const now = new Date().toISOString()
 
-  await supabase
+  const { error } = await supabase
     .from('client_form_reviews')
     .update({ client_viewed_at: now })
     .eq('client_id', client.id)
     .not('reviewed_at', 'is', null)
     .is('client_viewed_at', null)
 
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
   revalidatePath('/portal/form-review')
+  revalidatePath('/portal', 'layout')
+  return { success: true }
 }

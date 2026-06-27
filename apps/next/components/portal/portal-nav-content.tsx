@@ -8,12 +8,9 @@ import {
   type PortalNavItem,
 } from '@/components/portal/portal-nav'
 import { PortalNavBadge } from '@/components/portal/portal-nav-badge'
+import { usePortalNavBadges } from '@/components/portal/portal-nav-badges-provider'
 import { Badge } from '@/components/ui/badge'
-import {
-  emptyPortalNavBadges,
-  getPortalNavBadgeCount,
-  type PortalNavBadges,
-} from '@/lib/portal-nav-badges'
+import { resolvePortalNavBadgeCount } from '@/lib/portal-nav-badges'
 import { cn } from '@/lib/utils'
 
 function NavLink({
@@ -75,18 +72,17 @@ function NavSoonItem({
 
 type PortalNavContentProps = {
   showTeamNav?: boolean
-  badges?: PortalNavBadges
   onNavigate?: () => void
   className?: string
 }
 
 export function PortalNavContent({
   showTeamNav = false,
-  badges = emptyPortalNavBadges,
   onNavigate,
   className,
 }: PortalNavContentProps) {
   const pathname = usePathname()
+  const badges = usePortalNavBadges()
   const portalNavItems = getPortalNavItems(showTeamNav)
 
   return (
@@ -110,7 +106,7 @@ export function PortalNavContent({
             label={item.label}
             icon={item.icon}
             active={active}
-            badgeCount={getPortalNavBadgeCount(item.href, badges)}
+            badgeCount={resolvePortalNavBadgeCount(item.href, badges, pathname)}
             onNavigate={onNavigate}
           />
         )

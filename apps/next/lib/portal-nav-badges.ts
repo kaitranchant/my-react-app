@@ -28,3 +28,24 @@ export function getPortalNavBadgeCount(
   if (href === '/portal/team' && badges.teamAttention) return 1
   return 0
 }
+
+export function isPortalNavRouteActive(href: string, pathname: string): boolean {
+  if (href === '/portal') {
+    return pathname === '/portal'
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+/** Hide section badges while the client is viewing that page. */
+export function resolvePortalNavBadgeCount(
+  href: string,
+  badges: PortalNavBadges,
+  pathname: string
+): number {
+  if (isPortalNavRouteActive(href, pathname)) {
+    return 0
+  }
+
+  return getPortalNavBadgeCount(href, badges)
+}

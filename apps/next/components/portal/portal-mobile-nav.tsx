@@ -11,22 +11,18 @@ import {
   type PortalNavItem,
 } from '@/components/portal/portal-nav'
 import { PortalNavIconBadge } from '@/components/portal/portal-nav-badge'
+import { usePortalNavBadges } from '@/components/portal/portal-nav-badges-provider'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import {
-  emptyPortalNavBadges,
-  getPortalNavBadgeCount,
-  type PortalNavBadges,
-} from '@/lib/portal-nav-badges'
+import { resolvePortalNavBadgeCount } from '@/lib/portal-nav-badges'
 import { cn } from '@/lib/utils'
 
 type PortalMobileNavProps = {
   showTeamNav?: boolean
-  badges?: PortalNavBadges
 }
 
 function isNavItemActive(pathname: string, href: string) {
@@ -54,11 +50,9 @@ function NavIcon({
   )
 }
 
-export function PortalMobileNav({
-  showTeamNav = false,
-  badges = emptyPortalNavBadges,
-}: PortalMobileNavProps) {
+export function PortalMobileNav({ showTeamNav = false }: PortalMobileNavProps) {
   const pathname = usePathname()
+  const badges = usePortalNavBadges()
   const [moreOpen, setMoreOpen] = useState(false)
   const primaryItems = getPortalPrimaryMobileNavItems(showTeamNav)
   const overflowItems = getPortalOverflowMobileNavItems(showTeamNav)
@@ -66,7 +60,8 @@ export function PortalMobileNav({
     isNavItemActive(pathname, item.href)
   )
   const overflowBadgeCount = overflowItems.reduce(
-    (total, item) => total + getPortalNavBadgeCount(item.href, badges),
+    (total, item) =>
+      total + resolvePortalNavBadgeCount(item.href, badges, pathname),
     0
   )
 
@@ -76,7 +71,7 @@ export function PortalMobileNav({
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primaryItems.map((item) => {
             const active = isNavItemActive(pathname, item.href)
-            const badgeCount = getPortalNavBadgeCount(item.href, badges)
+            const badgeCount = resolvePortalNavBadgeCount(item.href, badges, pathname)
 
             return (
               <Link
@@ -133,7 +128,7 @@ export function PortalMobileNav({
             {overflowItems.map((item) => {
               const Icon = item.icon
               const active = isNavItemActive(pathname, item.href)
-              const badgeCount = getPortalNavBadgeCount(item.href, badges)
+              const badgeCount = resolvePortalNavBadgeCount(item.href, badges, pathname)
 
               return (
                 <Link
