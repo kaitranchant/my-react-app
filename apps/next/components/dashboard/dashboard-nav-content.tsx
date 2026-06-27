@@ -5,6 +5,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 
+import { useSidebarExpand } from '@/components/layout/sidebar-expand-context'
+import {
+  sidebarGroupButtonClass,
+  sidebarIconSlotClass,
+  sidebarNavLinkClass,
+  sidebarSubmenuClass,
+} from '@/components/layout/sidebar-nav-styles'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -42,26 +49,39 @@ function NavLink({
   badgeCount?: number
   onNavigate?: () => void
 }) {
+  const { expanded, collapse } = useSidebarExpand()
+
   return (
     <Link
       href={href}
-      onClick={onNavigate}
-      className={cn(
-        'flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-        active
-          ? 'bg-brand/10 text-brand font-semibold'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      )}
+      title={label}
+      onClick={() => {
+        onNavigate?.()
+        collapse()
+      }}
+      className={sidebarNavLinkClass(active, expanded)}
     >
-      <Icon className={cn('size-[18px]', active && 'text-brand')} />
-      <span className="flex-1">{label}</span>
-      {badgeCount > 0 ? (
-        <Badge
-          variant="destructive"
-          className="h-5 min-w-5 justify-center px-1.5 text-[10px] font-semibold"
-        >
-          {formatNavBadgeCount(badgeCount)}
-        </Badge>
+      <span className={sidebarIconSlotClass}>
+        <Icon className={cn('size-[18px]', active && 'text-brand')} />
+        {!expanded && badgeCount > 0 ? (
+          <span
+            className="bg-destructive absolute -top-0.5 -right-0.5 size-2 rounded-full"
+            aria-hidden
+          />
+        ) : null}
+      </span>
+      {expanded ? (
+        <>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          {badgeCount > 0 ? (
+            <Badge
+              variant="destructive"
+              className="h-5 min-w-5 justify-center px-1.5 text-[10px] font-semibold"
+            >
+              {formatNavBadgeCount(badgeCount)}
+            </Badge>
+          ) : null}
+        </>
       ) : null}
     </Link>
   )
@@ -74,19 +94,31 @@ function NavSoonItem({
   label: string
   icon: NavItem['icon']
 }) {
+  const { expanded } = useSidebarExpand()
+
   return (
     <span
-      className="text-muted-foreground/40 flex min-h-11 cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm"
+      title={label}
+      className={cn(
+        sidebarNavLinkClass(false, expanded),
+        'text-muted-foreground/40 cursor-not-allowed'
+      )}
       aria-disabled
     >
-      <Icon className="size-[18px]" />
-      <span className="flex-1">{label}</span>
-      <Badge
-        variant="outline"
-        className="text-muted-foreground/60 border-border/60 text-[10px] font-normal"
-      >
-        Soon
-      </Badge>
+      <span className={sidebarIconSlotClass}>
+        <Icon className="size-[18px]" />
+      </span>
+      {expanded ? (
+        <>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          <Badge
+            variant="outline"
+            className="text-muted-foreground/60 border-border/60 text-[10px] font-normal"
+          >
+            Soon
+          </Badge>
+        </>
+      ) : null}
     </span>
   )
 }
@@ -104,6 +136,7 @@ function NavGroupSection({
   onNavigate?: () => void
   forceOpen?: boolean
 }) {
+  const { expanded } = useSidebarExpand()
   const hasActiveItem = groupHasActiveItem(pathname, group)
   const [open, setOpen] = useState(hasActiveItem || forceOpen)
   const GroupIcon = group.icon
@@ -118,61 +151,51 @@ function NavGroupSection({
     <div className="space-y-0.5">
       <button
         type="button"
+        title={group.label}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className={cn(
-          'text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-          hasActiveItem && 'text-foreground'
-        )}
+        onClick={() => {
+          if (expanded) {
+            setOpen((current) => !current)
+          }
+        }}
+        className={sidebarGroupButtonClass(hasActiveItem, expanded)}
       >
-        <GroupIcon className="size-[18px]" />
-        <span className="flex-1 text-left">{group.label}</span>
-        <ChevronDown
-          className={cn(
-            'size-4 shrink-0 transition-transform duration-200',
-            open && 'rotate-180'
-          )}
-        />
+        <span className={sidebarIconSlotClass}>
+          <GroupIcon className={cn('size-[18px]', hasActiveItem && 'text-brand')} />
+        </span>
+        {expanded ? (
+          <>
+            <span className="min-w-0 flex-1 truncate text-left">{group.label}</span>
+            <ChevronDown
+              className={cn(
+                'size-4 shrink-0 transition-transform duration-200',
+                open && 'rotate-180'
+              )}
+            />
+          </>
+        ) : null}
       </button>
 
-      <div
-        className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-out',
-          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-        )}
-      >
-        <div className="overflow-hidden">
-          <div
-            className={cn(
-              'border-border/60 ml-[18px] space-y-0.5 border-l pl-2 transition-opacity duration-200',
-              open ? 'opacity-100' : 'opacity-0'
-            )}
-          >
-            {group.items.map((item) => {
-              if (item.soon) {
-                return (
-                  <NavSoonItem
-                    key={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                  />
-                )
-              }
+      <div className={sidebarSubmenuClass(open, expanded)}>
+        {group.items.map((item) => {
+          if (item.soon) {
+            return (
+              <NavSoonItem key={item.href} label={item.label} icon={item.icon} />
+            )
+          }
 
-              return (
-                <NavLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={isNavItemActive(pathname, item.href)}
-                  badgeCount={badgeByHref[item.href] ?? 0}
-                  onNavigate={onNavigate}
-                />
-              )
-            })}
-          </div>
-        </div>
+          return (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              active={isNavItemActive(pathname, item.href)}
+              badgeCount={badgeByHref[item.href] ?? 0}
+              onNavigate={onNavigate}
+            />
+          )
+        })}
       </div>
     </div>
   )
