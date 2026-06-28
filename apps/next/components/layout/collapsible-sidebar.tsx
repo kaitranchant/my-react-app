@@ -23,22 +23,28 @@ function CollapsibleSidebarAside({
 }) {
   const { expanded, setExpanded } = useSidebarExpand()
 
-  function handleHeaderPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+  function handleAsidePointerUp(event: ReactPointerEvent<HTMLElement>) {
     if (event.pointerType !== 'touch') return
-    setExpanded(!expanded)
+    if (expanded) return
+
+    const link = (event.target as HTMLElement).closest('a')
+    if (link) {
+      event.preventDefault()
+    }
+    setExpanded(true)
   }
 
   return (
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
+      onPointerUp={handleAsidePointerUp}
       className={cn(
         'bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r transition-[width,box-shadow] duration-200 ease-out',
         expanded ? 'w-[240px] shadow-lg' : 'w-16'
       )}
     >
       <div
-        onPointerUp={handleHeaderPointerUp}
         className={cn(
           'flex h-16 shrink-0 items-center',
           expanded ? 'justify-start px-3' : 'justify-center px-0'
@@ -49,8 +55,8 @@ function CollapsibleSidebarAside({
 
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-6',
-          expanded ? 'px-3' : 'px-2'
+          'flex min-h-0 flex-1 flex-col overflow-x-hidden pb-6',
+          expanded ? 'overflow-y-auto px-3' : 'touch-none overflow-y-hidden px-2'
         )}
       >
         {children}

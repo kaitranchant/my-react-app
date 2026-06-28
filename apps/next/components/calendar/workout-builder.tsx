@@ -539,8 +539,8 @@ export function WorkoutBuilder({
     <div className="flex min-h-0 flex-1 flex-col">
       {!embedded ? panelHeader : null}
 
-      {/* Desktop: 3-panel layout (2xl+; tablets use tabbed layout below) */}
-      <div className="hidden min-h-0 flex-1 2xl:grid 2xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] 2xl:overflow-hidden">
+      {/* Desktop + tablet: 3-panel layout */}
+      <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] md:overflow-hidden">
         <div className="flex min-h-0 flex-col overflow-hidden border-r">
           <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Exercise library
@@ -569,8 +569,8 @@ export function WorkoutBuilder({
         </div>
       </div>
 
-      {/* Mobile / tablet: tabbed panels */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden 2xl:hidden">
+      {/* Phone only: tabbed panels */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:hidden">
         <Tabs
           value={mobileTab}
           onValueChange={setMobileTab}
