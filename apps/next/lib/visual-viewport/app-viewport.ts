@@ -7,10 +7,19 @@ const VIEWPORT_CSS_VARS = {
   height: '--app-vv-height',
 } as const
 
+const KEYBOARD_OPEN_HEIGHT_DELTA_PX = 120
+
 export function resetWindowScroll() {
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
+}
+
+export function resetMainContentScroll() {
+  const main = document.getElementById('main-content')
+  if (main) {
+    main.scrollTop = 0
+  }
 }
 
 export function clampMainContentScroll() {
@@ -23,15 +32,21 @@ export function clampMainContentScroll() {
   }
 }
 
+function isKeyboardOpen() {
+  const visualViewport = window.visualViewport
+  if (!visualViewport) return false
+  return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX
+}
+
 export function syncAppViewportCssVars() {
   const root = document.documentElement
   const visualViewport = window.visualViewport
 
-  if (!visualViewport) {
+  if (!visualViewport || !isKeyboardOpen()) {
     root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
-    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100dvh')
+    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
     return
   }
 
@@ -71,9 +86,19 @@ function isTextField(element: Element | null) {
 
 export function installAppViewportSync() {
   const visualViewport = window.visualViewport
+  let keyboardWasOpen = isKeyboardOpen()
 
   const onViewportChange = () => {
-    stabilizeViewportScroll()
+    const keyboardOpen = isKeyboardOpen()
+    syncAppViewportCssVars()
+    resetWindowScroll()
+
+    if (keyboardWasOpen && !keyboardOpen) {
+      resetMainContentScroll()
+      burstStabilizeViewportScroll(700)
+    }
+
+    keyboardWasOpen = keyboardOpen
   }
 
   const onFocusIn = (event: FocusEvent) => {
@@ -84,7 +109,8 @@ export function installAppViewportSync() {
   const onFocusOut = () => {
     window.setTimeout(() => {
       if (!isTextField(document.activeElement)) {
-        burstStabilizeViewportScroll(350)
+        resetMainContentScroll()
+        burstStabilizeViewportScroll(700)
       }
     }, 100)
   }

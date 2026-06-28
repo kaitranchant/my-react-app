@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Loader2 } from 'lucide-react'
+import { Copy, Loader2, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -14,6 +14,7 @@ import {
   updateScheduledWorkout,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { WorkoutBuilder } from '@/components/calendar/workout-builder'
+import { TabletFullscreenOverlay } from '@/components/layout/tablet-fullscreen-overlay'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,6 +33,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDayHeader } from '@/lib/calendar'
+import { useTabletTouchLayout } from '@/lib/hooks/use-tablet-touch-layout'
 import type { WorkoutBuilderExerciseActions } from '@/lib/workout-builder-types'
 import {
   scheduledWorkoutFormSchema,
@@ -53,6 +55,139 @@ type WorkoutBuilderModalProps = {
   onCopy?: () => void
 }
 
+function WorkoutBuilderBody({
+  selectedDate,
+  workout,
+  form,
+  pending,
+  onCopy,
+  onSave,
+  onSaveAndClose,
+  showCloseButton = false,
+  onClose,
+  children,
+}: {
+  selectedDate: string
+  workout: ClientScheduledWorkoutWithExercises
+  form: ReturnType<typeof useForm<ScheduledWorkoutFormValues>>
+  pending: boolean
+  onCopy?: () => void
+  onSave: (values: ScheduledWorkoutFormValues) => void
+  onSaveAndClose: (values: ScheduledWorkoutFormValues) => void
+  showCloseButton?: boolean
+  onClose?: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <div className="relative shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
+        {showCloseButton ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute top-3 right-3"
+            onClick={onClose}
+            aria-label="Close workout builder"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        ) : null}
+
+        <p className="sr-only">{workout.name}</p>
+        <p className="sr-only">Workout builder for {formatDayHeader(selectedDate)}</p>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSave)}
+            className="space-y-3"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {formatDayHeader(selectedDate)}
+                </p>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormControl>
+                        <Input
+                          {...field}
+                          autoFocus={false}
+                          className="h-auto border-0 bg-transparent p-0 text-xl font-bold shadow-none focus-visible:ring-0"
+                          placeholder="Workout name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
+                {onCopy && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="col-span-2 sm:col-span-1"
+                    onClick={onCopy}
+                  >
+                    <Copy className="size-4" />
+                    Copy day
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                >
+                  {pending && <Loader2 className="size-4 animate-spin" />}
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={pending}
+                  onClick={form.handleSubmit(onSaveAndClose)}
+                >
+                  {pending && <Loader2 className="size-4 animate-spin" />}
+                  <span className="sm:hidden">Close</span>
+                  <span className="hidden sm:inline">Save & close</span>
+                </Button>
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Coach notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={2}
+                      placeholder="Optional session notes for this day"
+                      className="min-h-[52px] resize-none text-sm"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </form>
+        </Form>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+    </>
+  )
+}
+
 export function WorkoutBuilderModal({
   open,
   onOpenChange,
@@ -63,6 +198,7 @@ export function WorkoutBuilderModal({
   onChanged,
   onCopy,
 }: WorkoutBuilderModalProps) {
+  const tabletTouch = useTabletTouchLayout()
   const [pending, setPending] = React.useState(false)
 
   const form = useForm<ScheduledWorkoutFormValues>({
@@ -105,6 +241,42 @@ export function WorkoutBuilderModal({
     toast.error(result.error)
   }
 
+  const builder = (
+    <WorkoutBuilder
+      headerLabel={formatDayHeader(selectedDate)}
+      workout={workout}
+      exercises={exercises}
+      exerciseActions={exerciseActions}
+      catalogClientId={clientId}
+      onChanged={onChanged}
+      embedded
+    />
+  )
+
+  if (tabletTouch) {
+    return (
+      <TabletFullscreenOverlay
+        open={open}
+        onOpenChange={onOpenChange}
+        label={`Workout builder for ${formatDayHeader(selectedDate)}`}
+      >
+        <WorkoutBuilderBody
+          selectedDate={selectedDate}
+          workout={workout}
+          form={form}
+          pending={pending}
+          onCopy={onCopy}
+          onSave={(values) => void handleSave(values, false)}
+          onSaveAndClose={(values) => void handleSave(values, true)}
+          showCloseButton
+          onClose={() => onOpenChange(false)}
+        >
+          {builder}
+        </WorkoutBuilderBody>
+      </TabletFullscreenOverlay>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -112,111 +284,22 @@ export function WorkoutBuilderModal({
         onOpenAutoFocus={(event) => event.preventDefault()}
         className="gap-0 p-0"
       >
-        <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
-          <DialogTitle className="sr-only">{workout.name}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Workout builder for {formatDayHeader(selectedDate)}
-          </DialogDescription>
+        <DialogTitle className="sr-only">{workout.name}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Workout builder for {formatDayHeader(selectedDate)}
+        </DialogDescription>
 
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit((values) => handleSave(values, false))}
-              className="space-y-3"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <p className="text-muted-foreground text-xs font-medium">
-                    {formatDayHeader(selectedDate)}
-                  </p>
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            autoFocus={false}
-                            className="h-auto border-0 bg-transparent p-0 text-xl font-bold shadow-none focus-visible:ring-0"
-                            placeholder="Workout name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
-                  {onCopy && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="col-span-2 sm:col-span-1"
-                      onClick={onCopy}
-                    >
-                      <Copy className="size-4" />
-                      Copy day
-                    </Button>
-                  )}
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    size="sm"
-                    disabled={pending}
-                  >
-                    {pending && <Loader2 className="size-4 animate-spin" />}
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={pending}
-                    onClick={form.handleSubmit((values) =>
-                      handleSave(values, true)
-                    )}
-                  >
-                    {pending && <Loader2 className="size-4 animate-spin" />}
-                    <span className="sm:hidden">Close</span>
-                    <span className="hidden sm:inline">Save & close</span>
-                  </Button>
-                </div>
-              </div>
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs">Coach notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        rows={2}
-                        placeholder="Optional session notes for this day"
-                        className="min-h-[52px] resize-none text-sm"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </form>
-          </Form>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <WorkoutBuilder
-            headerLabel={formatDayHeader(selectedDate)}
-            workout={workout}
-            exercises={exercises}
-            exerciseActions={exerciseActions}
-            catalogClientId={clientId}
-            onChanged={onChanged}
-            embedded
-          />
-        </div>
+        <WorkoutBuilderBody
+          selectedDate={selectedDate}
+          workout={workout}
+          form={form}
+          pending={pending}
+          onCopy={onCopy}
+          onSave={(values) => void handleSave(values, false)}
+          onSaveAndClose={(values) => void handleSave(values, true)}
+        >
+          {builder}
+        </WorkoutBuilderBody>
       </DialogContent>
     </Dialog>
   )

@@ -43,7 +43,7 @@ export function PortalShell({
 
   return (
     <PortalNavBadgesProvider initialBadges={navBadges}>
-      <div data-app-shell className="fixed inset-0 flex overflow-hidden">
+      <div data-app-shell className="flex overflow-hidden">
         <RealtimePushListener
           role="client"
           userId={userId}
