@@ -15,13 +15,6 @@ export function resetWindowScroll() {
   document.body.scrollTop = 0
 }
 
-export function resetMainContentScroll() {
-  const main = document.getElementById('main-content')
-  if (main) {
-    main.scrollTop = 0
-  }
-}
-
 export function clampMainContentScroll() {
   const main = document.getElementById('main-content')
   if (!main) return
@@ -75,15 +68,6 @@ export function burstStabilizeViewportScroll(durationMs = 500) {
   requestAnimationFrame(tick)
 }
 
-function isTextField(element: Element | null) {
-  return (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement ||
-    element?.getAttribute('contenteditable') === 'true'
-  )
-}
-
 export function installAppViewportSync() {
   const visualViewport = window.visualViewport
   let keyboardWasOpen = isKeyboardOpen()
@@ -94,40 +78,22 @@ export function installAppViewportSync() {
     resetWindowScroll()
 
     if (keyboardWasOpen && !keyboardOpen) {
-      resetMainContentScroll()
-      burstStabilizeViewportScroll(700)
+      clampMainContentScroll()
+      burstStabilizeViewportScroll(400)
     }
 
     keyboardWasOpen = keyboardOpen
-  }
-
-  const onFocusIn = (event: FocusEvent) => {
-    if (!isTextField(event.target as Element)) return
-    burstStabilizeViewportScroll()
-  }
-
-  const onFocusOut = () => {
-    window.setTimeout(() => {
-      if (!isTextField(document.activeElement)) {
-        resetMainContentScroll()
-        burstStabilizeViewportScroll(700)
-      }
-    }, 100)
   }
 
   stabilizeViewportScroll()
   window.addEventListener('scroll', resetWindowScroll, { passive: true })
   visualViewport?.addEventListener('resize', onViewportChange)
   visualViewport?.addEventListener('scroll', onViewportChange)
-  document.addEventListener('focusin', onFocusIn, true)
-  document.addEventListener('focusout', onFocusOut, true)
 
   return () => {
     window.removeEventListener('scroll', resetWindowScroll)
     visualViewport?.removeEventListener('resize', onViewportChange)
     visualViewport?.removeEventListener('scroll', onViewportChange)
-    document.removeEventListener('focusin', onFocusIn, true)
-    document.removeEventListener('focusout', onFocusOut, true)
 
     const root = document.documentElement
     root.style.removeProperty(VIEWPORT_CSS_VARS.top)

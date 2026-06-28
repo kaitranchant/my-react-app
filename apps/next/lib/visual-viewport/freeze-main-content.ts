@@ -28,9 +28,8 @@ function readMainStyles(main: HTMLElement): FrozenMainContent {
   }
 }
 
-function applyMainFreeze(main: HTMLElement) {
+function applyMainFreeze(main: HTMLElement, pinnedScrollTop: number) {
   const rect = main.getBoundingClientRect()
-  const scrollTop = main.scrollTop
 
   main.style.position = 'fixed'
   main.style.top = `${rect.top}px`
@@ -41,7 +40,7 @@ function applyMainFreeze(main: HTMLElement) {
   main.style.overscrollBehavior = 'none'
   main.style.touchAction = 'none'
 
-  return { scrollTop }
+  return pinnedScrollTop
 }
 
 function restoreMainStyles(main: HTMLElement, snapshot: FrozenMainContent) {
@@ -53,13 +52,7 @@ function restoreMainStyles(main: HTMLElement, snapshot: FrozenMainContent) {
   main.style.overflow = snapshot.overflow
   main.style.overscrollBehavior = snapshot.overscrollBehavior
   main.style.touchAction = snapshot.touchAction
-  main.scrollTop = 0
-}
-
-export function resetMainContentScroll() {
-  const main = document.getElementById(MAIN_CONTENT_ID)
-  if (!main) return
-  main.scrollTop = 0
+  main.scrollTop = snapshot.scrollTop
 }
 
 export function installMainContentFreeze() {
@@ -67,11 +60,12 @@ export function installMainContentFreeze() {
   if (!main) return () => {}
 
   const snapshot = readMainStyles(main)
-  applyMainFreeze(main)
+  const pinnedScrollTop = snapshot.scrollTop
+  applyMainFreeze(main, pinnedScrollTop)
 
   const preventScroll = () => {
-    if (main.scrollTop !== 0) {
-      main.scrollTop = 0
+    if (main.scrollTop !== pinnedScrollTop) {
+      main.scrollTop = pinnedScrollTop
     }
   }
 
@@ -80,6 +74,5 @@ export function installMainContentFreeze() {
   return () => {
     main.removeEventListener('scroll', preventScroll)
     restoreMainStyles(main, snapshot)
-    resetMainContentScroll()
   }
 }

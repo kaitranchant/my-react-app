@@ -3,10 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import {
-  burstStabilizeViewportScroll,
-  resetWindowScroll,
-} from '@/lib/visual-viewport/app-viewport'
+import { resetWindowScroll } from '@/lib/visual-viewport/app-viewport'
 import { installMainContentFreeze } from '@/lib/visual-viewport/freeze-main-content'
 
 type TabletFullscreenOverlayProps = {
@@ -36,7 +33,6 @@ export function TabletFullscreenOverlay({
       releaseMain()
       document.body.style.overflow = previousBodyOverflow
       resetWindowScroll()
-      burstStabilizeViewportScroll(600)
     }
   }, [open])
 
