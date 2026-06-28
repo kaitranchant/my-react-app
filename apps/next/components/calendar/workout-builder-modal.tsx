@@ -109,7 +109,8 @@ export function WorkoutBuilderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         viewport
-        className="flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),900px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(96vw,1400px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="gap-0 p-0"
       >
         <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
@@ -135,6 +136,7 @@ export function WorkoutBuilderModal({
                         <FormControl>
                           <Input
                             {...field}
+                            autoFocus={false}
                             className="h-auto border-0 bg-transparent p-0 text-xl font-bold shadow-none focus-visible:ring-0"
                             placeholder="Workout name"
                           />

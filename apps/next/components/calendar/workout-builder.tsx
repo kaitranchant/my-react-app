@@ -438,7 +438,7 @@ export function WorkoutBuilder({
               onSubmit={addForm.handleSubmit(handleAdd)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
                 <ExercisePrescriptionForm
                   form={addForm}
                   idPrefix="builder-add"
@@ -500,7 +500,7 @@ export function WorkoutBuilder({
               onSubmit={editForm.handleSubmit(handleUpdate)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
                 <ExercisePrescriptionForm form={editForm} idPrefix="builder-edit" compact={compact} />
               </div>
               <div className="flex shrink-0 gap-2 border-t px-4 py-3">
@@ -539,8 +539,8 @@ export function WorkoutBuilder({
     <div className="flex min-h-0 flex-1 flex-col">
       {!embedded ? panelHeader : null}
 
-      {/* Desktop: 3-panel layout (xl+; tablets use tabbed layout below) */}
-      <div className="hidden min-h-0 flex-1 xl:grid xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] xl:overflow-hidden">
+      {/* Desktop: 3-panel layout (2xl+; tablets use tabbed layout below) */}
+      <div className="hidden min-h-0 flex-1 2xl:grid 2xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] 2xl:overflow-hidden">
         <div className="flex min-h-0 flex-col overflow-hidden border-r">
           <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Exercise library
@@ -570,11 +570,11 @@ export function WorkoutBuilder({
       </div>
 
       {/* Mobile / tablet: tabbed panels */}
-      <div className="flex min-h-0 flex-1 flex-col xl:hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden 2xl:hidden">
         <Tabs
           value={mobileTab}
           onValueChange={setMobileTab}
-          className="flex min-h-0 flex-1 flex-col gap-2"
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
         >
           <TabsList className="mx-2 mt-3 shrink-0 grid w-auto grid-cols-3 sm:mx-4">
             <TabsTrigger value="library" className="px-2 text-xs">

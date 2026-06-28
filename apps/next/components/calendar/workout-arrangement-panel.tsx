@@ -51,6 +51,7 @@ import type {
   WorkoutBuilderExerciseActions,
 } from '@/lib/workout-builder-types'
 import { rowToPrescriptionValues } from '@/lib/validations/calendar'
+import { useCoarsePointer } from '@/lib/hooks/use-coarse-pointer'
 import { cn } from '@/lib/utils'
 import type {
   ScheduledExerciseBlock,
@@ -525,12 +526,16 @@ export function WorkoutArrangementPanel({
     localSegments.length > 1 || localSegments[0]?.block !== null
   const sectionsDraggable = showSectionHeaders && localSegments.length > 1
 
+  const coarsePointer = useCoarsePointer()
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
+      activationConstraint: coarsePointer
+        ? { delay: 250, tolerance: 8 }
+        : { distance: 8 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
+      activationConstraint: { delay: 250, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -745,7 +750,7 @@ export function WorkoutArrangementPanel({
     return panelBody(
       <div
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
+          'min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain',
           reordering && 'pointer-events-none opacity-70'
         )}
       >

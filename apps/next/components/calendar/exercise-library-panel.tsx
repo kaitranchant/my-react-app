@@ -80,24 +80,26 @@ export function ExerciseLibraryPanel({
 
         <TabsContent
           value="custom"
-          className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-y-contain data-[state=inactive]:hidden"
+          className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
         >
-          <CustomExerciseTab form={customForm} />
-          {customName?.trim() && (
-            <button
-              type="button"
-              onClick={() =>
-                onSelect({ source: 'custom', name: customName.trim() })
-              }
-              className={cn(
-                'hover:bg-muted/50 mt-3 w-full rounded-md border px-3 py-2.5 text-left text-sm transition-colors',
-                selection?.source === 'custom' &&
-                  'border-brand bg-brand/10 ring-brand ring-1'
-              )}
-            >
-              Use <span className="font-semibold">{customName.trim()}</span>
-            </button>
-          )}
+          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain">
+            <CustomExerciseTab form={customForm} />
+            {customName?.trim() && (
+              <button
+                type="button"
+                onClick={() =>
+                  onSelect({ source: 'custom', name: customName.trim() })
+                }
+                className={cn(
+                  'hover:bg-muted/50 mt-3 w-full rounded-md border px-3 py-2.5 text-left text-sm transition-colors',
+                  selection?.source === 'custom' &&
+                    'border-brand bg-brand/10 ring-brand ring-1'
+                )}
+              >
+                Use <span className="font-semibold">{customName.trim()}</span>
+              </button>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
