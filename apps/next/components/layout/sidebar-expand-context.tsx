@@ -4,7 +4,9 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 type SidebarExpandContextValue = {
   expanded: boolean
+  touchPinned: boolean
   setExpanded: (expanded: boolean) => void
+  expandFromTouch: () => void
   collapse: () => void
 }
 
@@ -20,13 +22,26 @@ export function useSidebarExpand() {
 
 export function SidebarExpandProvider({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false)
+  const [touchPinned, setTouchPinned] = useState(false)
+
+  function collapse() {
+    setExpanded(false)
+    setTouchPinned(false)
+  }
+
+  function expandFromTouch() {
+    setExpanded(true)
+    setTouchPinned(true)
+  }
 
   return (
     <SidebarExpandContext.Provider
       value={{
         expanded,
+        touchPinned,
         setExpanded,
-        collapse: () => setExpanded(false),
+        expandFromTouch,
+        collapse,
       }}
     >
       {children}
