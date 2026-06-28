@@ -5,16 +5,10 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
 import { useMainContentScrollLock } from '@/lib/hooks/use-main-content-scroll-lock'
-import { useVisualViewportPin } from '@/lib/hooks/use-visual-viewport-pin'
 import { cn } from '@/lib/utils'
 
-function ViewportDialogBehavior({
-  contentRef,
-}: {
-  contentRef: React.RefObject<HTMLDivElement | null>
-}) {
+function ViewportDialogBehavior() {
   useMainContentScrollLock(true)
-  useVisualViewportPin(contentRef, true)
   return null
 }
 
@@ -44,13 +38,18 @@ function DialogClose({
 
 function DialogOverlay({
   className,
+  viewport = false,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
+  viewport?: boolean
+}) {
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
+      data-vv-surface={viewport ? 'cover' : undefined}
       className={cn(
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50',
+        viewport && 'dialog-vv-surface-cover',
         className
       )}
       {...props}
@@ -67,24 +66,22 @@ function DialogContent({
   /** Fill the viewport with safe-area margins instead of vertical centering. */
   viewport?: boolean
 }) {
-  const contentRef = React.useRef<HTMLDivElement>(null)
-
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay viewport={viewport} />
       <DialogPrimitive.Content
-        ref={contentRef}
         data-slot="dialog-content"
+        data-vv-surface={viewport ? 'inset' : undefined}
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed z-50 shadow-elevated duration-200',
+          'bg-background fixed z-50 shadow-elevated duration-200',
           viewport
-            ? 'top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-[max(0.5rem,env(safe-area-inset-left))] flex w-auto max-w-none flex-col overflow-hidden rounded-xl border'
-            : 'top-[50%] left-[50%] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 sm:max-w-lg',
+            ? 'dialog-vv-surface-inset data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 flex flex-col overflow-hidden rounded-xl border'
+            : 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 top-[50%] left-[50%] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 sm:max-w-lg',
           className
         )}
         {...props}
       >
-        {viewport ? <ViewportDialogBehavior contentRef={contentRef} /> : null}
+        {viewport ? <ViewportDialogBehavior /> : null}
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4">
           <XIcon />

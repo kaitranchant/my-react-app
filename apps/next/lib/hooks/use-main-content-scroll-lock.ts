@@ -2,11 +2,10 @@
 
 import { useEffect } from 'react'
 
-function resetWindowScroll() {
-  window.scrollTo(0, 0)
-  document.documentElement.scrollTop = 0
-  document.body.scrollTop = 0
-}
+import {
+  burstStabilizeViewportScroll,
+  resetWindowScroll,
+} from '@/lib/visual-viewport/app-viewport'
 
 /** Pins #main-content scroll while a full-screen overlay is open (e.g. viewport dialog). */
 export function useMainContentScrollLock(enabled: boolean) {
@@ -16,7 +15,7 @@ export function useMainContentScrollLock(enabled: boolean) {
     const main = document.getElementById('main-content')
     if (!main) return
 
-    let pinnedScrollTop = main.scrollTop
+    const pinnedScrollTop = main.scrollTop
     const previousOverflow = main.style.overflow
     const previousOverscrollBehavior = main.style.overscrollBehavior
     const previousTouchAction = main.style.touchAction
@@ -36,28 +35,35 @@ export function useMainContentScrollLock(enabled: boolean) {
       pinScroll()
     }
 
+    const onFocusIn = () => {
+      burstStabilizeViewportScroll(400)
+      pinScroll()
+    }
+
     const onFocusOut = () => {
       window.setTimeout(() => {
-        resetWindowScroll()
+        burstStabilizeViewportScroll(350)
         pinScroll()
-      }, 150)
+      }, 100)
     }
 
     main.addEventListener('scroll', pinScroll, { passive: true })
     window.visualViewport?.addEventListener('resize', onViewportChange)
     window.visualViewport?.addEventListener('scroll', onViewportChange)
-    document.body.addEventListener('focusout', onFocusOut, true)
+    document.addEventListener('focusin', onFocusIn, true)
+    document.addEventListener('focusout', onFocusOut, true)
 
     return () => {
       main.removeEventListener('scroll', pinScroll)
       window.visualViewport?.removeEventListener('resize', onViewportChange)
       window.visualViewport?.removeEventListener('scroll', onViewportChange)
-      document.body.removeEventListener('focusout', onFocusOut, true)
+      document.removeEventListener('focusin', onFocusIn, true)
+      document.removeEventListener('focusout', onFocusOut, true)
       main.style.overflow = previousOverflow
       main.style.overscrollBehavior = previousOverscrollBehavior
       main.style.touchAction = previousTouchAction
 
-      resetWindowScroll()
+      burstStabilizeViewportScroll(200)
       const maxScroll = Math.max(0, main.scrollHeight - main.clientHeight)
       main.scrollTop = Math.min(pinnedScrollTop, maxScroll)
     }

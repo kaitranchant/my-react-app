@@ -41,7 +41,7 @@ export function DashboardShell({
   const immersiveLog = COACH_IMMERSIVE_LOG_ROUTE.test(pathname)
 
   return (
-    <div className="fixed inset-0 flex overflow-hidden">
+    <div data-app-shell className="fixed inset-0 flex overflow-hidden">
       <RealtimePushListener role="coach" userId={userId} />
       <a
         href="#main-content"

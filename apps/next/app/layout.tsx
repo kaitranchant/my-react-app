@@ -1,6 +1,7 @@
 import { Plus_Jakarta_Sans } from 'next/font/google'
 
 import { Toaster } from '@/components/ui/sonner'
+import { AppViewportSync } from '@/components/layout/app-viewport-sync'
 import { ThemeProvider } from '@/components/theme-provider'
 import { APP_DESCRIPTION, APP_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={cn(jakarta.className, jakarta.variable, 'antialiased')}>
         <ThemeProvider>
+          <AppViewportSync />
           {children}
           <Toaster />
         </ThemeProvider>
