@@ -72,7 +72,7 @@ export function TodaysSchedule({ sessions }: TodaysScheduleProps) {
               <p className="helper-text">Nothing scheduled today</p>
               <div className="flex justify-end">
                 <Link
-                  href="/clients"
+                  href="/scheduling"
                   className="text-brand inline-flex items-center gap-1 text-sm font-medium"
                 >
                   Schedule
@@ -85,7 +85,7 @@ export function TodaysSchedule({ sessions }: TodaysScheduleProps) {
               icon={Calendar}
               title="Nothing scheduled"
               description="Assign a session from a client's calendar when you're ready."
-              action={{ label: 'Schedule a workout', href: '/clients' }}
+              action={{ label: 'Schedule a workout', href: '/scheduling' }}
             />
           </>
         ) : (
