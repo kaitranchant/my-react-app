@@ -4,7 +4,19 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
+import { useMainContentScrollLock } from '@/lib/hooks/use-main-content-scroll-lock'
+import { useVisualViewportPin } from '@/lib/hooks/use-visual-viewport-pin'
 import { cn } from '@/lib/utils'
+
+function ViewportDialogBehavior({
+  contentRef,
+}: {
+  contentRef: React.RefObject<HTMLDivElement | null>
+}) {
+  useMainContentScrollLock(true)
+  useVisualViewportPin(contentRef, true)
+  return null
+}
 
 function Dialog({
   ...props
@@ -55,10 +67,13 @@ function DialogContent({
   /** Fill the viewport with safe-area margins instead of vertical centering. */
   viewport?: boolean
 }) {
+  const contentRef = React.useRef<HTMLDivElement>(null)
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={contentRef}
         data-slot="dialog-content"
         className={cn(
           'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed z-50 shadow-elevated duration-200',
@@ -69,6 +84,7 @@ function DialogContent({
         )}
         {...props}
       >
+        {viewport ? <ViewportDialogBehavior contentRef={contentRef} /> : null}
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4">
           <XIcon />

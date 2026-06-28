@@ -48,21 +48,10 @@ export function AppShellScrollLock() {
     }
 
     const visualViewport = window.visualViewport
-    let lastViewportHeight = visualViewport?.height ?? window.innerHeight
 
-    const onViewportResize = () => {
-      if (!visualViewport) return
-
-      const keyboardLikelyClosed =
-        visualViewport.height > lastViewportHeight + 80
-      lastViewportHeight = visualViewport.height
-
-      if (keyboardLikelyClosed) {
-        requestAnimationFrame(() => {
-          resetWindowScroll()
-          clampMainContentScroll()
-        })
-      }
+    const onViewportChange = () => {
+      resetWindowScroll()
+      clampMainContentScroll()
     }
 
     const onFocusOut = () => {
@@ -82,14 +71,16 @@ export function AppShellScrollLock() {
     }
 
     window.addEventListener('scroll', preventWindowScroll, { passive: true })
-    visualViewport?.addEventListener('resize', onViewportResize)
+    visualViewport?.addEventListener('resize', onViewportChange)
+    visualViewport?.addEventListener('scroll', onViewportChange)
     body.addEventListener('focusout', onFocusOut, true)
 
     resetWindowScroll()
 
     return () => {
       window.removeEventListener('scroll', preventWindowScroll)
-      visualViewport?.removeEventListener('resize', onViewportResize)
+      visualViewport?.removeEventListener('resize', onViewportChange)
+      visualViewport?.removeEventListener('scroll', onViewportChange)
       body.removeEventListener('focusout', onFocusOut, true)
       documentElement.style.overflow = previousHtmlOverflow
       body.style.overflow = previousBodyOverflow
