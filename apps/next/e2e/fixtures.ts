@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { execSync } from 'node:child_process'
 
 import { test as base, expect, type Browser, type Page } from '@playwright/test'
 
@@ -87,11 +88,39 @@ async function ensureClientSession(page: Page) {
   await dismissPortalWelcomeDialog(page)
 }
 
+export function clearE2EClientNutritionLogs() {
+  const appRoot = path.resolve(__dirname, '..')
+  execSync('node scripts/clear-e2e-nutrition-state.mjs', {
+    cwd: appRoot,
+    stdio: 'pipe',
+    env: process.env,
+  })
+}
+
+export function resetE2EMealPlanTemplate() {
+  const appRoot = path.resolve(__dirname, '..')
+  execSync('node scripts/reset-e2e-meal-plan-template.mjs', {
+    cwd: appRoot,
+    stdio: 'pipe',
+    env: process.env,
+  })
+}
+
+export async function expandCoachSidebar(page: Page) {
+  const sidebar = page.locator('aside').first()
+  await sidebar.hover()
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(200)
+}
+
 export async function expandSidebarGroup(page: Page, groupLabel: string) {
+  await expandCoachSidebar(page)
   const group = page.getByRole('button', { name: groupLabel, exact: true })
   if ((await group.getAttribute('aria-expanded')) !== 'true') {
     await group.click()
   }
+  await expect(group).toHaveAttribute('aria-expanded', 'true')
 }
 
 export async function expectSidebarLink(
@@ -103,6 +132,25 @@ export async function expectSidebarLink(
   await expect(
     page.getByRole('link', { name: linkLabel, exact: true })
   ).toBeVisible()
+}
+
+export async function collapseCoachSidebar(page: Page) {
+  const main = page.locator('main').first()
+  await main.hover()
+  const sidebar = page.locator('aside').first()
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
+    .toBeLessThanOrEqual(80)
+}
+
+export async function clickSidebarLink(
+  page: Page,
+  groupLabel: string,
+  linkLabel: string
+) {
+  await expandSidebarGroup(page, groupLabel)
+  await page.getByRole('link', { name: linkLabel, exact: true }).click()
+  await collapseCoachSidebar(page)
 }
 
 export function teamIdFromUrl(url: string) {

@@ -73,16 +73,14 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle()
 
     const role = profile?.role ?? 'coach'
-    const isCoachArea =
-      pathname === '/' ||
-      pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/clients') ||
-      pathname.startsWith('/library') ||
-      pathname.startsWith('/programs') ||
-      pathname.startsWith('/my-workouts') ||
-      pathname.startsWith('/check-ins') ||
-      pathname.startsWith('/load')
     const isPortal = pathname.startsWith('/portal')
+    const isApiRoute = pathname.startsWith('/api/')
+    const isCoachArea =
+      !isPortal &&
+      !isPublicRoute &&
+      !isMobileAuthApiRoute &&
+      !isCronApiRoute &&
+      !isApiRoute
 
     if (role === 'client' && isCoachArea) {
       const url = request.nextUrl.clone()

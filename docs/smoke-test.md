@@ -2,12 +2,13 @@
 
 Repeatable manual verification for the coach → client loop and recent features. Run after applying migrations or before a production deploy.
 
-**New since migration 0060** (sections 21–27): session scheduling, compliance dashboard, voice/broadcast messaging, team forum, exercise demo videos, onboarding automation, portal notification preferences, and web push.
+**New since migration 0060** (sections 21–28): session scheduling, compliance dashboard, voice/broadcast messaging, team forum, exercise demo videos, onboarding automation, portal notification preferences, web push, and nutrition coaching.
 
 **Prerequisites**
 
-- Migrations applied through **0074** via `yarn db:push` (or the relevant `supabase/apply-*.sql` scripts listed in [readme.md](../readme.md))
-- `yarn db:check` passes for schema through migration **0074**
+- Migrations applied through **0084** via `yarn db:push` (or the relevant `supabase/apply-*.sql` scripts listed in [readme.md](../readme.md))
+- `yarn db:check` passes for schema through migration **0084**
+- Exercise and food catalogs synced: `yarn workspace next-app sync:exercise-catalog` and `yarn workspace next-app sync:food-catalog`
 - `yarn web` running at http://localhost:3000
 
 ---
@@ -336,6 +337,47 @@ Requires migrations **0061** and **0071** for full feature set (`apply-portal-no
 - [ ] **Settings → Notifications** — toggle **Appointment reminders** and **Weekly summary**; save succeeds
 - [ ] (Optional) With `RESEND_API_KEY` configured, client email nudges cron sends reminder emails (migration **0063**)
 
+## 28. Nutrition coaching
+
+Requires migrations **0075–0079** (`apply-nutrition.sql`, `apply-food-library.sql`, or `yarn db:push`).
+
+### Coach — macro targets and profile
+
+- [ ] Open a client → **Nutrition** tab
+- [ ] Set macro targets (calories, protein, carbs, fat) → save — toast confirms
+- [ ] (Optional) Use the **TDEE calculator** to estimate targets from weight/activity → apply to form
+- [ ] Add **dietary restrictions** and **supplements** — save and confirm they persist on refresh
+- [ ] Add a **coach note** (e.g. "Focus on protein at breakfast") — note appears on refresh
+
+### Coach — meal plans
+
+- [ ] Go to **Library → Meal plans** (`/library/meal-plans`) → create a plan (or use an existing one)
+- [ ] Open the plan editor → add a day with labeled meals (breakfast, lunch, dinner)
+- [ ] Add foods via **USDA search** (type "chicken" or "oats") — food appears with macros
+- [ ] (Optional) Add a manual food entry with custom macros
+- [ ] Assign the meal plan to the client from the client **Nutrition** tab → confirm **Today's meals** section updates
+
+### Coach — food diary and adherence
+
+- [ ] On the client **Nutrition** tab, open the **Food diary** section
+- [ ] Log a food on behalf of the client (USDA search or manual entry) → toast **Food logged.**
+- [ ] Confirm the entry appears in the diary for today's date
+- [ ] Review **Adherence trends** chart after the client logs nutrition (see portal steps below)
+
+### Client portal — nutrition
+
+- [ ] Sign in as client → open **Nutrition** via the **More** menu (`/portal/nutrition`)
+- [ ] Confirm macro targets from the coach are visible
+- [ ] Log today's **adherence** (on-plan / off-plan or macro checkboxes) — save succeeds
+- [ ] Add a food to the **Food diary** via search → entry appears with meal type and macros
+- [ ] Confirm **Today's meals** from the assigned meal plan appear when a plan is active
+- [ ] With targets set and no log today: portal home shows **Log nutrition** prompt and **More → Nutrition** badge
+
+### Compliance integration
+
+- [ ] Sign in as coach → **Compliance** (`/compliance`) — client with targets but no log today shows **No nutrition log today**
+- [ ] After client logs adherence, issue clears on refresh
+
 ---
 
 ## Troubleshooting
@@ -386,10 +428,15 @@ Requires migrations **0061** and **0071** for full feature set (`apply-portal-no
 | Scheduling page fails or booking slots empty | Run [`supabase/apply-coaching-session-booking.sql`](../supabase/apply-coaching-session-booking.sql) or `yarn db:push` (0072) |
 | Appointment reminder preference missing | Run [`supabase/apply-appointment-reminders.sql`](../supabase/apply-appointment-reminders.sql) or `yarn db:push` (0073) |
 | Booking link or availability exceptions fail | Run [`supabase/apply-scheduling-improvements.sql`](../supabase/apply-scheduling-improvements.sql) or `yarn db:push` (0074) |
+| Nutrition tab or portal nutrition page fails | Run [`supabase/apply-nutrition.sql`](../supabase/apply-nutrition.sql) or `yarn db:push` (0075–0078) |
+| USDA food search empty or errors | Run `yarn workspace next-app sync:food-catalog` and [`supabase/apply-food-library.sql`](../supabase/apply-food-library.sql) or `yarn db:push` (0079) |
+| Client cannot self-book sessions | Run `yarn db:push` (0082 client booking RLS) |
+| Inbox or compliance loads slowly | Run `yarn db:push` (0083 query perf indexes); follow [`supabase-usage-48h-followup.md`](supabase-usage-48h-followup.md) |
+| Client message read receipts fail on older threads | Run `yarn db:push` (0084 client message thread insert policy) |
 | `/book/{slug}` returns 404 | Confirm `apps/next/app/book/[slug]/page.tsx` is deployed; client must use the copied booking URL |
 | Wearables page shows schema notice | Run [`supabase/apply-client-wearables.sql`](../supabase/apply-client-wearables.sql) and [`supabase/apply-client-wearable-secrets.sql`](../supabase/apply-client-wearable-secrets.sql) or `yarn db:push` (0051–0052) |
 | Delete account fails on server | Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/next/.env.local` (local) or Vercel env (production) |
 | Portal shows "No account linked" | Re-send invite or verify `clients.user_id` is set after signup |
 | Empty calendar after program assign | Confirm program calendar has workout days; re-assign with a valid start date |
 | Coach or portal 404 shows generic Next.js page | Confirm `not-found.tsx` exists under `app/(dashboard)` and `app/portal` |
-| `yarn db:check` fails | Run `npx supabase login && yarn db:link && yarn db:push` (applies through 0074) |
+| `yarn db:check` fails | Run `npx supabase login && yarn db:link && yarn db:push` (applies through 0084) |

@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0081.
+ * Verify hosted Supabase schema through migration 0084.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -744,6 +744,70 @@ await check('get_portal_session_booking_settings RPC', async () => {
   }
 })
 
+// Migration 0082 — client booking RLS helper
+await check('coach_session_booking_enabled RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/coach_session_booking_enabled`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_coach_id: '00000000-0000-0000-0000-000000000000' }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+// Migration 0083 — inbox / compliance query helpers
+await check('count_coach_unread_messages RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/count_coach_unread_messages`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_coach_id: '00000000-0000-0000-0000-000000000000' }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('get_coach_unread_by_client RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/get_coach_unread_by_client`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_coach_id: '00000000-0000-0000-0000-000000000000' }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+await check('get_coach_latest_messages RPC', async () => {
+  const res = await fetch(`${url}/rest/v1/rpc/get_coach_latest_messages`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_coach_id: '00000000-0000-0000-0000-000000000000' }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+})
+
+// Migration 0084 — client message thread insert policy (RLS; thread table already checked above)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -817,7 +881,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0081 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library, form review viewed tracking, portal session booking settings RPC).'
+  '\nSchema looks good — migrations through 0084 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library, form review viewed tracking, portal session booking settings, client booking RLS, query perf indexes, client message thread insert).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

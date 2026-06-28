@@ -2,6 +2,7 @@ import {
   test,
   expect,
   E2E_CLIENT_NAME,
+  clientRosterLink,
   expectSidebarLink,
 } from './fixtures'
 
@@ -27,9 +28,10 @@ test.describe('Coach auth and client management', () => {
 
     await expect(page.getByText('Client added')).toBeVisible({ timeout: 15_000 })
     await expect(dialog).toBeHidden({ timeout: 15_000 })
-    await expect(
-      page.locator('table').getByText(uniqueName)
-    ).toBeVisible({ timeout: 15_000 })
+    await page.getByPlaceholder('Search clients…').fill(uniqueName)
+    await expect(clientRosterLink(page, uniqueName)).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('coach dashboard loads with navigation', async ({ coachPage: page }) => {

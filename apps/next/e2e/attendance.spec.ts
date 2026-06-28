@@ -1,9 +1,8 @@
-import { test, expect, E2E_CLIENT_NAME, expandSidebarGroup } from './fixtures'
+import { test, expect, E2E_CLIENT_NAME, clickSidebarLink } from './fixtures'
 
 test.describe('Attendance', () => {
   test('coach can mark daily client presence', async ({ coachPage: page }) => {
-    await expandSidebarGroup(page, 'Clients')
-    await page.getByRole('link', { name: 'Attendance', exact: true }).click()
+    await clickSidebarLink(page, 'Clients', 'Attendance')
     await expect(page.getByRole('heading', { name: 'Attendance' })).toBeVisible()
 
     const clientRow = page.getByRole('listitem').filter({ hasText: E2E_CLIENT_NAME })
@@ -97,8 +96,7 @@ test.describe('Attendance', () => {
       .click()
     await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
 
-    await expandSidebarGroup(page, 'Clients')
-    await page.getByRole('link', { name: 'Attendance', exact: true }).click()
+    await clickSidebarLink(page, 'Clients', 'Attendance')
     await page
       .locator('div')
       .filter({ has: page.getByText('Filter by team') })

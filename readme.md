@@ -69,13 +69,13 @@ Wearables integrations are scaffolded (Whoop, Apple Health) but not yet live —
    ```sh
    npx supabase login && yarn db:link && yarn db:push
    ```
-   This applies all migrations in `supabase/migrations/` (currently **0001–0079**). For one-off patches without the CLI, see the apply scripts below.
-5. Verify schema: `yarn db:check` (checks tables through migration **0079**)
+   This applies all migrations in `supabase/migrations/` (currently **0001–0084**). For one-off patches without the CLI, see the apply scripts below.
+5. Verify schema: `yarn db:check` (checks tables through migration **0084**)
 6. Deploy, then run the [smoke test checklist](docs/smoke-test.md).
 
 ### Migration order (hosted Supabase)
 
-**Preferred:** `yarn db:push` applies migrations 0001–0079 in order.
+**Preferred:** `yarn db:push` applies migrations 0001–0084 in order.
 
 If not using the CLI, run scripts in Supabase Dashboard → SQL. Core foundation (0002–0016):
 
@@ -254,7 +254,7 @@ yarn workspace next-app test:e2e
 |---------|-------------|
 | `yarn web` | Start Next.js dev server |
 | `yarn native` | Start Expo dev client |
-| `yarn db:check` | Verify hosted Supabase schema (migrations through 0074) |
+| `yarn db:check` | Verify hosted Supabase schema (migrations through 0084) |
 | `yarn db:push` | Push migrations via Supabase CLI |
 | `yarn workspace next-app build` | Production build |
 | `yarn workspace next-app check:supabase` | Test Supabase connection |

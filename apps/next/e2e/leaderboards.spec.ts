@@ -1,11 +1,10 @@
-import { test, expect, expandSidebarGroup, E2E_CLIENT_NAME } from './fixtures'
+import { test, expect, clickSidebarLink, E2E_CLIENT_NAME } from './fixtures'
 
 test.describe('Leaderboards', () => {
   test('coach can open leaderboards and switch categories', async ({
     coachPage: page,
   }) => {
-    await expandSidebarGroup(page, 'Clients')
-    await page.getByRole('link', { name: 'Leaderboards', exact: true }).click()
+    await clickSidebarLink(page, 'Clients', 'Leaderboards')
     await expect(page.getByRole('heading', { name: 'Leaderboards' })).toBeVisible()
 
     await expect(page.getByText('Roster leaderboard')).toBeVisible()
@@ -28,8 +27,7 @@ test.describe('Leaderboards', () => {
   test('coach sees Wilks / DOTS score for seeded athlete', async ({
     coachPage: page,
   }) => {
-    await expandSidebarGroup(page, 'Clients')
-    await page.getByRole('link', { name: 'Leaderboards', exact: true }).click()
+    await clickSidebarLink(page, 'Clients', 'Leaderboards')
     await page.getByRole('button', { name: 'Wilks / DOTS' }).click()
     await expect(page).toHaveURL(/metric=relative_strength/)
 

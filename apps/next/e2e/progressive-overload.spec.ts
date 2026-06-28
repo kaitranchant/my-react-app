@@ -1,11 +1,10 @@
-import { test, expect, expectSidebarLink } from './fixtures'
+import { test, expect, expectSidebarLink, clickSidebarLink } from './fixtures'
 
 test.describe('Progressive overload', () => {
   test('coach progressive overload inbox loads without schema errors', async ({
     coachPage: page,
   }) => {
-    await expectSidebarLink(page, 'Programming', 'Prog. Overload')
-    await page.getByRole('link', { name: 'Prog. Overload', exact: true }).click()
+    await clickSidebarLink(page, 'Programming', 'Prog. Overload')
 
     await expect(page).toHaveURL(/\/progressive-overload/, { timeout: 15_000 })
     await expect(

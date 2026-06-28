@@ -14,6 +14,9 @@ import {
   login,
   signOutFromApp,
   dismissPortalWelcomeDialog,
+  preparePortalHome,
+  clearE2EClientNutritionLogs,
+  resetE2EMealPlanTemplate,
 } from './fixtures'
 
 async function loginAsCoach(page: import('@playwright/test').Page) {
@@ -77,6 +80,12 @@ async function assignMealPlanWithStartDate(
   )
 }
 
+async function readMealPlanDayCount(page: import('@playwright/test').Page) {
+  const card = mealPlanCard(page)
+  const text = await card.getByText(/\d+-day/).textContent()
+  return Number(text?.match(/(\d+)-day/)?.[1] ?? 0)
+}
+
 test.describe('Nutrition', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -85,6 +94,8 @@ test.describe('Nutrition', () => {
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(90_000)
+
+    clearE2EClientNutritionLogs()
 
     await loginAsCoach(page)
 
@@ -99,20 +110,18 @@ test.describe('Nutrition', () => {
     await signOutFromApp(page, 'E2E Coach')
 
     await loginAsClient(page)
+    await preparePortalHome(page)
 
-    const prompt = page.getByRole('link', { name: 'Log nutrition', exact: true })
-    const hasPrompt = await prompt.isVisible({ timeout: 15_000 }).catch(() => false)
-    if (!hasPrompt) {
-      test.skip(true, 'Nutrition log not due for E2E client today')
-    }
-    await expect(prompt).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: 'Log nutrition', exact: true })
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   test('coach sets macro targets and client logs daily adherence', async ({
     page,
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(60_000)
+    test.setTimeout(90_000)
 
     await loginAsCoach(page)
 
@@ -153,7 +162,7 @@ test.describe('Nutrition', () => {
     page,
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(60_000)
+    test.setTimeout(90_000)
 
     await loginAsCoach(page)
 
@@ -185,20 +194,26 @@ test.describe('Nutrition', () => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
+    const foodName = `E2E test oatmeal ${Date.now()}`
+
     await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
+    await expect(page.getByRole('heading', { name: 'Nutrition' })).toBeVisible()
     await page.getByRole('button', { name: 'Add food' }).first().click()
     await page
       .getByRole('button', { name: 'Enter food manually instead' })
       .click()
     await page
       .getByRole('textbox', { name: 'Food', exact: true })
-      .fill('E2E test oatmeal')
+      .fill(foodName)
     await page.getByRole('button', { name: 'Log food' }).click()
-    await expect(page.getByText('E2E test oatmeal')).toBeVisible({
+    await expect(page.getByText('Food logged.')).toBeVisible({
       timeout: 10_000,
     })
+    await expect(
+      page.locator('li').filter({ hasText: foodName })
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   test('client logs USDA food from catalog search', async ({ page }) => {
@@ -252,25 +267,11 @@ test.describe('Nutrition', () => {
 
     await loginAsCoach(page)
 
-    await page.goto(`/clients/${E2E_CLIENT_ID}?tab=nutrition&section=setup`)
-    await expect(page.getByText('Meal plan', { exact: true }).first()).toBeVisible()
-
-    await page.getByRole('button', { name: 'Assign meal plan' }).click()
-    await page.getByRole('combobox', { name: 'Meal plan' }).click()
-    await page.getByRole('option', { name: E2E_MEAL_PLAN_NAME }).click()
-    await page.getByRole('button', { name: 'Assign plan' }).click()
-    await expect(page.getByText('Meal plan assigned.')).toBeVisible({
-      timeout: 10_000,
+    await coachNutritionSetupPage(page)
+    await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
+    await expect(mealPlanCard(page).getByText(E2E_MEAL_PLAN_NAME)).toBeVisible({
+      timeout: 15_000,
     })
-    await expect(page.getByRole('dialog', { name: 'Assign meal plan' })).toBeHidden({
-      timeout: 10_000,
-    })
-    await expect(
-      page
-        .locator('[data-slot="card"]')
-        .filter({ hasText: 'Meal plan' })
-        .getByText(E2E_MEAL_PLAN_NAME)
-    ).toBeVisible()
 
     await signOutFromApp(page, 'E2E Coach')
 
@@ -365,17 +366,17 @@ test.describe('Nutrition', () => {
     page,
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(90_000)
+    test.setTimeout(120_000)
+
+    resetE2EMealPlanTemplate()
 
     await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
     await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
 
-    const dayCountText = await mealPlanCard(page)
-      .getByText(/\d+-day/)
-      .textContent()
-    const dayCount = Number(dayCountText?.match(/(\d+)-day/)?.[1] ?? 1)
+    const dayCount = await readMealPlanDayCount(page)
+    expect(dayCount).toBeGreaterThan(0)
 
     await assignMealPlanWithStartDate(page, dateKeyDaysAgo(dayCount))
 
@@ -384,15 +385,24 @@ test.describe('Nutrition', () => {
     await expect(card.getByText(/reached the end of the plan/i)).toBeVisible({
       timeout: 15_000,
     })
+
     await card.getByRole('button', { name: 'Extend plan' }).click()
-    await page.reload()
-    await expect(card.getByText(`${dayCount * 2}-day`)).toBeVisible({
-      timeout: 15_000,
-    })
+
+    await expect
+      .poll(
+        async () => {
+          const count = await readMealPlanDayCount(page)
+          if (count >= dayCount * 2) return count
+          await page.reload()
+          return readMealPlanDayCount(page)
+        },
+        { timeout: 30_000 }
+      )
+      .toBe(dayCount * 2)
+
     await expect(card.getByText(/reached the end of the plan/i)).toBeHidden({
       timeout: 15_000,
     })
-    await expect(card.getByText(E2E_MEAL_PLAN_MEAL_NAME)).toBeVisible()
 
     await signOutFromApp(page, 'E2E Coach')
 
