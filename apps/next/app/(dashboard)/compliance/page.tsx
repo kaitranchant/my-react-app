@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { ComplianceDashboard } from '@/components/compliance/compliance-dashboard'
 import { ComplianceDashboardSkeleton } from '@/components/compliance/compliance-dashboard-skeleton'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import {
   fetchAttendanceClients,
   fetchCoachTeams,
@@ -28,6 +29,7 @@ import {
 } from '@/lib/compliance'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 
 export const metadata = {
   title: 'Compliance — Coaching App',
@@ -44,6 +46,19 @@ export default async function CompliancePage({
     client?: string
   }>
 }) {
+  const gate = await getSubscriptionGate('compliance')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-7xl flex-col gap-8">
+        <PageHeader
+          title="Compliance"
+          description="One place to see who needs a nudge — missed workouts, overdue check-ins, unread messages, and load flags."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const {
     scope: scopeParam,
     team: teamParam,

@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from 'app/types/database'
 
-const PUBLIC_ROUTES = ['/login', '/signup', '/auth', '/book']
+const PUBLIC_ROUTES = ['/login', '/signup', '/auth', '/book', '/pricing']
 const MOBILE_AUTH_API_ROUTES = ['/api/wearables/apple-health/sync']
 const CRON_API_ROUTES = ['/api/cron']
+const PUBLIC_API_ROUTES = ['/api/stripe/webhook']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -46,8 +47,11 @@ export async function updateSession(request: NextRequest) {
   const isCronApiRoute = CRON_API_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   )
+  const isPublicApiRoute = PUBLIC_API_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  )
 
-  if (!user && !isPublicRoute && !isMobileAuthApiRoute && !isCronApiRoute) {
+  if (!user && !isPublicRoute && !isMobileAuthApiRoute && !isCronApiRoute && !isPublicApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -80,6 +84,7 @@ export async function updateSession(request: NextRequest) {
       !isPublicRoute &&
       !isMobileAuthApiRoute &&
       !isCronApiRoute &&
+      !isPublicApiRoute &&
       !isApiRoute
 
     if (role === 'client' && isCoachArea) {

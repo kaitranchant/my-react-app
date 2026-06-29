@@ -17,6 +17,7 @@ import {
   type InviteClientValues,
 } from '@/lib/validations/client'
 import type { ClientCoachingType, ClientStatus } from 'app/types/database'
+import { getCoachSubscriptionContext, assertCanAddClient } from '@/lib/subscription-entitlements'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
@@ -143,6 +144,12 @@ export async function createClientRecord(
     return { success: false, error: gymResult.error }
   }
 
+  const subscriptionContext = await getCoachSubscriptionContext(supabase, user.id)
+  const clientLimitCheck = assertCanAddClient(subscriptionContext)
+  if (!clientLimitCheck.ok) {
+    return { success: false, error: clientLimitCheck.error }
+  }
+
   const { data: clientId, error } = await supabase.rpc('coach_create_client', {
     p_full_name: parsed.data.fullName,
     p_email: parsed.data.email ?? '',
@@ -266,6 +273,12 @@ export async function inviteClientRecord(
   const gymResult = await resolveGymIdForCreate(user.id, parsed.data.gymId)
   if ('error' in gymResult) {
     return { success: false, error: gymResult.error }
+  }
+
+  const subscriptionContext = await getCoachSubscriptionContext(supabase, user.id)
+  const clientLimitCheck = assertCanAddClient(subscriptionContext)
+  if (!clientLimitCheck.ok) {
+    return { success: false, error: clientLimitCheck.error }
   }
 
   const { data, error } = await supabase

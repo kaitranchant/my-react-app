@@ -7,6 +7,7 @@ import {
   PageFilterPersistence,
 } from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { LoadDashboard } from '@/components/load/load-dashboard'
 import {
   fetchAttendanceClients,
@@ -17,6 +18,7 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchCoachLoadSummaries } from '@/lib/load-queries'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 
 export const metadata = {
   title: 'Load Management — Coaching App',
@@ -27,6 +29,19 @@ export default async function LoadPage({
 }: {
   searchParams: Promise<{ client?: string; scope?: string; team?: string }>
 }) {
+  const gate = await getSubscriptionGate('load_management')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <PageHeader
+          title="Load Management"
+          description="Weekly volume, ACWR, and training load across your roster."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const {
     client: initialClientId,
     scope: scopeParam,

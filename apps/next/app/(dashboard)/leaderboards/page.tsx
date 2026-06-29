@@ -10,6 +10,7 @@ import {
   PageFilterPersistence,
 } from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { LeaderboardCategoryTabs } from '@/components/leaderboards/leaderboard-category-tabs'
 import { LeaderboardFormulaTabs } from '@/components/leaderboards/leaderboard-formula-tabs'
 import { LeaderboardPeriodTabs } from '@/components/leaderboards/leaderboard-period-tabs'
@@ -29,6 +30,7 @@ import {
 } from '@/lib/leaderboard-queries'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 import {
   parseLeaderboardExerciseId,
   parseLeaderboardFormula,
@@ -54,6 +56,19 @@ export default async function LeaderboardsPage({
     class?: string
   }>
 }) {
+  const gate = await getSubscriptionGate('leaderboards')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <PageHeader
+          title="Leaderboards"
+          description="Rank clients by strength, consistency, volume, and improvement."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const {
     scope: scopeParam,
     team: teamParam,

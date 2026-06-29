@@ -1,4 +1,7 @@
+import { BillingSettings } from '@/components/settings/billing-settings'
 import { createClient } from '@/lib/supabase/server'
+import { getCoachSubscriptionContext } from '@/lib/subscription-entitlements'
+import { isStripeConfigured } from '@/lib/stripe/config'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccountSettings } from '@/components/settings/account-settings'
 import { AppearanceSettings } from '@/components/settings/appearance-settings'
@@ -18,7 +21,12 @@ export const metadata = {
   title: 'Settings — Coaching App',
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>
+}) {
+  const { checkout } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -27,7 +35,7 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_onboarding_program_id, onboarding_welcome_template_id, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders'
+      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_onboarding_program_id, onboarding_welcome_template_id, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders, stripe_customer_id'
     )
     .eq('id', user!.id)
     .single()
@@ -51,6 +59,7 @@ export default async function SettingsPage() {
     defaultOnboardingProgramId: profile?.default_onboarding_program_id ?? '',
     onboardingWelcomeTemplateId: profile?.onboarding_welcome_template_id ?? '',
   }
+  const subscriptionContext = await getCoachSubscriptionContext(supabase, user!.id)
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -113,6 +122,19 @@ export default async function SettingsPage() {
               emailDeliveryEnabled={isEmailDeliveryConfigured()}
             />
             <WebPushSettings role="coach" />
+          </SettingsSection>
+
+          <SettingsSection
+            id="billing"
+            title="Billing"
+            description="Your plan, client usage, and upgrade options."
+          >
+            <BillingSettings
+              context={subscriptionContext}
+              stripeEnabled={isStripeConfigured()}
+              hasStripeCustomer={Boolean(profile?.stripe_customer_id)}
+              checkoutSuccess={checkout === 'success'}
+            />
           </SettingsSection>
 
           <SettingsSection

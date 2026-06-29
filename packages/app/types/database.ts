@@ -5,6 +5,13 @@ export type ClientInviteStatus = 'not_invited' | 'pending' | 'accepted'
 export type GymMemberRole = 'owner' | 'coach'
 export type GymMemberStatus = 'active' | 'pending'
 export type GymInviteStatus = 'pending' | 'accepted' | 'revoked'
+export type SubscriptionPlan = 'starter' | 'growth' | 'scale' | 'facility'
+export type SubscriptionStatus =
+  | 'active'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled'
+  | 'incomplete'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
 export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
 export type MealPlanStatus = 'draft' | 'active' | 'archived'
@@ -197,6 +204,11 @@ export type Database = {
           booking_max_days_ahead: number
           default_session_location: string | null
           booking_requires_session_pack: boolean
+          subscription_plan: SubscriptionPlan
+          subscription_status: SubscriptionStatus | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_current_period_end: string | null
           created_at: string
           updated_at: string
         }
@@ -236,6 +248,11 @@ export type Database = {
           booking_max_days_ahead?: number
           default_session_location?: string | null
           booking_requires_session_pack?: boolean
+          subscription_plan?: SubscriptionPlan
+          subscription_status?: SubscriptionStatus | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_current_period_end?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -275,6 +292,11 @@ export type Database = {
           booking_max_days_ahead?: number
           default_session_location?: string | null
           booking_requires_session_pack?: boolean
+          subscription_plan?: SubscriptionPlan
+          subscription_status?: SubscriptionStatus | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_current_period_end?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -460,6 +482,53 @@ export type Database = {
             columns: ['created_by']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gym_subscriptions: {
+        Row: {
+          id: string
+          gym_id: string
+          plan: SubscriptionPlan
+          status: SubscriptionStatus
+          included_coach_seats: number
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          current_period_end: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          gym_id: string
+          plan?: SubscriptionPlan
+          status?: SubscriptionStatus
+          included_coach_seats?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_end?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          gym_id?: string
+          plan?: SubscriptionPlan
+          status?: SubscriptionStatus
+          included_coach_seats?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_end?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gym_subscriptions_gym_id_fkey'
+            columns: ['gym_id']
+            isOneToOne: true
+            referencedRelation: 'gyms'
             referencedColumns: ['id']
           },
         ]
@@ -3321,6 +3390,8 @@ export type Database = {
       gym_member_role: GymMemberRole
       gym_member_status: GymMemberStatus
       gym_invite_status: GymInviteStatus
+      subscription_plan: SubscriptionPlan
+      subscription_status: SubscriptionStatus
       weight_unit: WeightUnit
       week_starts_on: WeekStartsOn
       check_in_frequency: CheckInFrequency
@@ -3425,6 +3496,10 @@ export type GymInsert = Database['public']['Tables']['gyms']['Insert']
 export type GymUpdate = Database['public']['Tables']['gyms']['Update']
 export type GymMember = Database['public']['Tables']['gym_members']['Row']
 export type GymMemberInsert = Database['public']['Tables']['gym_members']['Insert']
+export type GymSubscription =
+  Database['public']['Tables']['gym_subscriptions']['Row']
+export type GymSubscriptionInsert =
+  Database['public']['Tables']['gym_subscriptions']['Insert']
 export type GymInvite = Database['public']['Tables']['gym_invites']['Row']
 
 export type GymMemberWithProfile = GymMember & {

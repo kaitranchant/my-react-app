@@ -25,6 +25,49 @@ export function clampMainContentScroll() {
   }
 }
 
+/** Scroll within #main-content instead of the document (fixed app shell). */
+export function scrollElementIntoMainContent(
+  element: HTMLElement,
+  options: { behavior?: ScrollBehavior; block?: 'start' | 'center' | 'end' } = {}
+) {
+  const main = document.getElementById('main-content')
+  const { behavior = 'smooth', block = 'start' } = options
+
+  if (!main) {
+    element.scrollIntoView({ behavior, block })
+    return
+  }
+
+  resetWindowScroll()
+
+  const scrollMarginTop =
+    Number.parseFloat(getComputedStyle(element).scrollMarginTop) || 0
+  const mainRect = main.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  const relativeTop =
+    elementRect.top - mainRect.top + main.scrollTop - scrollMarginTop
+
+  let targetScroll: number
+  switch (block) {
+    case 'center':
+      targetScroll =
+        relativeTop - (main.clientHeight - elementRect.height) / 2
+      break
+    case 'end':
+      targetScroll = relativeTop - main.clientHeight + elementRect.height
+      break
+    default:
+      targetScroll = relativeTop
+  }
+
+  const maxScroll = Math.max(0, main.scrollHeight - main.clientHeight)
+  main.scrollTo({
+    top: Math.min(Math.max(0, targetScroll), maxScroll),
+    behavior,
+  })
+  clampMainContentScroll()
+}
+
 function isKeyboardOpen() {
   const visualViewport = window.visualViewport
   if (!visualViewport) return false
@@ -70,6 +113,7 @@ export function burstStabilizeViewportScroll(durationMs = 500) {
 
 export function installAppViewportSync() {
   const visualViewport = window.visualViewport
+  const main = document.getElementById('main-content')
   let keyboardWasOpen = isKeyboardOpen()
 
   const onViewportChange = () => {
@@ -85,13 +129,36 @@ export function installAppViewportSync() {
     keyboardWasOpen = keyboardOpen
   }
 
+  const onWindowScroll = () => {
+    resetWindowScroll()
+    clampMainContentScroll()
+  }
+
+  const onMainScroll = () => {
+    clampMainContentScroll()
+  }
+
+  const onFocusIn = (event: FocusEvent) => {
+    const target = event.target
+    if (!(target instanceof Node) || !main?.contains(target)) return
+
+    requestAnimationFrame(() => {
+      clampMainContentScroll()
+      resetWindowScroll()
+    })
+  }
+
   stabilizeViewportScroll()
-  window.addEventListener('scroll', resetWindowScroll, { passive: true })
+  window.addEventListener('scroll', onWindowScroll, { passive: true })
+  main?.addEventListener('scroll', onMainScroll, { passive: true })
+  main?.addEventListener('focusin', onFocusIn)
   visualViewport?.addEventListener('resize', onViewportChange)
   visualViewport?.addEventListener('scroll', onViewportChange)
 
   return () => {
-    window.removeEventListener('scroll', resetWindowScroll)
+    window.removeEventListener('scroll', onWindowScroll)
+    main?.removeEventListener('scroll', onMainScroll)
+    main?.removeEventListener('focusin', onFocusIn)
     visualViewport?.removeEventListener('resize', onViewportChange)
     visualViewport?.removeEventListener('scroll', onViewportChange)
 

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { AvailabilityExceptionsPanel } from '@/components/scheduling/availability-exceptions-panel'
 import { AvailabilityGridEditor } from '@/components/scheduling/availability-grid-editor'
 import { BookAppointmentDialog } from '@/components/scheduling/book-appointment-dialog'
@@ -25,6 +26,7 @@ import { addDaysToDateKey, parseDateKey } from '@/lib/calendar'
 import { getCoachDateKeyFromReference } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToFormValues } from '@/lib/session-booking-types'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 import { parseSchedulingViewMode } from '@/lib/validations/session-booking'
 
 export const metadata = {
@@ -36,6 +38,19 @@ export default async function SchedulingPage({
 }: {
   searchParams: Promise<{ view?: string; week?: string }>
 }) {
+  const gate = await getSubscriptionGate('scheduling')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <PageHeader
+          title="Scheduling"
+          description="Manage coach availability, book 1:1 sessions, and track session packs."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const { view: viewParam, week: weekParam } = await searchParams
   const view = parseSchedulingViewMode(viewParam)
 

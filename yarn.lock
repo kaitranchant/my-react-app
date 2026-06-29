@@ -10128,6 +10128,7 @@ __metadata:
     react-native-worklets: "npm:0.5.1"
     resend: "npm:^6.14.0"
     sonner: "npm:^2.0.7"
+    stripe: "npm:^22.3.0"
     tailwind-merge: "npm:^3.6.0"
     tailwindcss: "npm:^4"
     tsx: "npm:^4.22.4"
@@ -12343,6 +12344,18 @@ __metadata:
   version: 2.0.1
   resolution: "strip-json-comments@npm:2.0.1"
   checksum: 10/1074ccb63270d32ca28edfb0a281c96b94dc679077828135141f27d52a5a398ef5e78bcf22809d23cadc2b81dfbe345eb5fd8699b385c8b1128907dec4a7d1e1
+  languageName: node
+  linkType: hard
+
+"stripe@npm:^22.3.0":
+  version: 22.3.0
+  resolution: "stripe@npm:22.3.0"
+  peerDependencies:
+    "@types/node": ">=18"
+  peerDependenciesMeta:
+    "@types/node":
+      optional: true
+  checksum: 10/8fdde162dea0a7bde7158df7fe8767fd96ae43fda6b61c5acbfedbe08febad884e349938bac2e00f8c3bd7b3890574197f7f04016311db61bb2584bf6ab906f2
   languageName: node
   linkType: hard
 

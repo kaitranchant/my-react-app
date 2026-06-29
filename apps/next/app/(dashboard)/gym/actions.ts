@@ -12,13 +12,21 @@ import {
   buildGymInviteUrl,
   buildGymJoinUrl,
 } from '@/lib/invite'
-import { createClient } from '@/lib/supabase/server'
+import {
+  assertCanCreateGym,
+  countGymCoachSeats,
+  getCoachSubscriptionContext,
+  getGymSubscription,
+  hasActiveFacilitySubscription,
+  canInviteGymCoach,
+} from '@/lib/subscription-entitlements'
 import {
   gymFormSchema,
   inviteCoachSchema,
   type GymFormValues,
   type InviteCoachValues,
 } from '@/lib/validations/gym'
+import { createClient } from '@/lib/supabase/server'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
@@ -72,6 +80,12 @@ export async function createGymRecord(
 
   const { supabase, user } = await requireUser()
 
+  const subscriptionContext = await getCoachSubscriptionContext(supabase, user.id)
+  const gymAccess = assertCanCreateGym(subscriptionContext)
+  if (!gymAccess.ok) {
+    return { success: false, error: gymAccess.error }
+  }
+
   const { data: gym, error: gymError } = await supabase
     .from('gyms')
     .insert({
@@ -95,6 +109,25 @@ export async function createGymRecord(
   if (memberError) {
     await supabase.from('gyms').delete().eq('id', gym.id)
     return { success: false, error: memberError.message }
+  }
+
+  if (subscriptionContext.personalPlan === 'facility') {
+    const { data: billingProfile } = await supabase
+      .from('profiles')
+      .select(
+        'stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_end'
+      )
+      .eq('id', user.id)
+      .single()
+
+    await supabase.from('gym_subscriptions').insert({
+      gym_id: gym.id,
+      plan: 'facility',
+      status: billingProfile?.subscription_status ?? 'active',
+      stripe_customer_id: billingProfile?.stripe_customer_id ?? null,
+      stripe_subscription_id: billingProfile?.stripe_subscription_id ?? null,
+      current_period_end: billingProfile?.subscription_current_period_end ?? null,
+    })
   }
 
   revalidateGym()
@@ -143,6 +176,23 @@ export async function inviteCoachToGym(
   const { supabase, user, gymContext, error } = await requireGymOwner(gymId)
   if (error || !gymContext) {
     return { success: false, error: error ?? 'Gym not found.' }
+  }
+
+  const gymSubscription = await getGymSubscription(supabase, gymContext.gym.id)
+  if (!hasActiveFacilitySubscription(gymSubscription)) {
+    return {
+      success: false,
+      error:
+        'Coach invites require an active Facility subscription. View pricing to upgrade.',
+    }
+  }
+
+  const seatCount = await countGymCoachSeats(supabase, gymContext.gym.id)
+  if (!canInviteGymCoach(seatCount, gymSubscription)) {
+    return {
+      success: false,
+      error: 'Could not invite coach. Check your Facility subscription.',
+    }
   }
 
   const email = parsed.data.email.toLowerCase()

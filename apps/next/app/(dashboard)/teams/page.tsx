@@ -5,6 +5,7 @@ import { Flag, Plus } from 'lucide-react'
 import { ScopeTabsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 import { FetchErrorState } from '@/components/ui/fetch-error-state'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 import { getGymsForCoach } from '@/lib/gym-access'
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { ClientsScopeTabs } from '@/components/clients/clients-scope-tabs'
 import { ClientGymBadge } from '@/components/gym/client-gym-badge'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
@@ -56,6 +58,19 @@ export default async function TeamsPage({
 }: {
   searchParams: Promise<{ q?: string; scope?: string }>
 }) {
+  const gate = await getSubscriptionGate('teams')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <PageHeader
+          title="Teams"
+          description="Group clients who share the same workout program and calendar."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const { q, scope: scopeParam } = await searchParams
   const supabase = await createClient()
   const {

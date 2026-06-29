@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0084.
+ * Verify hosted Supabase schema through migration 0086.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -808,6 +808,10 @@ await check('get_coach_latest_messages RPC', async () => {
 
 // Migration 0084 — client message thread insert policy (RLS; thread table already checked above)
 
+await checkRestTable('profiles.subscription_plan column', '/rest/v1/profiles?select=subscription_plan&limit=1')
+await checkRestTable('gym_subscriptions table', '/rest/v1/gym_subscriptions?select=id&limit=1')
+await checkRestTable('profiles.stripe_customer_id column', '/rest/v1/profiles?select=stripe_customer_id&limit=1')
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {
@@ -873,6 +877,8 @@ if (failed) {
   console.error('       supabase/apply-scheduling-improvements.sql   (0074 scheduling improvements)')
   console.error('       supabase/apply-nutrition.sql                 (0075–0078 nutrition + meal plans)')
   console.error('       supabase/apply-food-library.sql              (0079 food library + diary refs)')
+  console.error('       supabase/apply-subscriptions.sql             (0085 subscriptions)')
+  console.error('       supabase/apply-stripe-billing.sql            (0086 Stripe billing)')
   console.error('     Migrations 0065–0068 (message media, broadcasts, forum, realtime) — use yarn db:push.')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
@@ -881,7 +887,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0084 (portal notifications, email nudges, message templates, voice/broadcast messaging, team forum, onboarding automation, exercise demos, web push, session scheduling, appointment reminders, nutrition coaching, meal plans, food library, form review viewed tracking, portal session booking settings, client booking RLS, query perf indexes, client message thread insert).'
+  '\nSchema looks good — migrations through 0086 (subscriptions, Stripe billing fields on profiles).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

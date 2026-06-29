@@ -1,6 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
+
 import { cn } from '@/lib/utils'
+import { scrollElementIntoMainContent } from '@/lib/visual-viewport/app-viewport'
 
 const baseSections = [
   { id: 'profile', label: 'Profile' },
@@ -17,7 +20,7 @@ function scrollToSection(id: string) {
   if (!target) return
 
   window.history.replaceState(null, '', `#${id}`)
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  scrollElementIntoMainContent(target, { behavior: 'smooth', block: 'start' })
 }
 
 type PortalSettingsNavProps = {
@@ -29,6 +32,16 @@ export function PortalSettingsNav({
   showProfile = true,
   showLeaderboard = false,
 }: PortalSettingsNavProps) {
+  useEffect(() => {
+    const id = window.location.hash.replace(/^#/, '')
+    if (!id) return
+
+    const target = document.getElementById(id)
+    if (target) {
+      scrollElementIntoMainContent(target, { behavior: 'instant', block: 'start' })
+    }
+  }, [])
+
   const sections = [
     ...(showProfile ? [baseSections[0]] : []),
     baseSections[1],

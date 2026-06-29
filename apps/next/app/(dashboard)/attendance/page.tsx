@@ -11,6 +11,7 @@ import {
   PageFilterPersistence,
 } from '@/components/filters/page-filter-persistence'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { computeClientAttendanceStats } from '@/lib/attendance-stats'
 import {
   buildClientRsvpHintsByClientId,
@@ -30,6 +31,7 @@ import { getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
+import { getSubscriptionGate } from '@/lib/subscription-server'
 import { parseAttendanceViewMode } from '@/lib/validations/attendance'
 import type { ClientAttendanceStats } from '@/lib/attendance-stats'
 
@@ -47,6 +49,19 @@ export default async function AttendancePage({
     view?: string
   }>
 }) {
+  const gate = await getSubscriptionGate('attendance')
+  if (!gate.allowed) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <PageHeader
+          title="Attendance"
+          description="Daily roll call and weekly attendance across clients and teams."
+        />
+        <UpgradePrompt gate={gate} />
+      </div>
+    )
+  }
+
   const {
     date: dateParam,
     scope: scopeParam,
