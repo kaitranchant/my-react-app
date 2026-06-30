@@ -8,6 +8,45 @@ import type { WorkoutLogKeypadField } from '@/lib/workout-log-keypad'
 
 import { useWorkoutLogKeypad } from './workout-log-keypad-context'
 
+const TAP_MOVE_THRESHOLD_PX = 10
+
+function useTapToOpen(onTap: () => void, disabled = false) {
+  const startRef = React.useRef<{ x: number; y: number } | null>(null)
+  const cancelledRef = React.useRef(false)
+
+  return React.useMemo(
+    () => ({
+      onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (disabled) return
+        startRef.current = { x: event.clientX, y: event.clientY }
+        cancelledRef.current = false
+      },
+      onPointerMove: (event: React.PointerEvent<HTMLButtonElement>) => {
+        const start = startRef.current
+        if (!start || cancelledRef.current) return
+        const dx = event.clientX - start.x
+        const dy = event.clientY - start.y
+        if (Math.hypot(dx, dy) > TAP_MOVE_THRESHOLD_PX) {
+          cancelledRef.current = true
+        }
+      },
+      onPointerUp: () => {
+        if (disabled || cancelledRef.current || !startRef.current) {
+          startRef.current = null
+          return
+        }
+        startRef.current = null
+        onTap()
+      },
+      onPointerCancel: () => {
+        startRef.current = null
+        cancelledRef.current = true
+      },
+    }),
+    [disabled, onTap]
+  )
+}
+
 type WorkoutLogSetFieldProps = {
   exerciseId: string
   setNumber: number
@@ -33,6 +72,16 @@ export function WorkoutLogSetField({
 }: WorkoutLogSetFieldProps) {
   const keypad = useWorkoutLogKeypad()
   const cellRef = React.useRef<HTMLButtonElement>(null)
+
+  const openKeypad = React.useCallback(() => {
+    if (!keypad?.enabled || disabled) return
+    keypad.openField({ exerciseId, setNumber, field }, cellRef.current)
+  }, [disabled, exerciseId, field, keypad, setNumber])
+
+  const tapHandlers = useTapToOpen(
+    openKeypad,
+    disabled || !keypad?.enabled
+  )
 
   if (!keypad?.enabled || disabled) {
     const inputMode =
@@ -65,16 +114,9 @@ export function WorkoutLogSetField({
       data-workout-log-field={`${exerciseId}:${setNumber}:${field}`}
       aria-label={ariaLabel}
       aria-selected={isActive}
-      onPointerDown={(event) => {
-        event.preventDefault()
-        if (disabled) return
-        keypad.openField(
-          { exerciseId, setNumber, field },
-          cellRef.current
-        )
-      }}
+      {...tapHandlers}
       className={cn(
-        'bg-background flex h-9 min-w-0 items-center justify-center rounded-lg border px-1.5 text-center text-base font-medium transition-[color,box-shadow] outline-none sm:h-10 sm:px-2 sm:text-sm',
+        'bg-background flex h-9 min-w-0 touch-pan-y items-center justify-center rounded-lg border px-1.5 text-center text-base font-medium transition-[color,box-shadow] outline-none sm:h-10 sm:px-2 sm:text-sm',
         isActive
           ? 'border-brand ring-brand/40 ring-2'
           : 'border-input hover:bg-muted/40',
