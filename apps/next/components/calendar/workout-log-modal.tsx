@@ -1521,7 +1521,7 @@ export function WorkoutLogScreen({
       wasLoggingActiveRef.current = true
       return () => {
         if (!leavingPageRef.current) {
-          void pauseWorkout()
+          void flushOnClose({ notifyParent: false })
         }
       }
     }
@@ -1529,10 +1529,10 @@ export function WorkoutLogScreen({
     if (wasLoggingActiveRef.current) {
       wasLoggingActiveRef.current = false
       if (!leavingPageRef.current) {
-        void pauseWorkout()
+        void flushOnClose({ notifyParent: false })
       }
     }
-  }, [active, pauseWorkout])
+  }, [active])
 
   React.useEffect(() => {
     maybeTriggerWorkoutComplete(exerciseState)

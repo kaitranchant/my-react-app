@@ -500,12 +500,13 @@ export function buildSetDrafts(
   previousSets: Record<number, PreviousSetLog> = {},
   personalBest: ExercisePersonalBest | null = null
 ): WorkoutLogSetDraft[] {
+  const fields = getLogFieldsForExercise(exercise)
   const setCount = getEffectiveSetCount(exercise, existingSets)
   const bySetNumber = new Map(
     existingSets.map((row) => [row.set_number, row])
   )
 
-  return Array.from({ length: setCount }, (_, index) => {
+  const drafts = Array.from({ length: setCount }, (_, index) => {
     const setNumber = index + 1
     return buildSetDraft(
       exercise,
@@ -515,6 +516,8 @@ export function buildSetDrafts(
       personalBest
     )
   })
+
+  return restorePredictedFlags(drafts, fields)
 }
 
 export function getLogFieldsForExercise(
@@ -827,11 +830,74 @@ function isSetLogEmpty(
 
 function canReceivePrediction(
   set: WorkoutLogSetDraft,
-  fields: ReturnType<typeof getLogFieldsForExercise>
+  _fields: ReturnType<typeof getLogFieldsForExercise>
 ): boolean {
-  if (set.completed) return false
-  if (set.predicted) return true
-  return isSetLogEmpty(set, fields)
+  return !set.completed
+}
+
+function findPropagationSourceSet(
+  sets: WorkoutLogSetDraft[],
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): WorkoutLogSetDraft | null {
+  let lastCompleted: WorkoutLogSetDraft | null = null
+
+  for (const set of sets) {
+    if (!getPropagationValues(set, fields)) continue
+    if (set.completed) {
+      lastCompleted = set
+    }
+  }
+
+  if (lastCompleted) return lastCompleted
+
+  for (const set of sets) {
+    if (!getPropagationValues(set, fields)) continue
+
+    const hasUserAnchor =
+      (fields.showWeight && set.weight.trim() !== '') ||
+      (!fields.showWeight && fields.showReps && set.reps.trim() !== '') ||
+      (fields.showDuration && set.durationSeconds.trim() !== '')
+
+    if (hasUserAnchor) {
+      return set
+    }
+  }
+
+  return null
+}
+
+function restorePredictedFlags(
+  sets: WorkoutLogSetDraft[],
+  fields: ReturnType<typeof getLogFieldsForExercise>
+): WorkoutLogSetDraft[] {
+  const source = findPropagationSourceSet(sets, fields)
+  if (!source) return sets
+
+  const sourceValues = getPropagationValues(source, fields)
+  if (!sourceValues) return sets
+
+  return sets.map((set) => {
+    if (set.setNumber <= source.setNumber || set.completed) return set
+    if (set.predicted) return set
+
+    const setValues = getPropagationValues(set, fields)
+    if (!setValues || !propagationValuesMatch(sourceValues, setValues)) {
+      return set
+    }
+
+    return { ...set, predicted: true }
+  })
+}
+
+function propagationValuesMatch(
+  a: NonNullable<ReturnType<typeof getPropagationValues>>,
+  b: NonNullable<ReturnType<typeof getPropagationValues>>
+): boolean {
+  return (
+    (a.weight ?? '') === (b.weight ?? '') &&
+    (a.reps ?? '') === (b.reps ?? '') &&
+    (a.durationSeconds ?? '') === (b.durationSeconds ?? '')
+  )
 }
 
 function getPropagationValues(

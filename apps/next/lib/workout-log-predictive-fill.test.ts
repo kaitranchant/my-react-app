@@ -3,10 +3,14 @@ import { describe, it } from 'node:test'
 
 import {
   applyExerciseSetChanges,
+  buildSetDrafts,
   getLogFieldsForExercise,
   type WorkoutLogSetDraft,
 } from './workout-log'
-import type { ScheduledWorkoutExerciseWithDetails } from 'app/types/database'
+import type {
+  ScheduledWorkoutExerciseWithDetails,
+  WorkoutLogSet,
+} from 'app/types/database'
 
 function baseExercise(): ScheduledWorkoutExerciseWithDetails {
   return {
@@ -173,5 +177,61 @@ describe('predictive fill propagation', () => {
     )
     assert.equal(afterRepsEdit[0]?.completed, false)
     assert.equal(afterRepsEdit[0]?.reps, '10')
+  })
+
+  it('keeps propagating to sets reloaded from save without predicted flag', () => {
+    const sets = [
+      emptySet(1, { weight: '50', reps: '8', predicted: false }),
+      emptySet(2, { weight: '50', reps: '8', predicted: false }),
+      emptySet(3, { weight: '', reps: '', predicted: false }),
+    ]
+
+    const next = applyExerciseSetChanges(sets, 1, { weight: '55' }, fields)
+
+    assert.equal(next[1]?.weight, '55')
+    assert.equal(next[1]?.predicted, true)
+    assert.equal(next[2]?.weight, '55')
+    assert.equal(next[2]?.predicted, true)
+  })
+
+  it('restores predicted flags when reloading saved propagated sets', () => {
+    const exercise = baseExercise()
+    const logSets = [
+      {
+        id: 'log-1',
+        scheduled_workout_id: 'workout-1',
+        scheduled_exercise_id: exercise.id,
+        set_number: 1,
+        weight: 50,
+        reps: 8,
+        duration_seconds: null,
+        bar_speed: null,
+        peak_power: null,
+        completed: false,
+        notes: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'log-2',
+        scheduled_workout_id: 'workout-1',
+        scheduled_exercise_id: exercise.id,
+        set_number: 2,
+        weight: 50,
+        reps: 8,
+        duration_seconds: null,
+        bar_speed: null,
+        peak_power: null,
+        completed: false,
+        notes: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    ] satisfies WorkoutLogSet[]
+
+    const drafts = buildSetDrafts(exercise, logSets)
+
+    assert.equal(drafts[0]?.predicted, false)
+    assert.equal(drafts[1]?.predicted, true)
   })
 })

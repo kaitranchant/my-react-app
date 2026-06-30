@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 const ACTION_WIDTH = 72
 const SWIPE_START_THRESHOLD = 10
-const DELETE_RELEASE_THRESHOLD = ACTION_WIDTH * 0.85
+const DELETE_SWIPE_RATIO = 0.35
 
 type WorkoutLogSwipeableSetRowProps = {
   enabled: boolean
@@ -28,6 +28,8 @@ export function WorkoutLogSwipeableSetRow({
   className,
   children,
 }: WorkoutLogSwipeableSetRowProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = React.useState(0)
   const [dragOffset, setDragOffset] = React.useState(0)
   const [dragging, setDragging] = React.useState(false)
   const dragRef = React.useRef({
@@ -38,11 +40,30 @@ export function WorkoutLogSwipeableSetRow({
     swiping: false,
   })
 
+  React.useEffect(() => {
+    const node = containerRef.current
+    if (!node || !enabled) return
+
+    const updateWidth = () => {
+      setContainerWidth(node.getBoundingClientRect().width)
+    }
+
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [enabled])
+
+  const maxOffset = containerWidth || ACTION_WIDTH
   const offset = dragging ? dragOffset : open ? ACTION_WIDTH : 0
+  const deleteThreshold = Math.max(
+    ACTION_WIDTH * 0.85,
+    maxOffset * DELETE_SWIPE_RATIO
+  )
 
   const clampOffset = React.useCallback(
-    (value: number) => Math.max(0, Math.min(ACTION_WIDTH, value)),
-    []
+    (value: number) => Math.max(0, Math.min(maxOffset, value)),
+    [maxOffset]
   )
 
   const resetDrag = React.useCallback(() => {
@@ -112,9 +133,11 @@ export function WorkoutLogSwipeableSetRow({
         return
       }
 
-      const finalOffset = clampOffset(drag.startOffset + (drag.startX - event.clientX))
+      const finalOffset = clampOffset(
+        drag.startOffset + (drag.startX - event.clientX)
+      )
 
-      if (finalOffset >= DELETE_RELEASE_THRESHOLD) {
+      if (finalOffset >= deleteThreshold) {
         onOpenChange(false)
         onDelete()
         resetDrag()
@@ -124,7 +147,7 @@ export function WorkoutLogSwipeableSetRow({
       onOpenChange(finalOffset >= ACTION_WIDTH / 2)
       resetDrag()
     },
-    [clampOffset, onDelete, onOpenChange, resetDrag]
+    [clampOffset, deleteThreshold, onDelete, onOpenChange, resetDrag]
   )
 
   if (!enabled) {
@@ -132,24 +155,32 @@ export function WorkoutLogSwipeableSetRow({
   }
 
   return (
-    <div className={cn('relative overflow-hidden', className)}>
+    <div
+      ref={containerRef}
+      className={cn('relative overflow-hidden', className)}
+    >
       <div
-        className="bg-destructive absolute inset-y-0 right-0 flex items-center justify-center"
-        style={{ width: ACTION_WIDTH }}
+        className="bg-destructive absolute inset-y-0 right-0 flex items-center justify-end"
+        style={{ width: Math.max(offset, 0) }}
         aria-hidden={!open && !dragging}
       >
-        <button
-          type="button"
-          tabIndex={open ? 0 : -1}
-          onClick={() => {
-            onOpenChange(false)
-            onDelete()
-          }}
-          className="text-destructive-foreground flex size-full items-center justify-center transition-opacity"
-          aria-label="Delete set"
+        <div
+          className="flex h-full shrink-0 items-center justify-center"
+          style={{ width: ACTION_WIDTH }}
         >
-          <Trash2 className="size-4" />
-        </button>
+          <button
+            type="button"
+            tabIndex={open ? 0 : -1}
+            onClick={() => {
+              onOpenChange(false)
+              onDelete()
+            }}
+            className="text-destructive-foreground flex size-full items-center justify-center transition-opacity"
+            aria-label="Delete set"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
       </div>
 
       <div
