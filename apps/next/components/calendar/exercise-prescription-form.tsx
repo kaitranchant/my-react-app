@@ -24,7 +24,15 @@ import {
   SUPERSET_GROUP_OPTIONS,
 } from '@/lib/exercise-groups'
 import { cn } from '@/lib/utils'
-import { normalizeRepsInput } from '@/lib/validations/calendar'
+import {
+  getPrescriptionSetCount,
+  hasPerSetRepsTargets,
+  isCustomRepsShortcut,
+  normalizeRepsInput,
+  parsePerSetReps,
+  resizePerSetReps,
+  serializePerSetReps,
+} from '@/lib/validations/calendar'
 import type { ScheduledExercisePrescriptionValues } from '@/lib/validations/calendar'
 
 const SET_OPTIONS = Array.from({ length: 10 }, (_, index) => String(index + 1))
@@ -102,6 +110,64 @@ function FieldHint({ children }: { children: React.ReactNode }) {
   )
 }
 
+function perSetRepsGridClass(setCount: number) {
+  if (setCount <= 2) return 'grid-cols-2'
+  if (setCount <= 4) return 'grid-cols-2 sm:grid-cols-4'
+  if (setCount <= 6) return 'grid-cols-3 sm:grid-cols-6'
+  return 'grid-cols-3 sm:grid-cols-5'
+}
+
+type CustomRepsEditorProps = {
+  compact: boolean
+  setCount: number
+  values: string[]
+  onChange: (values: string[]) => void
+  onUseSameReps: () => void
+}
+
+function CustomRepsEditor({
+  compact,
+  setCount,
+  values,
+  onChange,
+  onUseSameReps,
+}: CustomRepsEditorProps) {
+  return (
+    <div className="space-y-2">
+      <div className={cn('grid gap-2', perSetRepsGridClass(setCount))}>
+        {values.map((value, index) => (
+          <div key={index} className="space-y-1">
+            <label
+              htmlFor={`custom-reps-set-${index + 1}`}
+              className="text-muted-foreground text-[11px] font-medium"
+            >
+              Set {index + 1}
+            </label>
+            <Input
+              id={`custom-reps-set-${index + 1}`}
+              className={compact ? 'h-9' : undefined}
+              value={value}
+              placeholder="10"
+              onChange={(event) => {
+                const next = [...values]
+                next[index] = event.target.value
+                onChange(next)
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onUseSameReps}
+        className="text-muted-foreground text-[11px] underline-offset-2 hover:underline"
+      >
+        Use same reps for all sets
+      </button>
+    </div>
+  )
+}
+
 export function ExercisePrescriptionForm({
   form,
   idPrefix = 'prescription',
@@ -110,6 +176,64 @@ export function ExercisePrescriptionForm({
 }: ExercisePrescriptionFormProps) {
   const repMode = form.watch('repMode')
   const selectedBlock = form.watch('exerciseBlock')
+  const setsValue = form.watch('sets')
+  const repsValue = form.watch('reps')
+  const setCount = getPrescriptionSetCount(setsValue)
+  const [customRepsActive, setCustomRepsActive] = React.useState(false)
+  const [perSetReps, setPerSetReps] = React.useState<string[]>(() =>
+    resizePerSetReps([], setCount)
+  )
+
+  React.useEffect(() => {
+    if (repMode !== 'reps') {
+      setCustomRepsActive(false)
+      return
+    }
+
+    if (hasPerSetRepsTargets(repsValue)) {
+      setCustomRepsActive(true)
+      setPerSetReps(resizePerSetReps(parsePerSetReps(repsValue), setCount))
+      return
+    }
+
+    if (repsValue?.trim()) {
+      setCustomRepsActive(false)
+    }
+  }, [repMode, repsValue, setCount])
+
+  React.useEffect(() => {
+    if (!customRepsActive) return
+    setPerSetReps((current) => resizePerSetReps(current, setCount))
+  }, [customRepsActive, setCount])
+
+  const activateCustomReps = React.useCallback(() => {
+    setCustomRepsActive(true)
+    setPerSetReps(resizePerSetReps([], setCount))
+    form.setValue('reps', '', { shouldDirty: true })
+  }, [form, setCount])
+
+  const updatePerSetReps = React.useCallback(
+    (values: string[]) => {
+      setPerSetReps(values)
+      form.setValue('reps', serializePerSetReps(values), {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    },
+    [form]
+  )
+
+  const exitCustomReps = React.useCallback(() => {
+    const filled = perSetReps.map((value) => value.trim()).filter(Boolean)
+    const sameForAll =
+      filled.length > 0 && filled.every((value) => value === filled[0])
+        ? filled[0]
+        : filled[0] ?? ''
+
+    setCustomRepsActive(false)
+    setPerSetReps(resizePerSetReps([], setCount))
+    form.setValue('reps', sameForAll, { shouldDirty: true, shouldValidate: true })
+  }, [form, perSetReps, setCount])
 
   return (
     <div className={cn(compact ? 'flex min-h-0 flex-1 flex-col space-y-3' : 'space-y-3')}>
@@ -199,34 +323,65 @@ export function ExercisePrescriptionForm({
           name="reps"
           render={({ field }) => (
             <FormItem className={compact ? 'col-span-2' : 'sm:col-span-2'}>
-              <FormLabel>{repMode === 'time' ? 'Duration' : 'Reps'}</FormLabel>
+              <FormLabel>
+                {repMode === 'time'
+                  ? 'Duration'
+                  : customRepsActive
+                    ? 'Reps per set'
+                    : 'Reps'}
+              </FormLabel>
               <FormControl>
-                <Input
-                  className={compact ? 'h-9' : undefined}
-                  placeholder={
-                    repMode === 'time'
-                      ? '30s, 1:00, 300m'
-                      : compact
-                        ? '10, 10-12'
-                        : '10, 10-12, F for to failure, C for custom'
-                  }
-                  {...field}
-                  onBlur={(event) => {
-                    field.onBlur()
-                    if (repMode === 'reps') {
-                      const normalized = normalizeRepsInput(event.target.value)
-                      if (normalized !== event.target.value.trim()) {
-                        field.onChange(normalized)
-                      }
+                {repMode === 'reps' && customRepsActive ? (
+                  <CustomRepsEditor
+                    compact={compact}
+                    setCount={setCount}
+                    values={perSetReps}
+                    onChange={updatePerSetReps}
+                    onUseSameReps={exitCustomReps}
+                  />
+                ) : (
+                  <Input
+                    className={compact ? 'h-9' : undefined}
+                    placeholder={
+                      repMode === 'time'
+                        ? '30s, 1:00, 300m'
+                        : compact
+                          ? '10, 10-12'
+                          : '10, 10-12, F for to failure, C for custom'
                     }
-                  }}
-                />
+                    {...field}
+                    onChange={(event) => {
+                      field.onChange(event)
+                      if (
+                        repMode === 'reps' &&
+                        isCustomRepsShortcut(event.target.value)
+                      ) {
+                        activateCustomReps()
+                      }
+                    }}
+                    onBlur={(event) => {
+                      field.onBlur()
+                      if (repMode === 'reps') {
+                        if (isCustomRepsShortcut(event.target.value)) {
+                          activateCustomReps()
+                          return
+                        }
+                        const normalized = normalizeRepsInput(event.target.value)
+                        if (normalized !== event.target.value.trim()) {
+                          field.onChange(normalized)
+                        }
+                      }
+                    }}
+                  />
+                )}
               </FormControl>
               {!compact ? (
                 <FieldHint>
                   {repMode === 'time'
                     ? 'Seconds, mm:ss, or distance.'
-                    : 'Use F for to failure, C for a custom target.'}
+                    : customRepsActive
+                      ? 'Enter a target for each set. Values are saved as a custom prescription.'
+                      : 'Use F for to failure, C for a custom target per set.'}
                 </FieldHint>
               ) : null}
               <FormMessage />

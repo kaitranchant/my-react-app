@@ -79,6 +79,7 @@ export function WorkoutBuilder({
   const [activeSupersetGroup, setActiveSupersetGroup] = React.useState<string | null>(
     null
   )
+  const [addPrescriptionKey, setAddPrescriptionKey] = React.useState(0)
 
   React.useEffect(() => {
     setLibraryExercises(exercises)
@@ -117,6 +118,7 @@ export function WorkoutBuilder({
     addForm.reset(defaultPrescriptionValues)
     customForm.reset(customExerciseQuickDefaults)
     setMobileTab('library')
+    setAddPrescriptionKey((key) => key + 1)
   }
 
   function startSupersetMode() {
@@ -128,6 +130,7 @@ export function WorkoutBuilder({
     addForm.reset({ ...defaultPrescriptionValues, supersetGroup: group })
     customForm.reset(customExerciseQuickDefaults)
     setMobileTab('library')
+    setAddPrescriptionKey((key) => key + 1)
   }
 
   function finishSupersetMode() {
@@ -248,6 +251,7 @@ export function WorkoutBuilder({
           ...defaultPrescriptionValues,
           supersetGroup: activeSupersetGroup,
         })
+        setAddPrescriptionKey((key) => key + 1)
         setMobileTab('library')
       } else {
         startAddMode()
@@ -440,6 +444,7 @@ export function WorkoutBuilder({
             >
               <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
                 <ExercisePrescriptionForm
+                  key={`builder-add-${addPrescriptionKey}`}
                   form={addForm}
                   idPrefix="builder-add"
                   compact={compact}
@@ -501,7 +506,12 @@ export function WorkoutBuilder({
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
-                <ExercisePrescriptionForm form={editForm} idPrefix="builder-edit" compact={compact} />
+                <ExercisePrescriptionForm
+                  key={selectedRowId ?? 'builder-edit'}
+                  form={editForm}
+                  idPrefix="builder-edit"
+                  compact={compact}
+                />
               </div>
               <div className="flex shrink-0 gap-2 border-t px-4 py-3">
                 <Button type="submit" disabled={pending} className="flex-1">

@@ -9,9 +9,25 @@ const SUPERSET_COLORS: Record<string, string> = {
   F: 'bg-orange-500',
 }
 
+const SUPERSET_FRAME: Record<string, string> = {
+  A: 'border-sky-500 bg-sky-500/10 ring-sky-500/30',
+  B: 'border-violet-500 bg-violet-500/10 ring-violet-500/30',
+  C: 'border-amber-500 bg-amber-500/10 ring-amber-500/30',
+  D: 'border-rose-500 bg-rose-500/10 ring-rose-500/30',
+  E: 'border-emerald-500 bg-emerald-500/10 ring-emerald-500/30',
+  F: 'border-orange-500 bg-orange-500/10 ring-orange-500/30',
+}
+
 export function getSupersetColor(group: string | null): string {
   if (!group) return 'bg-muted-foreground'
   return SUPERSET_COLORS[group] ?? 'bg-muted-foreground'
+}
+
+export function getSupersetFrameClasses(group: string): string {
+  return (
+    SUPERSET_FRAME[group] ??
+    'border-muted-foreground bg-muted/20 ring-muted-foreground/20'
+  )
 }
 
 export function getUsedSupersetGroups(

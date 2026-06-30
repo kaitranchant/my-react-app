@@ -43,6 +43,7 @@ import {
   clusterExercisesBySuperset,
   getNextSupersetGroup,
   getSupersetColor,
+  getSupersetFrameClasses,
   getUsedSupersetGroups,
   type SupersetCluster,
 } from '@/lib/superset-groups'
@@ -294,7 +295,7 @@ function ExerciseClusterList({
   function renderCluster(cluster: SupersetCluster<ExerciseRow>, index: number) {
     if (cluster.type === 'single') {
       return (
-        <li key={cluster.exercise.id}>
+        <li key={cluster.exercise.id} className="rounded-md border border-border/50">
           <SortableExerciseItem
             row={cluster.exercise}
             selected={selectedRowId === cluster.exercise.id}
@@ -309,26 +310,33 @@ function ExerciseClusterList({
     }
 
     return (
-      <li key={`superset-${cluster.group}-${index}`}>
-        <div className="mx-1 overflow-hidden rounded-md border">
-          {cluster.exercises.length > 1 && (
-            <div
-              className={cn(
-                'px-2 py-1 text-[10px] font-bold tracking-wide text-white uppercase',
-                getSupersetColor(cluster.group)
-              )}
-            >
-              Superset {cluster.group}
-            </div>
+      <li key={`superset-${cluster.group}-${index}`} className="py-0.5">
+        <div
+          className={cn(
+            'overflow-hidden rounded-lg border-2 shadow-sm ring-1 ring-inset',
+            getSupersetFrameClasses(cluster.group)
           )}
-          <ul className="divide-y">
+        >
+          <div
+            className={cn(
+              'flex items-center justify-between gap-2 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-white uppercase',
+              getSupersetColor(cluster.group)
+            )}
+          >
+            <span>Superset {cluster.group}</span>
+            <span className="font-medium normal-case tracking-normal opacity-90">
+              {cluster.exercises.length}{' '}
+              {cluster.exercises.length === 1 ? 'exercise' : 'exercises'}
+            </span>
+          </div>
+          <ul className="divide-y divide-border/70 bg-background/40">
             {cluster.exercises.map((row) => (
               <li key={row.id}>
                 <SortableExerciseItem
                   row={row}
                   selected={selectedRowId === row.id}
                   pending={pendingId === row.id}
-                  showSupersetBadge={cluster.exercises.length === 1}
+                  showSupersetBadge={false}
                   usedSupersetGroups={usedSupersetGroups}
                   onSelect={() => onSelectRow(row.id)}
                   onRemove={() => onRemove(row.id)}
@@ -344,7 +352,7 @@ function ExerciseClusterList({
 
   return (
     <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
-      <ul className="divide-y">
+      <ul className="space-y-2">
         {clusters.map((cluster, index) => renderCluster(cluster, index))}
       </ul>
     </SortableContext>

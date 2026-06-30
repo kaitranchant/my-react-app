@@ -109,7 +109,43 @@ export function normalizeRepsInput(value: string | undefined | null): string {
   const trimmed = value?.trim() ?? ''
   if (!trimmed) return ''
   if (/^f$/i.test(trimmed)) return 'to failure'
+  if (isCustomRepsShortcut(trimmed)) return ''
   return trimmed
+}
+
+export function isCustomRepsShortcut(value: string | undefined | null): boolean {
+  return /^c$/i.test(value?.trim() ?? '')
+}
+
+export function getPrescriptionSetCount(sets: string | undefined | null): number {
+  const parsed = Number.parseInt(sets?.trim() ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return 3
+  return Math.min(10, parsed)
+}
+
+export function parsePerSetReps(value: string | undefined | null): string[] {
+  if (!value?.trim()) return []
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+export function hasPerSetRepsTargets(value: string | undefined | null): boolean {
+  return parsePerSetReps(value).length > 1
+}
+
+export function resizePerSetReps(values: string[], setCount: number): string[] {
+  if (values.length === setCount) return values
+  if (values.length > setCount) return values.slice(0, setCount)
+  return [
+    ...values,
+    ...Array.from({ length: setCount - values.length }, () => ''),
+  ]
+}
+
+export function serializePerSetReps(values: string[]): string {
+  return values.map((value) => value.trim()).join(',')
 }
 
 export function prescriptionValuesToDbRow(
