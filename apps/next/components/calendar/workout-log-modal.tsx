@@ -64,7 +64,6 @@ import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import {
   isKeyboardOpen,
   scheduleFocusedInputScroll,
-  scrollFocusedInputIntoView,
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
@@ -1089,7 +1088,6 @@ export function WorkoutLogScreen({
     const visualViewport = window.visualViewport
     if (!scrollParent || !visualViewport) return
 
-    let debounceId = 0
     let keyboardWasOpen = isKeyboardOpen()
 
     const onViewportResize = () => {
@@ -1106,14 +1104,6 @@ export function WorkoutLogScreen({
       }
 
       keyboardWasOpen = keyboardOpen
-
-      const input = focusedSetInputRef.current
-      if (!input || !scrollParent.contains(input) || !keyboardOpen) return
-
-      window.clearTimeout(debounceId)
-      debounceId = window.setTimeout(() => {
-        scrollFocusedInputIntoView(input, scrollParent)
-      }, 150)
     }
 
     const onFocusOut = (event: FocusEvent) => {
@@ -1136,7 +1126,6 @@ export function WorkoutLogScreen({
     visualViewport.addEventListener('resize', onViewportResize)
 
     return () => {
-      window.clearTimeout(debounceId)
       scrollParent.removeEventListener('focusout', onFocusOut)
       visualViewport.removeEventListener('resize', onViewportResize)
     }
@@ -2020,7 +2009,7 @@ export function WorkoutLogScreen({
         <div
           ref={scrollContainerRef}
           data-nested-keyboard-scroll=""
-          className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] px-5 py-4 pb-6"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] px-5 py-4 pb-6"
         >
           {schemaError ? (
             <div className="py-6">
