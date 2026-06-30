@@ -781,34 +781,18 @@ export function getBestE1rmFromDrafts(
   return best
 }
 
-export function deriveSetCompleted(
-  set: Pick<
-    WorkoutLogSetDraft,
-    'weight' | 'reps' | 'durationSeconds' | 'completed' | 'predicted'
-  >,
-  fields: ReturnType<typeof getLogFieldsForExercise>
-): boolean {
-  if (fields.completionOnly) {
-    return set.completed
+export function applySetPatchWithCompletion(
+  set: WorkoutLogSetDraft,
+  patch: Partial<WorkoutLogSetDraft>,
+  _fields: ReturnType<typeof getLogFieldsForExercise>
+): WorkoutLogSetDraft {
+  const next = { ...set, ...patch }
+
+  if ('completed' in patch) {
+    return next
   }
 
-  if (set.predicted) {
-    return false
-  }
-
-  if (fields.showWeight && fields.showReps) {
-    return set.weight.trim() !== '' && set.reps.trim() !== ''
-  }
-
-  if (!fields.showWeight && fields.showReps) {
-    return set.reps.trim() !== ''
-  }
-
-  if (fields.showDuration) {
-    return set.durationSeconds.trim() !== ''
-  }
-
-  return false
+  return { ...next, completed: set.completed }
 }
 
 function isSetLogEmpty(
@@ -842,25 +826,29 @@ function canReceivePrediction(
 function getPropagationValues(
   source: WorkoutLogSetDraft,
   fields: ReturnType<typeof getLogFieldsForExercise>
-): Partial<WorkoutLogSetDraft> | null {
+): Partial<Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>> | null {
+  const values: Partial<
+    Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>
+  > = {}
+
   if (fields.showWeight && fields.showReps) {
-    if (source.weight.trim() === '' || source.reps.trim() === '') {
-      return null
+    if (source.weight.trim() !== '') {
+      values.weight = source.weight
     }
-    return { weight: source.weight, reps: source.reps }
+    if (source.reps.trim() !== '') {
+      values.reps = source.reps
+    }
+  } else if (!fields.showWeight && fields.showReps) {
+    if (source.reps.trim() !== '') {
+      values.reps = source.reps
+    }
+  } else if (fields.showDuration) {
+    if (source.durationSeconds.trim() !== '') {
+      values.durationSeconds = source.durationSeconds
+    }
   }
 
-  if (!fields.showWeight && fields.showReps) {
-    if (source.reps.trim() === '') return null
-    return { reps: source.reps }
-  }
-
-  if (fields.showDuration) {
-    if (source.durationSeconds.trim() === '') return null
-    return { durationSeconds: source.durationSeconds }
-  }
-
-  return null
+  return Object.keys(values).length > 0 ? values : null
 }
 
 function propagateValuesToFollowingSets(
@@ -897,7 +885,7 @@ export function applyExerciseSetChanges(
   if ('completed' in patch && Object.keys(patch).length === 1) {
     const targetCompleted = Boolean(patch.completed)
 
-    return sets.map((set) => {
+    let nextSets = sets.map((set) => {
       if (set.setNumber !== setNumber) return set
 
       if (!targetCompleted) {
@@ -909,16 +897,25 @@ export function applyExerciseSetChanges(
       }
 
       const hasValues =
-        (fields.showWeight && fields.showReps &&
+        (fields.showWeight &&
+          fields.showReps &&
           set.weight.trim() !== '' &&
           set.reps.trim() !== '') ||
-        (!fields.showWeight && fields.showReps && set.reps.trim() !== '') ||
+        (!fields.showWeight &&
+          fields.showReps &&
+          set.reps.trim() !== '') ||
         (fields.showDuration && set.durationSeconds.trim() !== '')
 
       if (!hasValues) return set
 
       return { ...set, completed: true, predicted: false }
     })
+
+    if (targetCompleted) {
+      nextSets = propagateValuesToFollowingSets(nextSets, setNumber, fields)
+    }
+
+    return nextSets
   }
 
   let nextSets = sets.map((set) => {
@@ -956,16 +953,4 @@ export function getBestE1rmFromPrevious(
   }
 
   return best
-}
-
-export function applySetPatchWithCompletion(
-  set: WorkoutLogSetDraft,
-  patch: Partial<WorkoutLogSetDraft>,
-  fields: ReturnType<typeof getLogFieldsForExercise>
-): WorkoutLogSetDraft {
-  const next = { ...set, ...patch }
-  return {
-    ...next,
-    completed: deriveSetCompleted(next, fields),
-  }
 }

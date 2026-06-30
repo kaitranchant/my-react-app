@@ -53,6 +53,7 @@ type WorkoutLogSetFieldProps = {
   field: WorkoutLogKeypadField
   value: string
   disabled?: boolean
+  predicted?: boolean
   placeholder?: string
   ariaLabel: string
   className?: string
@@ -65,6 +66,7 @@ export function WorkoutLogSetField({
   field,
   value,
   disabled = false,
+  predicted = false,
   placeholder = '—',
   ariaLabel,
   className,
@@ -97,7 +99,10 @@ export function WorkoutLogSetField({
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className={className}
+        className={cn(
+          className,
+          predicted && value && 'text-muted-foreground/50 placeholder:text-muted-foreground/50'
+        )}
         aria-label={ariaLabel}
       />
     )
@@ -121,6 +126,7 @@ export function WorkoutLogSetField({
           ? 'border-brand ring-brand/40 ring-2'
           : 'border-input hover:bg-muted/40',
         !value && 'text-muted-foreground',
+        predicted && value && 'text-muted-foreground/50',
         disabled && 'pointer-events-none opacity-50',
         className
       )}

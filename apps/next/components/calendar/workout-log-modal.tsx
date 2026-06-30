@@ -15,7 +15,6 @@ import {
   PlayCircle,
   Plus,
   StickyNote,
-  Trash2,
   Trophy,
   Video,
 } from 'lucide-react'
@@ -57,6 +56,7 @@ import {
   useWorkoutLogKeypad,
 } from '@/components/workout/workout-log-keypad-context'
 import { WorkoutLogSetField } from '@/components/workout/workout-log-set-field'
+import { WorkoutLogSwipeableSetRow } from '@/components/workout/workout-log-swipeable-set-row'
 import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
 import {
   RestTimerChip,
@@ -335,6 +335,8 @@ function WorkoutLogExercise({
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [formReviewOpen, setFormReviewOpen] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
+  const [openSwipeSetNumber, setOpenSwipeSetNumber] =
+    React.useState<number | null>(null)
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -347,32 +349,6 @@ function WorkoutLogExercise({
   const prTrackingEnabled = !trackingOptions.disablePrTracking
   const fields = getLogFieldsForExercise(exercise)
   const keypad = useWorkoutLogKeypad()
-
-  React.useEffect(() => {
-    if (!keypad?.enabled) return
-
-    keypad.registerExerciseContext(exercise.id, {
-      sets,
-      fields,
-      previousSets,
-      onSetChange,
-    })
-
-    return () => {
-      keypad.unregisterExerciseContext(exercise.id)
-    }
-  }, [
-    exercise.id,
-    fields.showBarSpeed,
-    fields.showDuration,
-    fields.showPeakPower,
-    fields.showReps,
-    fields.showWeight,
-    keypad,
-    onSetChange,
-    previousSets,
-    sets,
-  ])
 
   const summary = formatExercisePrescriptionSummary(exercise)
   const currentE1rm =
@@ -422,7 +398,7 @@ function WorkoutLogExercise({
   )
   const useConfirmAllButton =
     fields.completionOnly && guidedLayout && !readOnly
-  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, canRemoveSet, {
+  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, false, {
     hideConfirmColumn: useConfirmAllButton,
   })
 
@@ -431,46 +407,83 @@ function WorkoutLogExercise({
   const completedCount = sets.filter((set) => set.completed).length
   const allComplete = sets.length > 0 && completedCount === sets.length
 
-  function handleSetToggle(set: WorkoutLogSetDraft) {
-    const nextCompleted = !set.completed
-    onSetChange(set.setNumber, { completed: nextCompleted })
+  const maybeStartRestAfterSetComplete = React.useCallback(
+    (wasCompleted: boolean, nextCompleted: boolean) => {
+      if (
+        !wasCompleted &&
+        nextCompleted &&
+        isWorkoutActive &&
+        !readOnly &&
+        restSeconds > 0
+      ) {
+        startRestTimer(exercise.exercise.name, restSeconds)
+      }
+    },
+    [
+      exercise.exercise.name,
+      isWorkoutActive,
+      readOnly,
+      restSeconds,
+      startRestTimer,
+    ]
+  )
 
-    if (
-      nextCompleted &&
-      isWorkoutActive &&
-      !readOnly &&
-      restSeconds > 0
-    ) {
-      startRestTimer(exercise.exercise.name, restSeconds)
-    }
+  const handleLocalSetChange = React.useCallback(
+    (setNumber: number, patch: Partial<WorkoutLogSetDraft>) => {
+      const currentSet = sets.find((set) => set.setNumber === setNumber)
+      const wasCompleted = currentSet?.completed ?? false
+      const wasFullyLogged = isExerciseFullyLogged(sets)
+      const nextSets = applyExerciseSetChanges(
+        sets,
+        setNumber,
+        patch,
+        fields
+      )
+      const nextSet = nextSets.find((set) => set.setNumber === setNumber)
+      const nextCompleted = nextSet?.completed ?? false
+
+      onSetChange(setNumber, patch)
+      maybeStartRestAfterSetComplete(wasCompleted, nextCompleted)
+
+      if (
+        !wasFullyLogged &&
+        isExerciseFullyLogged(nextSets) &&
+        keypad?.enabled &&
+        keypad.activeTarget?.exerciseId === exercise.id
+      ) {
+        keypad.closeKeypad()
+      }
+    },
+    [
+      exercise.id,
+      fields,
+      keypad,
+      maybeStartRestAfterSetComplete,
+      onSetChange,
+      sets,
+    ]
+  )
+
+  function handleSetToggle(set: WorkoutLogSetDraft) {
+    handleLocalSetChange(set.setNumber, { completed: !set.completed })
   }
 
   function handleMarkAll() {
     for (const set of sets) {
       if (!set.completed) {
-        onSetChange(set.setNumber, { completed: true })
+        handleLocalSetChange(set.setNumber, { completed: true })
       }
     }
   }
 
   function handleConfirmAll() {
-    const hadIncomplete = sets.some((set) => !set.completed)
     handleMarkAll()
-
-    if (
-      hadIncomplete &&
-      isWorkoutActive &&
-      !readOnly &&
-      restSeconds > 0
-    ) {
-      startRestTimer(exercise.exercise.name, restSeconds)
-    }
   }
 
   function canConfirmSet(set: WorkoutLogSetDraft): boolean {
     if (set.completed) return true
-    return (
-      fields.completionOnly ||
+
+    const hasRequiredValues =
       (fields.showWeight &&
         fields.showReps &&
         set.weight.trim() !== '' &&
@@ -479,8 +492,35 @@ function WorkoutLogExercise({
         fields.showReps &&
         set.reps.trim() !== '') ||
       (fields.showDuration && set.durationSeconds.trim() !== '')
-    )
+
+    return fields.completionOnly || hasRequiredValues
   }
+
+  React.useEffect(() => {
+    if (!keypad?.enabled) return
+
+    keypad.registerExerciseContext(exercise.id, {
+      sets,
+      fields,
+      previousSets,
+      onSetChange: handleLocalSetChange,
+    })
+
+    return () => {
+      keypad.unregisterExerciseContext(exercise.id)
+    }
+  }, [
+    exercise.id,
+    fields.showBarSpeed,
+    fields.showDuration,
+    fields.showPeakPower,
+    fields.showReps,
+    fields.showWeight,
+    keypad,
+    handleLocalSetChange,
+    previousSets,
+    sets,
+  ])
 
   return (
     <Card
@@ -751,7 +791,6 @@ function WorkoutLogExercise({
                       {!useConfirmAllButton && (
                         <span className="sr-only">Done</span>
                       )}
-                      {canRemoveSet && <span className="sr-only">Remove</span>}
                     </div>
 
                     {sets.map((set) => {
@@ -760,20 +799,39 @@ function WorkoutLogExercise({
                         !readOnly &&
                         activeSetNumber === set.setNumber &&
                         !set.completed
+                      const showPredictedValues =
+                        set.predicted && !set.completed
 
                       return (
-                        <div
+                        <WorkoutLogSwipeableSetRow
                           key={set.setNumber}
-                          className={cn(
-                            'relative grid items-center gap-1.5 border-b px-2 py-2 last:border-b-0 sm:gap-2 sm:px-3',
-                            set.completed && 'bg-status-success/5',
-                            set.predicted &&
-                              !set.completed &&
-                              'bg-brand/5',
-                            isActive && 'bg-brand/8'
-                          )}
-                          style={{ gridTemplateColumns: setGridTemplate }}
+                          enabled={canRemoveSet}
+                          open={openSwipeSetNumber === set.setNumber}
+                          onOpenChange={(open) =>
+                            setOpenSwipeSetNumber(open ? set.setNumber : null)
+                          }
+                          onDelete={() => {
+                            setOpenSwipeSetNumber(null)
+                            onRemoveSet(set.setNumber)
+                          }}
+                          onInteractionStart={() => {
+                            setOpenSwipeSetNumber((current) =>
+                              current === set.setNumber ? current : null
+                            )
+                          }}
+                          className="border-b last:border-b-0"
                         >
+                          <div
+                            className={cn(
+                              'relative grid items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3',
+                              set.completed && 'bg-status-success/5',
+                              set.predicted &&
+                                !set.completed &&
+                                'bg-brand/5',
+                              isActive && 'bg-brand/8'
+                            )}
+                            style={{ gridTemplateColumns: setGridTemplate }}
+                          >
                           {isActive && (
                             <span className="bg-brand absolute inset-y-1 left-0 w-1 rounded-r-full" />
                           )}
@@ -809,8 +867,9 @@ function WorkoutLogExercise({
                               field="weight"
                               value={set.weight}
                               disabled={readOnly}
+                              predicted={showPredictedValues}
                               onChange={(value) =>
-                                onSetChange(set.setNumber, { weight: value })
+                                handleLocalSetChange(set.setNumber, { weight: value })
                               }
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
@@ -825,8 +884,9 @@ function WorkoutLogExercise({
                               field="reps"
                               value={set.reps}
                               disabled={readOnly}
+                              predicted={showPredictedValues}
                               onChange={(value) =>
-                                onSetChange(set.setNumber, { reps: value })
+                                handleLocalSetChange(set.setNumber, { reps: value })
                               }
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
@@ -841,8 +901,9 @@ function WorkoutLogExercise({
                               field="durationSeconds"
                               value={set.durationSeconds}
                               disabled={readOnly}
+                              predicted={showPredictedValues}
                               onChange={(value) =>
-                                onSetChange(set.setNumber, {
+                                handleLocalSetChange(set.setNumber, {
                                   durationSeconds: value,
                                 })
                               }
@@ -882,19 +943,8 @@ function WorkoutLogExercise({
                             </div>
                           )}
 
-                          {canRemoveSet && (
-                            <div className="flex justify-center">
-                              <button
-                                type="button"
-                                onClick={() => onRemoveSet(set.setNumber)}
-                                className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-md transition-colors"
-                                aria-label={`Remove set ${set.setNumber}`}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        </WorkoutLogSwipeableSetRow>
                       )
                     })}
 
@@ -963,7 +1013,7 @@ function WorkoutLogExercise({
                         value={set.barSpeed}
                         disabled={readOnly}
                         onChange={(value) =>
-                          onSetChange(set.setNumber, {
+                          handleLocalSetChange(set.setNumber, {
                             barSpeed: value,
                           })
                         }
@@ -985,7 +1035,7 @@ function WorkoutLogExercise({
                         value={set.peakPower}
                         disabled={readOnly}
                         onChange={(value) =>
-                          onSetChange(set.setNumber, {
+                          handleLocalSetChange(set.setNumber, {
                             peakPower: value,
                           })
                         }
@@ -1312,6 +1362,7 @@ export function WorkoutLogScreen({
   }, [clientId, isClientPortal, workoutId])
 
   const completeWorkout = React.useCallback(async () => {
+    if (autoCompletingRef.current) return
     autoCompletingRef.current = true
 
     if (document.activeElement instanceof HTMLElement) {
@@ -1319,56 +1370,75 @@ export function WorkoutLogScreen({
     }
     stabilizeViewportScroll()
 
-    if (isClientPortal) {
-      setShowWorkoutComplete(true)
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
     }
 
-    const currentState = exerciseStateRef.current
-    const payloadKey = serializeExerciseStateForSave(currentState)
-    const needsSave = payloadKey !== lastPersistedStateRef.current
+    setShowWorkoutComplete(true)
 
-    if (needsSave) {
-      const saved = await persistSetsRef.current(currentState, {
-        silent: true,
-        reload: false,
-        notifyParent: false,
-        blockUi: false,
-        revalidate: true,
-      })
+    try {
+      while (saveInFlightRef.current) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
 
-      if (!saved) {
-        autoCompletingRef.current = false
-        if (isClientPortal) {
+      const currentState = exerciseStateRef.current
+      const payloadKey = serializeExerciseStateForSave(currentState)
+      const needsSave = payloadKey !== lastPersistedStateRef.current
+
+      if (needsSave) {
+        saveInFlightRef.current = true
+        const saved = await persistSetsRef.current(currentState, {
+          silent: true,
+          reload: false,
+          notifyParent: false,
+          blockUi: false,
+          revalidate: false,
+        })
+        saveInFlightRef.current = false
+
+        if (!saved) {
           setShowWorkoutComplete(false)
+          return
         }
+      }
+
+      const result = isClientPortal
+        ? await completePortalWorkoutLog(workoutId)
+        : await completeWorkoutLog(clientId, workoutId)
+
+      if (result.success) {
+        setData((current) =>
+          current ? { ...current, status: 'completed' } : current
+        )
+
+        if (result.newPrs.length > 0) {
+          setShowWorkoutComplete(false)
+          setCelebrationPrs(result.newPrs)
+          setShowCelebration(true)
+        }
+        void loadData()
+        onChangedRef.current()
         return
       }
-    }
 
-    const result = isClientPortal
-      ? await completePortalWorkoutLog(workoutId)
-      : await completeWorkoutLog(clientId, workoutId)
-
-    autoCompletingRef.current = false
-
-    if (result.success) {
-      if (result.newPrs.length > 0) {
-        setShowWorkoutComplete(false)
-        setCelebrationPrs(result.newPrs)
-        setShowCelebration(true)
-      } else if (!isClientPortal) {
-        toast.success('Workout complete!')
-      }
-      void loadData()
-      onChangedRef.current()
-      return
-    }
-
-    if (isClientPortal) {
       setShowWorkoutComplete(false)
+      toast.error(result.error)
+    } finally {
+      autoCompletingRef.current = false
+      saveInFlightRef.current = false
     }
-    toast.error(result.error)
   }, [clientId, isClientPortal, loadData, workoutId])
+
+  const maybeTriggerWorkoutComplete = React.useCallback(
+    (state: ExerciseLogState) => {
+      if (!active || readOnly || !data || autoCompletingRef.current) return
+      if (data.status === 'completed') return
+      if (!isWorkoutFullyLogged(data.exercises, state)) return
+      void completeWorkout()
+    },
+    [active, completeWorkout, data, readOnly]
+  )
 
   const runAutoSave = React.useCallback(async () => {
     if (saveInFlightRef.current) {
@@ -1465,12 +1535,8 @@ export function WorkoutLogScreen({
   }, [active, pauseWorkout])
 
   React.useEffect(() => {
-    if (!active || readOnly || !data || autoCompletingRef.current) return
-    if (data.status === 'completed') return
-    if (!isWorkoutFullyLogged(data.exercises, exerciseState)) return
-
-    void completeWorkout()
-  }, [active, readOnly, data, exerciseState, completeWorkout])
+    maybeTriggerWorkoutComplete(exerciseState)
+  }, [exerciseState, maybeTriggerWorkoutComplete])
 
   const sections = React.useMemo(
     () => (data ? groupExercisesBySection(data.exercises) : []),
@@ -1655,15 +1721,24 @@ export function WorkoutLogScreen({
     patch: Partial<WorkoutLogSetDraft>
   ) {
     const fields = getLogFieldsForExercise(exercise)
-    setExerciseState((current) => ({
-      ...current,
-      [exercise.id]: applyExerciseSetChanges(
-        current[exercise.id] ?? [],
-        setNumber,
-        patch,
-        fields
-      ),
-    }))
+    let nextState: ExerciseLogState | null = null
+
+    setExerciseState((current) => {
+      nextState = {
+        ...current,
+        [exercise.id]: applyExerciseSetChanges(
+          current[exercise.id] ?? [],
+          setNumber,
+          patch,
+          fields
+        ),
+      }
+      return nextState
+    })
+
+    if (nextState) {
+      maybeTriggerWorkoutComplete(nextState)
+    }
   }
 
   function handleAddSet(exercise: ScheduledWorkoutExerciseWithDetails) {
@@ -2158,9 +2233,6 @@ export function WorkoutLogScreen({
         setShowCelebration(open)
         if (!open) {
           setCelebrationPrs([])
-          if (!isClientPortal) {
-            toast.success('Workout complete!')
-          }
         }
       }}
       prs={celebrationPrs}
@@ -2170,13 +2242,13 @@ export function WorkoutLogScreen({
     />
   )
 
-  const workoutCompleteDialog = isClientPortal ? (
+  const workoutCompleteDialog = (
     <WorkoutCompleteDialog
       open={showWorkoutComplete}
       onOpenChange={setShowWorkoutComplete}
       workoutName={data?.name ?? 'Workout'}
     />
-  ) : null
+  )
 
   if (isPage) {
     return (

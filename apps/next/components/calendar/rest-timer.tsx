@@ -11,6 +11,7 @@ type RestTimerState = {
   totalSeconds: number
   remainingSeconds: number
   paused: boolean
+  startedAt: number
 }
 
 type RestTimerContextValue = {
@@ -59,6 +60,7 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
         totalSeconds: seconds,
         remainingSeconds: seconds,
         paused: false,
+        startedAt: Date.now(),
       })
     },
     [clearIntervalRef]
@@ -124,7 +126,7 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
     }, 1000)
 
     return clearIntervalRef
-  }, [activeTimer?.paused, activeTimer?.totalSeconds, clearIntervalRef])
+  }, [activeTimer?.paused, activeTimer?.startedAt, clearIntervalRef])
 
   return (
     <RestTimerContext.Provider
