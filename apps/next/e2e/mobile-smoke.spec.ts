@@ -1,4 +1,4 @@
-import { test, expect, preparePortalHome, openPortalMoreMenu } from './fixtures'
+import { test, expect, preparePortalHome, openPortalMoreMenu, openPortalImmersiveWorkoutLog } from './fixtures'
 
 test.describe('Mobile smoke — client portal', () => {
   test.use({ viewport: { width: 390, height: 844 } })
@@ -51,6 +51,47 @@ test.describe('Mobile smoke — client portal', () => {
     await startLink.click()
     await expect(page).toHaveURL(/\/portal\/workouts\/[^/]+\/log/)
     await expect(page.getByRole('navigation')).toHaveCount(0)
+  })
+
+  test('custom keypad logs weight without native keyboard', async ({
+    clientPage: page,
+  }) => {
+    test.setTimeout(60_000)
+
+    try {
+      await openPortalImmersiveWorkoutLog(page)
+    } catch {
+      test.skip(true, 'No actionable workout for keypad test')
+    }
+
+    const weightCell = page.getByRole('button', { name: /Set 1 weight/i }).first()
+    const hasWeightField = await weightCell.isVisible().catch(() => false)
+    if (!hasWeightField) {
+      test.skip(true, 'No weight field on first exercise')
+    }
+
+    const initialViewportHeight = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight)
+
+    await weightCell.click()
+    const keypad = page.getByRole('group', { name: 'Workout entry keypad' })
+    await expect(keypad).toBeVisible()
+
+    const viewportAfterOpen = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight)
+    expect(Math.abs(viewportAfterOpen - initialViewportHeight)).toBeLessThan(40)
+
+    await keypad.getByRole('button', { name: 'Digit 2' }).click()
+    await keypad.getByRole('button', { name: 'Digit 2' }).click()
+    await keypad.getByRole('button', { name: 'Digit 5' }).click()
+    await expect(weightCell).toHaveText('225')
+
+    await keypad.getByRole('button', { name: 'Next field' }).click()
+    await expect(page.getByRole('button', { name: /Set 1 reps/i })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+
+    await keypad.getByRole('button', { name: 'Hide keyboard' }).click()
+    await expect(page.getByRole('group', { name: 'Workout entry keypad' })).toHaveCount(0)
   })
 })
 

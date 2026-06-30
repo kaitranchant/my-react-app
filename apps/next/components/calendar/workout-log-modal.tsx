@@ -50,6 +50,13 @@ import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
 import { PrCelebrationDialog } from '@/components/workout/pr-celebration-dialog'
+import { PlateCalculatorSheet } from '@/components/workout/plate-calculator-sheet'
+import { WorkoutLogKeypad } from '@/components/workout/workout-log-keypad'
+import {
+  WorkoutLogKeypadProvider,
+  useWorkoutLogKeypad,
+} from '@/components/workout/workout-log-keypad-context'
+import { WorkoutLogSetField } from '@/components/workout/workout-log-set-field'
 import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
 import {
   RestTimerChip,
@@ -62,8 +69,6 @@ import {
 } from '@/components/calendar/workout-elapsed-timer'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import {
-  isKeyboardOpen,
-  scheduleFocusedInputScroll,
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
@@ -83,7 +88,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { formatDayHeader } from '@/lib/calendar'
 import {
   clusterExercisesBySuperset,
@@ -301,7 +305,6 @@ type WorkoutLogExerciseProps = {
   weightUnit?: WeightUnit
   className?: string
   guidedLayout?: boolean
-  onSetInputFocus?: (event: React.FocusEvent<HTMLInputElement>) => void
 }
 
 function WorkoutLogExercise({
@@ -327,7 +330,6 @@ function WorkoutLogExercise({
   weightUnit = 'lbs',
   className,
   guidedLayout = false,
-  onSetInputFocus,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -344,6 +346,34 @@ function WorkoutLogExercise({
   const trackingOptions = parseTrackingOptions(exercise.tracking_options)
   const prTrackingEnabled = !trackingOptions.disablePrTracking
   const fields = getLogFieldsForExercise(exercise)
+  const keypad = useWorkoutLogKeypad()
+
+  React.useEffect(() => {
+    if (!keypad?.enabled) return
+
+    keypad.registerExerciseContext(exercise.id, {
+      sets,
+      fields,
+      previousSets,
+      onSetChange,
+    })
+
+    return () => {
+      keypad.unregisterExerciseContext(exercise.id)
+    }
+  }, [
+    exercise.id,
+    fields.showBarSpeed,
+    fields.showDuration,
+    fields.showPeakPower,
+    fields.showReps,
+    fields.showWeight,
+    keypad,
+    onSetChange,
+    previousSets,
+    sets,
+  ])
+
   const summary = formatExercisePrescriptionSummary(exercise)
   const currentE1rm =
     prTrackingEnabled && fields.showWeight && fields.showReps
@@ -713,7 +743,7 @@ function WorkoutLogExercise({
                       ) : (
                         <>
                           <span>Prev</span>
-                          {fields.showWeight && <span>Lbs</span>}
+                          {fields.showWeight && <span>{weightUnitLabel(weightUnit)}</span>}
                           {fields.showReps && <span>Reps</span>}
                           {fields.showDuration && <span>Sec</span>}
                         </>
@@ -773,60 +803,52 @@ function WorkoutLogExercise({
                           )}
 
                           {fields.showWeight && (
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              min={0}
-                              step="0.5"
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="weight"
                               value={set.weight}
                               disabled={readOnly}
-                              onFocus={onSetInputFocus}
-                              onChange={(event) =>
-                                onSetChange(set.setNumber, {
-                                  weight: event.target.value,
-                                })
+                              onChange={(value) =>
+                                onSetChange(set.setNumber, { weight: value })
                               }
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
-                              aria-label={`Set ${set.setNumber} weight`}
+                              ariaLabel={`Set ${set.setNumber} weight`}
                             />
                           )}
 
                           {fields.showReps && (
-                            <Input
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="reps"
                               value={set.reps}
                               disabled={readOnly}
-                              onFocus={onSetInputFocus}
-                              onChange={(event) =>
-                                onSetChange(set.setNumber, {
-                                  reps: event.target.value,
-                                })
+                              onChange={(value) =>
+                                onSetChange(set.setNumber, { reps: value })
                               }
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
-                              aria-label={`Set ${set.setNumber} reps`}
+                              ariaLabel={`Set ${set.setNumber} reps`}
                             />
                           )}
 
                           {fields.showDuration && (
-                            <Input
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="durationSeconds"
                               value={set.durationSeconds}
                               disabled={readOnly}
-                              onFocus={onSetInputFocus}
-                              onChange={(event) =>
+                              onChange={(value) =>
                                 onSetChange(set.setNumber, {
-                                  durationSeconds: event.target.value,
+                                  durationSeconds: value,
                                 })
                               }
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
-                              aria-label={`Set ${set.setNumber} duration`}
+                              ariaLabel={`Set ${set.setNumber} duration`}
                             />
                           )}
 
@@ -934,21 +956,20 @@ function WorkoutLogExercise({
                       <label className="text-muted-foreground text-xs">
                         Set {set.setNumber} bar speed (m/s)
                       </label>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        step="0.01"
+                      <WorkoutLogSetField
+                        exerciseId={exercise.id}
+                        setNumber={set.setNumber}
+                        field="barSpeed"
                         value={set.barSpeed}
                         disabled={readOnly}
-                        onFocus={onSetInputFocus}
-                        onChange={(event) =>
+                        onChange={(value) =>
                           onSetChange(set.setNumber, {
-                            barSpeed: event.target.value,
+                            barSpeed: value,
                           })
                         }
                         placeholder="—"
                         className="h-9"
+                        ariaLabel={`Set ${set.setNumber} bar speed`}
                       />
                     </div>
                   )}
@@ -957,20 +978,20 @@ function WorkoutLogExercise({
                       <label className="text-muted-foreground text-xs">
                         Set {set.setNumber} peak power
                       </label>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
+                      <WorkoutLogSetField
+                        exerciseId={exercise.id}
+                        setNumber={set.setNumber}
+                        field="peakPower"
                         value={set.peakPower}
                         disabled={readOnly}
-                        onFocus={onSetInputFocus}
-                        onChange={(event) =>
+                        onChange={(value) =>
                           onSetChange(set.setNumber, {
-                            peakPower: event.target.value,
+                            peakPower: value,
                           })
                         }
                         placeholder="—"
                         className="h-9"
+                        ariaLabel={`Set ${set.setNumber} peak power`}
                       />
                     </div>
                   )}
@@ -1024,6 +1045,28 @@ function WorkoutLogExercise({
   )
 }
 
+function WorkoutLogScrollArea({
+  scrollContainerRef,
+  children,
+}: {
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>
+  children: React.ReactNode
+}) {
+  const keypad = useWorkoutLogKeypad()
+
+  return (
+    <div
+      ref={scrollContainerRef}
+      className={cn(
+        'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] px-5 py-4 pb-6',
+        keypad?.activeTarget && 'pb-4'
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function WorkoutLogScreen({
   presentation,
   active,
@@ -1043,7 +1086,6 @@ export function WorkoutLogScreen({
   const isMobile = useIsMobile()
   const isPage = presentation === 'page'
   const isClientPortal = variant === 'client'
-  const useMobilePageKeyboardScroll = isPage && isMobile
   const allowPrescriptionEdits = !isClientPortal
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
@@ -1066,70 +1108,6 @@ export function WorkoutLogScreen({
   const [exerciseToRemove, setExerciseToRemove] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
-  const focusedSetInputRef = React.useRef<HTMLElement | null>(null)
-
-  const handleSetInputFocus = React.useCallback(
-    (event: React.FocusEvent<HTMLInputElement>) => {
-      if (!useMobilePageKeyboardScroll) return
-
-      const scrollParent = scrollContainerRef.current
-      if (!scrollParent) return
-
-      focusedSetInputRef.current = event.currentTarget
-      scheduleFocusedInputScroll(event.currentTarget, scrollParent)
-    },
-    [useMobilePageKeyboardScroll]
-  )
-
-  React.useEffect(() => {
-    if (!useMobilePageKeyboardScroll) return
-
-    const scrollParent = scrollContainerRef.current
-    const visualViewport = window.visualViewport
-    if (!scrollParent || !visualViewport) return
-
-    let keyboardWasOpen = isKeyboardOpen()
-
-    const onViewportResize = () => {
-      const keyboardOpen = isKeyboardOpen()
-
-      if (keyboardWasOpen && !keyboardOpen) {
-        const savedScrollTop = scrollParent.scrollTop
-        requestAnimationFrame(() => {
-          scrollParent.scrollTop = savedScrollTop
-          requestAnimationFrame(() => {
-            scrollParent.scrollTop = savedScrollTop
-          })
-        })
-      }
-
-      keyboardWasOpen = keyboardOpen
-    }
-
-    const onFocusOut = (event: FocusEvent) => {
-      const target = event.target
-      if (!(target instanceof HTMLElement) || !scrollParent.contains(target)) {
-        return
-      }
-
-      if (
-        event.relatedTarget instanceof Node &&
-        scrollParent.contains(event.relatedTarget)
-      ) {
-        return
-      }
-
-      focusedSetInputRef.current = null
-    }
-
-    scrollParent.addEventListener('focusout', onFocusOut)
-    visualViewport.addEventListener('resize', onViewportResize)
-
-    return () => {
-      scrollParent.removeEventListener('focusout', onFocusOut)
-      visualViewport.removeEventListener('resize', onViewportResize)
-    }
-  }, [active, useMobilePageKeyboardScroll])
 
   const removeExerciseConfirm = useConfirmDialog({
     title: exerciseToRemove
@@ -1211,6 +1189,7 @@ export function WorkoutLogScreen({
   dataRef.current = data
 
   const readOnly = data?.status === 'skipped'
+  const useCustomKeypad = isMobile && !readOnly
   const isCompleted = data?.status === 'completed'
   const canEditPrescription = allowPrescriptionEdits && !isCompleted && !readOnly
   const canSkip =
@@ -1819,7 +1798,6 @@ export function WorkoutLogScreen({
         weightUnit={weightUnit}
         className={options?.className}
         guidedLayout={showGuidedSession}
-        onSetInputFocus={handleSetInputFocus}
       />
     )
   }
@@ -1866,7 +1844,12 @@ export function WorkoutLogScreen({
   }
 
   const logContent = (
-    <RestTimerProvider>
+    <WorkoutLogKeypadProvider
+      enabled={useCustomKeypad}
+      weightUnit={weightUnit}
+      scrollContainerRef={scrollContainerRef}
+    >
+      <RestTimerProvider>
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col gap-0 overflow-hidden',
@@ -2006,11 +1989,7 @@ export function WorkoutLogScreen({
           </div>
         </div>
 
-        <div
-          ref={scrollContainerRef}
-          data-nested-keyboard-scroll=""
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] px-5 py-4 pb-6"
-        >
+        <WorkoutLogScrollArea scrollContainerRef={scrollContainerRef}>
           {schemaError ? (
             <div className="py-6">
               <SchemaSetupNotice
@@ -2087,7 +2066,9 @@ export function WorkoutLogScreen({
                 )}
             </div>
           )}
-        </div>
+        </WorkoutLogScrollArea>
+
+        <WorkoutLogKeypad />
 
         {showGuidedSession && activeExercise && !loading ? (
           <div className="bg-card shrink-0 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
@@ -2171,6 +2152,8 @@ export function WorkoutLogScreen({
         )}
       </div>
     </RestTimerProvider>
+    <PlateCalculatorSheet />
+    </WorkoutLogKeypadProvider>
   )
 
   const celebrationDialog = (
