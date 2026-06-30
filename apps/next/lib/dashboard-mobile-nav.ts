@@ -1,5 +1,6 @@
 import {
   navGroups,
+  postNavGroupItems,
   topNavItems,
   type NavGroup,
   type NavItem,
@@ -30,7 +31,11 @@ export function getFilteredNavGroups(): NavGroup[] {
 }
 
 export function getAllDashboardNavItems(): NavItem[] {
-  return [...topNavItems, ...getFilteredNavGroups().flatMap((group) => group.items)]
+  return [
+    ...topNavItems,
+    ...getFilteredNavGroups().flatMap((group) => group.items),
+    ...postNavGroupItems,
+  ]
 }
 
 export function getDashboardPrimaryMobileNavItems(): NavItem[] {

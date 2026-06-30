@@ -12,6 +12,7 @@ const sections = [
   { id: 'onboarding', label: 'Onboarding' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'billing', label: 'Billing' },
+  { id: 'payments', label: 'Payments' },
   { id: 'account', label: 'Account' },
 ] as const
 

@@ -5,6 +5,7 @@ export type PortalNavBadges = {
   nutritionDue: boolean
   sessionSoon: boolean
   teamAttention: boolean
+  openInvoices: number
 }
 
 export const emptyPortalNavBadges: PortalNavBadges = {
@@ -14,6 +15,7 @@ export const emptyPortalNavBadges: PortalNavBadges = {
   nutritionDue: false,
   sessionSoon: false,
   teamAttention: false,
+  openInvoices: 0,
 }
 
 export function getPortalNavBadgeCount(
@@ -26,6 +28,9 @@ export function getPortalNavBadgeCount(
   if (href === '/portal/nutrition' && badges.nutritionDue) return 1
   if (href === '/portal/sessions' && badges.sessionSoon) return 1
   if (href === '/portal/team' && badges.teamAttention) return 1
+  if (href === '/portal/billing' && badges.openInvoices > 0) {
+    return badges.openInvoices
+  }
   return 0
 }
 

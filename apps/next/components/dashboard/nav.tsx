@@ -16,6 +16,8 @@ import {
 
   Contact,
 
+  CreditCard,
+
   Flag,
 
   LayoutDashboard,
@@ -73,6 +75,14 @@ export const topNavItems: NavItem[] = [
   { label: 'Schedule', href: '/scheduling', icon: CalendarRange },
 
   { label: 'Inbox', href: '/messages', icon: MessageSquare },
+
+]
+
+
+
+export const postNavGroupItems: NavItem[] = [
+
+  { label: 'Billing', href: '/billing', icon: CreditCard },
 
 ]
 
@@ -163,6 +173,8 @@ export const navItems: NavItem[] = [
   ...topNavItems,
 
   ...navGroups.flatMap((group) => group.items),
+
+  ...postNavGroupItems,
 
 ]
 

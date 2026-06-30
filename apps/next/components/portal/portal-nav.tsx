@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LineChart,
   MessageSquare,
+  CreditCard,
   Scale,
   Target,
   TrendingUp,
@@ -48,6 +49,12 @@ export const portalLeaderboardsNavItem: PortalNavItem = {
   label: 'Leaderboards',
   href: '/portal/leaderboards',
   icon: Trophy,
+}
+
+const portalBillingNavItem: PortalNavItem = {
+  label: 'Billing',
+  href: '/portal/billing',
+  icon: CreditCard,
 }
 
 const portalDashboardNavItem: PortalNavItem = {
@@ -104,6 +111,7 @@ export function getPortalNavLayout(showTeam: boolean): PortalNavLayout {
     ],
     footerItems: [
       portalMessagesNavItem,
+      portalBillingNavItem,
       ...(showTeam ? [portalTeamNavItem, portalLeaderboardsNavItem] : []),
     ],
   }

@@ -40,3 +40,19 @@ test('resolvePortalNavBadgeCount hides badges on the active route', () => {
     0
   )
 })
+
+test('resolvePortalNavBadgeCount counts open invoices on billing nav', () => {
+  const badges = {
+    ...emptyPortalNavBadges,
+    openInvoices: 2,
+  }
+
+  assert.equal(
+    resolvePortalNavBadgeCount('/portal/billing', badges, '/portal/workouts'),
+    2
+  )
+  assert.equal(
+    resolvePortalNavBadgeCount('/portal/billing', badges, '/portal/billing'),
+    0
+  )
+})

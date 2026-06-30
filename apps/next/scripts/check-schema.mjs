@@ -1,5 +1,5 @@
 /**
- * Verify hosted Supabase schema through migration 0086.
+ * Verify hosted Supabase schema through migration 0087.
  * Run: yarn db:check
  */
 import { readFileSync, existsSync } from 'node:fs'
@@ -811,6 +811,10 @@ await check('get_coach_latest_messages RPC', async () => {
 await checkRestTable('profiles.subscription_plan column', '/rest/v1/profiles?select=subscription_plan&limit=1')
 await checkRestTable('gym_subscriptions table', '/rest/v1/gym_subscriptions?select=id&limit=1')
 await checkRestTable('profiles.stripe_customer_id column', '/rest/v1/profiles?select=stripe_customer_id&limit=1')
+await checkRestTable('profiles.stripe_connect_account_id column', '/rest/v1/profiles?select=stripe_connect_account_id&limit=1')
+await checkRestTable('clients.stripe_customer_id column', '/rest/v1/clients?select=stripe_customer_id&limit=1')
+await checkRestTable('client_invoices table', '/rest/v1/client_invoices?select=id&limit=1')
+await checkRestTable('client_billing_subscriptions table', '/rest/v1/client_billing_subscriptions?select=id&limit=1')
 
 let failed = false
 for (const { name, ok, detail } of checks) {
@@ -879,6 +883,7 @@ if (failed) {
   console.error('       supabase/apply-food-library.sql              (0079 food library + diary refs)')
   console.error('       supabase/apply-subscriptions.sql             (0085 subscriptions)')
   console.error('       supabase/apply-stripe-billing.sql            (0086 Stripe billing)')
+  console.error('       supabase/apply-client-billing.sql            (0087 client billing)')
   console.error('     Migrations 0065–0068 (message media, broadcasts, forum, realtime) — use yarn db:push.')
   console.error('     Teams (0020–0022) have no apply scripts — use yarn db:push.')
   console.error('     Earlier scripts: apply-client-calendar.sql through apply-client-progress-photos.sql')
@@ -887,7 +892,7 @@ if (failed) {
 }
 
 console.log(
-  '\nSchema looks good — migrations through 0086 (subscriptions, Stripe billing fields on profiles).'
+  '\nSchema looks good — migrations through 0087 (client billing, Stripe Connect fields).'
 )
 console.log('Note: RLS policies (0014 client portal write access) cannot be verified via REST.')
 console.log('      If clients cannot start/complete workouts, run supabase/apply-client-portal.sql.')

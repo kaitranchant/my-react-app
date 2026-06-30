@@ -311,6 +311,7 @@ export async function fetchPortalNavBadges(
     activeMealPlanResult,
     upcomingSessions,
     teamAttention,
+    openInvoicesResult,
   ] = await Promise.all([
     fetchPortalMessageHighlight(supabase, clientId),
     fetchPortalFormReviewHighlight(supabase, clientId),
@@ -347,6 +348,11 @@ export async function fetchPortalNavBadges(
       sessionHorizonIso
     ),
     clientNeedsTeamAttention(supabase, clientId),
+    supabase
+      .from('client_invoices')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+      .eq('status', 'open'),
   ])
 
   const periodCheckIn =
@@ -369,5 +375,8 @@ export async function fetchPortalNavBadges(
     nutritionDue,
     sessionSoon,
     teamAttention,
+    openInvoices: openInvoicesResult.error
+      ? 0
+      : (openInvoicesResult.count ?? 0),
   }
 }

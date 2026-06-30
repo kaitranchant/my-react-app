@@ -1,7 +1,15 @@
 import { BillingSettings } from '@/components/settings/billing-settings'
+import { PaymentsSettings } from '@/components/settings/payments-settings'
+import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { createClient } from '@/lib/supabase/server'
+import {
+  CLIENT_BILLING_SCHEMA_TABLES,
+  CLIENT_BILLING_SQL_FILE,
+} from '@/lib/client-billing-schema'
+import { loadCoachConnectStatusSafe } from '@/lib/client-billing-page-data'
 import { getCoachSubscriptionContext } from '@/lib/subscription-entitlements'
-import { isStripeConfigured } from '@/lib/stripe/config'
+import { getAppBaseUrl } from '@/lib/email/config'
+import { isStripeConfigured, getStripeKeyMode, getLiveModeHttpsRedirectError } from '@/lib/stripe/config'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccountSettings } from '@/components/settings/account-settings'
 import { AppearanceSettings } from '@/components/settings/appearance-settings'
@@ -24,9 +32,9 @@ export const metadata = {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string }>
+  searchParams: Promise<{ checkout?: string; connect?: string }>
 }) {
-  const { checkout } = await searchParams
+  const { checkout, connect } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -60,6 +68,7 @@ export default async function SettingsPage({
     onboardingWelcomeTemplateId: profile?.onboarding_welcome_template_id ?? '',
   }
   const subscriptionContext = await getCoachSubscriptionContext(supabase, user!.id)
+  const connectResult = await loadCoachConnectStatusSafe(supabase, user!.id)
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -135,6 +144,30 @@ export default async function SettingsPage({
               hasStripeCustomer={Boolean(profile?.stripe_customer_id)}
               checkoutSuccess={checkout === 'success'}
             />
+          </SettingsSection>
+
+          <SettingsSection
+            id="payments"
+            title="Payments"
+            description="Connect Stripe to bill clients and receive payouts."
+          >
+            {connectResult.schemaError ? (
+              <SchemaSetupNotice
+                tables={CLIENT_BILLING_SCHEMA_TABLES}
+                sqlFile={CLIENT_BILLING_SQL_FILE}
+              />
+            ) : (
+              <PaymentsSettings
+                connectStatus={connectResult.connectStatus}
+                connectSuccess={connect === 'success'}
+                connectRefresh={connect === 'refresh'}
+                stripeKeyMode={getStripeKeyMode()}
+                liveModeHttpsBlocked={Boolean(
+                  getLiveModeHttpsRedirectError(getAppBaseUrl())
+                )}
+                appBaseUrl={getAppBaseUrl()}
+              />
+            )}
           </SettingsSection>
 
           <SettingsSection

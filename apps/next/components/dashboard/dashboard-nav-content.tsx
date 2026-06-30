@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
+  postNavGroupItems,
   topNavItems,
   type NavGroup,
   type NavItem,
@@ -240,6 +241,17 @@ export function DashboardNavContent({
           badgeByHref={badgeByHref}
           onNavigate={onNavigate}
           forceOpen={Boolean(onNavigate)}
+        />
+      ))}
+      {postNavGroupItems.map((item) => (
+        <NavLink
+          key={item.href}
+          href={item.href}
+          label={item.label}
+          icon={item.icon}
+          active={isNavItemActive(pathname, item.href)}
+          badgeCount={badgeByHref[item.href] ?? 0}
+          onNavigate={onNavigate}
         />
       ))}
     </nav>

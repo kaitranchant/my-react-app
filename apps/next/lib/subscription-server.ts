@@ -72,6 +72,7 @@ export function getFeatureLabel(feature: SubscriptionFeature): string {
     broadcasts: 'Broadcasts',
     load_management: 'Load management',
     gym: 'Facility management',
+    client_billing: 'Client billing',
   }
 
   return labels[feature]

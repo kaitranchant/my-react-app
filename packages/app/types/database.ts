@@ -12,6 +12,19 @@ export type SubscriptionStatus =
   | 'past_due'
   | 'canceled'
   | 'incomplete'
+export type ClientInvoiceStatus =
+  | 'draft'
+  | 'open'
+  | 'paid'
+  | 'void'
+  | 'uncollectible'
+export type ClientSubscriptionStatus =
+  | 'active'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled'
+  | 'incomplete'
+export type ClientBillingInterval = 'month' | 'year'
 export type ProgramStatus = 'draft' | 'active' | 'archived'
 export type ProgramAssignmentStatus = 'active' | 'completed' | 'cancelled'
 export type MealPlanStatus = 'draft' | 'active' | 'archived'
@@ -209,6 +222,10 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_current_period_end: string | null
+          stripe_connect_account_id: string | null
+          stripe_connect_charges_enabled: boolean
+          stripe_connect_payouts_enabled: boolean
+          stripe_connect_details_submitted: boolean
           created_at: string
           updated_at: string
         }
@@ -253,6 +270,10 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
+          stripe_connect_account_id?: string | null
+          stripe_connect_charges_enabled?: boolean
+          stripe_connect_payouts_enabled?: boolean
+          stripe_connect_details_submitted?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -297,10 +318,86 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
+          stripe_connect_account_id?: string | null
+          stripe_connect_charges_enabled?: boolean
+          stripe_connect_payouts_enabled?: boolean
+          stripe_connect_details_submitted?: boolean
           created_at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      client_billing_subscriptions: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          amount_cents: number
+          interval: ClientBillingInterval
+          currency: string
+          description: string
+          status: ClientSubscriptionStatus
+          stripe_subscription_id: string | null
+          stripe_price_id: string | null
+          checkout_session_id: string | null
+          checkout_url: string | null
+          current_period_end: string | null
+          canceled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          amount_cents: number
+          interval: ClientBillingInterval
+          currency?: string
+          description: string
+          status?: ClientSubscriptionStatus
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          checkout_session_id?: string | null
+          checkout_url?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          amount_cents?: number
+          interval?: ClientBillingInterval
+          currency?: string
+          description?: string
+          status?: ClientSubscriptionStatus
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          checkout_session_id?: string | null
+          checkout_url?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_billing_subscriptions_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_billing_subscriptions_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       client_email_nudges: {
         Row: {
@@ -330,6 +427,69 @@ export type Database = {
             columns: ['client_id']
             isOneToOne: false
             referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_invoices: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          amount_cents: number
+          currency: string
+          description: string
+          status: ClientInvoiceStatus
+          due_date: string | null
+          stripe_invoice_id: string | null
+          hosted_invoice_url: string | null
+          paid_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          amount_cents: number
+          currency?: string
+          description: string
+          status?: ClientInvoiceStatus
+          due_date?: string | null
+          stripe_invoice_id?: string | null
+          hosted_invoice_url?: string | null
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          amount_cents?: number
+          currency?: string
+          description?: string
+          status?: ClientInvoiceStatus
+          due_date?: string | null
+          stripe_invoice_id?: string | null
+          hosted_invoice_url?: string | null
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_invoices_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_invoices_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]
@@ -386,6 +546,7 @@ export type Database = {
           biological_sex: BiologicalSex | null
           invite_accepted_at: string | null
           onboarding_automation_at: string | null
+          stripe_customer_id: string | null
           created_at: string
           updated_at: string
         }
@@ -410,6 +571,7 @@ export type Database = {
           biological_sex?: BiologicalSex | null
           invite_accepted_at?: string | null
           onboarding_automation_at?: string | null
+          stripe_customer_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -434,6 +596,7 @@ export type Database = {
           biological_sex?: BiologicalSex | null
           invite_accepted_at?: string | null
           onboarding_automation_at?: string | null
+          stripe_customer_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -3392,6 +3555,9 @@ export type Database = {
       gym_invite_status: GymInviteStatus
       subscription_plan: SubscriptionPlan
       subscription_status: SubscriptionStatus
+      client_invoice_status: ClientInvoiceStatus
+      client_subscription_status: ClientSubscriptionStatus
+      client_billing_interval: ClientBillingInterval
       weight_unit: WeightUnit
       week_starts_on: WeekStartsOn
       check_in_frequency: CheckInFrequency
@@ -3500,6 +3666,17 @@ export type GymSubscription =
   Database['public']['Tables']['gym_subscriptions']['Row']
 export type GymSubscriptionInsert =
   Database['public']['Tables']['gym_subscriptions']['Insert']
+export type ClientInvoice = Database['public']['Tables']['client_invoices']['Row']
+export type ClientInvoiceInsert =
+  Database['public']['Tables']['client_invoices']['Insert']
+export type ClientInvoiceUpdate =
+  Database['public']['Tables']['client_invoices']['Update']
+export type ClientBillingSubscription =
+  Database['public']['Tables']['client_billing_subscriptions']['Row']
+export type ClientBillingSubscriptionInsert =
+  Database['public']['Tables']['client_billing_subscriptions']['Insert']
+export type ClientBillingSubscriptionUpdate =
+  Database['public']['Tables']['client_billing_subscriptions']['Update']
 export type GymInvite = Database['public']['Tables']['gym_invites']['Row']
 
 export type GymMemberWithProfile = GymMember & {

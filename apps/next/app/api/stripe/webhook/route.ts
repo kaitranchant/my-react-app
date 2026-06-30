@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
+import {
+  isClientBillingMetadata,
+  linkClientSubscriptionFromCheckout,
+  syncClientInvoiceFromStripe,
+  syncClientSubscriptionFromStripe,
+  syncConnectAccountUpdated,
+} from '@/lib/stripe/client-billing-sync'
 import { getStripeClient, getStripeWebhookSecret } from '@/lib/stripe/config'
 import {
   clearCoachStripeSubscription,
@@ -14,7 +21,11 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-async function handleSubscriptionChange(subscription: Stripe.Subscription) {
+async function handlePlatformSubscriptionChange(subscription: Stripe.Subscription) {
+  if (isClientBillingMetadata(subscription.metadata)) {
+    return
+  }
+
   const metadata = subscription.metadata
   const coachId = getCoachIdFromMetadata(metadata)
   if (!coachId) return
@@ -51,7 +62,11 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   await syncCoachStripeSubscription({ coachId, subscription })
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+async function handlePlatformSubscriptionDeleted(subscription: Stripe.Subscription) {
+  if (isClientBillingMetadata(subscription.metadata)) {
+    return
+  }
+
   const coachId = getCoachIdFromMetadata(subscription.metadata)
   if (!coachId) return
 
@@ -64,6 +79,48 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 
   await clearCoachStripeSubscription(coachId)
+}
+
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session,
+  connectAccountId?: string | null
+) {
+  if (session.metadata?.billing_scope === 'client') {
+    await linkClientSubscriptionFromCheckout(session)
+
+    if (session.mode === 'subscription' && session.subscription && connectAccountId) {
+      const stripe = getStripeClient()
+      const subscriptionId =
+        typeof session.subscription === 'string'
+          ? session.subscription
+          : session.subscription.id
+      const subscription = await stripe.subscriptions.retrieve(
+        subscriptionId,
+        {},
+        { stripeAccount: connectAccountId }
+      )
+      subscription.metadata = {
+        ...subscription.metadata,
+        ...session.metadata,
+      }
+      await syncClientSubscriptionFromStripe(subscription)
+    }
+    return
+  }
+
+  if (session.mode === 'subscription' && session.subscription) {
+    const stripe = getStripeClient()
+    const subscriptionId =
+      typeof session.subscription === 'string'
+        ? session.subscription
+        : session.subscription.id
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    subscription.metadata = {
+      ...subscription.metadata,
+      ...session.metadata,
+    }
+    await handlePlatformSubscriptionChange(subscription)
+  }
 }
 
 export async function POST(request: Request) {
@@ -92,31 +149,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 })
   }
 
+  const connectAccountId =
+    typeof event.account === 'string' ? event.account : null
+
   try {
     switch (event.type) {
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        await syncConnectAccountUpdated(account)
+        break
+      }
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session
-        if (session.mode === 'subscription' && session.subscription) {
-          const subscriptionId =
-            typeof session.subscription === 'string'
-              ? session.subscription
-              : session.subscription.id
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-          subscription.metadata = {
-            ...subscription.metadata,
-            ...session.metadata,
-          }
-          await handleSubscriptionChange(subscription)
+        await handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session,
+          connectAccountId
+        )
+        break
+      }
+      case 'invoice.finalized':
+      case 'invoice.paid':
+      case 'invoice.voided':
+      case 'invoice.marked_uncollectible': {
+        const invoice = event.data.object as Stripe.Invoice
+        if (isClientBillingMetadata(invoice.metadata)) {
+          await syncClientInvoiceFromStripe(invoice, connectAccountId)
         }
         break
       }
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        await handleSubscriptionChange(event.data.object as Stripe.Subscription)
+        const subscription = event.data.object as Stripe.Subscription
+        if (isClientBillingMetadata(subscription.metadata)) {
+          await syncClientSubscriptionFromStripe(subscription)
+        } else if (!connectAccountId) {
+          await handlePlatformSubscriptionChange(subscription)
+        }
         break
       }
       case 'customer.subscription.deleted': {
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
+        const subscription = event.data.object as Stripe.Subscription
+        if (isClientBillingMetadata(subscription.metadata)) {
+          await syncClientSubscriptionFromStripe(subscription)
+        } else if (!connectAccountId) {
+          await handlePlatformSubscriptionDeleted(subscription)
+        }
         break
       }
       default:

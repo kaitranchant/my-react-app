@@ -16,6 +16,7 @@ export type SubscriptionFeature =
   | 'broadcasts'
   | 'load_management'
   | 'gym'
+  | 'client_billing'
 
 export const STARTER_CLIENT_LIMIT = 5
 export const GROWTH_CLIENT_LIMIT = 25
@@ -76,6 +77,7 @@ export const PLAN_PRICING: Record<SubscriptionPlan, PlanPricing> = {
       'Compliance & form review',
       'Message templates & voice notes',
       'Onboarding automation',
+      'Client billing via Stripe',
     ],
   },
   scale: {
@@ -122,6 +124,7 @@ const FEATURE_MIN_PLAN: Record<SubscriptionFeature, SubscriptionPlan> = {
   broadcasts: 'scale',
   load_management: 'scale',
   gym: 'facility',
+  client_billing: 'growth',
 }
 
 export function getMinimumPlanForFeature(
