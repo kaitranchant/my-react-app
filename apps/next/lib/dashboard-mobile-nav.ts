@@ -1,3 +1,5 @@
+import { CreditCard } from 'lucide-react'
+
 import {
   navGroups,
   postNavGroupItems,
@@ -55,12 +57,26 @@ export function getDashboardOverflowMobileNavGroups(): NavGroup[] {
     getDashboardOverflowMobileNavItems().map((item) => item.href)
   )
 
-  return getFilteredNavGroups()
+  const groups = getFilteredNavGroups()
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => overflowHrefs.has(item.href)),
     }))
     .filter((group) => group.items.length > 0)
+
+  const postItems = postNavGroupItems.filter(
+    (item) => overflowHrefs.has(item.href) && isNavItemAvailable(item)
+  )
+
+  if (postItems.length > 0) {
+    groups.push({
+      label: 'Billing',
+      icon: CreditCard,
+      items: postItems,
+    })
+  }
+
+  return groups
 }
 
 export function getCoachNavBadgeCount(

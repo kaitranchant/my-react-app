@@ -8,6 +8,7 @@ import { MoreHorizontal } from 'lucide-react'
 import {
   getCoachNavBadgeCount,
   getDashboardOverflowMobileNavGroups,
+  getDashboardOverflowMobileNavItems,
   getDashboardPrimaryMobileNavItems,
 } from '@/lib/dashboard-mobile-nav'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
@@ -68,7 +69,7 @@ export function DashboardMobileBottomNav({
   const [moreOpen, setMoreOpen] = useState(false)
   const primaryItems = getDashboardPrimaryMobileNavItems()
   const overflowGroups = getDashboardOverflowMobileNavGroups()
-  const overflowItems = overflowGroups.flatMap((group) => group.items)
+  const overflowItems = getDashboardOverflowMobileNavItems()
   const overflowActive = overflowItems.some((item) =>
     isNavItemActive(pathname, item.href)
   )
