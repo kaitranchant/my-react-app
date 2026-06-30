@@ -95,7 +95,7 @@ function KeypadButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex min-w-0 items-center justify-center rounded-md text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 sm:rounded-lg sm:text-sm',
+        'flex min-w-0 items-center justify-center rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 sm:rounded-xl sm:text-base',
         variant === 'accent' &&
           'bg-brand text-brand-foreground hover:bg-brand/90',
         variant === 'icon' &&
@@ -139,59 +139,59 @@ function WorkoutLogKeypadContent({
 
   return (
     <div
-      className="box-border grid w-full max-w-full min-w-0 grid-cols-5 gap-0.5 px-1.5 pt-1.5 sm:gap-1 sm:px-2 sm:pt-2"
+      className="box-border grid w-full max-w-full min-w-0 grid-cols-5 gap-1 px-2 pt-2 pb-1 sm:gap-1.5 sm:px-3 sm:pt-2.5 sm:pb-1.5"
       style={{
-        gridTemplateRows: 'repeat(4, minmax(2.25rem, auto))',
+        gridTemplateRows: 'repeat(4, minmax(3rem, auto))',
       }}
     >
       <KeypadButton
         aria-label={`Add ${increment.replace('+', '')} ${weightUnit}`}
         disabled={!isWeightField}
         onClick={() => adjustWeight(getWeightIncrementValue(weightUnit))}
-        className="h-full min-h-9 text-[11px] sm:min-h-10 sm:text-xs"
+        className="h-full min-h-11 text-xs sm:min-h-12 sm:text-sm"
       >
         {increment}
       </KeypadButton>
-      <KeypadButton aria-label="Digit 1" onClick={() => appendDigit('1')}>
+      <KeypadButton aria-label="Digit 1" onClick={() => appendDigit('1')} className="h-full">
         1
       </KeypadButton>
-      <KeypadButton aria-label="Digit 2" onClick={() => appendDigit('2')}>
+      <KeypadButton aria-label="Digit 2" onClick={() => appendDigit('2')} className="h-full">
         2
       </KeypadButton>
-      <KeypadButton aria-label="Digit 3" onClick={() => appendDigit('3')}>
+      <KeypadButton aria-label="Digit 3" onClick={() => appendDigit('3')} className="h-full">
         3
       </KeypadButton>
       <KeypadButton
         aria-label="Copy previous set"
         variant="icon"
         onClick={copyPrevious}
-        className="h-full min-h-9 sm:min-h-10"
+        className="h-full min-h-11 sm:min-h-12"
       >
-        <Copy className="size-4 sm:size-5" />
+        <Copy className="size-5" />
       </KeypadButton>
 
       <KeypadButton
         aria-label={`Subtract ${decrement.replace('-', '')} ${weightUnit}`}
         disabled={!isWeightField}
         onClick={() => adjustWeight(-getWeightIncrementValue(weightUnit))}
-        className="h-full min-h-9 text-[11px] sm:min-h-10 sm:text-xs"
+        className="h-full min-h-11 text-xs sm:min-h-12 sm:text-sm"
       >
         {decrement}
       </KeypadButton>
-      <KeypadButton aria-label="Digit 4" onClick={() => appendDigit('4')}>
+      <KeypadButton aria-label="Digit 4" onClick={() => appendDigit('4')} className="h-full">
         4
       </KeypadButton>
-      <KeypadButton aria-label="Digit 5" onClick={() => appendDigit('5')}>
+      <KeypadButton aria-label="Digit 5" onClick={() => appendDigit('5')} className="h-full">
         5
       </KeypadButton>
-      <KeypadButton aria-label="Digit 6" onClick={() => appendDigit('6')}>
+      <KeypadButton aria-label="Digit 6" onClick={() => appendDigit('6')} className="h-full">
         6
       </KeypadButton>
       <KeypadButton
         aria-label="Next field"
         variant="accent"
         onClick={goNext}
-        className="row-span-2 h-full min-h-[calc(4.75rem+0.125rem)] text-xs font-bold sm:min-h-[calc(5.25rem+0.25rem)] sm:text-sm"
+        className="row-span-2 h-full min-h-[calc(6rem+0.25rem)] text-sm font-bold sm:min-h-[calc(6.75rem+0.375rem)] sm:text-base"
       >
         NEXT
       </KeypadButton>
@@ -201,37 +201,37 @@ function WorkoutLogKeypadContent({
         variant="icon"
         disabled={!isWeightField}
         onClick={openPlateSheet}
-        className="h-full min-h-9 sm:min-h-10"
+        className="h-full min-h-11 sm:min-h-12"
       >
-        <Layers className="size-4 sm:size-5" />
+        <Layers className="size-5" />
       </KeypadButton>
-      <KeypadButton aria-label="Digit 7" onClick={() => appendDigit('7')}>
+      <KeypadButton aria-label="Digit 7" onClick={() => appendDigit('7')} className="h-full">
         7
       </KeypadButton>
-      <KeypadButton aria-label="Digit 8" onClick={() => appendDigit('8')}>
+      <KeypadButton aria-label="Digit 8" onClick={() => appendDigit('8')} className="h-full">
         8
       </KeypadButton>
-      <KeypadButton aria-label="Digit 9" onClick={() => appendDigit('9')}>
+      <KeypadButton aria-label="Digit 9" onClick={() => appendDigit('9')} className="h-full">
         9
       </KeypadButton>
 
       <div />
-      <KeypadButton aria-label="Decimal point" onClick={() => appendDigit('.')}>
+      <KeypadButton aria-label="Decimal point" onClick={() => appendDigit('.')} className="h-full">
         .
       </KeypadButton>
-      <KeypadButton aria-label="Digit 0" onClick={() => appendDigit('0')}>
+      <KeypadButton aria-label="Digit 0" onClick={() => appendDigit('0')} className="h-full">
         0
       </KeypadButton>
-      <KeypadButton aria-label="Backspace" variant="icon" onClick={backspace}>
-        <Delete className="size-4 sm:size-5" />
+      <KeypadButton aria-label="Backspace" variant="icon" onClick={backspace} className="h-full min-h-11 sm:min-h-12">
+        <Delete className="size-5" />
       </KeypadButton>
       <KeypadButton
         aria-label="Hide keyboard"
         variant="icon"
         onClick={closeKeypad}
-        className="h-full min-h-9 sm:min-h-10"
+        className="h-full min-h-11 sm:min-h-12"
       >
-        <Keyboard className="size-4 sm:size-5" />
+        <Keyboard className="size-5" />
       </KeypadButton>
     </div>
   )
