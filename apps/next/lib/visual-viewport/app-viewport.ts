@@ -9,6 +9,15 @@ const VIEWPORT_CSS_VARS = {
 
 const KEYBOARD_OPEN_HEIGHT_DELTA_PX = 120
 
+/** Marks a nested scroll container that manages its own keyboard scroll. */
+export const NESTED_KEYBOARD_SCROLL_SELECTOR = '[data-nested-keyboard-scroll]'
+
+export function isKeyboardOpen() {
+  const visualViewport = window.visualViewport
+  if (!visualViewport) return false
+  return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX
+}
+
 export function resetWindowScroll() {
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
@@ -68,39 +77,41 @@ export function scrollElementIntoMainContent(
   clampMainContentScroll()
 }
 
-/** Keep a focused input visible above the keyboard within a nested scroll container. */
+/**
+ * Keep a focused input visible within a nested scroll container.
+ * Uses the scroll parent's visible bounds (already sized by the app shell keyboard sync).
+ */
 export function scrollFocusedInputIntoView(
   element: HTMLElement,
   scrollParent: HTMLElement,
   options: { paddingPx?: number } = {}
 ) {
   const { paddingPx = 16 } = options
-  resetWindowScroll()
-
-  const visualViewport = window.visualViewport
-  const visibleTop = visualViewport?.offsetTop ?? 0
-  const visibleBottom = visualViewport
-    ? visualViewport.offsetTop + visualViewport.height
-    : window.innerHeight
-
+  const parentRect = scrollParent.getBoundingClientRect()
   const rect = element.getBoundingClientRect()
-  let scrollDelta = 0
 
-  if (rect.bottom > visibleBottom - paddingPx) {
-    scrollDelta = rect.bottom - (visibleBottom - paddingPx)
-  } else if (rect.top < visibleTop + paddingPx) {
-    scrollDelta = rect.top - (visibleTop + paddingPx)
-  }
+  const overflowBottom = rect.bottom - (parentRect.bottom - paddingPx)
+  const overflowTop = parentRect.top + paddingPx - rect.top
 
-  if (scrollDelta !== 0) {
-    scrollParent.scrollTop += scrollDelta
+  if (overflowBottom > 0) {
+    scrollParent.scrollTop += overflowBottom
+  } else if (overflowTop > 0) {
+    scrollParent.scrollTop -= overflowTop
   }
 }
 
-function isKeyboardOpen() {
-  const visualViewport = window.visualViewport
-  if (!visualViewport) return false
-  return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX
+/** Scroll after focus once layout settles (keyboard animation). */
+export function scheduleFocusedInputScroll(
+  element: HTMLElement,
+  scrollParent: HTMLElement
+) {
+  const run = () => scrollFocusedInputIntoView(element, scrollParent)
+
+  requestAnimationFrame(() => {
+    run()
+    requestAnimationFrame(run)
+  })
+  window.setTimeout(run, 120)
 }
 
 export function syncAppViewportCssVars() {
@@ -151,8 +162,14 @@ export function installAppViewportSync() {
     resetWindowScroll()
 
     if (keyboardWasOpen && !keyboardOpen) {
-      clampMainContentScroll()
-      burstStabilizeViewportScroll(400)
+      const inNestedKeyboardScroll =
+        document.activeElement instanceof Element &&
+        document.activeElement.closest(NESTED_KEYBOARD_SCROLL_SELECTOR)
+
+      if (!inNestedKeyboardScroll) {
+        clampMainContentScroll()
+        burstStabilizeViewportScroll(400)
+      }
     }
 
     keyboardWasOpen = keyboardOpen
@@ -171,9 +188,15 @@ export function installAppViewportSync() {
     const target = event.target
     if (!(target instanceof Node) || !main?.contains(target)) return
 
+    const inNestedKeyboardScroll =
+      target instanceof Element &&
+      target.closest(NESTED_KEYBOARD_SCROLL_SELECTOR)
+
     requestAnimationFrame(() => {
-      clampMainContentScroll()
       resetWindowScroll()
+      if (!inNestedKeyboardScroll) {
+        clampMainContentScroll()
+      }
     })
   }
 

@@ -82,7 +82,13 @@ export function DashboardShell({
               : 'overflow-y-auto pb-24 md:pb-6 lg:pb-8'
           )}
         >
-          {children}
+          <div
+            className={cn(
+              immersiveLog && 'flex h-full min-h-0 flex-col'
+            )}
+          >
+            {children}
+          </div>
         </main>
         {!immersiveLog ? <DashboardMobileBottomNav badges={navBadges} /> : null}
         <DashboardShortcuts />

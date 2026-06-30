@@ -62,9 +62,12 @@ import {
 } from '@/components/calendar/workout-elapsed-timer'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import {
+  isKeyboardOpen,
+  scheduleFocusedInputScroll,
   scrollFocusedInputIntoView,
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
+import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Card, CardContent } from '@/components/ui/card'
@@ -630,10 +633,8 @@ function WorkoutLogExercise({
             <div className="flex flex-wrap items-center gap-2">
               {isWorkoutActive && !readOnly && (
                 <RestTimerChip
+                  exerciseName={exercise.exercise.name}
                   seconds={restSeconds}
-                  onClick={() =>
-                    startRestTimer(exercise.exercise.name, restSeconds)
-                  }
                 />
               )}
               {currentE1rm != null && (
@@ -1040,8 +1041,10 @@ export function WorkoutLogScreen({
   athleteName,
 }: WorkoutLogScreenProps) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const isPage = presentation === 'page'
   const isClientPortal = variant === 'client'
+  const useMobilePageKeyboardScroll = isPage && isMobile
   const allowPrescriptionEdits = !isClientPortal
   const [loading, setLoading] = React.useState(false)
   const [pending, setPending] = React.useState(false)
@@ -1068,32 +1071,49 @@ export function WorkoutLogScreen({
 
   const handleSetInputFocus = React.useCallback(
     (event: React.FocusEvent<HTMLInputElement>) => {
+      if (!useMobilePageKeyboardScroll) return
+
       const scrollParent = scrollContainerRef.current
       if (!scrollParent) return
 
       focusedSetInputRef.current = event.currentTarget
-      requestAnimationFrame(() => {
-        scrollFocusedInputIntoView(event.currentTarget, scrollParent)
-      })
+      scheduleFocusedInputScroll(event.currentTarget, scrollParent)
     },
-    []
+    [useMobilePageKeyboardScroll]
   )
 
   React.useEffect(() => {
+    if (!useMobilePageKeyboardScroll) return
+
     const scrollParent = scrollContainerRef.current
     const visualViewport = window.visualViewport
     if (!scrollParent || !visualViewport) return
 
-    let rafId = 0
+    let debounceId = 0
+    let keyboardWasOpen = isKeyboardOpen()
 
-    const keepFocusedInputVisible = () => {
+    const onViewportResize = () => {
+      const keyboardOpen = isKeyboardOpen()
+
+      if (keyboardWasOpen && !keyboardOpen) {
+        const savedScrollTop = scrollParent.scrollTop
+        requestAnimationFrame(() => {
+          scrollParent.scrollTop = savedScrollTop
+          requestAnimationFrame(() => {
+            scrollParent.scrollTop = savedScrollTop
+          })
+        })
+      }
+
+      keyboardWasOpen = keyboardOpen
+
       const input = focusedSetInputRef.current
-      if (!input || !scrollParent.contains(input)) return
+      if (!input || !scrollParent.contains(input) || !keyboardOpen) return
 
-      cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(() => {
+      window.clearTimeout(debounceId)
+      debounceId = window.setTimeout(() => {
         scrollFocusedInputIntoView(input, scrollParent)
-      })
+      }, 150)
     }
 
     const onFocusOut = (event: FocusEvent) => {
@@ -1113,16 +1133,14 @@ export function WorkoutLogScreen({
     }
 
     scrollParent.addEventListener('focusout', onFocusOut)
-    visualViewport.addEventListener('resize', keepFocusedInputVisible)
-    visualViewport.addEventListener('scroll', keepFocusedInputVisible)
+    visualViewport.addEventListener('resize', onViewportResize)
 
     return () => {
-      cancelAnimationFrame(rafId)
+      window.clearTimeout(debounceId)
       scrollParent.removeEventListener('focusout', onFocusOut)
-      visualViewport.removeEventListener('resize', keepFocusedInputVisible)
-      visualViewport.removeEventListener('scroll', keepFocusedInputVisible)
+      visualViewport.removeEventListener('resize', onViewportResize)
     }
-  }, [active])
+  }, [active, useMobilePageKeyboardScroll])
 
   const removeExerciseConfirm = useConfirmDialog({
     title: exerciseToRemove
@@ -2001,6 +2019,7 @@ export function WorkoutLogScreen({
 
         <div
           ref={scrollContainerRef}
+          data-nested-keyboard-scroll=""
           className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] px-5 py-4 pb-6"
         >
           {schemaError ? (
