@@ -2,12 +2,14 @@
 
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import {
   openConnectDashboard,
   resetConnectAccountAction,
   startConnectOnboarding,
+  syncConnectAccountAction,
 } from '@/app/(dashboard)/billing/actions'
 import { Button } from '@/components/ui/button'
 import { getStripePlatformProfileUrl } from '@/lib/stripe/connect-errors'
@@ -73,6 +75,47 @@ export function ConnectOnboardingButton({
     >
       {loading ? <Loader2 className="size-4 animate-spin" /> : null}
       {children}
+    </Button>
+  )
+}
+
+export function ConnectSyncButton({
+  variant = 'outline',
+  className,
+}: {
+  variant?: 'brand' | 'outline' | 'ghost' | 'default' | 'secondary' | 'destructive' | 'link'
+  className?: string
+}) {
+  const router = useRouter()
+  const [loading, setLoading] = React.useState(false)
+
+  async function handleClick() {
+    setLoading(true)
+    try {
+      const result = await syncConnectAccountAction()
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      toast.success('Stripe Connect status refreshed.')
+      router.refresh()
+    } catch {
+      toast.error('Could not refresh Connect status.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      className={cn(className)}
+      disabled={loading}
+      onClick={handleClick}
+    >
+      {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+      Refresh status
     </Button>
   )
 }

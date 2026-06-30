@@ -10,6 +10,8 @@ import { loadCoachConnectStatusSafe } from '@/lib/client-billing-page-data'
 import { getCoachSubscriptionContext } from '@/lib/subscription-entitlements'
 import { getAppBaseUrl } from '@/lib/email/config'
 import { isStripeConfigured, getStripeKeyMode, getLiveModeHttpsRedirectError } from '@/lib/stripe/config'
+import { syncCoachConnectStatus } from '@/lib/stripe/connect'
+import type { ConnectAccountStatus } from '@/lib/stripe/connect'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccountSettings } from '@/components/settings/account-settings'
 import { AppearanceSettings } from '@/components/settings/appearance-settings'
@@ -69,6 +71,22 @@ export default async function SettingsPage({
   }
   const subscriptionContext = await getCoachSubscriptionContext(supabase, user!.id)
   const connectResult = await loadCoachConnectStatusSafe(supabase, user!.id)
+
+  let connectStatus: ConnectAccountStatus | null = connectResult.schemaError
+    ? null
+    : connectResult.connectStatus
+
+  if (
+    !connectResult.schemaError &&
+    isStripeConfigured() &&
+    (connect === 'success' || connect === 'refresh')
+  ) {
+    try {
+      connectStatus = await syncCoachConnectStatus(user!.id)
+    } catch {
+      // Fall back to cached profile flags if Stripe sync fails.
+    }
+  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -158,7 +176,7 @@ export default async function SettingsPage({
               />
             ) : (
               <PaymentsSettings
-                connectStatus={connectResult.connectStatus}
+                connectStatus={connectStatus ?? connectResult.connectStatus}
                 connectSuccess={connect === 'success'}
                 connectRefresh={connect === 'refresh'}
                 stripeKeyMode={getStripeKeyMode()}

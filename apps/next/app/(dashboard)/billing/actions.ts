@@ -14,7 +14,7 @@ import {
   createConnectOnboardingUrl,
   getCoachConnectStatus,
   isConnectReady,
-  refreshConnectAccountStatus,
+  syncCoachConnectStatus,
 } from '@/lib/stripe/connect'
 import { isStripeConfigured, getStripeKeyMode } from '@/lib/stripe/config'
 import {
@@ -163,13 +163,8 @@ export async function syncConnectAccountAction(): Promise<ActionResult> {
     return { success: false, error: 'You must be signed in.' }
   }
 
-  const connectStatus = await getCoachConnectStatus(supabase, user.id)
-  if (!connectStatus.accountId) {
-    return { success: false, error: 'No Connect account to sync.' }
-  }
-
   try {
-    await refreshConnectAccountStatus(connectStatus.accountId)
+    await syncCoachConnectStatus(user.id)
     revalidatePath('/settings')
     revalidatePath('/billing')
     return { success: true }

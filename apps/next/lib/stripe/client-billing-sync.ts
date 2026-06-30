@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 
 import { mapStripeInvoiceToLocal } from '@/lib/stripe/client-invoices'
 import { mapStripeSubscriptionToLocal } from '@/lib/stripe/client-subscriptions'
-import { refreshConnectAccountStatus } from '@/lib/stripe/connect'
+import { refreshConnectAccountStatus, syncCoachConnectStatus } from '@/lib/stripe/connect'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export function isClientBillingMetadata(
@@ -27,6 +27,13 @@ export function getLocalSubscriptionIdFromMetadata(
 
 export async function syncConnectAccountUpdated(account: Stripe.Account) {
   if (!account.id) return
+
+  const coachId = account.metadata?.coach_id?.trim()
+  if (coachId) {
+    await syncCoachConnectStatus(coachId)
+    return
+  }
+
   await refreshConnectAccountStatus(account.id)
 }
 

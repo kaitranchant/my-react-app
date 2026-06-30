@@ -10,6 +10,7 @@ import type { ConnectAccountStatus } from '@/lib/stripe/connect'
 import {
   ConnectDashboardButton,
   ConnectOnboardingButton,
+  ConnectSyncButton,
   LiveHttpsConnectHelp,
 } from '@/components/billing/connect-buttons'
 import { isStripeConfigured, type StripeKeyMode } from '@/lib/stripe/config'
@@ -38,10 +39,16 @@ export function PaymentsSettings({
 
   return (
     <div className="space-y-4">
-      {connectSuccess ? (
+      {connectSuccess && isReady ? (
         <div className="border-status-success/30 bg-status-success/10 text-status-success-foreground rounded-lg border px-4 py-3 text-sm">
-          Stripe Connect setup saved. You can start billing clients once charges are
-          enabled.
+          Stripe Connect is ready. You can bill clients from Client billing.
+        </div>
+      ) : null}
+
+      {connectSuccess && !isReady ? (
+        <div className="border-border bg-muted/50 rounded-lg border px-4 py-3 text-sm">
+          Returned from Stripe. Status was refreshed — if charges are still pending,
+          use Continue Stripe setup or Refresh status below.
         </div>
       ) : null}
 
@@ -99,8 +106,12 @@ export function PaymentsSettings({
                   </ConnectOnboardingButton>
                 ) : null}
 
+                {connectStatus.accountId && !liveModeHttpsBlocked ? (
+                  <ConnectSyncButton />
+                ) : null}
+
                 {connectStatus.accountId &&
-                connectStatus.detailsSubmitted &&
+                (isReady || connectStatus.detailsSubmitted) &&
                 !liveModeHttpsBlocked ? (
                   <ConnectDashboardButton>Open Stripe dashboard</ConnectDashboardButton>
                 ) : null}

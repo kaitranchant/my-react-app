@@ -13,6 +13,7 @@ import { CreateSubscriptionDialog } from '@/components/billing/create-subscripti
 import {
   ConnectDashboardButton,
   ConnectOnboardingButton,
+  ConnectSyncButton,
   LiveHttpsConnectHelp,
 } from '@/components/billing/connect-buttons'
 import { Badge } from '@/components/ui/badge'
@@ -190,7 +191,9 @@ export function CoachBillingPanel({
                 <ConnectOnboardingButton stripeKeyMode={stripeKeyMode}>
                   {connectStatus.accountId ? 'Continue Stripe setup' : 'Connect Stripe'}
                 </ConnectOnboardingButton>
-                {connectStatus.accountId && connectStatus.detailsSubmitted ? (
+                {connectStatus.accountId ? <ConnectSyncButton /> : null}
+                {connectStatus.accountId &&
+                (connectStatus.isReady || connectStatus.detailsSubmitted) ? (
                   <ConnectDashboardButton>Open Stripe dashboard</ConnectDashboardButton>
                 ) : null}
               </div>
