@@ -1052,15 +1052,10 @@ function WorkoutLogScrollArea({
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
   children: React.ReactNode
 }) {
-  const keypad = useWorkoutLogKeypad()
-
   return (
     <div
       ref={scrollContainerRef}
-      className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] px-5 py-4 pb-6',
-        keypad?.activeTarget && 'pb-4'
-      )}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] px-5 py-4 pb-6"
     >
       {children}
     </div>

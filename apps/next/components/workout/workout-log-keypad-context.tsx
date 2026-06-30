@@ -47,6 +47,8 @@ type WorkoutLogKeypadContextValue = {
   copyPrevious: () => void
   goNext: () => void
   getActiveValue: () => string
+  keypadReserveHeight: number
+  setKeypadReserveHeight: (height: number) => void
 }
 
 const WorkoutLogKeypadContext =
@@ -73,6 +75,7 @@ export function WorkoutLogKeypadProvider({
     React.useState<ActiveKeypadTarget | null>(null)
   const [editingValue, setEditingValue] = React.useState('')
   const [plateSheetOpen, setPlateSheetOpen] = React.useState(false)
+  const [keypadReserveHeight, setKeypadReserveHeight] = React.useState(0)
   const exerciseContextsRef = React.useRef(
     new Map<string, KeypadExerciseContext>()
   )
@@ -276,6 +279,8 @@ export function WorkoutLogKeypadProvider({
       copyPrevious,
       goNext,
       getActiveValue,
+      keypadReserveHeight,
+      setKeypadReserveHeight,
     }),
     [
       enabled,
@@ -295,6 +300,7 @@ export function WorkoutLogKeypadProvider({
       copyPrevious,
       goNext,
       getActiveValue,
+      keypadReserveHeight,
     ]
   )
 
