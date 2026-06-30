@@ -68,6 +68,35 @@ export function scrollElementIntoMainContent(
   clampMainContentScroll()
 }
 
+/** Keep a focused input visible above the keyboard within a nested scroll container. */
+export function scrollFocusedInputIntoView(
+  element: HTMLElement,
+  scrollParent: HTMLElement,
+  options: { paddingPx?: number } = {}
+) {
+  const { paddingPx = 16 } = options
+  resetWindowScroll()
+
+  const visualViewport = window.visualViewport
+  const visibleTop = visualViewport?.offsetTop ?? 0
+  const visibleBottom = visualViewport
+    ? visualViewport.offsetTop + visualViewport.height
+    : window.innerHeight
+
+  const rect = element.getBoundingClientRect()
+  let scrollDelta = 0
+
+  if (rect.bottom > visibleBottom - paddingPx) {
+    scrollDelta = rect.bottom - (visibleBottom - paddingPx)
+  } else if (rect.top < visibleTop + paddingPx) {
+    scrollDelta = rect.top - (visibleTop + paddingPx)
+  }
+
+  if (scrollDelta !== 0) {
+    scrollParent.scrollTop += scrollDelta
+  }
+}
+
 function isKeyboardOpen() {
   const visualViewport = window.visualViewport
   if (!visualViewport) return false

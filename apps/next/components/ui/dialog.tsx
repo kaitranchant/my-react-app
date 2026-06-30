@@ -39,17 +39,22 @@ function DialogClose({
 function DialogOverlay({
   className,
   viewport = false,
+  visualViewport = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
   viewport?: boolean
+  /** Size overlay to the visual viewport (keyboard-safe). */
+  visualViewport?: boolean
 }) {
+  const vvCover = viewport || visualViewport
+
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      data-vv-surface={viewport ? 'cover' : undefined}
+      data-vv-surface={vvCover ? 'cover' : undefined}
       className={cn(
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50',
-        viewport && 'dialog-vv-surface-cover',
+        vvCover && 'dialog-vv-surface-cover',
         className
       )}
       {...props}
@@ -61,27 +66,36 @@ function DialogContent({
   className,
   children,
   viewport = false,
+  visualViewport = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   /** Fill the viewport with safe-area margins instead of vertical centering. */
   viewport?: boolean
+  /** Compact dialog anchored within the visual viewport on mobile. */
+  visualViewport?: boolean
 }) {
+  const vvBehavior = viewport || visualViewport
+
   return (
     <DialogPortal>
-      <DialogOverlay viewport={viewport} />
+      <DialogOverlay viewport={viewport} visualViewport={visualViewport} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        data-vv-surface={viewport ? 'inset' : undefined}
+        data-vv-surface={
+          viewport ? 'inset' : visualViewport ? 'compact' : undefined
+        }
         className={cn(
           'bg-background fixed z-50 shadow-elevated duration-200',
           viewport
             ? 'dialog-vv-surface-inset data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 flex flex-col overflow-hidden rounded-xl border'
-            : 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 top-[50%] left-[50%] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 sm:max-w-lg',
+            : visualViewport
+              ? 'dialog-vv-surface-compact data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:slide-in-from-bottom-4 grid w-full gap-4 rounded-xl border p-6 sm:max-w-lg'
+              : 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 top-[50%] left-[50%] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 sm:max-w-lg',
           className
         )}
         {...props}
       >
-        {viewport ? <ViewportDialogBehavior /> : null}
+        {vvBehavior ? <ViewportDialogBehavior /> : null}
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4">
           <XIcon />

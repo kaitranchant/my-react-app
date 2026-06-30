@@ -81,14 +81,17 @@ export function PortalShell({
             id="main-content"
             tabIndex={-1}
             className={cn(
-              'app-shell-bg min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 lg:p-8',
-              immersiveLog ? 'p-0 md:p-6 lg:p-8' : 'pb-24 sm:pb-24 md:pb-6 lg:pb-8'
+              'app-shell-bg min-h-0 flex-1 overscroll-y-contain p-4 sm:p-6 lg:p-8',
+              immersiveLog
+                ? 'flex flex-col overflow-hidden p-0 md:block md:overflow-y-auto md:p-6 lg:p-8'
+                : 'overflow-y-auto pb-24 sm:pb-24 md:pb-6 lg:pb-8'
             )}
           >
             <div
               className={cn(
                 'mx-auto w-full max-w-6xl',
-                immersiveLog && 'max-w-none md:max-w-6xl'
+                immersiveLog &&
+                  'flex h-full min-h-0 max-w-none flex-col md:max-w-6xl'
               )}
             >
               {children}

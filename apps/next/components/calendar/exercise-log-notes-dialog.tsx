@@ -28,7 +28,7 @@ type ExerciseLogNotesDialogProps = {
   variant: 'coach' | 'client'
   coachNotes: string | null
   clientNotes: string | null
-  onSaved: () => void
+  onSaved: (notes: string) => void
 }
 
 export function ExerciseLogNotesDialog({
@@ -73,7 +73,7 @@ export function ExerciseLogNotesDialog({
 
     if (result.success) {
       toast.success('Notes saved.')
-      onSaved()
+      onSaved(editableNotes)
       onOpenChange(false)
       return
     }

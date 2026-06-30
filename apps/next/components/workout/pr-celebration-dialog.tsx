@@ -117,7 +117,7 @@ export function PrCelebrationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 sm:max-w-md">
+      <DialogContent visualViewport className="overflow-hidden p-0 sm:max-w-md">
         <div className="from-brand/10 via-status-warning/10 relative bg-gradient-to-br to-emerald-500/10 px-6 pt-8 pb-6">
           <ConfettiBurst />
           <DialogHeader className="relative space-y-3 text-center">

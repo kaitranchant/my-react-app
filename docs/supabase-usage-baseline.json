@@ -1,0 +1,174 @@
+{
+  "current": {
+    "capturedAt": "2026-06-26T13:55:17.403Z",
+    "projectUrl": "https://xemawvuactruhurzdbiw.supabase.co",
+    "coachEmail": "e2e-coach@coaching-app.test",
+    "coachId": "d3e8f31d-cf34-4f6a-833b-bccdf17fe359",
+    "inboxSmoke": {
+      "total": 0,
+      "sumByClient": 0,
+      "latestCount": 0,
+      "clientRows": 0
+    },
+    "checks": [
+      {
+        "name": "RPC count_coach_unread_messages",
+        "ok": true,
+        "ms": 256,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_coach_unread_by_client",
+        "ok": true,
+        "ms": 175,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_coach_latest_messages",
+        "ok": true,
+        "ms": 110,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_client_unread_from_coach",
+        "ok": true,
+        "ms": 94,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_client_latest_coach_messages",
+        "ok": true,
+        "ms": 125,
+        "detail": "responds"
+      },
+      {
+        "name": "index query client_messages_coach_id_created_at_idx",
+        "ok": true,
+        "ms": 114,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "index query client_scheduled_workouts_client_date_status_idx",
+        "ok": true,
+        "ms": 110,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "index query client_form_reviews_coach_pending_idx",
+        "ok": true,
+        "ms": 109,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "resolve E2E coach profile",
+        "ok": true,
+        "ms": 264,
+        "detail": "e2e-coach@coaching-app.test"
+      },
+      {
+        "name": "inbox badge RPC vs per-client unread sum",
+        "ok": true,
+        "ms": 189,
+        "detail": "total unread=0, clients with previews=0"
+      },
+      {
+        "name": "batched load query shapes (workouts + check-ins)",
+        "ok": true,
+        "ms": 481,
+        "detail": "5 clients — bulk workout/check-in/form-review queries OK"
+      }
+    ],
+    "manualDashboardSteps": [
+      "Reports → Database / Query Performance: compare top queries (calls, total time) vs pre-deploy",
+      "Database → Advisors: re-run and note slow-query warnings",
+      "Project Settings → Usage: watch Database compute, Egress, Realtime, Auth over 24–48h",
+      "Supabase AI Assistant: ask which queries consumed the most time in the last 24h"
+    ]
+  },
+  "previous": {
+    "capturedAt": "2026-06-26T13:27:33.444Z",
+    "projectUrl": "https://xemawvuactruhurzdbiw.supabase.co",
+    "coachEmail": "e2e-coach@coaching-app.test",
+    "coachId": "d3e8f31d-cf34-4f6a-833b-bccdf17fe359",
+    "inboxSmoke": {
+      "total": 0,
+      "sumByClient": 0,
+      "latestCount": 0,
+      "clientRows": 0
+    },
+    "checks": [
+      {
+        "name": "RPC count_coach_unread_messages",
+        "ok": true,
+        "ms": 480,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_coach_unread_by_client",
+        "ok": true,
+        "ms": 184,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_coach_latest_messages",
+        "ok": true,
+        "ms": 113,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_client_unread_from_coach",
+        "ok": true,
+        "ms": 112,
+        "detail": "responds"
+      },
+      {
+        "name": "RPC get_client_latest_coach_messages",
+        "ok": true,
+        "ms": 110,
+        "detail": "responds"
+      },
+      {
+        "name": "index query client_messages_coach_id_created_at_idx",
+        "ok": true,
+        "ms": 111,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "index query client_scheduled_workouts_client_date_status_idx",
+        "ok": true,
+        "ms": 114,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "index query client_form_reviews_coach_pending_idx",
+        "ok": true,
+        "ms": 110,
+        "detail": "query shape OK"
+      },
+      {
+        "name": "resolve E2E coach profile",
+        "ok": true,
+        "ms": 118,
+        "detail": "e2e-coach@coaching-app.test"
+      },
+      {
+        "name": "inbox badge RPC vs per-client unread sum",
+        "ok": true,
+        "ms": 197,
+        "detail": "total unread=0, clients with previews=0"
+      },
+      {
+        "name": "batched load query shapes (workouts + check-ins)",
+        "ok": true,
+        "ms": 468,
+        "detail": "5 clients — bulk workout/check-in/form-review queries OK"
+      }
+    ],
+    "manualDashboardSteps": [
+      "Reports → Database / Query Performance: compare top queries (calls, total time) vs pre-deploy",
+      "Database → Advisors: re-run and note slow-query warnings",
+      "Project Settings → Usage: watch Database compute, Egress, Realtime, Auth over 24–48h",
+      "Supabase AI Assistant: ask which queries consumed the most time in the last 24h"
+    ]
+  }
+}

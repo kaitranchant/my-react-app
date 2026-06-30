@@ -61,7 +61,10 @@ import {
   WorkoutProgressBar,
 } from '@/components/calendar/workout-elapsed-timer'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
-import { Badge } from '@/components/ui/badge'
+import {
+  scrollFocusedInputIntoView,
+  stabilizeViewportScroll,
+} from '@/lib/visual-viewport/app-viewport'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Card, CardContent } from '@/components/ui/card'
@@ -131,8 +134,9 @@ import {
   type WorkoutLogSetDraft,
 } from '@/lib/workout-log'
 import { getWorkoutToneBadgeClass } from '@/lib/status-colors'
-import type { ExercisePreviousSets } from 'app/types/database'
 import { cn } from '@/lib/utils'
+import type { ExercisePreviousSets } from 'app/types/database'
+import { Badge } from '@/components/ui/badge'
 import {
   getWorkoutLogSchemaSetup,
   isWorkoutLogSchemaError,
@@ -290,11 +294,12 @@ type WorkoutLogExerciseProps = {
   onEdit: () => void
   onReplace: () => void
   onDelete: () => void
-  onNotesChanged: () => void
+  onNotesChanged: (notes: string) => void
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
   className?: string
   guidedLayout?: boolean
+  onSetInputFocus?: (event: React.FocusEvent<HTMLInputElement>) => void
 }
 
 function WorkoutLogExercise({
@@ -320,6 +325,7 @@ function WorkoutLogExercise({
   weightUnit = 'lbs',
   className,
   guidedLayout = false,
+  onSetInputFocus,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -774,6 +780,7 @@ function WorkoutLogExercise({
                               step="0.5"
                               value={set.weight}
                               disabled={readOnly}
+                              onFocus={onSetInputFocus}
                               onChange={(event) =>
                                 onSetChange(set.setNumber, {
                                   weight: event.target.value,
@@ -792,6 +799,7 @@ function WorkoutLogExercise({
                               min={0}
                               value={set.reps}
                               disabled={readOnly}
+                              onFocus={onSetInputFocus}
                               onChange={(event) =>
                                 onSetChange(set.setNumber, {
                                   reps: event.target.value,
@@ -810,6 +818,7 @@ function WorkoutLogExercise({
                               min={0}
                               value={set.durationSeconds}
                               disabled={readOnly}
+                              onFocus={onSetInputFocus}
                               onChange={(event) =>
                                 onSetChange(set.setNumber, {
                                   durationSeconds: event.target.value,
@@ -932,6 +941,7 @@ function WorkoutLogExercise({
                         step="0.01"
                         value={set.barSpeed}
                         disabled={readOnly}
+                        onFocus={onSetInputFocus}
                         onChange={(event) =>
                           onSetChange(set.setNumber, {
                             barSpeed: event.target.value,
@@ -953,6 +963,7 @@ function WorkoutLogExercise({
                         min={0}
                         value={set.peakPower}
                         disabled={readOnly}
+                        onFocus={onSetInputFocus}
                         onChange={(event) =>
                           onSetChange(set.setNumber, {
                             peakPower: event.target.value,
@@ -1052,6 +1063,66 @@ export function WorkoutLogScreen({
   const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
   const [exerciseToRemove, setExerciseToRemove] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  const focusedSetInputRef = React.useRef<HTMLElement | null>(null)
+
+  const handleSetInputFocus = React.useCallback(
+    (event: React.FocusEvent<HTMLInputElement>) => {
+      const scrollParent = scrollContainerRef.current
+      if (!scrollParent) return
+
+      focusedSetInputRef.current = event.currentTarget
+      requestAnimationFrame(() => {
+        scrollFocusedInputIntoView(event.currentTarget, scrollParent)
+      })
+    },
+    []
+  )
+
+  React.useEffect(() => {
+    const scrollParent = scrollContainerRef.current
+    const visualViewport = window.visualViewport
+    if (!scrollParent || !visualViewport) return
+
+    let rafId = 0
+
+    const keepFocusedInputVisible = () => {
+      const input = focusedSetInputRef.current
+      if (!input || !scrollParent.contains(input)) return
+
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        scrollFocusedInputIntoView(input, scrollParent)
+      })
+    }
+
+    const onFocusOut = (event: FocusEvent) => {
+      const target = event.target
+      if (!(target instanceof HTMLElement) || !scrollParent.contains(target)) {
+        return
+      }
+
+      if (
+        event.relatedTarget instanceof Node &&
+        scrollParent.contains(event.relatedTarget)
+      ) {
+        return
+      }
+
+      focusedSetInputRef.current = null
+    }
+
+    scrollParent.addEventListener('focusout', onFocusOut)
+    visualViewport.addEventListener('resize', keepFocusedInputVisible)
+    visualViewport.addEventListener('scroll', keepFocusedInputVisible)
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      scrollParent.removeEventListener('focusout', onFocusOut)
+      visualViewport.removeEventListener('resize', keepFocusedInputVisible)
+      visualViewport.removeEventListener('scroll', keepFocusedInputVisible)
+    }
+  }, [active])
 
   const removeExerciseConfirm = useConfirmDialog({
     title: exerciseToRemove
@@ -1262,17 +1333,35 @@ export function WorkoutLogScreen({
   const completeWorkout = React.useCallback(async () => {
     autoCompletingRef.current = true
 
-    const saved = await persistSetsRef.current(exerciseStateRef.current, {
-      silent: true,
-      reload: false,
-      notifyParent: false,
-      blockUi: false,
-      revalidate: true,
-    })
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    stabilizeViewportScroll()
 
-    if (!saved) {
-      autoCompletingRef.current = false
-      return
+    if (isClientPortal) {
+      setShowWorkoutComplete(true)
+    }
+
+    const currentState = exerciseStateRef.current
+    const payloadKey = serializeExerciseStateForSave(currentState)
+    const needsSave = payloadKey !== lastPersistedStateRef.current
+
+    if (needsSave) {
+      const saved = await persistSetsRef.current(currentState, {
+        silent: true,
+        reload: false,
+        notifyParent: false,
+        blockUi: false,
+        revalidate: true,
+      })
+
+      if (!saved) {
+        autoCompletingRef.current = false
+        if (isClientPortal) {
+          setShowWorkoutComplete(false)
+        }
+        return
+      }
     }
 
     const result = isClientPortal
@@ -1283,18 +1372,20 @@ export function WorkoutLogScreen({
 
     if (result.success) {
       if (result.newPrs.length > 0) {
+        setShowWorkoutComplete(false)
         setCelebrationPrs(result.newPrs)
         setShowCelebration(true)
-      } else if (isClientPortal) {
-        setShowWorkoutComplete(true)
-      } else {
+      } else if (!isClientPortal) {
         toast.success('Workout complete!')
       }
-      await loadData()
+      void loadData()
       onChangedRef.current()
       return
     }
 
+    if (isClientPortal) {
+      setShowWorkoutComplete(false)
+    }
     toast.error(result.error)
   }, [clientId, isClientPortal, loadData, workoutId])
 
@@ -1655,6 +1746,25 @@ export function WorkoutLogScreen({
     onChanged()
   }
 
+  const handleExerciseNotesChanged = React.useCallback(
+    (exerciseRowId: string, notes: string) => {
+      const notesField = variant === 'coach' ? 'workout_notes' : 'client_notes'
+      const trimmed = notes.trim()
+      setData((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          exercises: current.exercises.map((exercise) =>
+            exercise.id === exerciseRowId
+              ? { ...exercise, [notesField]: trimmed ? trimmed : null }
+              : exercise
+          ),
+        }
+      })
+    },
+    [variant]
+  )
+
   const status = data?.status ?? initialStatus
   const hasProgress = data
     ? workoutHasProgress(data, data.logSets)
@@ -1695,11 +1805,14 @@ export function WorkoutLogScreen({
         onEdit={() => setEditingExercise(exercise)}
         onReplace={() => setReplacingExercise(exercise)}
         onDelete={() => requestRemoveExercise(exercise)}
-        onNotesChanged={() => void loadData()}
+        onNotesChanged={(notes) =>
+          handleExerciseNotesChanged(exercise.id, notes)
+        }
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
         className={options?.className}
         guidedLayout={showGuidedSession}
+        onSetInputFocus={handleSetInputFocus}
       />
     )
   }
@@ -1886,7 +1999,10 @@ export function WorkoutLogScreen({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-6">
+        <div
+          ref={scrollContainerRef}
+          className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] px-5 py-4 pb-6"
+        >
           {schemaError ? (
             <div className="py-6">
               <SchemaSetupNotice
@@ -2079,7 +2195,7 @@ export function WorkoutLogScreen({
   if (isPage) {
     return (
       <>
-        <div className="bg-background fixed inset-0 z-50 flex flex-col pb-[env(safe-area-inset-bottom)] md:static md:inset-auto md:z-auto md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border md:pb-0">
+        <div className="bg-background flex h-full min-h-0 flex-col pb-[env(safe-area-inset-bottom)] md:static md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border md:pb-0">
           {logContent}
         </div>
         {celebrationDialog}

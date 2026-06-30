@@ -340,4 +340,38 @@
         max(0.5rem, env(safe-area-inset-bottom))
     ) !important;
   }
+
+  .dialog-vv-surface-compact {
+    position: fixed !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: calc(
+      var(--app-vv-top, 0px) + max(0.75rem, env(safe-area-inset-bottom))
+    ) !important;
+    left: calc(
+      var(--app-vv-left, 0px) + max(0.75rem, env(safe-area-inset-left))
+    ) !important;
+    width: calc(
+      var(--app-vv-width, 100%) - max(0.75rem, env(safe-area-inset-left)) -
+        max(0.75rem, env(safe-area-inset-right))
+    ) !important;
+    max-width: 28rem !important;
+    transform: none !important;
+    max-height: calc(
+      var(--app-vv-height, 100svh) - max(0.75rem, env(safe-area-inset-top)) -
+        max(0.75rem, env(safe-area-inset-bottom)) - 1.5rem
+    ) !important;
+    overflow-y: auto !important;
+  }
+
+  @media (min-width: 640px) {
+    .dialog-vv-surface-compact {
+      top: 50% !important;
+      bottom: auto !important;
+      left: 50% !important;
+      width: min(28rem, calc(100% - 2rem)) !important;
+      transform: translate(-50%, -50%) !important;
+      max-height: calc(100svh - 2rem) !important;
+    }
+  }
 }
