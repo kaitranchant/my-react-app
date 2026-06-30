@@ -792,6 +792,17 @@ export function applySetPatchWithCompletion(
     return next
   }
 
+  const touchesLogValues =
+    'weight' in patch ||
+    'reps' in patch ||
+    'durationSeconds' in patch ||
+    'barSpeed' in patch ||
+    'peakPower' in patch
+
+  if (touchesLogValues && set.completed) {
+    return { ...next, completed: false, predicted: false }
+  }
+
   return { ...next, completed: set.completed }
 }
 

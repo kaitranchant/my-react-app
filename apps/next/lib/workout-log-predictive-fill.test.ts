@@ -145,4 +145,33 @@ describe('predictive fill propagation', () => {
     assert.equal(next[1]?.weight, '50')
     assert.equal(next[1]?.reps, '8')
   })
+
+  it('marks a completed set incomplete when weight or reps are edited', () => {
+    const sets = [
+      emptySet(1, {
+        weight: '50',
+        reps: '8',
+        predicted: false,
+        completed: true,
+      }),
+    ]
+
+    const afterWeightEdit = applyExerciseSetChanges(
+      sets,
+      1,
+      { weight: '55' },
+      fields
+    )
+    assert.equal(afterWeightEdit[0]?.completed, false)
+    assert.equal(afterWeightEdit[0]?.weight, '55')
+
+    const afterRepsEdit = applyExerciseSetChanges(
+      sets,
+      1,
+      { reps: '10' },
+      fields
+    )
+    assert.equal(afterRepsEdit[0]?.completed, false)
+    assert.equal(afterRepsEdit[0]?.reps, '10')
+  })
 })

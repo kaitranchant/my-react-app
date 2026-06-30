@@ -154,7 +154,7 @@ export function WorkoutLogSwipeableSetRow({
 
       <div
         className={cn(
-          'bg-muted/25 relative touch-pan-y select-none',
+          'bg-background relative z-10 w-full touch-pan-y select-none',
           !dragging && 'transition-transform duration-200 ease-out'
         )}
         style={{ transform: `translateX(-${offset}px)` }}
