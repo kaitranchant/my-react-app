@@ -13,6 +13,9 @@ import type {
 
 type TimeWindow = { startMinutes: number; endMinutes: number }
 
+/** Matches the 30-minute cells in the availability grid editor. */
+export const BOOKING_SLOT_STEP_MINUTES = 30
+
 export type AvailableSlot = {
   startsAt: string
   endsAt: string
@@ -203,6 +206,102 @@ function getWindowsForDate(
   return windows.sort((a, b) => a.startMinutes - b.startMinutes)
 }
 
+/** Same cell boundaries as `rulesToGrid` in availability-grid-editor.tsx */
+function addRuleCells(
+  cells: Set<number>,
+  startTime: string,
+  endTime: string
+) {
+  const startMinutes = parseTimeToMinutes(startTime.slice(0, 5))
+  const endMinutes = parseTimeToMinutes(endTime.slice(0, 5))
+
+  for (
+    let slot = startMinutes;
+    slot < endMinutes;
+    slot += BOOKING_SLOT_STEP_MINUTES
+  ) {
+    if (
+      slot < endMinutes &&
+      slot + BOOKING_SLOT_STEP_MINUTES > startMinutes
+    ) {
+      cells.add(slot)
+    }
+  }
+}
+
+function removeRuleCells(
+  cells: Set<number>,
+  startTime: string,
+  endTime: string
+) {
+  const startMinutes = parseTimeToMinutes(startTime.slice(0, 5))
+  const endMinutes = parseTimeToMinutes(endTime.slice(0, 5))
+
+  for (const slot of cells) {
+    if (
+      slot < endMinutes &&
+      slot + BOOKING_SLOT_STEP_MINUTES > startMinutes
+    ) {
+      cells.delete(slot)
+    }
+  }
+}
+
+function getAvailabilityCellsForDate(
+  dateKey: string,
+  rules: CoachAvailabilityRule[],
+  exceptions: CoachAvailabilityException[],
+  timezone: CoachPreferences['timezone']
+): Set<number> {
+  const iana = resolveCoachTimezone(timezone)
+  const dayOfWeek = getDayOfWeekInTimezone(dateKey, iana)
+  const cells = new Set<number>()
+
+  for (const rule of rules) {
+    if (rule.day_of_week !== dayOfWeek) continue
+    addRuleCells(cells, rule.start_time, rule.end_time)
+  }
+
+  const dayExceptions = exceptions.filter(
+    (exception) => exception.exception_date === dateKey
+  )
+
+  for (const exception of dayExceptions) {
+    if (exception.exception_type === 'extra_hours') {
+      if (exception.start_time && exception.end_time) {
+        addRuleCells(cells, exception.start_time, exception.end_time)
+      }
+      continue
+    }
+
+    if (!exception.start_time || !exception.end_time) {
+      cells.clear()
+      return cells
+    }
+
+    removeRuleCells(cells, exception.start_time, exception.end_time)
+  }
+
+  return cells
+}
+
+function sessionFitsInCells(
+  cells: Set<number>,
+  startMinutes: number,
+  durationMinutes: number
+): boolean {
+  for (
+    let offset = 0;
+    offset < durationMinutes;
+    offset += BOOKING_SLOT_STEP_MINUTES
+  ) {
+    if (!cells.has(startMinutes + offset)) {
+      return false
+    }
+  }
+  return true
+}
+
 function overlapsExisting(
   slotStart: Date,
   slotEnd: Date,
@@ -253,34 +352,39 @@ export function computeAvailableSlots(options: {
   const slots: AvailableSlot[] = []
 
   for (const dateKey of dateKeys) {
-    const windows = getWindowsForDate(dateKey, rules, exceptions, timezone)
-    for (const window of windows) {
-      for (
-        let start = window.startMinutes;
-        start + duration <= window.endMinutes;
-        start += duration + buffer
-      ) {
-        const hours = Math.floor(start / 60)
-        const mins = start % 60
-        const time = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
-        const slotStart = combineDateAndTimeToUtc(dateKey, time, timezone)
-        const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
+    const cells = getAvailabilityCellsForDate(
+      dateKey,
+      rules,
+      exceptions,
+      timezone
+    )
+    const starts = Array.from(cells).sort((left, right) => left - right)
 
-        if (slotStart.getTime() < earliest || slotStart.getTime() > latest) {
-          continue
-        }
-
-        if (overlapsExisting(slotStart, slotEnd, appointments, buffer)) {
-          continue
-        }
-
-        slots.push({
-          startsAt: slotStart.toISOString(),
-          endsAt: slotEnd.toISOString(),
-          dateKey,
-          startTimeLabel: minutesToTimeLabel(start),
-        })
+    for (const start of starts) {
+      if (!sessionFitsInCells(cells, start, duration)) {
+        continue
       }
+
+      const hours = Math.floor(start / 60)
+      const mins = start % 60
+      const time = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+      const slotStart = combineDateAndTimeToUtc(dateKey, time, timezone)
+      const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
+
+      if (slotStart.getTime() < earliest || slotStart.getTime() > latest) {
+        continue
+      }
+
+      if (overlapsExisting(slotStart, slotEnd, appointments, buffer)) {
+        continue
+      }
+
+      slots.push({
+        startsAt: slotStart.toISOString(),
+        endsAt: slotEnd.toISOString(),
+        dateKey,
+        startTimeLabel: minutesToTimeLabel(start),
+      })
     }
   }
 
