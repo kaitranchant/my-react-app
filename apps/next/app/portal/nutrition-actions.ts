@@ -6,15 +6,18 @@ import {
   normalizeSupplements,
   nutritionLogValuesToRow,
   nutritionProfileToFormValues,
+  preserveNutritionIntakeFields,
 } from '@/lib/nutrition'
 import { requirePortalClientContext } from '@/lib/portal-client'
 import {
   clientNutritionNotesSchema,
   foodDiaryEntryFormSchema,
   nutritionLogFormSchema,
+  nutritionSetupFormSchema,
   type ClientNutritionNotesFormValues,
   type FoodDiaryEntryFormValues,
   type NutritionLogFormValues,
+  type NutritionSetupFormValues,
 } from '@/lib/validations/nutrition'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -179,6 +182,7 @@ export async function updateClientNutritionNotes(
     notes: baseValues.notes,
     dietary_restrictions: baseValues.dietaryRestrictions,
     supplements: normalizeSupplements(baseValues.supplements),
+    ...preserveNutritionIntakeFields(existingProfile),
     client_nutrition_notes: parsed.data.clientNutritionNotes,
   }
 
@@ -189,6 +193,92 @@ export async function updateClientNutritionNotes(
   if (error) {
     return { success: false, error: error.message }
   }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+export async function submitNutritionSetupForm(
+  values: NutritionSetupFormValues
+): Promise<ActionResult> {
+  const parsed = nutritionSetupFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: coachClient, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('coach_id, full_name')
+    .eq('id', ctx.client.id)
+    .maybeSingle()
+
+  if (clientError || !coachClient?.coach_id) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  const { data: existingProfile } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .select('*')
+    .eq('client_id', ctx.client.id)
+    .maybeSingle()
+
+  if (!existingProfile?.setup_form_requested_at) {
+    return {
+      success: false,
+      error: 'Your coach has not requested a nutrition setup form.',
+    }
+  }
+
+  const cleanedSupplements = normalizeSupplements(
+    parsed.data.supplements.filter((supplement) => supplement.name.trim())
+  )
+  const baseValues = nutritionProfileToFormValues(existingProfile)
+  const now = new Date().toISOString()
+
+  const row = {
+    client_id: ctx.client.id,
+    coach_id: coachClient.coach_id,
+    calories_kcal: baseValues.caloriesKcal,
+    protein_g: baseValues.proteinG,
+    carbs_g: baseValues.carbsG,
+    fat_g: baseValues.fatG,
+    fiber_g: baseValues.fiberG,
+    water_ml: baseValues.waterMl,
+    notes: baseValues.notes,
+    dietary_restrictions: parsed.data.dietaryRestrictions,
+    supplements: cleanedSupplements,
+    client_nutrition_notes: parsed.data.additionalNotes,
+    favorite_foods: parsed.data.favoriteFoods,
+    current_calories_kcal: parsed.data.currentCaloriesKcal,
+    current_protein_g: parsed.data.currentProteinG,
+    current_carbs_g: parsed.data.currentCarbsG,
+    current_fat_g: parsed.data.currentFatG,
+    setup_form_requested_at: existingProfile.setup_form_requested_at,
+    setup_form_completed_at: now,
+  }
+
+  const { error } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .upsert(row, { onConflict: 'client_id' })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  const { notifyCoachOfNutritionSetupSubmission } = await import(
+    '@/lib/notifications/notify-coach-nutrition-setup'
+  )
+  void notifyCoachOfNutritionSetupSubmission({
+    coachId: coachClient.coach_id,
+    clientId: ctx.client.id,
+    clientName:
+      coachClient.full_name?.trim() || ctx.client.full_name || 'Client',
+  })
 
   revalidatePortalNutrition(ctx.client.id)
   return { success: true }

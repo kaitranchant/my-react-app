@@ -10,8 +10,10 @@ import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
 import { appendDuplicatedMealPlanDays } from '@/lib/meal-plan-extend'
 import {
   nutritionLogValuesToRow,
+  nutritionProfileToFormValues,
   nutritionProfileValuesToRow,
   normalizeSupplements,
+  preserveNutritionIntakeFields,
 } from '@/lib/nutrition'
 import { requireClientAccess } from '@/lib/gym-access'
 import {
@@ -55,11 +57,20 @@ export async function updateClientNutritionProfile(
 
   const supplements = parsed.data.supplements.filter((s) => s.name.trim())
 
-  const row = nutritionProfileValuesToRow(
-    { ...parsed.data, supplements: normalizeSupplements(supplements) },
-    clientId,
-    ctx.user.id
-  )
+  const { data: existingProfile } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .select('*')
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  const row = {
+    ...nutritionProfileValuesToRow(
+      { ...parsed.data, supplements: normalizeSupplements(supplements) },
+      clientId,
+      ctx.user.id
+    ),
+    ...preserveNutritionIntakeFields(existingProfile),
+  }
 
   const { error } = await ctx.supabase
     .from('client_nutrition_profiles')
@@ -310,5 +321,65 @@ export async function cancelMealPlanAssignment(
 
   revalidateNutritionPaths(clientId)
   revalidatePath('/library/meal-plans')
+  return { success: true }
+}
+
+export async function requestNutritionSetupForm(
+  clientId: string
+): Promise<ActionResult> {
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { data: client, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('id, user_id')
+    .eq('id', clientId)
+    .maybeSingle()
+
+  if (clientError || !client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  if (!client.user_id) {
+    return {
+      success: false,
+      error: 'Invite this client to the portal before sending the setup form.',
+    }
+  }
+
+  const { data: existingProfile } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .select('*')
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  const baseValues = nutritionProfileToFormValues(existingProfile)
+  const now = new Date().toISOString()
+
+  const row = {
+    ...nutritionProfileValuesToRow(baseValues, clientId, ctx.user.id),
+    ...preserveNutritionIntakeFields(existingProfile),
+    setup_form_requested_at: now,
+  }
+
+  const { error } = await ctx.supabase
+    .from('client_nutrition_profiles')
+    .upsert(row, { onConflict: 'client_id' })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  const { notifyClientOfNutritionSetupRequest } = await import(
+    '@/lib/notifications/notify-client-nutrition-setup'
+  )
+  void notifyClientOfNutritionSetupRequest({
+    clientId,
+    coachId: ctx.user.id,
+  })
+
+  revalidateNutritionPaths(clientId)
   return { success: true }
 }

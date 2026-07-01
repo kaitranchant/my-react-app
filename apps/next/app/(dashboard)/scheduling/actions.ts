@@ -9,6 +9,10 @@ import { requirePortalClientContext } from '@/lib/portal-client'
 import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchPortalSessionBookingSettings } from '@/lib/session-booking-queries'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
+import {
+  queueCoachingAppointmentGoogleRemoval,
+  queueCoachingAppointmentGoogleSync,
+} from '@/lib/google-calendar/sync'
 import { createClient } from '@/lib/supabase/server'
 import {
   availabilityExceptionSchema,
@@ -311,19 +315,23 @@ async function insertCoachingAppointment(
     bookedBy: 'coach' | 'client'
   }
 ) {
-  return supabase.from('coaching_appointments').insert({
-    coach_id: values.coachId,
-    client_id: values.clientId,
-    starts_at: values.startsAt,
-    ends_at: values.endsAt,
-    location: values.location,
-    pre_session_notes: values.preSessionNotes,
-    notes: values.preSessionNotes,
-    coaching_type: values.coachingType ?? null,
-    session_pack_id: values.sessionPackId,
-    booked_by: values.bookedBy,
-    status: 'scheduled',
-  })
+  return supabase
+    .from('coaching_appointments')
+    .insert({
+      coach_id: values.coachId,
+      client_id: values.clientId,
+      starts_at: values.startsAt,
+      ends_at: values.endsAt,
+      location: values.location,
+      pre_session_notes: values.preSessionNotes,
+      notes: values.preSessionNotes,
+      coaching_type: values.coachingType ?? null,
+      session_pack_id: values.sessionPackId,
+      booked_by: values.bookedBy,
+      status: 'scheduled',
+    })
+    .select('id')
+    .single()
 }
 
 export async function bookCoachingAppointmentAsCoach(
@@ -375,7 +383,7 @@ export async function bookCoachingAppointmentAsCoach(
       firstValidation = validation
     }
 
-    const { error } = await insertCoachingAppointment(validation.supabase, {
+    const { data: inserted, error } = await insertCoachingAppointment(validation.supabase, {
       coachId: access.user.id,
       clientId: parsed.data.clientId,
       startsAt: startsAtIso,
@@ -391,6 +399,10 @@ export async function bookCoachingAppointmentAsCoach(
 
     if (error) {
       return { success: false, error: error.message }
+    }
+
+    if (inserted?.id) {
+      queueCoachingAppointmentGoogleSync(inserted.id)
     }
   }
 
@@ -439,24 +451,29 @@ export async function bookCoachingAppointmentAsClient(
     return { success: false, error: validation.error }
   }
 
-  const { error } = await portalCtx.supabase.from('coaching_appointments').insert({
-    coach_id: portalCtx.client.coach_id,
-    client_id: portalCtx.client.id,
-    starts_at: parsed.data.startsAt,
-    ends_at: validation.endsAt,
-    location:
-      parsed.data.location?.trim() ||
-      validation.settings.default_session_location,
-    pre_session_notes: parsed.data.notes ?? null,
-    notes: parsed.data.notes ?? null,
-    coaching_type: parsed.data.coachingType ?? null,
-    session_pack_id: validation.sessionPackId,
-    booked_by: 'client',
-    status: 'scheduled',
-  })
+  const { data: inserted, error } = await insertCoachingAppointment(
+    portalCtx.supabase,
+    {
+      coachId: portalCtx.client.coach_id,
+      clientId: portalCtx.client.id,
+      startsAt: parsed.data.startsAt,
+      endsAt: validation.endsAt,
+      location:
+        parsed.data.location?.trim() ||
+        validation.settings.default_session_location,
+      preSessionNotes: parsed.data.notes ?? null,
+      coachingType: parsed.data.coachingType ?? null,
+      sessionPackId: validation.sessionPackId,
+      bookedBy: 'client',
+    }
+  )
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  if (inserted?.id) {
+    queueCoachingAppointmentGoogleSync(inserted.id)
   }
 
   revalidateScheduling()
@@ -481,13 +498,20 @@ export async function cancelCoachingAppointment(
 
   const { data: appointment } = await supabase
     .from('coaching_appointments')
-    .select('id, status, session_pack_id, client_id, coach_id, starts_at, ends_at')
+    .select(
+      'id, status, session_pack_id, client_id, coach_id, starts_at, ends_at, google_calendar_event_id'
+    )
     .eq('id', parsed.data.appointmentId)
     .maybeSingle()
 
   if (!appointment || appointment.status !== 'scheduled') {
     return { success: false, error: 'Appointment not found.' }
   }
+
+  queueCoachingAppointmentGoogleRemoval({
+    coachId: appointment.coach_id,
+    googleCalendarEventId: appointment.google_calendar_event_id,
+  })
 
   const { error } = await supabase
     .from('coaching_appointments')
@@ -535,7 +559,7 @@ export async function deleteCoachingAppointment(
 
   const { data: appointment } = await ctx.supabase
     .from('coaching_appointments')
-    .select('id')
+    .select('id, coach_id, google_calendar_event_id')
     .eq('id', parsed.data.appointmentId)
     .eq('coach_id', ctx.user.id)
     .maybeSingle()
@@ -543,6 +567,11 @@ export async function deleteCoachingAppointment(
   if (!appointment) {
     return { success: false, error: 'Appointment not found.' }
   }
+
+  queueCoachingAppointmentGoogleRemoval({
+    coachId: appointment.coach_id,
+    googleCalendarEventId: appointment.google_calendar_event_id,
+  })
 
   const { error } = await ctx.supabase
     .from('coaching_appointments')
@@ -651,6 +680,8 @@ export async function updateCoachingAppointmentNotes(
     return { success: false, error: error.message }
   }
 
+  queueCoachingAppointmentGoogleSync(parsed.data.appointmentId)
+
   revalidateScheduling()
   return { success: true }
 }
@@ -671,7 +702,7 @@ export async function rescheduleCoachingAppointment(
   const { data: appointment } = await ctx.supabase
     .from('coaching_appointments')
     .select(
-      'id, client_id, coach_id, status, location, pre_session_notes, notes, coaching_type, session_pack_id, starts_at, ends_at'
+      'id, client_id, coach_id, status, location, pre_session_notes, notes, coaching_type, session_pack_id, starts_at, ends_at, google_calendar_event_id'
     )
     .eq('id', parsed.data.appointmentId)
     .eq('coach_id', ctx.user.id)
@@ -726,6 +757,12 @@ export async function rescheduleCoachingAppointment(
   if (updateError) {
     return { success: false, error: updateError.message }
   }
+
+  queueCoachingAppointmentGoogleRemoval({
+    coachId: appointment.coach_id,
+    googleCalendarEventId: appointment.google_calendar_event_id,
+  })
+  queueCoachingAppointmentGoogleSync(newAppointment.id)
 
   if (parsed.data.notifyClient !== false) {
     const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)

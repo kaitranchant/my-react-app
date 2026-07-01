@@ -72,7 +72,7 @@ import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import {
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
-import { useIsMobile } from '@/lib/hooks/use-is-mobile'
+import { usePreferWorkoutLogKeypad } from '@/lib/hooks/use-prefer-workout-log-keypad'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1147,7 +1147,7 @@ export function WorkoutLogScreen({
   athleteName,
 }: WorkoutLogScreenProps) {
   const router = useRouter()
-  const isMobile = useIsMobile()
+  const preferWorkoutLogKeypad = usePreferWorkoutLogKeypad()
   const isPage = presentation === 'page'
   const isClientPortal = variant === 'client'
   const allowPrescriptionEdits = !isClientPortal
@@ -1281,7 +1281,7 @@ export function WorkoutLogScreen({
   dataRef.current = data
 
   const readOnly = data?.status === 'skipped'
-  const useCustomKeypad = isMobile && !readOnly
+  const useCustomKeypad = preferWorkoutLogKeypad && !readOnly
   const isCompleted = data?.status === 'completed'
   const canEditPrescription = allowPrescriptionEdits && !isCompleted && !readOnly
   const canSkip =

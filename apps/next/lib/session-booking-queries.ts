@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { getCurrentWeekDateKeys } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
+import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import {
   computeAvailableSlots,
   getCoachDateKeyFromReference,
@@ -240,7 +241,15 @@ export async function fetchAvailableSlotsForCoach(
     options?.settings ??
     (await fetchCoachSessionBookingSettings(supabase, coachId))
 
-  const [rules, exceptions, appointments] = await Promise.all([
+  const timeMin = new Date(
+    referenceDate.getTime() - 24 * 60 * 60 * 1000
+  ).toISOString()
+  const timeMax = new Date(
+    referenceDate.getTime() +
+      (settings.booking_max_days_ahead + 1) * 24 * 60 * 60 * 1000
+  ).toISOString()
+
+  const [rules, exceptions, appointments, googleBusy] = await Promise.all([
     fetchCoachAvailabilityRules(supabase, coachId),
     fetchCoachAvailabilityExceptions(
       supabase,
@@ -248,22 +257,15 @@ export async function fetchAvailableSlotsForCoach(
       dateKeys[0]!,
       dateKeys[dateKeys.length - 1]!
     ),
-    fetchCoachingAppointments(
-      supabase,
-      coachId,
-      new Date(referenceDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-      new Date(
-        referenceDate.getTime() +
-          (settings.booking_max_days_ahead + 1) * 24 * 60 * 60 * 1000
-      ).toISOString()
-    ),
+    fetchCoachingAppointments(supabase, coachId, timeMin, timeMax),
+    fetchGoogleBusyAppointments(coachId, timeMin, timeMax),
   ])
 
   return computeAvailableSlots({
     dateKeys,
     rules,
     exceptions,
-    appointments,
+    appointments: [...appointments, ...googleBusy],
     settings,
     timezone: coachPreferences.timezone,
     referenceDate,

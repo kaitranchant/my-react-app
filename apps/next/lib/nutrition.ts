@@ -3,6 +3,7 @@ import { CHECK_IN_SCALES } from '@/lib/check-ins'
 import type {
   NutritionLogFormValues,
   NutritionProfileFormValues,
+  NutritionSetupFormValues,
 } from '@/lib/validations/nutrition'
 import type {
   ClientFoodDiaryEntry,
@@ -89,6 +90,31 @@ export function nutritionProfileValuesToRow(
   }
 }
 
+export function preserveNutritionIntakeFields(
+  profile: ClientNutritionProfile | null
+): Pick<
+  ClientNutritionProfileInsert,
+  | 'client_nutrition_notes'
+  | 'favorite_foods'
+  | 'current_calories_kcal'
+  | 'current_protein_g'
+  | 'current_carbs_g'
+  | 'current_fat_g'
+  | 'setup_form_requested_at'
+  | 'setup_form_completed_at'
+> {
+  return {
+    client_nutrition_notes: profile?.client_nutrition_notes ?? null,
+    favorite_foods: profile?.favorite_foods ?? null,
+    current_calories_kcal: profile?.current_calories_kcal ?? null,
+    current_protein_g: profile?.current_protein_g ?? null,
+    current_carbs_g: profile?.current_carbs_g ?? null,
+    current_fat_g: profile?.current_fat_g ?? null,
+    setup_form_requested_at: profile?.setup_form_requested_at ?? null,
+    setup_form_completed_at: profile?.setup_form_completed_at ?? null,
+  }
+}
+
 export function nutritionProfileToFormValues(
   profile: ClientNutritionProfile | null
 ): NutritionProfileFormValues {
@@ -116,6 +142,34 @@ export function nutritionProfileToFormValues(
     notes: profile.notes,
     dietaryRestrictions: profile.dietary_restrictions,
     supplements: normalizeSupplements(parseSupplements(profile.supplements)),
+  }
+}
+
+export function nutritionSetupFormToFormValues(
+  profile: ClientNutritionProfile | null
+): NutritionSetupFormValues {
+  if (!profile) {
+    return {
+      favoriteFoods: null,
+      currentCaloriesKcal: null,
+      currentProteinG: null,
+      currentCarbsG: null,
+      currentFatG: null,
+      dietaryRestrictions: null,
+      supplements: [],
+      additionalNotes: null,
+    }
+  }
+
+  return {
+    favoriteFoods: profile.favorite_foods,
+    currentCaloriesKcal: profile.current_calories_kcal,
+    currentProteinG: profile.current_protein_g,
+    currentCarbsG: profile.current_carbs_g,
+    currentFatG: profile.current_fat_g,
+    dietaryRestrictions: profile.dietary_restrictions,
+    supplements: normalizeSupplements(parseSupplements(profile.supplements)),
+    additionalNotes: profile.client_nutrition_notes,
   }
 }
 

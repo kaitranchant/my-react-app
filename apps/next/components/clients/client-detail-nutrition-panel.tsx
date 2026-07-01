@@ -19,7 +19,7 @@ import type {
 } from 'app/types/database'
 
 type ClientDetailNutritionPanelProps = {
-  client: Pick<Client, 'id' | 'full_name'>
+  client: Pick<Client, 'id' | 'full_name' | 'user_id'>
   clientId: string
 }
 

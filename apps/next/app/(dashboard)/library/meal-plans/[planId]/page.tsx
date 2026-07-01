@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
 
-import Link from 'next/link'
-
 import { createClient } from '@/lib/supabase/server'
+import { DeferredNavigationLink } from '@/components/navigation/deferred-navigation-link'
 import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
 import { MealPlanDayEditor } from '@/components/meal-plans/meal-plan-day-editor'
 import { MealPlanFormDialog } from '@/components/meal-plans/meal-plan-form-dialog'
@@ -79,12 +78,12 @@ export default async function MealPlanDetailPage({
   return (
     <div className="flex flex-col gap-6">
       {returnClientId || mealPlan.client_id ? (
-        <Link
+        <DeferredNavigationLink
           href={`/clients/${returnClientId ?? mealPlan.client_id}?tab=nutrition`}
           className="text-muted-foreground hover:text-foreground text-sm font-medium"
         >
           ← Back to {clientName ? `${clientName}'s nutrition` : 'client nutrition'}
-        </Link>
+        </DeferredNavigationLink>
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">

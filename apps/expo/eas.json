@@ -21,7 +21,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://my-react-app-next.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://swiftcoach.vercel.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://xemawvuactruhurzdbiw.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_XOIWE4Yw6qB1FfConlX7ig_NKXTTQ5H"
       }
@@ -33,7 +33,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://my-react-app-next.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://swiftcoach.vercel.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://xemawvuactruhurzdbiw.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_XOIWE4Yw6qB1FfConlX7ig_NKXTTQ5H"
       }

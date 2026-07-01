@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Loader2, Plus, Search } from 'lucide-react'
 
-import { searchFoodCatalog } from '@/app/food-catalog-actions'
+import type { FoodCatalogSearchResponse } from '@/app/food-catalog-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -55,12 +55,18 @@ export function FoodSearchPicker({
       return
     }
 
-    let cancelled = false
+    const abortController = new AbortController()
     const timeout = window.setTimeout(async () => {
       setSearching(true)
       try {
-        const response = await searchFoodCatalog(trimmed)
-        if (cancelled) return
+        const params = new URLSearchParams({ q: trimmed, limit: '20' })
+        const fetchResponse = await fetch(`/api/food-catalog/search?${params}`, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+
+        const response = (await fetchResponse.json()) as FoodCatalogSearchResponse
+        if (abortController.signal.aborted) return
 
         if (!response.ok) {
           setResults([])
@@ -76,13 +82,18 @@ export function FoodSearchPicker({
             ? current
             : (response.results[0] ?? null)
         )
+      } catch {
+        if (abortController.signal.aborted) return
+        setResults([])
+        setSelected(null)
+        setCatalogError('Food search is temporarily unavailable.')
       } finally {
-        if (!cancelled) setSearching(false)
+        if (!abortController.signal.aborted) setSearching(false)
       }
     }, 250)
 
     return () => {
-      cancelled = true
+      abortController.abort()
       window.clearTimeout(timeout)
     }
   }, [query])

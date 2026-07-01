@@ -3,6 +3,7 @@ export type PortalNavBadges = {
   unreadFormReviewReplies: number
   checkInDue: boolean
   nutritionDue: boolean
+  nutritionSetupDue: boolean
   sessionSoon: boolean
   teamAttention: boolean
   openInvoices: number
@@ -13,6 +14,7 @@ export const emptyPortalNavBadges: PortalNavBadges = {
   unreadFormReviewReplies: 0,
   checkInDue: false,
   nutritionDue: false,
+  nutritionSetupDue: false,
   sessionSoon: false,
   teamAttention: false,
   openInvoices: 0,
@@ -25,7 +27,7 @@ export function getPortalNavBadgeCount(
   if (href === '/portal/messages') return badges.unreadMessages
   if (href === '/portal/form-review') return badges.unreadFormReviewReplies
   if (href === '/portal/check-in' && badges.checkInDue) return 1
-  if (href === '/portal/nutrition' && badges.nutritionDue) return 1
+  if (href === '/portal/nutrition' && (badges.nutritionDue || badges.nutritionSetupDue)) return 1
   if (href === '/portal/sessions' && badges.sessionSoon) return 1
   if (href === '/portal/team' && badges.teamAttention) return 1
   if (href === '/portal/billing' && badges.openInvoices > 0) {

@@ -7,11 +7,15 @@ import { AvailabilityGridEditor } from '@/components/scheduling/availability-gri
 import { BookAppointmentDialog } from '@/components/scheduling/book-appointment-dialog'
 import { BookingLinkCard } from '@/components/scheduling/booking-link-card'
 import { SchedulingWeekPanel } from '@/components/scheduling/scheduling-week-panel'
+import { GoogleCalendarConnectCard } from '@/components/scheduling/google-calendar-connect-card'
 import { SessionBookingSettingsForm } from '@/components/scheduling/session-booking-settings-form'
 import { SessionPacksPanel } from '@/components/scheduling/session-packs-panel'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getAppBaseUrl } from '@/lib/email/config'
+import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import { isGoogleCalendarConfigured } from '@/lib/google-calendar/config'
+import { registerGoogleCalendarWatch } from '@/lib/google-calendar/watch'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import {
   fetchCoachAvailabilityRules,
@@ -36,7 +40,7 @@ export const metadata = {
 export default async function SchedulingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string }>
+  searchParams: Promise<{ view?: string; week?: string; error?: string; connected?: string }>
 }) {
   const gate = await getSubscriptionGate('scheduling')
   if (!gate.allowed) {
@@ -51,7 +55,8 @@ export default async function SchedulingPage({
     )
   }
 
-  const { view: viewParam, week: weekParam } = await searchParams
+  const { view: viewParam, week: weekParam, error: connectError, connected } =
+    await searchParams
   const view = parseSchedulingViewMode(viewParam)
 
   const supabase = await createClient()
@@ -81,6 +86,7 @@ export default async function SchedulingPage({
     sessionPacks,
     { data: clients },
     { data: profile },
+    googleCalendarConnection,
   ] = await Promise.all([
     fetchCoachSessionBookingSettings(supabase, user.id),
     fetchCoachAvailabilityRules(supabase, user.id),
@@ -97,6 +103,7 @@ export default async function SchedulingPage({
       .select('full_name, business_name')
       .eq('id', user.id)
       .maybeSingle(),
+    fetchCoachGoogleCalendarConnection(supabase, user.id),
   ])
 
   const todayKey = getCoachDateKeyFromReference(coachPreferences.timezone)
@@ -115,6 +122,16 @@ export default async function SchedulingPage({
 
   const coachDisplayName =
     profile?.business_name?.trim() || profile?.full_name?.trim() || null
+
+  if (
+    googleCalendarConnection &&
+    isGoogleCalendarConfigured() &&
+    (!googleCalendarConnection.watch_channel_id ||
+      (googleCalendarConnection.watch_expiration &&
+        Date.parse(googleCalendarConnection.watch_expiration) < Date.now()))
+  ) {
+    void registerGoogleCalendarWatch(googleCalendarConnection)
+  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -174,10 +191,12 @@ export default async function SchedulingPage({
               <SessionBookingSettingsForm
                 defaultValues={sessionBookingSettingsToFormValues(settings)}
               />
-              <p className="text-muted-foreground text-xs">
-                Google Calendar and Apple Calendar sync are planned for a future
-                update.
-              </p>
+              <GoogleCalendarConnectCard
+                configured={isGoogleCalendarConfigured()}
+                connection={googleCalendarConnection}
+                connectError={connectError ?? null}
+                connectSuccess={connected === 'google_calendar'}
+              />
             </CardContent>
           </Card>
 

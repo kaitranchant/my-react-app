@@ -5,6 +5,7 @@ import * as React from 'react'
 import { ClientMealPlanAssignmentCard } from '@/components/nutrition/assign-meal-plan-dialog'
 import { NutritionDietaryCard } from '@/components/nutrition/nutrition-dietary-card'
 import { NutritionGoalContextBanner } from '@/components/nutrition/nutrition-goal-context-banner'
+import { NutritionSetupFormRequestCard } from '@/components/nutrition/nutrition-setup-form-request-card'
 import {
   NutritionProfileForm,
   type NutritionProfileFormHandle,
@@ -22,7 +23,7 @@ import type {
 } from 'app/types/database'
 
 type ClientNutritionSetupPanelProps = {
-  client: Pick<Client, 'id' | 'full_name'>
+  client: Pick<Client, 'id' | 'full_name' | 'user_id'>
   profile: ClientNutritionProfile | null
   assignment: MealPlanAssignmentWithPlan | null
   mealPlans: Pick<MealPlan, 'id' | 'name' | 'status'>[]
@@ -52,6 +53,13 @@ export function ClientNutritionSetupPanel({
 
   return (
     <div className="grid gap-6">
+      <NutritionSetupFormRequestCard
+        clientId={client.id}
+        clientName={client.full_name}
+        profile={profile}
+        hasPortalAccess={Boolean(client.user_id)}
+      />
+
       {goalContext ? (
         <NutritionGoalContextBanner
           context={goalContext}

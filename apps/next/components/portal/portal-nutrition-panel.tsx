@@ -9,6 +9,7 @@ import {
   deleteFoodDiaryEntry,
   submitNutritionLog,
 } from '@/app/portal/nutrition-actions'
+import { PortalNutritionSetupFormCard } from '@/components/portal/portal-nutrition-setup-form-card'
 import { MacroTargetsCard } from '@/components/nutrition/macro-targets-card'
 import { NutritionAdherenceSelector } from '@/components/nutrition/nutrition-adherence-selector'
 import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
@@ -28,6 +29,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toDateKey } from '@/lib/calendar'
+import { isNutritionSetupFormDue } from '@/lib/nutrition-setup-form'
 import {
   createEmptyNutritionLogValues,
   nutritionLogToFormValues,
@@ -109,8 +111,12 @@ export function PortalNutritionPanel({
         day: 'numeric',
       })
 
+  const setupFormDue = isNutritionSetupFormDue(profile)
+
   return (
     <div className="grid gap-6">
+      {setupFormDue ? <PortalNutritionSetupFormCard profile={profile} /> : null}
+
       <TodaysMealsCard
         assignment={assignment}
         days={planDays}

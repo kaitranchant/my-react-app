@@ -53,6 +53,17 @@ export const clientNutritionNotesSchema = z.object({
   clientNutritionNotes: optionalNotes,
 })
 
+export const nutritionSetupFormSchema = z.object({
+  favoriteFoods: optionalNotes,
+  currentCaloriesKcal: optionalPositiveNumber,
+  currentProteinG: optionalPositiveNumber,
+  currentCarbsG: optionalPositiveNumber,
+  currentFatG: optionalPositiveNumber,
+  dietaryRestrictions: optionalNotes,
+  supplements: z.array(supplementSchema).default([]),
+  additionalNotes: optionalNotes,
+})
+
 export const nutritionLogFormSchema = z.object({
   logDate: z.string().trim().min(1, 'Date is required'),
   adherenceScore: z.coerce
@@ -155,6 +166,7 @@ export type NutritionProfileFormValues = z.infer<typeof nutritionProfileFormSche
 export type ClientNutritionNotesFormValues = z.infer<
   typeof clientNutritionNotesSchema
 >
+export type NutritionSetupFormValues = z.infer<typeof nutritionSetupFormSchema>
 export type NutritionLogFormValues = z.infer<typeof nutritionLogFormSchema>
 export type FoodDiaryEntryFormValues = z.infer<typeof foodDiaryEntryFormSchema>
 export type MealPlanFormValues = z.infer<typeof mealPlanFormSchema>

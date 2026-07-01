@@ -1,4 +1,4 @@
-import { getWeekDayLabels, toDateKey } from '@/lib/calendar'
+import { isNutritionSetupFormDue } from '@/lib/nutrition-setup-form'
 import { getCheckInPeriodBounds, getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
 import {
   defaultCoachPreferences,
@@ -332,7 +332,7 @@ export async function fetchPortalNavBadges(
       .maybeSingle(),
     supabase
       .from('client_nutrition_profiles')
-      .select('client_id')
+      .select('client_id, setup_form_requested_at, setup_form_completed_at')
       .eq('client_id', clientId)
       .maybeSingle(),
     supabase
@@ -364,6 +364,9 @@ export async function fetchPortalNavBadges(
     Boolean(nutritionProfileResult.data) || Boolean(activeMealPlanResult.data)
   const nutritionDue =
     nutritionConfigured && !todayNutritionLogResult.data
+  const nutritionSetupDue = isNutritionSetupFormDue(
+    nutritionProfileResult.data ?? null
+  )
   const sessionSoon = upcomingSessions.some(
     (appointment) => appointment.status === 'scheduled'
   )
@@ -373,6 +376,7 @@ export async function fetchPortalNavBadges(
     unreadFormReviewReplies: formReviewHighlight?.unreadReplyCount ?? 0,
     checkInDue,
     nutritionDue,
+    nutritionSetupDue,
     sessionSoon,
     teamAttention,
     openInvoices: openInvoicesResult.error

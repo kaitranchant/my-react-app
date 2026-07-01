@@ -673,6 +673,26 @@ await checkRestTable(
   '/rest/v1/coaching_appointments?select=pre_session_notes,post_session_notes,rescheduled_to_id&limit=1'
 )
 
+// Migration 0088 — Google Calendar scheduling integration
+await checkRestTable(
+  'coach_google_calendar_connections table',
+  '/rest/v1/coach_google_calendar_connections?select=id,coach_id,google_email,calendar_id,sync_export_enabled,sync_busy_enabled&limit=1'
+)
+await checkRestTable(
+  'coach_google_calendar_secrets table',
+  '/rest/v1/coach_google_calendar_secrets?select=connection_id,expires_at&limit=1'
+)
+await checkRestTable(
+  'coaching_appointments google_calendar_event_id column',
+  '/rest/v1/coaching_appointments?select=google_calendar_event_id,google_calendar_updated_at&limit=1'
+)
+
+// Migration 0090 — Google Calendar two-way sync
+await checkRestTable(
+  'coach_google_calendar_connections watch columns',
+  '/rest/v1/coach_google_calendar_connections?select=watch_channel_id,watch_resource_id,watch_expiration,calendar_sync_token&limit=1'
+)
+
 // Migration 0075 — nutrition coaching
 await checkRestTable(
   'client_nutrition_profiles table',

@@ -2993,6 +2993,13 @@ export type Database = {
           dietary_restrictions: string | null
           supplements: NutritionSupplement[]
           client_nutrition_notes: string | null
+          setup_form_requested_at: string | null
+          setup_form_completed_at: string | null
+          favorite_foods: string | null
+          current_calories_kcal: number | null
+          current_protein_g: number | null
+          current_carbs_g: number | null
+          current_fat_g: number | null
           created_at: string
           updated_at: string
         }
@@ -3009,6 +3016,13 @@ export type Database = {
           dietary_restrictions?: string | null
           supplements?: NutritionSupplement[]
           client_nutrition_notes?: string | null
+          setup_form_requested_at?: string | null
+          setup_form_completed_at?: string | null
+          favorite_foods?: string | null
+          current_calories_kcal?: number | null
+          current_protein_g?: number | null
+          current_carbs_g?: number | null
+          current_fat_g?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -3025,6 +3039,13 @@ export type Database = {
           dietary_restrictions?: string | null
           supplements?: NutritionSupplement[]
           client_nutrition_notes?: string | null
+          setup_form_requested_at?: string | null
+          setup_form_completed_at?: string | null
+          favorite_foods?: string | null
+          current_calories_kcal?: number | null
+          current_protein_g?: number | null
+          current_carbs_g?: number | null
+          current_fat_g?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -3224,6 +3245,84 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_google_calendar_connections: {
+        Row: {
+          id: string
+          coach_id: string
+          google_email: string
+          calendar_id: string
+          sync_export_enabled: boolean
+          sync_busy_enabled: boolean
+          connected_at: string
+          watch_channel_id: string | null
+          watch_resource_id: string | null
+          watch_token: string | null
+          watch_expiration: string | null
+          calendar_sync_token: string | null
+          last_calendar_sync_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          google_email: string
+          calendar_id?: string
+          sync_export_enabled?: boolean
+          sync_busy_enabled?: boolean
+          connected_at?: string
+          watch_channel_id?: string | null
+          watch_resource_id?: string | null
+          watch_token?: string | null
+          watch_expiration?: string | null
+          calendar_sync_token?: string | null
+          last_calendar_sync_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          google_email?: string
+          calendar_id?: string
+          sync_export_enabled?: boolean
+          sync_busy_enabled?: boolean
+          connected_at?: string
+          watch_channel_id?: string | null
+          watch_resource_id?: string | null
+          watch_token?: string | null
+          watch_expiration?: string | null
+          calendar_sync_token?: string | null
+          last_calendar_sync_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_google_calendar_secrets: {
+        Row: {
+          connection_id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          scope: string | null
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          access_token?: string
+          refresh_token?: string
+          expires_at?: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coaching_appointment_reminders: {
         Row: {
           appointment_id: string
@@ -3260,6 +3359,8 @@ export type Database = {
           cancelled_at: string | null
           cancellation_reason: string | null
           rescheduled_to_id: string | null
+          google_calendar_event_id: string | null
+          google_calendar_updated_at: string | null
           created_at: string
           updated_at: string
         }
@@ -3280,6 +3381,8 @@ export type Database = {
           cancelled_at?: string | null
           cancellation_reason?: string | null
           rescheduled_to_id?: string | null
+          google_calendar_event_id?: string | null
+          google_calendar_updated_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -3300,6 +3403,8 @@ export type Database = {
           cancelled_at?: string | null
           cancellation_reason?: string | null
           rescheduled_to_id?: string | null
+          google_calendar_event_id?: string | null
+          google_calendar_updated_at?: string | null
           created_at?: string
           updated_at?: string
         }

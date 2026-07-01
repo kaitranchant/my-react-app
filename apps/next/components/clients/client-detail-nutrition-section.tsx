@@ -46,7 +46,7 @@ function buildNutritionSectionUrl(
 }
 
 type ClientDetailNutritionSectionProps = {
-  client: Pick<Client, 'id' | 'full_name'>
+  client: Pick<Client, 'id' | 'full_name' | 'user_id'>
   profile: ClientNutritionProfile | null
   logs: ClientNutritionLog[]
   assignment: MealPlanAssignmentWithPlan | null

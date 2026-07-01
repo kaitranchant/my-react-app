@@ -246,6 +246,9 @@ function MealPlanDayCard({
     []
   )
   const [expandedMealId, setExpandedMealId] = React.useState<string | null>(null)
+  const labelSaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
   const defaultDayName = `Day ${day.day_offset + 1}`
   const dayTotals = sumDayMacroTotals(day)
 
@@ -326,6 +329,25 @@ function MealPlanDayCard({
   React.useEffect(() => {
     setLabel(day.label ?? '')
   }, [day.label])
+
+  React.useEffect(() => {
+    return () => {
+      if (labelSaveTimeoutRef.current) {
+        window.clearTimeout(labelSaveTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  function scheduleLabelSave() {
+    if (labelSaveTimeoutRef.current) {
+      window.clearTimeout(labelSaveTimeoutRef.current)
+    }
+
+    labelSaveTimeoutRef.current = window.setTimeout(() => {
+      labelSaveTimeoutRef.current = null
+      void handleLabelSave()
+    }, 0)
+  }
 
   async function handleLabelSave() {
     const trimmed = label.trim()
@@ -443,7 +465,7 @@ function MealPlanDayCard({
               placeholder={defaultDayName}
               disabled={disabled || pending}
               onChange={(event) => setLabel(event.target.value)}
-              onBlur={handleLabelSave}
+              onBlur={scheduleLabelSave}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault()
