@@ -150,7 +150,8 @@ export async function startWorkoutLog(
 
 export async function stopWorkoutLog(
   clientId: string,
-  workoutId: string
+  workoutId: string,
+  options?: { revalidate?: boolean }
 ): Promise<ActionResult> {
   const ctx = await requireClient(clientId)
   if (!ctx) {
@@ -158,13 +159,19 @@ export async function stopWorkoutLog(
   }
 
   const { supabase } = ctx
-  const workout = await fetchWorkoutWithExercises(supabase, workoutId)
-  if (!workout || workout.client_id !== clientId) {
+  const { data: workout, error: workoutError } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id, status')
+    .eq('id', workoutId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (workoutError || !workout) {
     return { success: false, error: 'Workout not found.' }
   }
 
   if (workout.status !== 'in_progress') {
-    return { success: false, error: 'This workout is not in progress.' }
+    return { success: true }
   }
 
   const { error } = await supabase
@@ -176,7 +183,9 @@ export async function stopWorkoutLog(
     return { success: false, error: error.message }
   }
 
-  revalidateClientCalendar(clientId)
+  if (options?.revalidate !== false) {
+    revalidateClientCalendar(clientId)
+  }
   return { success: true }
 }
 

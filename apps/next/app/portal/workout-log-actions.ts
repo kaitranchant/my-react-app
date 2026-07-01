@@ -138,17 +138,29 @@ export async function startPortalWorkoutLog(
 }
 
 export async function stopPortalWorkoutLog(
-  workoutId: string
+  workoutId: string,
+  options?: { revalidate?: boolean }
 ): Promise<ActionResult> {
-  const ctx = await requirePortalWorkout(workoutId)
-  if (isPortalWorkoutError(ctx)) {
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
     return { success: false, error: ctx.error }
   }
 
-  const { supabase, workout } = ctx
+  const { supabase, client } = ctx
+
+  const { data: workout, error: workoutError } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id, status')
+    .eq('id', workoutId)
+    .eq('client_id', client.id)
+    .maybeSingle()
+
+  if (workoutError || !workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
 
   if (workout.status !== 'in_progress') {
-    return { success: false, error: 'This workout is not in progress.' }
+    return { success: true }
   }
 
   const { error } = await supabase
@@ -160,7 +172,9 @@ export async function stopPortalWorkoutLog(
     return { success: false, error: error.message }
   }
 
-  revalidatePortal()
+  if (options?.revalidate !== false) {
+    revalidatePortal()
+  }
   return { success: true }
 }
 

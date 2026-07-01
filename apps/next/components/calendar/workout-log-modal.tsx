@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { startTransition } from 'react'
 import {
   ArrowLeft,
   Check,
@@ -1272,6 +1273,7 @@ export function WorkoutLogScreen({
   const autoCompletingRef = React.useRef(false)
   const wasLoggingActiveRef = React.useRef(false)
   const leavingPageRef = React.useRef(false)
+  const navigatingBackRef = React.useRef(false)
   const onChangedRef = React.useRef(onChanged)
   onChangedRef.current = onChanged
 
@@ -1393,13 +1395,17 @@ export function WorkoutLogScreen({
   const persistSetsRef = React.useRef(persistSets)
   persistSetsRef.current = persistSets
 
-  const pauseWorkout = React.useCallback(async (options?: { notifyParent?: boolean }) => {
+  const pauseWorkout = React.useCallback(async (options?: {
+    notifyParent?: boolean
+    revalidate?: boolean
+  }) => {
     if (autoCompletingRef.current) return
     if (dataRef.current?.status !== 'in_progress') return
 
+    const stopOptions = { revalidate: options?.revalidate ?? true }
     const result = isClientPortal
-      ? await stopPortalWorkoutLog(workoutId)
-      : await stopWorkoutLog(clientId, workoutId)
+      ? await stopPortalWorkoutLog(workoutId, stopOptions)
+      : await stopWorkoutLog(clientId, workoutId, stopOptions)
 
     if (result.success && (options?.notifyParent ?? true)) {
       onChangedRef.current()
@@ -1705,7 +1711,10 @@ export function WorkoutLogScreen({
     }
   }, [exerciseState, active, readOnly, data])
 
-  async function flushOnClose(options?: { notifyParent?: boolean }) {
+  async function flushOnClose(options?: {
+    notifyParent?: boolean
+    revalidate?: boolean
+  }) {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
@@ -1716,6 +1725,7 @@ export function WorkoutLogScreen({
     }
 
     const notifyParent = options?.notifyParent ?? true
+    const revalidate = options?.revalidate ?? true
     const tasks: Promise<unknown>[] = []
 
     if (active && !readOnly && data) {
@@ -1735,26 +1745,53 @@ export function WorkoutLogScreen({
       }
     }
 
-    tasks.push(pauseWorkout({ notifyParent }))
+    tasks.push(pauseWorkout({ notifyParent, revalidate }))
 
     await Promise.all(tasks)
+  }
+
+  function scheduleFlushOnClose(options?: {
+    notifyParent?: boolean
+    revalidate?: boolean
+  }) {
+    window.setTimeout(() => {
+      void flushOnClose(options)
+    }, 0)
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       onClose?.()
-      void flushOnClose()
+      scheduleFlushOnClose()
     }
   }
 
   function handleBack() {
+    if (navigatingBackRef.current) return
+    navigatingBackRef.current = true
     leavingPageRef.current = true
-    if (returnHref) {
-      router.push(returnHref)
-    } else {
-      router.back()
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
     }
-    void flushOnClose({ notifyParent: false })
+    stabilizeViewportScroll()
+
+    startTransition(() => {
+      if (returnHref) {
+        router.push(returnHref)
+      } else {
+        router.back()
+      }
+    })
+
+    // Defer server actions so Next.js client navigation is not blocked by the
+    // server-action queue. Skip revalidation on pause to avoid invalidating the
+    // destination page mid-transition.
+    scheduleFlushOnClose({ notifyParent: false, revalidate: false })
+
+    window.setTimeout(() => {
+      router.refresh()
+    }, 1500)
   }
 
   const completedSetCount = React.useMemo(() => {
