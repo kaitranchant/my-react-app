@@ -11,8 +11,11 @@ import type {
   SessionBookingSettings,
 } from '@/lib/session-booking-types'
 
-/** Matches the availability grid cells and bookable start-time increments. */
+/** Bookable start-time increments shown in the booking time picker. */
 export const BOOKING_SLOT_STEP_MINUTES = 15
+
+/** Availability grid paints 30-minute cells; rules expand to 15-minute bookable starts. */
+const AVAILABILITY_GRID_SLOT_MINUTES = 30
 
 export type AvailableSlot = {
   startsAt: string
@@ -129,7 +132,11 @@ export function combineDateAndTimeToUtc(
   return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0))
 }
 
-/** Same cell boundaries as `rulesToGrid` in availability-grid-editor.tsx */
+/**
+ * Expand painted availability ranges into bookable 15-minute cells.
+ * Grid painting uses 30-minute cells; any half-hour block includes both
+ * :00 and :30 quarter-hour starts inside it.
+ */
 function addRuleCells(
   cells: Set<number>,
   startTime: string,
@@ -139,15 +146,23 @@ function addRuleCells(
   const endMinutes = parseTimeToMinutes(endTime.slice(0, 5))
 
   for (
-    let slot = startMinutes;
-    slot < endMinutes;
-    slot += BOOKING_SLOT_STEP_MINUTES
+    let gridSlot = startMinutes;
+    gridSlot < endMinutes;
+    gridSlot += AVAILABILITY_GRID_SLOT_MINUTES
   ) {
     if (
-      slot < endMinutes &&
-      slot + BOOKING_SLOT_STEP_MINUTES > startMinutes
+      gridSlot < endMinutes &&
+      gridSlot + AVAILABILITY_GRID_SLOT_MINUTES > startMinutes
     ) {
-      cells.add(slot)
+      for (
+        let slot = gridSlot;
+        slot < gridSlot + AVAILABILITY_GRID_SLOT_MINUTES;
+        slot += BOOKING_SLOT_STEP_MINUTES
+      ) {
+        if (slot < endMinutes) {
+          cells.add(slot)
+        }
+      }
     }
   }
 }

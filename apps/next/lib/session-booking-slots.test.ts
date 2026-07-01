@@ -57,7 +57,7 @@ test('computeAvailableSlots offers 15-minute start times within availability win
   )
 })
 
-test('computeAvailableSlots matches painted 15-minute grid cells', () => {
+test('computeAvailableSlots matches painted 30-minute grid cells with 15-minute starts', () => {
   const dateKey = '2026-07-01'
   const referenceDate = new Date('2026-07-01T12:40:00.000Z')
 

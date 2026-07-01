@@ -9,7 +9,6 @@ import { replaceAvailabilityRules } from '@/app/(dashboard)/scheduling/actions'
 import { Button } from '@/components/ui/button'
 import { WEEKDAY_OPTIONS } from '@/lib/calendar'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
-import { BOOKING_SLOT_STEP_MINUTES } from '@/lib/session-booking-slots'
 import type { CoachAvailabilityRule } from '@/lib/session-booking-types'
 import type { AvailabilityRuleValues } from '@/lib/validations/session-booking'
 import { cn } from '@/lib/utils'
@@ -20,7 +19,7 @@ type AvailabilityGridEditorProps = {
 
 const GRID_START_HOUR = 5
 const GRID_END_HOUR = 21
-const SLOT_MINUTES = BOOKING_SLOT_STEP_MINUTES
+const SLOT_MINUTES = 30
 const GRID_START_MINUTES = GRID_START_HOUR * 60
 const GRID_END_MINUTES = GRID_END_HOUR * 60
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const
@@ -56,11 +55,7 @@ function formatHourLabel(hour: number, compact = false): string {
 }
 
 function hourSlots(hour: number): number[] {
-  const slots: number[] = []
-  for (let offset = 0; offset < 60; offset += SLOT_MINUTES) {
-    slots.push(hour * 60 + offset)
-  }
-  return slots
+  return [hour * 60, hour * 60 + SLOT_MINUTES]
 }
 
 function HourCell({
@@ -515,8 +510,8 @@ export function AvailabilityGridEditor({
   return (
     <div className="space-y-4">
       <p className="helper-text">
-        Click or drag across blocks to set availability. Each hour is split into
-        15-minute blocks. Dragging over filled blocks clears them.
+        Click or drag across blocks to set availability. Each hour is split —
+        left is :00, right is :30. Dragging over filled blocks clears them.
       </p>
 
       {isMobile ? (
