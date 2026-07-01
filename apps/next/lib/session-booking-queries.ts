@@ -129,13 +129,25 @@ export async function fetchCoachAvailabilityExceptions(
   return (data ?? []) as CoachAvailabilityException[]
 }
 
+function normalizeAppointmentRows(
+  rows: Array<Record<string, unknown>>
+): CoachingAppointment[] {
+  return rows.map((row) => ({
+    ...normalizeAppointmentClient(row as { client: unknown }),
+    session_type:
+      typeof row.session_type === 'string'
+        ? row.session_type
+        : defaultCoachingSessionType,
+  })) as CoachingAppointment[]
+}
+
 export async function fetchCoachingAppointments(
   supabase: SupabaseClient,
   coachId: string,
   fromIso: string,
   toIso: string
 ): Promise<CoachingAppointment[]> {
-  let { data, error } = await supabase
+  const primary = await supabase
     .from('coaching_appointments')
     .select(COACHING_APPOINTMENT_SELECT_WITH_CLIENT)
     .eq('coach_id', coachId)
@@ -143,27 +155,39 @@ export async function fetchCoachingAppointments(
     .lt('starts_at', toIso)
     .order('starts_at')
 
-  if (error && isMissingSessionTypeColumn(error)) {
-    ;({ data, error } = await supabase
+  if (primary.error && isMissingSessionTypeColumn(primary.error)) {
+    const legacy = await supabase
       .from('coaching_appointments')
       .select(COACHING_APPOINTMENT_SELECT_WITH_CLIENT_LEGACY)
       .eq('coach_id', coachId)
       .gte('starts_at', fromIso)
       .lt('starts_at', toIso)
-      .order('starts_at'))
+      .order('starts_at')
+
+    if (legacy.error) {
+      console.error(
+        '[scheduling] fetchCoachingAppointments failed',
+        legacy.error.message
+      )
+      return []
+    }
+
+    return normalizeAppointmentRows(
+      (legacy.data ?? []) as Array<Record<string, unknown>>
+    )
   }
 
-  if (error) {
-    console.error('[scheduling] fetchCoachingAppointments failed', error.message)
+  if (primary.error) {
+    console.error(
+      '[scheduling] fetchCoachingAppointments failed',
+      primary.error.message
+    )
     return []
   }
 
-  return (data ?? []).map((row) => ({
-    ...normalizeAppointmentClient(row),
-    session_type: 'session_type' in row && row.session_type
-      ? row.session_type
-      : defaultCoachingSessionType,
-  })) as CoachingAppointment[]
+  return normalizeAppointmentRows(
+    (primary.data ?? []) as Array<Record<string, unknown>>
+  )
 }
 
 export async function fetchClientCoachingAppointments(
@@ -172,7 +196,7 @@ export async function fetchClientCoachingAppointments(
   fromIso: string,
   toIso: string
 ): Promise<CoachingAppointment[]> {
-  let { data, error } = await supabase
+  const primary = await supabase
     .from('coaching_appointments')
     .select(COACHING_APPOINTMENT_CLIENT_SELECT)
     .eq('client_id', clientId)
@@ -180,27 +204,39 @@ export async function fetchClientCoachingAppointments(
     .lt('starts_at', toIso)
     .order('starts_at')
 
-  if (error && isMissingSessionTypeColumn(error)) {
-    ;({ data, error } = await supabase
+  if (primary.error && isMissingSessionTypeColumn(primary.error)) {
+    const legacy = await supabase
       .from('coaching_appointments')
       .select(COACHING_APPOINTMENT_CLIENT_SELECT_LEGACY)
       .eq('client_id', clientId)
       .gte('starts_at', fromIso)
       .lt('starts_at', toIso)
-      .order('starts_at'))
+      .order('starts_at')
+
+    if (legacy.error) {
+      console.error(
+        '[scheduling] fetchClientCoachingAppointments failed',
+        legacy.error.message
+      )
+      return []
+    }
+
+    return normalizeAppointmentRows(
+      (legacy.data ?? []) as Array<Record<string, unknown>>
+    )
   }
 
-  if (error) {
-    console.error('[scheduling] fetchClientCoachingAppointments failed', error.message)
+  if (primary.error) {
+    console.error(
+      '[scheduling] fetchClientCoachingAppointments failed',
+      primary.error.message
+    )
     return []
   }
 
-  return (data ?? []).map((row) => ({
-    ...row,
-    session_type: 'session_type' in row && row.session_type
-      ? row.session_type
-      : defaultCoachingSessionType,
-  })) as CoachingAppointment[]
+  return normalizeAppointmentRows(
+    (primary.data ?? []) as Array<Record<string, unknown>>
+  )
 }
 
 export async function fetchCoachSessionPacks(
