@@ -1,3 +1,4 @@
+import { getWeekDayLabels, toDateKey } from '@/lib/calendar'
 import { isNutritionSetupFormDue } from '@/lib/nutrition-setup-form'
 import { getCheckInPeriodBounds, getPortalCheckInDueLabel } from '@/lib/check-in-cadence'
 import {

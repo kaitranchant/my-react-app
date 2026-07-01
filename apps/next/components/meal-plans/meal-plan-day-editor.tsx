@@ -246,9 +246,7 @@ function MealPlanDayCard({
     []
   )
   const [expandedMealId, setExpandedMealId] = React.useState<string | null>(null)
-  const labelSaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
+  const labelSaveTimeoutRef = React.useRef<number | null>(null)
   const defaultDayName = `Day ${day.day_offset + 1}`
   const dayTotals = sumDayMacroTotals(day)
 
