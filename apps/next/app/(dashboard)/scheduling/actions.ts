@@ -327,24 +327,37 @@ async function insertCoachingAppointment(
     bookedBy: 'coach' | 'client'
   }
 ) {
-  return supabase
+  const row = {
+    coach_id: values.coachId,
+    client_id: values.clientId,
+    starts_at: values.startsAt,
+    ends_at: values.endsAt,
+    location: values.location,
+    pre_session_notes: values.preSessionNotes,
+    notes: values.preSessionNotes,
+    coaching_type: values.coachingType ?? null,
+    session_type: values.sessionType ?? defaultCoachingSessionType,
+    session_pack_id: values.sessionPackId,
+    booked_by: values.bookedBy,
+    status: 'scheduled' as const,
+  }
+
+  const result = await supabase
     .from('coaching_appointments')
-    .insert({
-      coach_id: values.coachId,
-      client_id: values.clientId,
-      starts_at: values.startsAt,
-      ends_at: values.endsAt,
-      location: values.location,
-      pre_session_notes: values.preSessionNotes,
-      notes: values.preSessionNotes,
-      coaching_type: values.coachingType ?? null,
-      session_type: values.sessionType ?? defaultCoachingSessionType,
-      session_pack_id: values.sessionPackId,
-      booked_by: values.bookedBy,
-      status: 'scheduled',
-    })
+    .insert(row)
     .select('id')
     .single()
+
+  if (result.error?.message.includes('session_type')) {
+    const { session_type: _sessionType, ...legacyRow } = row
+    return supabase
+      .from('coaching_appointments')
+      .insert(legacyRow)
+      .select('id')
+      .single()
+  }
+
+  return result
 }
 
 export async function bookCoachingAppointmentAsCoach(

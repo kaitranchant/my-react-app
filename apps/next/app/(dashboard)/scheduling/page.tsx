@@ -24,9 +24,10 @@ import {
   fetchCoachingAppointments,
   fetchCoachSessionBookingSettings,
   getPortalBookingDateKeys,
+  getSchedulingWeekReferenceDate,
   getWeekAppointmentRange,
 } from '@/lib/session-booking-queries'
-import { addDaysToDateKey, parseDateKey } from '@/lib/calendar'
+import { addDaysToDateKey } from '@/lib/calendar'
 import { getCoachDateKeyFromReference } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToFormValues } from '@/lib/session-booking-types'
 import { createClient } from '@/lib/supabase/server'
@@ -69,10 +70,10 @@ export default async function SchedulingPage({
   }
 
   const coachPreferences = await getCoachPreferencesForUser(user.id)
-  const weekReferenceDate =
-    weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)
-      ? parseDateKey(weekParam)
-      : new Date()
+  const weekReferenceDate = getSchedulingWeekReferenceDate(
+    coachPreferences.timezone,
+    weekParam
+  )
   const { startIso, endIso, weekKeys } = getWeekAppointmentRange(
     coachPreferences.weekStartsOn,
     coachPreferences.timezone,
@@ -145,6 +146,7 @@ export default async function SchedulingPage({
           dateOptions={bookingDateKeys}
           defaultLocation={settings.default_session_location}
           requiresSessionPack={settings.booking_requires_session_pack}
+          weekStartsOn={coachPreferences.weekStartsOn}
         />
       </PageHeader>
 

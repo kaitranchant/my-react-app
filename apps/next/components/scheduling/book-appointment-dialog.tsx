@@ -30,8 +30,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDayHeader, toDateKey } from '@/lib/calendar'
+import { formatDayHeader, getWeekStartDateKey, toDateKey } from '@/lib/calendar'
 import { getBrowserTimeZone } from '@/lib/browser-timezone'
+import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import type { ClientSessionPack } from '@/lib/session-booking-types'
 import { isSessionPackActive, sessionsRemaining } from '@/lib/session-booking-slots'
@@ -46,6 +47,7 @@ type BookAppointmentDialogProps = {
   dateOptions: string[]
   defaultLocation?: string | null
   requiresSessionPack?: boolean
+  weekStartsOn?: CoachPreferences['weekStartsOn']
 }
 
 export function BookAppointmentDialog({
@@ -54,6 +56,7 @@ export function BookAppointmentDialog({
   dateOptions,
   defaultLocation,
   requiresSessionPack = false,
+  weekStartsOn = 'monday',
 }: BookAppointmentDialogProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
@@ -148,6 +151,11 @@ export function BookAppointmentDialog({
           : 'Session booked'
       )
       setOpen(false)
+      const bookedDateKey =
+        dateKey ||
+        (startsAt ? toDateKey(new Date(startsAt)) : toDateKey(new Date()))
+      const weekStart = getWeekStartDateKey(bookedDateKey, weekStartsOn)
+      router.push(`/scheduling?view=week&week=${weekStart}`)
       router.refresh()
     } else {
       toast.error(result.error)

@@ -1,9 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-import { getCurrentWeekDateKeys } from '@/lib/calendar'
+import { addDaysToDateKey, getCurrentWeekDateKeys, parseDateKey } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
+import { defaultCoachingSessionType } from '@/lib/coaching-session-types'
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import {
+  combineDateAndTimeToUtc,
   computeAvailableSlots,
   getCoachDateKeyFromReference,
   getSchedulingDateKeys,
@@ -17,6 +19,55 @@ import {
   parseSessionBookingSettings,
   type SessionBookingSettings,
 } from '@/lib/session-booking-types'
+
+const COACHING_APPOINTMENT_CORE_SELECT = `
+  id,
+  coach_id,
+  client_id,
+  starts_at,
+  ends_at,
+  status,
+  location,
+  notes,
+  pre_session_notes,
+  post_session_notes,
+  coaching_type,
+  session_pack_id,
+  booked_by,
+  cancelled_at,
+  cancellation_reason,
+  rescheduled_to_id,
+  created_at
+`
+
+const COACHING_APPOINTMENT_SELECT_WITH_CLIENT = `
+  ${COACHING_APPOINTMENT_CORE_SELECT},
+  session_type,
+  client:clients(full_name, coaching_type)
+`
+
+const COACHING_APPOINTMENT_SELECT_WITH_CLIENT_LEGACY = `
+  ${COACHING_APPOINTMENT_CORE_SELECT},
+  client:clients(full_name, coaching_type)
+`
+
+const COACHING_APPOINTMENT_CLIENT_SELECT = `
+  ${COACHING_APPOINTMENT_CORE_SELECT},
+  session_type
+`
+
+const COACHING_APPOINTMENT_CLIENT_SELECT_LEGACY = COACHING_APPOINTMENT_CORE_SELECT
+
+function isMissingSessionTypeColumn(error: { message?: string } | null) {
+  return error?.message?.includes('session_type') ?? false
+}
+
+function normalizeAppointmentClient<T extends { client: unknown }>(row: T) {
+  return {
+    ...row,
+    client: Array.isArray(row.client) ? row.client[0] ?? null : row.client,
+  }
+}
 
 export async function fetchCoachSessionBookingSettings(
   supabase: SupabaseClient,
@@ -84,39 +135,34 @@ export async function fetchCoachingAppointments(
   fromIso: string,
   toIso: string
 ): Promise<CoachingAppointment[]> {
-  const { data } = await supabase
+  let { data, error } = await supabase
     .from('coaching_appointments')
-    .select(
-      `
-      id,
-      coach_id,
-      client_id,
-      starts_at,
-      ends_at,
-      status,
-      location,
-      notes,
-      pre_session_notes,
-      post_session_notes,
-      coaching_type,
-      session_type,
-      session_pack_id,
-      booked_by,
-      cancelled_at,
-      cancellation_reason,
-      rescheduled_to_id,
-      created_at,
-      client:clients(full_name, coaching_type)
-    `
-    )
+    .select(COACHING_APPOINTMENT_SELECT_WITH_CLIENT)
     .eq('coach_id', coachId)
     .gte('starts_at', fromIso)
     .lt('starts_at', toIso)
     .order('starts_at')
 
+  if (error && isMissingSessionTypeColumn(error)) {
+    ;({ data, error } = await supabase
+      .from('coaching_appointments')
+      .select(COACHING_APPOINTMENT_SELECT_WITH_CLIENT_LEGACY)
+      .eq('coach_id', coachId)
+      .gte('starts_at', fromIso)
+      .lt('starts_at', toIso)
+      .order('starts_at'))
+  }
+
+  if (error) {
+    console.error('[scheduling] fetchCoachingAppointments failed', error.message)
+    return []
+  }
+
   return (data ?? []).map((row) => ({
-    ...row,
-    client: Array.isArray(row.client) ? row.client[0] ?? null : row.client,
+    ...normalizeAppointmentClient(row),
+    session_type: 'session_type' in row && row.session_type
+      ? row.session_type
+      : defaultCoachingSessionType,
   })) as CoachingAppointment[]
 }
 
@@ -126,36 +172,35 @@ export async function fetchClientCoachingAppointments(
   fromIso: string,
   toIso: string
 ): Promise<CoachingAppointment[]> {
-  const { data } = await supabase
+  let { data, error } = await supabase
     .from('coaching_appointments')
-    .select(
-      `
-      id,
-      coach_id,
-      client_id,
-      starts_at,
-      ends_at,
-      status,
-      location,
-      notes,
-      pre_session_notes,
-      post_session_notes,
-      coaching_type,
-      session_type,
-      session_pack_id,
-      booked_by,
-      cancelled_at,
-      cancellation_reason,
-      rescheduled_to_id,
-      created_at
-    `
-    )
+    .select(COACHING_APPOINTMENT_CLIENT_SELECT)
     .eq('client_id', clientId)
     .gte('starts_at', fromIso)
     .lt('starts_at', toIso)
     .order('starts_at')
 
-  return (data ?? []) as CoachingAppointment[]
+  if (error && isMissingSessionTypeColumn(error)) {
+    ;({ data, error } = await supabase
+      .from('coaching_appointments')
+      .select(COACHING_APPOINTMENT_CLIENT_SELECT_LEGACY)
+      .eq('client_id', clientId)
+      .gte('starts_at', fromIso)
+      .lt('starts_at', toIso)
+      .order('starts_at'))
+  }
+
+  if (error) {
+    console.error('[scheduling] fetchClientCoachingAppointments failed', error.message)
+    return []
+  }
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    session_type: 'session_type' in row && row.session_type
+      ? row.session_type
+      : defaultCoachingSessionType,
+  })) as CoachingAppointment[]
 }
 
 export async function fetchCoachSessionPacks(
@@ -290,10 +335,26 @@ export function getWeekAppointmentRange(
   const startKey = weekKeys[0]!
   const endKey = weekKeys[weekKeys.length - 1]!
 
-  const startIso = new Date(`${startKey}T00:00:00.000Z`).toISOString()
-  const endIso = new Date(`${endKey}T23:59:59.999Z`).toISOString()
+  const startIso = combineDateAndTimeToUtc(startKey, '00:00', timezone).toISOString()
+  const endIso = combineDateAndTimeToUtc(
+    addDaysToDateKey(endKey, 1),
+    '00:00',
+    timezone
+  ).toISOString()
 
   return { startKey, endKey, startIso, endIso, todayKey, weekKeys }
+}
+
+/** Anchor the scheduling week to the coach's calendar day, not the server clock. */
+export function getSchedulingWeekReferenceDate(
+  timezone: CoachPreferences['timezone'],
+  weekParam?: string | null
+) {
+  if (weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)) {
+    return parseDateKey(weekParam)
+  }
+
+  return parseDateKey(getCoachDateKeyFromReference(timezone))
 }
 
 export function getPortalBookingDateKeys(
