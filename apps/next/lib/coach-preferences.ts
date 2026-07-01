@@ -49,6 +49,16 @@ export function resolveCoachTimezone(
   return COACH_TIMEZONE_IANA[timezone]
 }
 
+/** When coach timezone is auto, use the browser IANA zone for scheduling. */
+export function resolveSchedulingIana(
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
+): string | null {
+  const coachIana = resolveCoachTimezone(timezone)
+  if (coachIana) return coachIana
+  return clientTimeZone ?? null
+}
+
 export function getCoachDateKey(
   timezone: CoachPreferences['timezone'] = 'auto',
   referenceDate = new Date()

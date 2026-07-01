@@ -3,15 +3,13 @@ import {
   parseDateKey,
   toDateKey,
 } from '@/lib/calendar'
-import { resolveCoachTimezone, type CoachPreferences } from '@/lib/coach-preferences'
+import { resolveCoachTimezone, resolveSchedulingIana, type CoachPreferences } from '@/lib/coach-preferences'
 import type {
   CoachAvailabilityException,
   CoachAvailabilityRule,
   CoachingAppointment,
   SessionBookingSettings,
 } from '@/lib/session-booking-types'
-
-type TimeWindow = { startMinutes: number; endMinutes: number }
 
 /** Matches the 30-minute cells in the availability grid editor. */
 export const BOOKING_SLOT_STEP_MINUTES = 30
@@ -34,39 +32,6 @@ function minutesToTimeLabel(minutes: number): string {
   const period = hours >= 12 ? 'PM' : 'AM'
   const hour12 = hours % 12 || 12
   return `${hour12}:${String(mins).padStart(2, '0')} ${period}`
-}
-
-function subtractWindow(
-  windows: TimeWindow[],
-  blocked: TimeWindow
-): TimeWindow[] {
-  const result: TimeWindow[] = []
-
-  for (const window of windows) {
-    if (
-      blocked.endMinutes <= window.startMinutes ||
-      blocked.startMinutes >= window.endMinutes
-    ) {
-      result.push(window)
-      continue
-    }
-
-    if (blocked.startMinutes > window.startMinutes) {
-      result.push({
-        startMinutes: window.startMinutes,
-        endMinutes: blocked.startMinutes,
-      })
-    }
-
-    if (blocked.endMinutes < window.endMinutes) {
-      result.push({
-        startMinutes: blocked.endMinutes,
-        endMinutes: window.endMinutes,
-      })
-    }
-  }
-
-  return result.filter((window) => window.endMinutes > window.startMinutes)
 }
 
 function getDateKeyInTimezone(date: Date, iana: string | null): string {
@@ -109,9 +74,10 @@ function getDayOfWeekInTimezone(dateKey: string, iana: string | null): number {
 export function combineDateAndTimeToUtc(
   dateKey: string,
   time: string,
-  timezone: CoachPreferences['timezone']
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
 ): Date {
-  const iana = resolveCoachTimezone(timezone)
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
   if (!iana) {
     const [year, month, day] = dateKey.split('-').map(Number)
     const [hours, minutes] = time.split(':').map(Number)
@@ -163,49 +129,6 @@ export function combineDateAndTimeToUtc(
   return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0))
 }
 
-function getWindowsForDate(
-  dateKey: string,
-  rules: CoachAvailabilityRule[],
-  exceptions: CoachAvailabilityException[],
-  timezone: CoachPreferences['timezone']
-): TimeWindow[] {
-  const iana = resolveCoachTimezone(timezone)
-  const dayOfWeek = getDayOfWeekInTimezone(dateKey, iana)
-  let windows: TimeWindow[] = rules
-    .filter((rule) => rule.day_of_week === dayOfWeek)
-    .map((rule) => ({
-      startMinutes: parseTimeToMinutes(rule.start_time.slice(0, 5)),
-      endMinutes: parseTimeToMinutes(rule.end_time.slice(0, 5)),
-    }))
-
-  const dayExceptions = exceptions.filter(
-    (exception) => exception.exception_date === dateKey
-  )
-
-  for (const exception of dayExceptions) {
-    if (exception.exception_type === 'extra_hours') {
-      if (exception.start_time && exception.end_time) {
-        windows.push({
-          startMinutes: parseTimeToMinutes(exception.start_time.slice(0, 5)),
-          endMinutes: parseTimeToMinutes(exception.end_time.slice(0, 5)),
-        })
-      }
-      continue
-    }
-
-    if (!exception.start_time || !exception.end_time) {
-      return []
-    }
-
-    windows = subtractWindow(windows, {
-      startMinutes: parseTimeToMinutes(exception.start_time.slice(0, 5)),
-      endMinutes: parseTimeToMinutes(exception.end_time.slice(0, 5)),
-    })
-  }
-
-  return windows.sort((a, b) => a.startMinutes - b.startMinutes)
-}
-
 /** Same cell boundaries as `rulesToGrid` in availability-grid-editor.tsx */
 function addRuleCells(
   cells: Set<number>,
@@ -251,9 +174,10 @@ function getAvailabilityCellsForDate(
   dateKey: string,
   rules: CoachAvailabilityRule[],
   exceptions: CoachAvailabilityException[],
-  timezone: CoachPreferences['timezone']
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
 ): Set<number> {
-  const iana = resolveCoachTimezone(timezone)
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
   const dayOfWeek = getDayOfWeekInTimezone(dateKey, iana)
   const cells = new Set<number>()
 
@@ -329,6 +253,7 @@ export function computeAvailableSlots(options: {
   timezone: CoachPreferences['timezone']
   referenceDate?: Date
   ignoreMinNotice?: boolean
+  clientTimeZone?: string | null
 }): AvailableSlot[] {
   const {
     dateKeys,
@@ -339,6 +264,7 @@ export function computeAvailableSlots(options: {
     timezone,
     referenceDate = new Date(),
     ignoreMinNotice = false,
+    clientTimeZone,
   } = options
 
   const duration = settings.default_session_duration_minutes
@@ -356,7 +282,8 @@ export function computeAvailableSlots(options: {
       dateKey,
       rules,
       exceptions,
-      timezone
+      timezone,
+      clientTimeZone
     )
     const starts = Array.from(cells).sort((left, right) => left - right)
 
@@ -368,7 +295,12 @@ export function computeAvailableSlots(options: {
       const hours = Math.floor(start / 60)
       const mins = start % 60
       const time = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
-      const slotStart = combineDateAndTimeToUtc(dateKey, time, timezone)
+      const slotStart = combineDateAndTimeToUtc(
+        dateKey,
+        time,
+        timezone,
+        clientTimeZone
+      )
       const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
 
       if (slotStart.getTime() < earliest || slotStart.getTime() > latest) {
@@ -429,18 +361,20 @@ export function formatAppointmentRange(
 
 export function getCoachDateKeyFromReference(
   timezone: CoachPreferences['timezone'],
-  referenceDate = new Date()
+  referenceDate = new Date(),
+  clientTimeZone?: string | null
 ): string {
-  const iana = resolveCoachTimezone(timezone)
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
   return getDateKeyInTimezone(referenceDate, iana)
 }
 
 export function getDateKeyFromInstant(
   instant: string | Date,
-  timezone: CoachPreferences['timezone']
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
 ): string {
   const date = typeof instant === 'string' ? new Date(instant) : instant
-  const iana = resolveCoachTimezone(timezone)
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
   return getDateKeyInTimezone(date, iana)
 }
 

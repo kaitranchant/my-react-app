@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDayHeader, toDateKey } from '@/lib/calendar'
+import { getBrowserTimeZone } from '@/lib/browser-timezone'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import type { ClientSessionPack } from '@/lib/session-booking-types'
 import { isSessionPackActive, sessionsRemaining } from '@/lib/session-booking-slots'
@@ -92,7 +93,7 @@ export function BookAppointmentDialog({
     let cancelled = false
     setLoadingSlots(true)
 
-    getCoachAvailableSlots(dateKey).then((result) => {
+    getCoachAvailableSlots(dateKey, getBrowserTimeZone()).then((result) => {
       if (cancelled) return
       setLoadingSlots(false)
       if (result.success) {
@@ -129,6 +130,7 @@ export function BookAppointmentDialog({
       notes: notes || null,
       repeatWeekly,
       repeatWeeks: repeatWeekly ? Number(repeatWeeks) : undefined,
+      clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 

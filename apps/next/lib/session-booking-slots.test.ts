@@ -122,3 +122,58 @@ test('computeAvailableSlots requires enough painted cells for session duration',
 
   assert.equal(slots.length, 0, 'one 30-minute cell cannot fit a 60-minute session')
 })
+
+test('computeAvailableSlots uses browser timezone when coach timezone is auto', () => {
+  const dateKey = '2026-07-01'
+  const referenceDate = new Date('2026-07-01T17:15:00.000Z') // 1:15 PM Eastern
+
+  const withoutBrowserTz = computeAvailableSlots({
+    dateKeys: [dateKey],
+    rules: [
+      {
+        id: 'rule-1',
+        coach_id: 'coach-1',
+        day_of_week: 3,
+        start_time: '14:30:00',
+        end_time: '19:30:00',
+      },
+    ],
+    exceptions: [],
+    appointments: [],
+    settings,
+    timezone: 'auto',
+    referenceDate,
+    ignoreMinNotice: true,
+  })
+
+  const withBrowserTz = computeAvailableSlots({
+    dateKeys: [dateKey],
+    rules: [
+      {
+        id: 'rule-1',
+        coach_id: 'coach-1',
+        day_of_week: 3,
+        start_time: '14:30:00',
+        end_time: '19:30:00',
+      },
+    ],
+    exceptions: [],
+    appointments: [],
+    settings,
+    timezone: 'auto',
+    clientTimeZone: 'America/New_York',
+    referenceDate,
+    ignoreMinNotice: true,
+  })
+
+  assert.equal(
+    withoutBrowserTz.some((slot) => slot.startTimeLabel === '4:30 PM'),
+    false,
+    'auto timezone on UTC server should hide 4:30 PM when it is already past in UTC'
+  )
+  assert.equal(
+    withBrowserTz.some((slot) => slot.startTimeLabel === '4:30 PM'),
+    true,
+    'browser timezone should expose 4:30 PM for Eastern coaches'
+  )
+})

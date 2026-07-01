@@ -235,7 +235,11 @@ export async function fetchAvailableSlotsForCoach(
   dateKeys: string[],
   coachPreferences: CoachPreferences,
   referenceDate = new Date(),
-  options?: { ignoreMinNotice?: boolean; settings?: SessionBookingSettings }
+  options?: {
+    ignoreMinNotice?: boolean
+    settings?: SessionBookingSettings
+    clientTimeZone?: string | null
+  }
 ) {
   const settings =
     options?.settings ??
@@ -270,6 +274,7 @@ export async function fetchAvailableSlotsForCoach(
     timezone: coachPreferences.timezone,
     referenceDate,
     ignoreMinNotice: options?.ignoreMinNotice,
+    clientTimeZone: options?.clientTimeZone,
   })
 }
 

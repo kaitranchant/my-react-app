@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
+import { getBrowserTimeZone } from '@/lib/browser-timezone'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import {
@@ -73,7 +74,7 @@ export function PortalSessionsPanel({
     let cancelled = false
     setLoadingSlots(true)
 
-    getClientAvailableSlots(dateKey).then((result) => {
+    getClientAvailableSlots(dateKey, getBrowserTimeZone()).then((result) => {
       if (cancelled) return
       setLoadingSlots(false)
       if (result.success) {
@@ -108,6 +109,7 @@ export function PortalSessionsPanel({
       notes: notes || null,
       location: null,
       coachingType: null,
+      clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 

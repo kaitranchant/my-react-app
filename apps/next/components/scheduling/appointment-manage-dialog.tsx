@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatDayHeader, addDaysToDateKey } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import { formatAppointmentRange, getDateKeyFromInstant } from '@/lib/session-booking-slots'
+import { getBrowserTimeZone } from '@/lib/browser-timezone'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import {
   appointmentStatusLabels,
@@ -137,7 +138,7 @@ export function AppointmentManageDialog({
     }
 
     let cancelled = false
-    getCoachAvailableSlots(slotDateKey).then((result) => {
+    getCoachAvailableSlots(slotDateKey, getBrowserTimeZone()).then((result) => {
       if (cancelled) return
       if (result.success) {
         setSlots(result.slots)
@@ -226,6 +227,7 @@ export function AppointmentManageDialog({
       appointmentId: appointment!.id,
       startsAt: rescheduleStartsAt,
       notifyClient: true,
+      clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 
@@ -250,6 +252,7 @@ export function AppointmentManageDialog({
       location: appointment!.location ?? null,
       notes: preNotes || null,
       coachingType: appointment!.coaching_type ?? null,
+      clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 

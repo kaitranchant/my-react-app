@@ -84,6 +84,7 @@ export const bookAppointmentSchema = z.object({
   coachingType: z.enum(['online', 'in_person', 'hybrid']).optional().nullable(),
   repeatWeekly: z.boolean().optional(),
   repeatWeeks: z.coerce.number().int().min(2).max(12).optional(),
+  clientTimeZone: z.string().min(1).optional(),
 })
 
 export type BookAppointmentValues = z.infer<typeof bookAppointmentSchema>
@@ -128,6 +129,7 @@ export const rescheduleAppointmentSchema = z.object({
   appointmentId: z.string().uuid(),
   startsAt: z.string().datetime({ offset: true }),
   notifyClient: z.boolean().optional(),
+  clientTimeZone: z.string().min(1).optional(),
 })
 
 export type RescheduleAppointmentValues = z.infer<

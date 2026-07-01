@@ -214,6 +214,7 @@ async function validateBookableSlot(options: {
   sessionPackId?: string | null
   ignoreMinNotice?: boolean
   settings?: Awaited<ReturnType<typeof fetchCoachSessionBookingSettings>>
+  clientTimeZone?: string | null
 }): Promise<
   | { ok: false; error: string }
   | {
@@ -229,7 +230,11 @@ async function validateBookableSlot(options: {
   const settings =
     options.settings ??
     (await fetchCoachSessionBookingSettings(supabase, options.coachId))
-  const dateKey = getDateKeyFromInstant(options.startsAt, coachPreferences.timezone)
+  const dateKey = getDateKeyFromInstant(
+    options.startsAt,
+    coachPreferences.timezone,
+    options.clientTimeZone
+  )
 
   const slots = await fetchAvailableSlotsForCoach(
     supabase,
@@ -237,7 +242,11 @@ async function validateBookableSlot(options: {
     [dateKey],
     coachPreferences,
     new Date(),
-    { ignoreMinNotice: options.ignoreMinNotice, settings }
+    {
+      ignoreMinNotice: options.ignoreMinNotice,
+      settings,
+      clientTimeZone: options.clientTimeZone,
+    }
   )
 
   const matchingSlot = slots.find((slot) => slot.startsAt === options.startsAt)
@@ -367,6 +376,7 @@ export async function bookCoachingAppointmentAsCoach(
       startsAt: startsAtIso,
       sessionPackId: parsed.data.sessionPackId,
       ignoreMinNotice: true,
+      clientTimeZone: parsed.data.clientTimeZone,
     })
 
     if (!validation.ok) {
@@ -445,6 +455,7 @@ export async function bookCoachingAppointmentAsClient(
     startsAt: parsed.data.startsAt,
     sessionPackId: parsed.data.sessionPackId,
     settings,
+    clientTimeZone: parsed.data.clientTimeZone,
   })
 
   if (!validation.ok) {
@@ -718,6 +729,7 @@ export async function rescheduleCoachingAppointment(
     startsAt: parsed.data.startsAt,
     sessionPackId: appointment.session_pack_id,
     ignoreMinNotice: true,
+    clientTimeZone: parsed.data.clientTimeZone,
   })
 
   if (!validation.ok) {
@@ -818,7 +830,10 @@ export async function getSessionPackUsage(packId: string) {
   return { success: true as const, usage }
 }
 
-export async function getCoachAvailableSlots(dateKey: string) {
+export async function getCoachAvailableSlots(
+  dateKey: string,
+  clientTimeZone?: string
+) {
   const ctx = await requireCoach()
   if (!ctx) {
     return { success: false as const, error: 'You must be signed in.' }
@@ -831,13 +846,16 @@ export async function getCoachAvailableSlots(dateKey: string) {
     [dateKey],
     coachPreferences,
     new Date(),
-    { ignoreMinNotice: true }
+    { ignoreMinNotice: true, clientTimeZone }
   )
 
   return { success: true as const, slots }
 }
 
-export async function getClientAvailableSlots(dateKey: string) {
+export async function getClientAvailableSlots(
+  dateKey: string,
+  clientTimeZone?: string
+) {
   const portalCtx = await requirePortalClientContext()
   if ('error' in portalCtx) {
     return { success: false as const, error: portalCtx.error }
@@ -861,7 +879,7 @@ export async function getClientAvailableSlots(dateKey: string) {
     [dateKey],
     coachPreferences,
     new Date(),
-    { settings }
+    { settings, clientTimeZone }
   )
 
   return { success: true as const, slots, settings }
