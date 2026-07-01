@@ -126,6 +126,12 @@ export type CoachingAppointmentStatus =
   | 'no_show'
   | 'rescheduled'
 export type CoachingAppointmentBookedBy = 'coach' | 'client'
+export type CoachingSessionType =
+  | 'coaching'
+  | 'nutrition'
+  | 'class'
+  | 'consultation'
+  | 'other'
 export type CoachAvailabilityExceptionType = 'blocked' | 'extra_hours'
 
 export type ClientGoalMetadata = {
@@ -3354,6 +3360,7 @@ export type Database = {
           pre_session_notes: string | null
           post_session_notes: string | null
           coaching_type: ClientCoachingType | null
+          session_type: CoachingSessionType
           session_pack_id: string | null
           booked_by: CoachingAppointmentBookedBy
           cancelled_at: string | null
@@ -3376,6 +3383,7 @@ export type Database = {
           pre_session_notes?: string | null
           post_session_notes?: string | null
           coaching_type?: ClientCoachingType | null
+          session_type?: CoachingSessionType
           session_pack_id?: string | null
           booked_by: CoachingAppointmentBookedBy
           cancelled_at?: string | null
@@ -3398,6 +3406,7 @@ export type Database = {
           pre_session_notes?: string | null
           post_session_notes?: string | null
           coaching_type?: ClientCoachingType | null
+          session_type?: CoachingSessionType
           session_pack_id?: string | null
           booked_by?: CoachingAppointmentBookedBy
           cancelled_at?: string | null

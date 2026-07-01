@@ -2,6 +2,7 @@ import type {
   ClientCoachingType,
   CoachingAppointmentBookedBy,
   CoachingAppointmentStatus,
+  CoachingSessionType,
   CoachAvailabilityExceptionType,
 } from 'app/types/database'
 
@@ -60,6 +61,7 @@ export type CoachingAppointment = {
   pre_session_notes: string | null
   post_session_notes: string | null
   coaching_type: ClientCoachingType | null
+  session_type: CoachingSessionType
   session_pack_id: string | null
   booked_by: CoachingAppointmentBookedBy
   cancelled_at: string | null

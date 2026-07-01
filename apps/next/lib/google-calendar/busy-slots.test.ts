@@ -41,6 +41,7 @@ function googleBusyAppointment(
     pre_session_notes: null,
     post_session_notes: null,
     coaching_type: null,
+    session_type: 'coaching',
     session_pack_id: null,
     booked_by: 'coach',
     cancelled_at: null,

@@ -693,6 +693,12 @@ await checkRestTable(
   '/rest/v1/coach_google_calendar_connections?select=watch_channel_id,watch_resource_id,watch_expiration,calendar_sync_token&limit=1'
 )
 
+// Migration 0091 — coaching session type
+await checkRestTable(
+  'coaching_appointments session_type column',
+  '/rest/v1/coaching_appointments?select=session_type&limit=1'
+)
+
 // Migration 0075 — nutrition coaching
 await checkRestTable(
   'client_nutrition_profiles table',

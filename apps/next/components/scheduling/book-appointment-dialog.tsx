@@ -9,6 +9,7 @@ import {
   bookCoachingAppointmentAsCoach,
   getCoachAvailableSlots,
 } from '@/app/(dashboard)/scheduling/actions'
+import { SessionTypeSelect } from '@/components/scheduling/session-type-select'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -34,6 +35,8 @@ import { getBrowserTimeZone } from '@/lib/browser-timezone'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import type { ClientSessionPack } from '@/lib/session-booking-types'
 import { isSessionPackActive, sessionsRemaining } from '@/lib/session-booking-slots'
+import { defaultCoachingSessionType } from '@/lib/coaching-session-types'
+import type { CoachingSessionType } from 'app/types/database'
 
 const selectInDialogClassName = 'z-[100] max-h-60'
 
@@ -61,6 +64,8 @@ export function BookAppointmentDialog({
   const [slots, setSlots] = React.useState<AvailableSlot[]>([])
   const [startsAt, setStartsAt] = React.useState<string | undefined>()
   const [sessionPackId, setSessionPackId] = React.useState<string | undefined>()
+  const [sessionType, setSessionType] =
+    React.useState<CoachingSessionType>(defaultCoachingSessionType)
   const [location, setLocation] = React.useState(defaultLocation ?? '')
   const [notes, setNotes] = React.useState('')
   const [repeatWeekly, setRepeatWeekly] = React.useState(false)
@@ -78,6 +83,7 @@ export function BookAppointmentDialog({
     setDateKey(dateOptions[0] ?? toDateKey(new Date()))
     setStartsAt(undefined)
     setSessionPackId(undefined)
+    setSessionType(defaultCoachingSessionType)
     setLocation(defaultLocation ?? '')
     setNotes('')
     setRepeatWeekly(false)
@@ -128,6 +134,7 @@ export function BookAppointmentDialog({
       sessionPackId: sessionPackId ?? null,
       location: location || null,
       notes: notes || null,
+      sessionType,
       repeatWeekly,
       repeatWeeks: repeatWeekly ? Number(repeatWeeks) : undefined,
       clientTimeZone: getBrowserTimeZone(),
@@ -165,7 +172,7 @@ export function BookAppointmentDialog({
         <DialogHeader>
           <DialogTitle>Book a session</DialogTitle>
           <DialogDescription>
-            Schedule a 1:1 coaching session for a client.
+            Schedule a session for a client.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,6 +192,12 @@ export function BookAppointmentDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <SessionTypeSelect
+            value={sessionType}
+            onValueChange={setSessionType}
+            contentClassName={selectInDialogClassName}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

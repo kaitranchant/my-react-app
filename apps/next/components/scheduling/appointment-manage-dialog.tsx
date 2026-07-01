@@ -252,6 +252,7 @@ export function AppointmentManageDialog({
       location: appointment!.location ?? null,
       notes: preNotes || null,
       coachingType: appointment!.coaching_type ?? null,
+      sessionType: appointment!.session_type,
       clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)

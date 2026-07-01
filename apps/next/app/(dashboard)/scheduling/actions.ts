@@ -1,5 +1,7 @@
 'use server'
 
+import { defaultCoachingSessionType } from '@/lib/coaching-session-types'
+
 import { revalidatePath } from 'next/cache'
 
 import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
@@ -320,6 +322,7 @@ async function insertCoachingAppointment(
     location: string | null
     preSessionNotes: string | null
     coachingType: import('@/lib/validations/session-booking').BookAppointmentValues['coachingType']
+    sessionType: import('@/lib/validations/session-booking').BookAppointmentValues['sessionType']
     sessionPackId: string | null
     bookedBy: 'coach' | 'client'
   }
@@ -335,6 +338,7 @@ async function insertCoachingAppointment(
       pre_session_notes: values.preSessionNotes,
       notes: values.preSessionNotes,
       coaching_type: values.coachingType ?? null,
+      session_type: values.sessionType ?? defaultCoachingSessionType,
       session_pack_id: values.sessionPackId,
       booked_by: values.bookedBy,
       status: 'scheduled',
@@ -403,6 +407,7 @@ export async function bookCoachingAppointmentAsCoach(
         validation.settings.default_session_location,
       preSessionNotes: parsed.data.notes ?? null,
       coachingType: parsed.data.coachingType ?? null,
+      sessionType: parsed.data.sessionType,
       sessionPackId: validation.sessionPackId,
       bookedBy: 'coach',
     })
@@ -474,6 +479,7 @@ export async function bookCoachingAppointmentAsClient(
         validation.settings.default_session_location,
       preSessionNotes: parsed.data.notes ?? null,
       coachingType: parsed.data.coachingType ?? null,
+      sessionType: parsed.data.sessionType,
       sessionPackId: validation.sessionPackId,
       bookedBy: 'client',
     }
@@ -713,7 +719,7 @@ export async function rescheduleCoachingAppointment(
   const { data: appointment } = await ctx.supabase
     .from('coaching_appointments')
     .select(
-      'id, client_id, coach_id, status, location, pre_session_notes, notes, coaching_type, session_pack_id, starts_at, ends_at, google_calendar_event_id'
+      'id, client_id, coach_id, status, location, pre_session_notes, notes, coaching_type, session_type, session_pack_id, starts_at, ends_at, google_calendar_event_id'
     )
     .eq('id', parsed.data.appointmentId)
     .eq('coach_id', ctx.user.id)
@@ -747,6 +753,7 @@ export async function rescheduleCoachingAppointment(
       pre_session_notes: appointment.pre_session_notes ?? appointment.notes,
       notes: appointment.pre_session_notes ?? appointment.notes,
       coaching_type: appointment.coaching_type,
+      session_type: appointment.session_type,
       session_pack_id: appointment.session_pack_id,
       booked_by: 'coach',
       status: 'scheduled',

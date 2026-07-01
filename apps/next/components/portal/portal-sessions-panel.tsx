@@ -22,7 +22,9 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SessionTypeSelect } from '@/components/scheduling/session-type-select'
 import { getBrowserTimeZone } from '@/lib/browser-timezone'
+import { defaultCoachingSessionType } from '@/lib/coaching-session-types'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
 import {
@@ -34,6 +36,7 @@ import type {
   CoachingAppointment,
   SessionBookingSettings,
 } from '@/lib/session-booking-types'
+import type { CoachingSessionType } from 'app/types/database'
 
 type PortalSessionsPanelProps = {
   appointments: CoachingAppointment[]
@@ -58,6 +61,8 @@ export function PortalSessionsPanel({
   const [loadingSlots, setLoadingSlots] = React.useState(false)
   const [startsAt, setStartsAt] = React.useState<string | undefined>()
   const [sessionPackId, setSessionPackId] = React.useState('')
+  const [sessionType, setSessionType] =
+    React.useState<CoachingSessionType>(defaultCoachingSessionType)
   const [notes, setNotes] = React.useState('')
   const [pending, setPending] = React.useState(false)
 
@@ -93,6 +98,7 @@ export function PortalSessionsPanel({
   React.useEffect(() => {
     setStartsAt(undefined)
     setSessionPackId('')
+    setSessionType(defaultCoachingSessionType)
   }, [dateKey])
 
   async function handleBook(event: React.FormEvent) {
@@ -109,6 +115,7 @@ export function PortalSessionsPanel({
       notes: notes || null,
       location: null,
       coachingType: null,
+      sessionType,
       clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
@@ -158,6 +165,12 @@ export function PortalSessionsPanel({
           </CardHeader>
           <CardContent>
             <form onSubmit={handleBook} className="space-y-4">
+              <SessionTypeSelect
+                value={sessionType}
+                onValueChange={setSessionType}
+                contentClassName="z-[100] max-h-60"
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Date</Label>

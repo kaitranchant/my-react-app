@@ -10,7 +10,9 @@ import {
 } from '@/lib/google-calendar/connection'
 import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { formatCoachingSessionType } from '@/lib/coaching-session-types'
 import type { CoachingAppointment } from '@/lib/session-booking-types'
+import type { CoachingSessionType } from 'app/types/database'
 
 type AppointmentSyncRow = {
   id: string
@@ -24,6 +26,7 @@ type AppointmentSyncRow = {
   notes: string | null
   google_calendar_event_id: string | null
   google_calendar_updated_at: string | null
+  session_type: CoachingSessionType
   client: { full_name: string | null; email: string | null } | null
 }
 
@@ -46,6 +49,7 @@ async function fetchAppointmentForSync(
       location,
       pre_session_notes,
       notes,
+      session_type,
       google_calendar_event_id,
       google_calendar_updated_at,
       client:clients(full_name, email)
@@ -67,9 +71,11 @@ async function fetchAppointmentForSync(
 function buildEventPayload(appointment: AppointmentSyncRow) {
   const clientName = appointment.client?.full_name?.trim() || 'Client'
   const notes = appointment.pre_session_notes ?? appointment.notes
+  const sessionLabel =
+    formatCoachingSessionType(appointment.session_type) ?? 'Session'
 
   return {
-    summary: `Coaching session — ${clientName}`,
+    summary: `${sessionLabel} — ${clientName}`,
     description: notes?.trim() ? notes.trim() : undefined,
     location: appointment.location,
     startsAt: appointment.starts_at,
@@ -196,6 +202,7 @@ export async function fetchGoogleBusyAppointments(
       pre_session_notes: null,
       post_session_notes: null,
       coaching_type: null,
+      session_type: 'coaching' as const,
       session_pack_id: null,
       booked_by: 'coach' as const,
       cancelled_at: null,

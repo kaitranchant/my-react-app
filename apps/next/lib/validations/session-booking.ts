@@ -6,6 +6,8 @@ const timeString = z
   .string()
   .regex(/^\d{2}:\d{2}$/, 'Use HH:MM format')
 
+import { coachingSessionTypes } from '@/lib/coaching-session-types'
+
 export const sessionBookingSettingsSchema = z.object({
   sessionBookingEnabled: z.boolean(),
   defaultSessionDurationMinutes: z.number().int().min(15).max(240),
@@ -82,6 +84,7 @@ export const bookAppointmentSchema = z.object({
   location: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   coachingType: z.enum(['online', 'in_person', 'hybrid']).optional().nullable(),
+  sessionType: z.enum(coachingSessionTypes).optional(),
   repeatWeekly: z.boolean().optional(),
   repeatWeeks: z.coerce.number().int().min(2).max(12).optional(),
   clientTimeZone: z.string().min(1).optional(),

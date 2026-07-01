@@ -10,6 +10,7 @@ import { cancelCoachingAppointment } from '@/app/(dashboard)/scheduling/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClientCoachingTypeBadge } from '@/components/clients/client-coaching-type-badge'
+import { coachingSessionTypeLabels } from '@/lib/coaching-session-types'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatAppointmentRange } from '@/lib/session-booking-slots'
 import {
@@ -125,6 +126,11 @@ export function AppointmentsList({
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {appointment.location ? (
                   <span className="text-muted-foreground">{appointment.location}</span>
+                ) : null}
+                {appointment.session_type !== 'coaching' ? (
+                  <Badge variant="outline" className="font-normal">
+                    {coachingSessionTypeLabels[appointment.session_type]}
+                  </Badge>
                 ) : null}
                 {appointment.coaching_type ? (
                   <ClientCoachingTypeBadge coachingType={appointment.coaching_type} />
