@@ -20,7 +20,7 @@ export default async function BillingPage() {
   const gate = await getSubscriptionGate('client_billing')
   if (!gate.allowed) {
     return (
-      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 md:gap-8">
         <PageHeader
           title="Client billing"
           description="Send invoices and collect recurring payments from your clients."
@@ -39,7 +39,7 @@ export default async function BillingPage() {
 
   if (billingData.schemaError) {
     return (
-      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 md:gap-8">
         <PageHeader
           title="Client billing"
           description="Send invoices and collect recurring payments from your clients."
@@ -53,7 +53,7 @@ export default async function BillingPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 md:gap-8">
       <PageHeader
         title="Client billing"
         description="Send invoices and collect recurring payments from your clients."

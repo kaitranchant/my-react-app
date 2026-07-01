@@ -251,6 +251,24 @@ function serializeExerciseStateForSave(state: ExerciseLogState): string {
   )
 }
 
+function parseSerializedExerciseState(serialized: string): ExerciseLogState {
+  if (!serialized) return {}
+  try {
+    const entries = JSON.parse(serialized) as [string, WorkoutLogSetDraft[]][]
+    return Object.fromEntries(entries)
+  } catch {
+    return {}
+  }
+}
+
+function stateWithoutExercise(
+  state: ExerciseLogState,
+  exerciseId: string
+): ExerciseLogState {
+  const { [exerciseId]: _, ...rest } = state
+  return rest
+}
+
 function WorkoutStatusBadge({
   status,
   hasProgress,
@@ -1165,19 +1183,30 @@ export function WorkoutLogScreen({
       const exercise = exerciseToRemove
       if (!exercise) return
 
-      if (data && workoutHasProgress(data, data.logSets)) {
-        const saved = await persistSets(exerciseStateRef.current, {
+      const stateToSave = stateWithoutExercise(
+        exerciseStateRef.current,
+        exercise.id
+      )
+      const persistedWithoutRemoved = stateWithoutExercise(
+        parseSerializedExerciseState(lastPersistedStateRef.current),
+        exercise.id
+      )
+      const needsSaveOtherExercises =
+        serializeExerciseStateForSave(stateToSave) !==
+        serializeExerciseStateForSave(persistedWithoutRemoved)
+
+      if (needsSaveOtherExercises) {
+        const saved = await persistSets(stateToSave, {
           silent: true,
           reload: false,
           notifyParent: false,
           blockUi: false,
+          revalidate: false,
         })
         if (!saved) return
       }
 
-      setPending(true)
       const result = await removeScheduledExercise(clientId, exercise.id)
-      setPending(false)
 
       if (!result.success) {
         toast.error(result.error)
@@ -1186,7 +1215,23 @@ export function WorkoutLogScreen({
 
       toast.success('Exercise removed.')
       setExerciseToRemove(null)
-      await loadData()
+
+      skipAutoSaveRef.current = true
+      setExerciseState(stateToSave)
+      setData((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          exercises: current.exercises.filter((row) => row.id !== exercise.id),
+          logSets: current.logSets.filter(
+            (set) => set.scheduled_exercise_id !== exercise.id
+          ),
+        }
+      })
+      setActiveExerciseIndex((index) => {
+        const nextCount = (data?.exercises.length ?? 1) - 1
+        return Math.min(index, Math.max(0, nextCount - 1))
+      })
       onChanged()
     },
   })
@@ -1348,7 +1393,7 @@ export function WorkoutLogScreen({
   const persistSetsRef = React.useRef(persistSets)
   persistSetsRef.current = persistSets
 
-  const pauseWorkout = React.useCallback(async () => {
+  const pauseWorkout = React.useCallback(async (options?: { notifyParent?: boolean }) => {
     if (autoCompletingRef.current) return
     if (dataRef.current?.status !== 'in_progress') return
 
@@ -1356,7 +1401,7 @@ export function WorkoutLogScreen({
       ? await stopPortalWorkoutLog(workoutId)
       : await stopWorkoutLog(clientId, workoutId)
 
-    if (result.success) {
+    if (result.success && (options?.notifyParent ?? true)) {
       onChangedRef.current()
     }
   }, [clientId, isClientPortal, workoutId])
@@ -1665,40 +1710,51 @@ export function WorkoutLogScreen({
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
     }
+
+    while (saveInFlightRef.current) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    const notifyParent = options?.notifyParent ?? true
+    const tasks: Promise<unknown>[] = []
+
     if (active && !readOnly && data) {
       const state = exerciseStateRef.current
       if (
         serializeExerciseStateForSave(state) !== lastPersistedStateRef.current
       ) {
-        await persistSetsRef.current(state, {
-          silent: true,
-          reload: false,
-          notifyParent: options?.notifyParent ?? true,
-          blockUi: false,
-          revalidate: true,
-        })
+        tasks.push(
+          persistSetsRef.current(state, {
+            silent: true,
+            reload: false,
+            notifyParent: false,
+            blockUi: false,
+            revalidate: false,
+          })
+        )
       }
     }
-    await pauseWorkout()
+
+    tasks.push(pauseWorkout({ notifyParent }))
+
+    await Promise.all(tasks)
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      void flushOnClose()
-    }
-    if (!nextOpen) {
       onClose?.()
+      void flushOnClose()
     }
   }
 
   function handleBack() {
     leavingPageRef.current = true
-    void flushOnClose({ notifyParent: false })
     if (returnHref) {
       router.push(returnHref)
-      return
+    } else {
+      router.back()
     }
-    router.back()
+    void flushOnClose({ notifyParent: false })
   }
 
   const completedSetCount = React.useMemo(() => {

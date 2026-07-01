@@ -64,7 +64,7 @@ export function PortalBillingPanel({
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {paymentSuccess ? (
         <div className="border-status-success/30 bg-status-success/10 text-status-success-foreground rounded-lg border px-4 py-3 text-sm">
           Payment received. Thank you!
@@ -195,26 +195,51 @@ export function PortalBillingPanel({
           {paidInvoices.length === 0 ? (
             <p className="text-muted-foreground text-sm">No paid invoices yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Paid</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="space-y-3 md:hidden">
                 {paidInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>{invoice.description}</TableCell>
-                    <TableCell>
-                      {formatMoney(invoice.amount_cents, invoice.currency)}
-                    </TableCell>
-                    <TableCell>{formatDate(invoice.paid_at)}</TableCell>
-                  </TableRow>
+                  <div
+                    key={invoice.id}
+                    className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"
+                  >
+                    <div className="col-span-2 min-w-0">
+                      <p className="text-muted-foreground text-xs">Description</p>
+                      <p className="mt-0.5 font-medium">{invoice.description}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Amount</p>
+                      <p className="mt-0.5 font-medium">
+                        {formatMoney(invoice.amount_cents, invoice.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Paid</p>
+                      <p className="mt-0.5 font-medium">{formatDate(invoice.paid_at)}</p>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              <Table className="hidden md:table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Paid</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paidInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell>{invoice.description}</TableCell>
+                      <TableCell>
+                        {formatMoney(invoice.amount_cents, invoice.currency)}
+                      </TableCell>
+                      <TableCell>{formatDate(invoice.paid_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           )}
         </CardContent>
       </Card>

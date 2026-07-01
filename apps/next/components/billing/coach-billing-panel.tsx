@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type {
   ClientBillingSubscriptionWithClient,
   ClientInvoiceWithClient,
@@ -156,6 +157,218 @@ function CancelSubscriptionButton({ subscriptionId }: { subscriptionId: string }
   )
 }
 
+function InvoiceActions({ invoice }: { invoice: ClientInvoiceWithClient }) {
+  return (
+    <div className="flex items-center gap-1">
+      {invoice.hosted_invoice_url ? (
+        <Button asChild variant="ghost" size="icon" className="size-8">
+          <a
+            href={invoice.hosted_invoice_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open invoice"
+          >
+            <ExternalLink className="size-4" />
+          </a>
+        </Button>
+      ) : null}
+      {invoice.status === 'open' ? (
+        <VoidInvoiceButton invoiceId={invoice.id} />
+      ) : null}
+    </div>
+  )
+}
+
+function InvoiceMobileList({ invoices }: { invoices: ClientInvoiceWithClient[] }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {invoices.map((invoice) => (
+        <div key={invoice.id} className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-medium">{invoice.client.full_name ?? 'Client'}</p>
+              <p className="text-muted-foreground mt-0.5 text-sm">
+                {invoice.description}
+              </p>
+            </div>
+            <Badge variant={invoiceStatusVariant(invoice.status)} className="shrink-0">
+              {invoice.status}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Amount</p>
+              <p className="mt-0.5 font-medium">
+                {formatMoney(invoice.amount_cents, invoice.currency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Due</p>
+              <p className="mt-0.5 font-medium">{formatDate(invoice.due_date)}</p>
+            </div>
+          </div>
+          <InvoiceActions invoice={invoice} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function InvoiceTable({ invoices }: { invoices: ClientInvoiceWithClient[] }) {
+  return (
+    <Table className="hidden md:table">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Client</TableHead>
+          <TableHead>Description</TableHead>
+          <TableHead>Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Due</TableHead>
+          <TableHead className="w-[80px]" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {invoices.map((invoice) => (
+          <TableRow key={invoice.id}>
+            <TableCell>{invoice.client.full_name ?? 'Client'}</TableCell>
+            <TableCell className="max-w-[240px] truncate">
+              {invoice.description}
+            </TableCell>
+            <TableCell>{formatMoney(invoice.amount_cents, invoice.currency)}</TableCell>
+            <TableCell>
+              <Badge variant={invoiceStatusVariant(invoice.status)}>
+                {invoice.status}
+              </Badge>
+            </TableCell>
+            <TableCell>{formatDate(invoice.due_date)}</TableCell>
+            <TableCell>
+              <InvoiceActions invoice={invoice} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+function SubscriptionActions({
+  subscription,
+}: {
+  subscription: ClientBillingSubscriptionWithClient
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {subscription.checkout_url ? (
+        <Button asChild variant="outline" size="sm">
+          <a
+            href={subscription.checkout_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Checkout link
+          </a>
+        </Button>
+      ) : null}
+      {subscription.status === 'active' ||
+      subscription.status === 'trialing' ||
+      subscription.status === 'past_due' ? (
+        <CancelSubscriptionButton subscriptionId={subscription.id} />
+      ) : null}
+    </div>
+  )
+}
+
+function SubscriptionMobileList({
+  subscriptions,
+}: {
+  subscriptions: ClientBillingSubscriptionWithClient[]
+}) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {subscriptions.map((subscription) => (
+        <div key={subscription.id} className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-medium">
+                {subscription.client.full_name ?? 'Client'}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-sm">
+                {subscription.description}
+              </p>
+            </div>
+            <Badge
+              variant={subscriptionStatusVariant(subscription.status)}
+              className="shrink-0"
+            >
+              {subscription.status}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Amount</p>
+              <p className="mt-0.5 font-medium">
+                {formatMoney(subscription.amount_cents, subscription.currency)}/
+                {subscription.interval === 'year' ? 'yr' : 'mo'}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Next period end</p>
+              <p className="mt-0.5 font-medium">
+                {formatDate(subscription.current_period_end)}
+              </p>
+            </div>
+          </div>
+          <SubscriptionActions subscription={subscription} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SubscriptionTable({
+  subscriptions,
+}: {
+  subscriptions: ClientBillingSubscriptionWithClient[]
+}) {
+  return (
+    <Table className="hidden md:table">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Client</TableHead>
+          <TableHead>Description</TableHead>
+          <TableHead>Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Next period end</TableHead>
+          <TableHead />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {subscriptions.map((subscription) => (
+          <TableRow key={subscription.id}>
+            <TableCell>{subscription.client.full_name ?? 'Client'}</TableCell>
+            <TableCell className="max-w-[240px] truncate">
+              {subscription.description}
+            </TableCell>
+            <TableCell>
+              {formatMoney(subscription.amount_cents, subscription.currency)}/
+              {subscription.interval === 'year' ? 'yr' : 'mo'}
+            </TableCell>
+            <TableCell>
+              <Badge variant={subscriptionStatusVariant(subscription.status)}>
+                {subscription.status}
+              </Badge>
+            </TableCell>
+            <TableCell>{formatDate(subscription.current_period_end)}</TableCell>
+            <TableCell>
+              <SubscriptionActions subscription={subscription} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
 export function CoachBillingPanel({
   connectStatus,
   overview,
@@ -170,7 +383,7 @@ export function CoachBillingPanel({
   const billingEnabled = stripeEnabled && connectStatus.isReady
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {!connectStatus.isReady ? (
         <Card>
           <CardHeader>
@@ -202,7 +415,7 @@ export function CoachBillingPanel({
         </Card>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Card className="gap-0 py-0">
           <CardContent className="px-4 py-4">
             <p className="text-muted-foreground text-xs">Open invoices</p>
@@ -241,11 +454,57 @@ export function CoachBillingPanel({
         </Card>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&_button]:w-full sm:[&_button]:w-auto">
         <CreateInvoiceDialog clients={clients} disabled={!billingEnabled} />
         <CreateSubscriptionDialog clients={clients} disabled={!billingEnabled} />
       </div>
 
+      <div className="md:hidden">
+        <Tabs defaultValue="invoices" className="gap-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="invoices">
+              Invoices ({invoices.length})
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions">
+              Subscriptions ({subscriptions.length})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="invoices">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Invoices</CardTitle>
+                <CardDescription>One-time charges sent to clients.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {invoices.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No invoices yet.</p>
+                ) : (
+                  <InvoiceMobileList invoices={invoices} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="subscriptions">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Subscriptions</CardTitle>
+                <CardDescription>
+                  Recurring billing for coaching retainers.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {subscriptions.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No subscriptions yet.</p>
+                ) : (
+                  <SubscriptionMobileList subscriptions={subscriptions} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <div className="hidden space-y-6 md:block">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Invoices</CardTitle>
@@ -255,54 +514,7 @@ export function CoachBillingPanel({
           {invoices.length === 0 ? (
             <p className="text-muted-foreground text-sm">No invoices yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead className="w-[80px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>{invoice.client.full_name ?? 'Client'}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">
-                      {invoice.description}
-                    </TableCell>
-                    <TableCell>{formatMoney(invoice.amount_cents, invoice.currency)}</TableCell>
-                    <TableCell>
-                      <Badge variant={invoiceStatusVariant(invoice.status)}>
-                        {invoice.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(invoice.due_date)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {invoice.hosted_invoice_url ? (
-                          <Button asChild variant="ghost" size="icon" className="size-8">
-                            <a
-                              href={invoice.hosted_invoice_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label="Open invoice"
-                            >
-                              <ExternalLink className="size-4" />
-                            </a>
-                          </Button>
-                        ) : null}
-                        {invoice.status === 'open' ? (
-                          <VoidInvoiceButton invoiceId={invoice.id} />
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <InvoiceTable invoices={invoices} />
           )}
         </CardContent>
       </Card>
@@ -316,61 +528,11 @@ export function CoachBillingPanel({
           {subscriptions.length === 0 ? (
             <p className="text-muted-foreground text-sm">No subscriptions yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Next period end</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subscriptions.map((subscription) => (
-                  <TableRow key={subscription.id}>
-                    <TableCell>{subscription.client.full_name ?? 'Client'}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">
-                      {subscription.description}
-                    </TableCell>
-                    <TableCell>
-                      {formatMoney(subscription.amount_cents, subscription.currency)}/
-                      {subscription.interval === 'year' ? 'yr' : 'mo'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={subscriptionStatusVariant(subscription.status)}>
-                        {subscription.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(subscription.current_period_end)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {subscription.checkout_url ? (
-                          <Button asChild variant="outline" size="sm">
-                            <a
-                              href={subscription.checkout_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Checkout link
-                            </a>
-                          </Button>
-                        ) : null}
-                        {subscription.status === 'active' ||
-                        subscription.status === 'trialing' ||
-                        subscription.status === 'past_due' ? (
-                          <CancelSubscriptionButton subscriptionId={subscription.id} />
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SubscriptionTable subscriptions={subscriptions} />
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

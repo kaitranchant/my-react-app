@@ -36,7 +36,7 @@ export default async function PortalBillingPage({
     const message = error instanceof Error ? error.message : String(error)
     if (findClientBillingSchemaError([{ message }])) {
       return (
-        <div className="mx-auto flex max-w-3xl flex-col gap-8">
+        <div className="mx-auto flex max-w-3xl flex-col gap-4 md:gap-8">
           <PageHeader
             title="Billing"
             description="View invoices, subscriptions, and payment history."
@@ -52,7 +52,7 @@ export default async function PortalBillingPage({
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4 md:gap-8">
       <PageHeader
         title="Billing"
         description="View invoices, subscriptions, and payment history."
