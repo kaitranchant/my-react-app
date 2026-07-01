@@ -237,7 +237,7 @@ function removeRuleCells(
   const startMinutes = parseTimeToMinutes(startTime.slice(0, 5))
   const endMinutes = parseTimeToMinutes(endTime.slice(0, 5))
 
-  for (const slot of cells) {
+  for (const slot of Array.from(cells)) {
     if (
       slot < endMinutes &&
       slot + BOOKING_SLOT_STEP_MINUTES > startMinutes
