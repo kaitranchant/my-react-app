@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { SwiftWordmark } from '@/components/brand/swift-wordmark'
 
@@ -34,6 +36,14 @@ export default function AuthLayout({
             markClassName="h-10 w-auto"
           />
           <div className="w-full max-w-sm">{children}</div>
+          <p className="text-muted-foreground mt-8 text-center text-xs">
+            <Link
+              href="/privacy"
+              className="hover:text-foreground underline-offset-4 hover:underline"
+            >
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -201,6 +201,18 @@ export function AuthForm({
               )}
             </p>
           )}
+          {isSignup ? (
+            <p className="text-muted-foreground text-center text-xs leading-relaxed">
+              By creating an account, you agree to our{' '}
+              <Link
+                href="/privacy"
+                className="text-foreground font-medium underline-offset-4 hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          ) : null}
         </CardFooter>
       </form>
     </Card>
