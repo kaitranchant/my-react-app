@@ -29,7 +29,13 @@ export function isKeyboardOpen() {
   return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX
 }
 
+function isFixedAppShellLayout() {
+  return document.querySelector('[data-app-shell]') != null
+}
+
 export function resetWindowScroll() {
+  if (!isFixedAppShellLayout()) return
+
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
@@ -224,16 +230,17 @@ export function installAppViewportSync() {
   const onViewportChange = (event: Event) => {
     const keyboardOpen = isKeyboardOpen()
     const nested = isInNestedKeyboardScrollContainer()
+    const appShell = isFixedAppShellLayout()
 
     if (event.type === 'scroll' && nested) {
-      resetWindowScroll()
+      if (appShell) resetWindowScroll()
       return
     }
 
     syncAppViewportCssVars()
-    resetWindowScroll()
+    if (appShell) resetWindowScroll()
 
-    if (keyboardWasOpen && !keyboardOpen) {
+    if (appShell && keyboardWasOpen && !keyboardOpen) {
       if (!isManagingNestedKeyboardScroll()) {
         clampMainContentScroll()
         burstStabilizeViewportScroll(400)
@@ -244,6 +251,7 @@ export function installAppViewportSync() {
   }
 
   const onWindowScroll = () => {
+    if (!isFixedAppShellLayout()) return
     resetWindowScroll()
     clampMainContentScroll()
   }
@@ -261,6 +269,7 @@ export function installAppViewportSync() {
       target.closest(NESTED_KEYBOARD_SCROLL_SELECTOR)
 
     requestAnimationFrame(() => {
+      if (!isFixedAppShellLayout()) return
       resetWindowScroll()
       if (inNestedKeyboardScroll) {
         syncAppViewportCssVars()
