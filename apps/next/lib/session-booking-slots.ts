@@ -11,8 +11,8 @@ import type {
   SessionBookingSettings,
 } from '@/lib/session-booking-types'
 
-/** Matches the 30-minute cells in the availability grid editor. */
-export const BOOKING_SLOT_STEP_MINUTES = 30
+/** Matches the availability grid cells and bookable start-time increments. */
+export const BOOKING_SLOT_STEP_MINUTES = 15
 
 export type AvailableSlot = {
   startsAt: string

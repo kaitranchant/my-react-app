@@ -12,7 +12,7 @@ const settings = {
   booking_max_days_ahead: 30,
 }
 
-test('computeAvailableSlots offers half-hour start times within availability windows', () => {
+test('computeAvailableSlots offers 15-minute start times within availability windows', () => {
   const dateKey = '2026-07-01'
   const referenceDate = new Date('2026-07-01T12:40:00.000Z')
 
@@ -36,6 +36,11 @@ test('computeAvailableSlots offers half-hour start times within availability win
   })
 
   assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T16:15:00.000Z'),
+    true,
+    'expected a 4:15 PM slot for a 60-minute session'
+  )
+  assert.equal(
     slots.some((slot) => slot.startsAt === '2026-07-01T16:30:00.000Z'),
     true,
     'expected a 4:30 PM slot for a 60-minute session'
@@ -52,7 +57,7 @@ test('computeAvailableSlots offers half-hour start times within availability win
   )
 })
 
-test('computeAvailableSlots matches painted 30-minute grid cells', () => {
+test('computeAvailableSlots matches painted 15-minute grid cells', () => {
   const dateKey = '2026-07-01'
   const referenceDate = new Date('2026-07-01T12:40:00.000Z')
 
@@ -79,6 +84,11 @@ test('computeAvailableSlots matches painted 30-minute grid cells', () => {
     slots.some((slot) => slot.startsAt === '2026-07-01T16:30:00.000Z'),
     true,
     '4:30 PM should be offered when 4:30 and 5:00 cells are painted'
+  )
+  assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T17:15:00.000Z'),
+    true,
+    '5:15 PM should be offered when enough cells are painted'
   )
   assert.equal(
     slots.some((slot) => slot.startsAt === '2026-07-01T17:30:00.000Z'),
@@ -120,7 +130,7 @@ test('computeAvailableSlots requires enough painted cells for session duration',
     ignoreMinNotice: true,
   })
 
-  assert.equal(slots.length, 0, 'one 30-minute cell cannot fit a 60-minute session')
+  assert.equal(slots.length, 0, 'one 15-minute cell cannot fit a 60-minute session')
 })
 
 test('computeAvailableSlots uses browser timezone when coach timezone is auto', () => {
