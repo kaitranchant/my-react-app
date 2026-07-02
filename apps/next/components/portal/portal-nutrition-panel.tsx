@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
 import {
@@ -29,6 +29,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toDateKey } from '@/lib/calendar'
 import { isNutritionSetupFormDue } from '@/lib/nutrition-setup-form'
 import {
@@ -43,6 +44,33 @@ import type {
   MealPlanAssignmentWithPlan,
   MealPlanDayWithMeals,
 } from 'app/types/database'
+
+const PORTAL_NUTRITION_SECTIONS = ['adherence', 'plan'] as const
+export type PortalNutritionSection = (typeof PORTAL_NUTRITION_SECTIONS)[number]
+
+export function resolvePortalNutritionSection(
+  section: string | null
+): PortalNutritionSection {
+  if (section && PORTAL_NUTRITION_SECTIONS.includes(section as PortalNutritionSection)) {
+    return section as PortalNutritionSection
+  }
+  return 'adherence'
+}
+
+function buildPortalNutritionSectionUrl(
+  pathname: string,
+  section: PortalNutritionSection,
+  searchParams: URLSearchParams
+) {
+  const params = new URLSearchParams(searchParams.toString())
+  if (section === 'adherence') {
+    params.delete('section')
+  } else {
+    params.set('section', section)
+  }
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
+}
 
 type PortalNutritionPanelProps = {
   profile: ClientNutritionProfile | null
@@ -63,7 +91,14 @@ export function PortalNutritionPanel({
   planDays,
   foodDiaryEntries,
 }: PortalNutritionPanelProps) {
+  const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlSection = searchParams.get('section')
+  const [nutritionSection, setNutritionSection] =
+    React.useState<PortalNutritionSection>(() =>
+      resolvePortalNutritionSection(urlSection)
+    )
   const todayKey = toDateKey(new Date())
   const [viewedDate, setViewedDate] = React.useState(todayKey)
   const [pending, setPending] = React.useState(false)
@@ -79,6 +114,10 @@ export function PortalNutritionPanel({
       ? nutritionLogToFormValues(viewedLog)
       : createEmptyNutritionLogValues(viewedDate)
   )
+
+  React.useEffect(() => {
+    setNutritionSection(resolvePortalNutritionSection(urlSection))
+  }, [urlSection])
 
   React.useEffect(() => {
     setValues(
@@ -117,22 +156,33 @@ export function PortalNutritionPanel({
 
   const setupFormDue = isNutritionSetupFormDue(profile)
 
-  return (
-    <div className="flex flex-col gap-8 md:gap-10">
-      <section aria-labelledby="portal-nutrition-adherence-heading" className="grid gap-4">
-        <div className="space-y-1">
-          <h2
-            id="portal-nutrition-adherence-heading"
-            className="text-lg font-semibold tracking-tight"
-          >
-            Daily adherence
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Log how closely you followed your plan and review your recent
-            progress.
-          </p>
-        </div>
+  function handleNutritionSectionChange(value: string) {
+    const section = value as PortalNutritionSection
+    setNutritionSection(section)
+    router.replace(
+      buildPortalNutritionSectionUrl(pathname, section, searchParams),
+      { scroll: false }
+    )
+  }
 
+  return (
+    <Tabs
+      value={nutritionSection}
+      onValueChange={handleNutritionSectionChange}
+      variant="filter"
+    >
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <TabsList className="w-max flex-nowrap">
+          <TabsTrigger value="adherence" size="sm">
+            Adherence
+          </TabsTrigger>
+          <TabsTrigger value="plan" size="sm">
+            Your plan
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="adherence" className="mt-4 grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>
@@ -271,24 +321,9 @@ export function PortalNutritionPanel({
           profile={profile}
           foodDiaryEntries={foodDiaryEntries}
         />
-      </section>
+      </TabsContent>
 
-      <section
-        aria-labelledby="portal-nutrition-plan-heading"
-        className="grid gap-4"
-      >
-        <div className="space-y-1">
-          <h2
-            id="portal-nutrition-plan-heading"
-            className="text-lg font-semibold tracking-tight"
-          >
-            Your nutrition plan
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Meal plan, macro targets, and preferences from your coach.
-          </p>
-        </div>
-
+      <TabsContent value="plan" className="mt-4 grid gap-4">
         {setupFormDue ? (
           <PortalNutritionSetupFormCard
             profile={profile}
@@ -316,7 +351,7 @@ export function PortalNutritionPanel({
         <ClientNutritionNotesCard
           initialNotes={profile?.client_nutrition_notes ?? null}
         />
-      </section>
-    </div>
+      </TabsContent>
+    </Tabs>
   )
 }

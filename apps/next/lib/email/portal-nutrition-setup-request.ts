@@ -18,7 +18,7 @@ export type PortalNutritionSetupRequestEmailPayload = {
 export function buildPortalNutritionSetupRequestEmailContent(
   payload: PortalNutritionSetupRequestEmailPayload
 ) {
-  const nutritionUrl = `${getAppBaseUrl()}/portal/nutrition`
+  const nutritionUrl = `${getAppBaseUrl()}/portal/nutrition?section=plan`
   const subject = `${payload.coachName} sent you a nutrition setup form`
 
   const text = [

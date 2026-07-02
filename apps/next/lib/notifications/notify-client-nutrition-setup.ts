@@ -52,7 +52,7 @@ export async function notifyClientOfNutritionSetupRequest(params: {
     payload: {
       title: 'Nutrition setup form',
       body: `${coachName} sent you a nutrition setup form to complete.`,
-      url: `${getAppBaseUrl()}/portal/nutrition`,
+      url: `${getAppBaseUrl()}/portal/nutrition?section=plan`,
       tag: `nutrition-setup-${params.clientId}`,
     },
   })

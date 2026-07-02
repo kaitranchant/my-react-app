@@ -103,8 +103,8 @@ export default async function PortalNutritionPage() {
       <section className="space-y-1">
         <h1 className="page-title">Nutrition</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Log daily adherence up top, then view your meal plan, targets, and
-          coach preferences below.
+          Log daily adherence and review your meal plan, targets, and coach
+          preferences.
         </p>
       </section>
 
