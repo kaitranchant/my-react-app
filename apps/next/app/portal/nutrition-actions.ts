@@ -186,9 +186,14 @@ export async function updateClientNutritionNotes(
     client_nutrition_notes: parsed.data.clientNutritionNotes,
   }
 
-  const { error } = await ctx.supabase
-    .from('client_nutrition_profiles')
-    .upsert(row, { onConflict: 'client_id' })
+  const profileWrite = existingProfile
+    ? ctx.supabase
+        .from('client_nutrition_profiles')
+        .update(row)
+        .eq('client_id', ctx.client.id)
+    : ctx.supabase.from('client_nutrition_profiles').insert(row)
+
+  const { error } = await profileWrite
 
   if (error) {
     return { success: false, error: error.message }
@@ -275,7 +280,8 @@ export async function submitNutritionSetupForm(
 
   const { error } = await ctx.supabase
     .from('client_nutrition_profiles')
-    .upsert(row, { onConflict: 'client_id' })
+    .update(row)
+    .eq('client_id', ctx.client.id)
 
   if (error) {
     return { success: false, error: error.message }
