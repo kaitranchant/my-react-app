@@ -52,7 +52,6 @@ import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
 import { PrCelebrationDialog } from '@/components/workout/pr-celebration-dialog'
-import { PlateCalculatorSheet } from '@/components/workout/plate-calculator-sheet'
 import { WorkoutLogKeypad } from '@/components/workout/workout-log-keypad'
 import {
   WorkoutLogKeypadProvider,
@@ -1170,6 +1169,11 @@ export function WorkoutLogScreen({
   const [celebrationPrs, setCelebrationPrs] = React.useState<WorkoutPrSummary[]>([])
   const [showCelebration, setShowCelebration] = React.useState(false)
   const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
+  const [pendingCelebrationPrs, setPendingCelebrationPrs] = React.useState<
+    WorkoutPrSummary[]
+  >([])
+  const pendingCelebrationPrsRef = React.useRef<WorkoutPrSummary[]>([])
+  const celebrationRevealedRef = React.useRef(false)
   const [exerciseToRemove, setExerciseToRemove] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
@@ -1290,6 +1294,48 @@ export function WorkoutLogScreen({
     data?.status === 'scheduled' || data?.status === 'in_progress'
 
   const AUTO_SAVE_DELAY_MS = 600
+  const PR_CELEBRATION_AUTO_ADVANCE_MS = 700
+
+  const revealCelebration = React.useCallback(() => {
+    if (celebrationRevealedRef.current) return
+
+    const prs = pendingCelebrationPrsRef.current
+    if (prs.length === 0) return
+
+    celebrationRevealedRef.current = true
+    pendingCelebrationPrsRef.current = []
+    setPendingCelebrationPrs([])
+    setCelebrationPrs(prs)
+    setShowWorkoutComplete(false)
+    setShowCelebration(true)
+  }, [])
+
+  const handleWorkoutCompleteOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (open) {
+        setShowWorkoutComplete(true)
+        return
+      }
+
+      if (pendingCelebrationPrsRef.current.length > 0) {
+        revealCelebration()
+        return
+      }
+
+      setShowWorkoutComplete(false)
+    },
+    [revealCelebration]
+  )
+
+  React.useEffect(() => {
+    if (!showWorkoutComplete || pendingCelebrationPrs.length === 0) return
+
+    const timer = window.setTimeout(
+      revealCelebration,
+      PR_CELEBRATION_AUTO_ADVANCE_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [pendingCelebrationPrs, revealCelebration, showWorkoutComplete])
 
   const loadData = React.useCallback(async () => {
     setLoading(true)
@@ -1417,6 +1463,9 @@ export function WorkoutLogScreen({
   const completeWorkout = React.useCallback(async () => {
     if (autoCompletingRef.current) return
     autoCompletingRef.current = true
+    celebrationRevealedRef.current = false
+    pendingCelebrationPrsRef.current = []
+    setPendingCelebrationPrs([])
 
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur()
@@ -1452,6 +1501,8 @@ export function WorkoutLogScreen({
 
         if (!saved) {
           setShowWorkoutComplete(false)
+          autoCompletingRef.current = false
+          saveInFlightRef.current = false
           return
         }
       }
@@ -1474,34 +1525,47 @@ export function WorkoutLogScreen({
           )
         : []
 
-      const result = isClientPortal
-        ? await completePortalWorkoutLog(workoutId)
-        : await completeWorkoutLog(clientId, workoutId)
-
-      if (result.success) {
-        setData((current) =>
-          current ? { ...current, status: 'completed' } : current
-        )
-
-        if (predictedPrs.length > 0) {
-          setShowWorkoutComplete(false)
-          setCelebrationPrs(predictedPrs)
-          setShowCelebration(true)
-        }
-
-        void (isClientPortal
-          ? persistPortalWorkoutPrs(workoutId)
-          : persistWorkoutLogPrs(clientId, workoutId))
-
-        window.setTimeout(() => {
-          onChangedRef.current()
-        }, 0)
-        return
+      if (predictedPrs.length > 0) {
+        pendingCelebrationPrsRef.current = predictedPrs
+        setPendingCelebrationPrs(predictedPrs)
       }
 
+      void (async () => {
+        try {
+          const result = isClientPortal
+            ? await completePortalWorkoutLog(workoutId)
+            : await completeWorkoutLog(clientId, workoutId)
+
+          if (result.success) {
+            setData((current) =>
+              current ? { ...current, status: 'completed' } : current
+            )
+
+            void (isClientPortal
+              ? persistPortalWorkoutPrs(workoutId)
+              : persistWorkoutLogPrs(clientId, workoutId))
+
+            window.setTimeout(() => {
+              onChangedRef.current()
+            }, 0)
+            return
+          }
+
+          pendingCelebrationPrsRef.current = []
+          setPendingCelebrationPrs([])
+          setShowWorkoutComplete(false)
+          setShowCelebration(false)
+          setCelebrationPrs([])
+          toast.error(result.error)
+        } finally {
+          autoCompletingRef.current = false
+          saveInFlightRef.current = false
+        }
+      })()
+    } catch {
       setShowWorkoutComplete(false)
-      toast.error(result.error)
-    } finally {
+      pendingCelebrationPrsRef.current = []
+      setPendingCelebrationPrs([])
       autoCompletingRef.current = false
       saveInFlightRef.current = false
     }
@@ -2345,7 +2409,6 @@ export function WorkoutLogScreen({
         )}
       </div>
     </RestTimerProvider>
-    <PlateCalculatorSheet />
     </WorkoutLogKeypadProvider>
   )
 
@@ -2368,7 +2431,7 @@ export function WorkoutLogScreen({
   const workoutCompleteDialog = (
     <WorkoutCompleteDialog
       open={showWorkoutComplete}
-      onOpenChange={setShowWorkoutComplete}
+      onOpenChange={handleWorkoutCompleteOpenChange}
       workoutName={data?.name ?? 'Workout'}
     />
   )

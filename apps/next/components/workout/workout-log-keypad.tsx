@@ -13,6 +13,7 @@ import {
 import type { ActiveKeypadTarget } from '@/lib/workout-log-keypad'
 import { cn } from '@/lib/utils'
 
+import { PlateCalculatorPanel } from './plate-calculator-sheet'
 import {
   getWeightStepLabel,
   useWorkoutLogKeypad,
@@ -24,11 +25,12 @@ type ViewportFrame = {
   left: number
   width: number
   bottom: number
+  maxHeight: number
 }
 
 function getViewportFrame(): ViewportFrame {
   if (typeof window === 'undefined') {
-    return { left: 0, width: 0, bottom: 0 }
+    return { left: 0, width: 0, bottom: 0, maxHeight: 0 }
   }
 
   const visualViewport = window.visualViewport
@@ -37,6 +39,7 @@ function getViewportFrame(): ViewportFrame {
       left: 0,
       width: document.documentElement.clientWidth,
       bottom: 0,
+      maxHeight: window.innerHeight,
     }
   }
 
@@ -46,6 +49,10 @@ function getViewportFrame(): ViewportFrame {
     bottom: Math.max(
       0,
       window.innerHeight - visualViewport.height - visualViewport.offsetTop
+    ),
+    maxHeight: Math.max(
+      0,
+      visualViewport.height - visualViewport.offsetTop - 8
     ),
   }
 }
@@ -331,6 +338,8 @@ function WorkoutLogKeypadOverlay() {
     return null
   }
 
+  const plateSheetOpen = keypad.plateSheetOpen
+
   const overlay = (
     <div
       ref={surfaceRef}
@@ -343,19 +352,27 @@ function WorkoutLogKeypadOverlay() {
         left: viewport.left,
         width: viewport.width,
         bottom: viewport.bottom,
+        maxHeight: viewport.maxHeight > 0 ? viewport.maxHeight : undefined,
       }}
     >
-      <WorkoutLogKeypadContent
-        activeTarget={activeTarget}
-        weightUnit={keypad.weightUnit}
-        appendDigit={keypad.appendDigit}
-        backspace={keypad.backspace}
-        adjustWeight={keypad.adjustWeight}
-        copyPrevious={keypad.copyPrevious}
-        goNext={keypad.goNext}
-        closeKeypad={keypad.closeKeypad}
-        openPlateSheet={keypad.openPlateSheet}
-      />
+      {plateSheetOpen ? (
+        <div className="min-h-0 flex-1 overflow-y-auto border-b">
+          <PlateCalculatorPanel onClose={keypad.closePlateSheet} />
+        </div>
+      ) : null}
+      <div className="shrink-0">
+        <WorkoutLogKeypadContent
+          activeTarget={activeTarget}
+          weightUnit={keypad.weightUnit}
+          appendDigit={keypad.appendDigit}
+          backspace={keypad.backspace}
+          adjustWeight={keypad.adjustWeight}
+          copyPrevious={keypad.copyPrevious}
+          goNext={keypad.goNext}
+          closeKeypad={keypad.closeKeypad}
+          openPlateSheet={keypad.openPlateSheet}
+        />
+      </div>
     </div>
   )
 
