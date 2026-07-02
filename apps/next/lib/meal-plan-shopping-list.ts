@@ -41,7 +41,7 @@ export function generateShoppingList(
     }
   }
 
-  return [...totals.values()].sort((a, b) =>
+  return Array.from(totals.values()).sort((a, b) =>
     a.foodName.localeCompare(b.foodName, undefined, { sensitivity: 'base' })
   )
 }
