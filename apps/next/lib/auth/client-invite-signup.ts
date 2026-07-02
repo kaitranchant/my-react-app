@@ -1,3 +1,5 @@
+import type { User } from '@supabase/supabase-js'
+
 import { createClient } from '@/lib/supabase/server'
 import {
   createAdminClient,
@@ -8,6 +10,7 @@ import {
   formatSupabaseAuthError,
   isUserAlreadyExistsError,
 } from '@/lib/auth/errors'
+import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -55,11 +58,21 @@ export async function deleteOrphanedInvitedAuthUser(
   return !error
 }
 
-export async function linkClientInviteForUser(
-  supabase: SupabaseServerClient,
-  input: { inviteToken: string; userId: string; email: string }
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data: existingClient } = await supabase
+export async function linkClientInviteAsAdmin(input: {
+  inviteToken: string
+  userId: string
+  email: string
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = createAdminClient()
+  if (!admin) {
+    return {
+      ok: false,
+      error:
+        'Client invite linking requires SUPABASE_SERVICE_ROLE_KEY in your server environment.',
+    }
+  }
+
+  const { data: existingClient } = await admin
     .from('clients')
     .select('id')
     .eq('user_id', input.userId)
@@ -69,7 +82,7 @@ export async function linkClientInviteForUser(
     return { ok: true }
   }
 
-  const { error } = await supabase.rpc('link_client_invite', {
+  const { error } = await admin.rpc('link_client_invite', {
     p_token: input.inviteToken,
     p_user_id: input.userId,
     p_email: input.email,
@@ -83,6 +96,77 @@ export async function linkClientInviteForUser(
   }
 
   return { ok: true }
+}
+
+export async function linkClientInviteForUser(
+  _supabase: SupabaseServerClient,
+  input: { inviteToken: string; userId: string; email: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return linkClientInviteAsAdmin(input)
+}
+
+async function findPendingInviteTokenForEmail(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  email: string
+): Promise<string | null> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const { data: pendingClients } = await admin
+    .from('clients')
+    .select('invite_token, email, created_at')
+    .eq('invite_status', 'pending')
+    .not('invite_token', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const match = pendingClients?.find(
+    (client) =>
+      client.invite_token &&
+      client.email?.trim().toLowerCase() === normalizedEmail
+  )
+
+  return match?.invite_token ?? null
+}
+
+export async function repairClientInviteLink(input: {
+  userId: string
+  email: string | null | undefined
+  userMetadata?: Record<string, unknown> | null
+}): Promise<boolean> {
+  const admin = createAdminClient()
+  if (!admin || !input.email?.trim()) {
+    return false
+  }
+
+  const { data: linkedClient } = await admin
+    .from('clients')
+    .select('id')
+    .eq('user_id', input.userId)
+    .maybeSingle()
+
+  if (linkedClient) {
+    return false
+  }
+
+  const inviteToken =
+    readPendingInviteToken(input.userMetadata) ??
+    (await findPendingInviteTokenForEmail(admin, input.email))
+
+  if (!inviteToken) {
+    return false
+  }
+
+  const linked = await linkClientInviteAsAdmin({
+    inviteToken,
+    userId: input.userId,
+    email: input.email,
+  })
+
+  if (linked.ok) {
+    void runOnboardingAutomationForUser(input.userId)
+    return true
+  }
+
+  return false
 }
 
 async function getPendingInviteClient(
@@ -194,7 +278,7 @@ export async function registerInvitedClient(
     return { ok: false, error: formatSupabaseAuthError(signInError) }
   }
 
-  const linked = await linkClientInviteForUser(supabase, {
+  const linked = await linkClientInviteAsAdmin({
     inviteToken: input.inviteToken,
     userId,
     email: input.email,
@@ -216,7 +300,12 @@ export async function signInClientAccount(
     password: input.password,
   })
 
-  if (!firstAttempt.error) {
+  if (!firstAttempt.error && firstAttempt.data.user) {
+    await repairClientInviteLink({
+      userId: firstAttempt.data.user.id,
+      email: firstAttempt.data.user.email,
+      userMetadata: firstAttempt.data.user.user_metadata,
+    })
     return { ok: true }
   }
 
@@ -263,9 +352,15 @@ export async function signInClientAccount(
     password: input.password,
   })
 
-  if (retry.error) {
+  if (retry.error || !retry.data.user) {
     return { ok: false, error: formatSupabaseAuthError(retry.error) }
   }
+
+  await repairClientInviteLink({
+    userId: retry.data.user.id,
+    email: retry.data.user.email,
+    userMetadata: retry.data.user.user_metadata,
+  })
 
   return { ok: true }
 }
@@ -288,8 +383,18 @@ export function readPendingInviteToken(
 }
 
 export async function completePendingClientInvite(
-  supabase: SupabaseServerClient,
+  _supabase: SupabaseServerClient,
   input: { userId: string; email: string; inviteToken: string }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  return linkClientInviteForUser(supabase, input)
+  return linkClientInviteAsAdmin(input)
+}
+
+export async function repairClientInviteLinkForUser(
+  user: Pick<User, 'id' | 'email' | 'user_metadata'>
+): Promise<boolean> {
+  return repairClientInviteLink({
+    userId: user.id,
+    email: user.email,
+    userMetadata: user.user_metadata,
+  })
 }

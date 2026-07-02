@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   completePendingClientInvite,
   readPendingInviteToken,
+  repairClientInviteLinkForUser,
 } from '@/lib/auth/client-invite-signup'
 import { createClient } from '@/lib/supabase/server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
@@ -37,6 +38,8 @@ export async function GET(request: Request) {
             url.searchParams.set('error', linked.error)
             return NextResponse.redirect(url.toString())
           }
+        } else {
+          await repairClientInviteLinkForUser(user)
         }
 
         const { data: profile } = await supabase

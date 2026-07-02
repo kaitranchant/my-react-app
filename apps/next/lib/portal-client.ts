@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { repairClientInviteLinkForUser } from '@/lib/auth/client-invite-signup'
 import type { Client } from 'app/types/database'
 
 export type PortalClientRecord = Pick<
@@ -27,6 +28,8 @@ export async function getPortalClientContext(): Promise<PortalClientContext | nu
   if (!user) {
     return null
   }
+
+  await repairClientInviteLinkForUser(user)
 
   const { data: profile } = await supabase
     .from('profiles')
