@@ -14,7 +14,7 @@ export type ActivityItem = {
   id: string
   clientId: string
   clientName: string
-  kind: 'workout' | 'check_in' | 'form_review'
+  kind: 'workout' | 'check_in' | 'form_review' | 'nutrition_setup'
   workoutName?: string
   formReviewTitle?: string | null
   status?: ClientScheduledWorkout['status']
@@ -240,6 +240,22 @@ export function buildFormReviewActivityFeed(
   }))
 }
 
+export function buildNutritionSetupActivityFeed(
+  profiles: {
+    client_id: string
+    setup_form_completed_at: string
+    clientName: string
+  }[]
+): ActivityItem[] {
+  return profiles.map((profile) => ({
+    id: `${profile.client_id}-${profile.setup_form_completed_at}`,
+    clientId: profile.client_id,
+    clientName: profile.clientName,
+    kind: 'nutrition_setup' as const,
+    timestamp: profile.setup_form_completed_at,
+  }))
+}
+
 export function mergeActivityFeed(
   ...feeds: ActivityItem[][]
 ): ActivityItem[] {
@@ -361,6 +377,18 @@ export function formatActivityMessage(item: ActivityItem): string {
     return 'each submitted a form review'
   }
 
+  if (item.kind === 'nutrition_setup') {
+    if (!isGrouped) {
+      return 'completed their nutrition setup form'
+    }
+
+    if (groupedClientCount === 1) {
+      return `completed ${groupedCount} nutrition setup forms`
+    }
+
+    return 'each completed a nutrition setup form'
+  }
+
   if (isGrouped) {
     if (groupedClientCount === 1) {
       switch (item.status) {
@@ -410,6 +438,12 @@ export function getActivityHref(item: ActivityItem): string {
 
   if (item.kind === 'form_review') {
     return '/form-review'
+  }
+
+  if (item.kind === 'nutrition_setup') {
+    return isGrouped
+      ? '/clients'
+      : `/clients/${item.clientId}?tab=nutrition&section=setup`
   }
 
   if (isGrouped) {

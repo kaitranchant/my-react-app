@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
-  formatShoppingListQuantity,
+  formatShoppingListItemLabel,
   formatShoppingListText,
   generateShoppingList,
 } from '@/lib/meal-plan-shopping-list'
@@ -64,8 +64,8 @@ export function ShoppingListCard({
           <CardDescription>
             {assignment
               ? dayCount > 0
-                ? `Ingredients for the full ${dayCount}-day plan cycle.`
-                : 'Ingredients from your assigned meal plan.'
+                ? `Practical buy estimates for the full ${dayCount}-day plan cycle, with gram totals.`
+                : 'Practical buy estimates from your assigned meal plan, with gram totals.'
               : audience === 'coach'
                 ? 'Assign a meal plan to generate a shopping list.'
                 : 'Your coach can share a shopping list when a meal plan is assigned.'}
@@ -109,17 +109,35 @@ export function ShoppingListCard({
           />
         ) : (
           <ul className="divide-border divide-y">
-            {items.map((item) => (
-              <li
-                key={item.foodName}
-                className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-              >
-                <span className="font-medium">{item.foodName}</span>
-                <span className="text-muted-foreground shrink-0 tabular-nums text-sm">
-                  {formatShoppingListQuantity(item.quantityG)}
-                </span>
-              </li>
-            ))}
+            {items.map((item) => {
+              const display = formatShoppingListItemLabel(
+                item.foodName,
+                item.quantityG
+              )
+
+              return (
+                <li
+                  key={item.foodName}
+                  className="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <span className="font-medium">{item.foodName}</span>
+                  <span className="shrink-0 text-right text-sm">
+                    {display.purchase ? (
+                      <>
+                        <span className="font-medium">{display.purchase}</span>
+                        <span className="text-muted-foreground block text-xs tabular-nums">
+                          {display.grams}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground tabular-nums">
+                        {display.grams}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </CardContent>

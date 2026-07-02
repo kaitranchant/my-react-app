@@ -9,10 +9,12 @@ import {
   mealPlanDayUpdateSchema,
   mealPlanMealFoodFormSchema,
   mealPlanMealFormSchema,
+  mealPlanMealUpdateSchema,
   type MealPlanDayFormValues,
   type MealPlanDayUpdateValues,
   type MealPlanMealFoodFormValues,
   type MealPlanMealFormValues,
+  type MealPlanMealUpdateValues,
 } from '@/lib/validations/nutrition'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -53,7 +55,7 @@ async function requireOwnedMeal(mealPlanId: string, mealId: string) {
 
   const { data: meal, error: mealError } = await ctx.supabase
     .from('meal_plan_meals')
-    .select('id, meal_plan_day_id, name')
+    .select('id, meal_plan_day_id, name, meal_type')
     .eq('id', mealId)
     .maybeSingle()
 
@@ -364,6 +366,120 @@ export async function deleteMealPlanMealFood(
   const { error } = await ctx.supabase
     .from('meal_plan_meal_foods')
     .delete()
+    .eq('id', foodId)
+    .eq('meal_plan_meal_id', mealId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  try {
+    await syncMealMacrosFromFoods(ctx.supabase, mealId)
+  } catch (syncError) {
+    return {
+      success: false,
+      error:
+        syncError instanceof Error
+          ? syncError.message
+          : 'Could not update meal macros.',
+    }
+  }
+
+  revalidateMealPlanEditor(mealPlanId)
+  return { success: true }
+}
+
+export async function updateMealPlanMeal(
+  mealPlanId: string,
+  mealId: string,
+  values: MealPlanMealUpdateValues
+): Promise<ActionResult> {
+  const parsed = mealPlanMealUpdateSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requireOwnedMeal(mealPlanId, mealId)
+  if (!ctx) {
+    return { success: false, error: 'Meal not found.' }
+  }
+
+  const updates: {
+    meal_type?: MealPlanMealFormValues['mealType']
+    name?: string
+    description?: string | null
+  } = {}
+
+  if (parsed.data.mealType !== undefined) {
+    updates.meal_type = parsed.data.mealType
+  }
+  if (parsed.data.name !== undefined) {
+    const trimmed = parsed.data.name.trim()
+    const mealType = parsed.data.mealType ?? ctx.meal.meal_type
+    updates.name =
+      trimmed ||
+      `${mealType.charAt(0).toUpperCase()}${mealType.slice(1)}`
+  }
+  if (parsed.data.description !== undefined) {
+    updates.description = parsed.data.description
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { success: true }
+  }
+
+  const { error } = await ctx.supabase
+    .from('meal_plan_meals')
+    .update(updates)
+    .eq('id', mealId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateMealPlanEditor(mealPlanId)
+  return { success: true }
+}
+
+export async function updateMealPlanMealFood(
+  mealPlanId: string,
+  mealId: string,
+  foodId: string,
+  values: MealPlanMealFoodFormValues
+): Promise<ActionResult> {
+  const parsed = mealPlanMealFoodFormSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requireOwnedMeal(mealPlanId, mealId)
+  if (!ctx) {
+    return { success: false, error: 'Meal not found.' }
+  }
+
+  const { data: existingFood, error: foodError } = await ctx.supabase
+    .from('meal_plan_meal_foods')
+    .select('id')
+    .eq('id', foodId)
+    .eq('meal_plan_meal_id', mealId)
+    .maybeSingle()
+
+  if (foodError || !existingFood) {
+    return { success: false, error: 'Food not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('meal_plan_meal_foods')
+    .update({
+      food_name: parsed.data.foodName,
+      source: parsed.data.source,
+      external_id: parsed.data.externalId ?? null,
+      quantity_g: parsed.data.quantityG,
+      calories_kcal: parsed.data.caloriesKcal,
+      protein_g: parsed.data.proteinG,
+      carbs_g: parsed.data.carbsG,
+      fat_g: parsed.data.fatG,
+    })
     .eq('id', foodId)
     .eq('meal_plan_meal_id', mealId)
 

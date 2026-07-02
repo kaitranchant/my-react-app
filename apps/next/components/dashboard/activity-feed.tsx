@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   PlayCircle,
   SkipForward,
   Video,
@@ -51,6 +52,13 @@ function getActivityIcon(item: ActivityItem) {
     }
   }
 
+  if (item.kind === 'nutrition_setup') {
+    return {
+      icon: ClipboardList,
+      className: 'text-status-success bg-status-success/10',
+    }
+  }
+
   const status = (item.status ?? 'scheduled') as WorkoutActivityStatus
   return {
     icon: workoutStatusIcons[status],
@@ -68,7 +76,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
       <CardHeader className="border-b px-4 py-4 sm:px-6 sm:pb-4">
         <CardTitle>Recent activity</CardTitle>
         <CardDescription>
-          Sessions, check-ins, and form reviews
+          Sessions, check-ins, form reviews, and nutrition setup
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0 py-0 sm:px-6 sm:pt-2">
@@ -89,8 +97,13 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               const href = getActivityHref(item)
               const isCheckIn = item.kind === 'check_in'
               const isFormReview = item.kind === 'form_review'
-              const isHighlighted = isCheckIn || isFormReview
-              const mobileActionLabel = isFormReview ? 'Review' : 'View'
+              const isNutritionSetup = item.kind === 'nutrition_setup'
+              const isHighlighted = isCheckIn || isFormReview || isNutritionSetup
+              const mobileActionLabel = isFormReview
+                ? 'Review'
+                : isNutritionSetup
+                  ? 'View'
+                  : 'View'
 
               return (
                 <li key={`${item.kind}-${item.id}`}>
@@ -121,7 +134,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                       </p>
                     </div>
 
-                    {isCheckIn || isFormReview ? (
+                    {isCheckIn || isFormReview || isNutritionSetup ? (
                       <Link
                         href={href}
                         className="text-brand inline-flex shrink-0 items-center gap-0.5 text-sm font-medium sm:gap-1.5 sm:rounded-md sm:bg-brand sm:px-4 sm:py-2.5 sm:font-semibold sm:text-white sm:hover:bg-brand/90"
@@ -135,9 +148,13 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
                             ? (item.groupedCount ?? 1) > 1
                               ? 'View check-ins'
                               : 'View check-in'
-                            : (item.groupedCount ?? 1) > 1
-                              ? 'View submissions'
-                              : 'Review submission'}
+                            : isNutritionSetup
+                              ? (item.groupedCount ?? 1) > 1
+                                ? 'View submissions'
+                                : 'View intake'
+                              : (item.groupedCount ?? 1) > 1
+                                ? 'View submissions'
+                                : 'Review submission'}
                         </span>
                         <ChevronRight className="hidden size-4 sm:block" />
                       </Link>

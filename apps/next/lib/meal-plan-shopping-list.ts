@@ -1,3 +1,7 @@
+import {
+  formatShoppingListGrams,
+  formatShoppingListItemLabel,
+} from '@/lib/shopping-purchase-estimates'
 import type { MealPlanDayWithMeals, MealPlanMealFood } from 'app/types/database'
 
 export type ShoppingListItem = {
@@ -46,14 +50,14 @@ export function generateShoppingList(
   )
 }
 
-export function formatShoppingListQuantity(quantityG: number): string {
-  if (quantityG >= 1000) {
-    const kg = roundQuantity(quantityG / 1000)
-    return `${kg} kg`
-  }
-
-  return `${roundQuantity(quantityG)} g`
+export function formatShoppingListQuantity(
+  foodName: string,
+  quantityG: number
+): string {
+  return formatShoppingListItemLabel(foodName, quantityG).label
 }
+
+export { formatShoppingListGrams, formatShoppingListItemLabel }
 
 export function formatShoppingListText(
   items: ShoppingListItem[],
@@ -80,7 +84,7 @@ export function formatShoppingListText(
 
   for (const item of items) {
     lines.push(
-      `- ${item.foodName} — ${formatShoppingListQuantity(item.quantityG)}`
+      `- ${item.foodName} — ${formatShoppingListQuantity(item.foodName, item.quantityG)}`
     )
   }
 

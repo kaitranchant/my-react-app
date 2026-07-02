@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -13,6 +13,8 @@ import {
   deleteMealPlanMeal,
   deleteMealPlanMealFood,
   updateMealPlanDay,
+  updateMealPlanMeal,
+  updateMealPlanMealFood,
 } from '@/app/(dashboard)/library/meal-plans/[planId]/actions'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
 import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
@@ -40,6 +42,7 @@ import {
   buildCustomFoodSnapshot,
   formatFoodMacrosShort,
   formatFoodQuantityLabel,
+  rescaleFoodMacrosByQuantity,
   type FoodSelectionSnapshot,
 } from '@/lib/food-catalog'
 import { MEAL_TYPE_LABELS } from '@/lib/nutrition'
@@ -52,7 +55,11 @@ import {
   mealTypes,
   type MealPlanMealFoodFormValues,
 } from '@/lib/validations/nutrition'
-import type { MealPlanDayWithMeals } from 'app/types/database'
+import type {
+  MealPlanDayWithMeals,
+  MealPlanMealFood,
+  MealPlanMealWithFoods,
+} from 'app/types/database'
 
 type MealPlanDayEditorProps = {
   mealPlanId: string
@@ -73,6 +80,20 @@ function snapshotToMealFoodValues(
     carbsG: snapshot.carbsG,
     fatG: snapshot.fatG,
     sortOrder,
+  }
+}
+
+function mealFoodToFormValues(food: MealPlanMealFood): MealPlanMealFoodFormValues {
+  return {
+    source: food.source,
+    externalId: food.external_id,
+    foodName: food.food_name,
+    quantityG: food.quantity_g,
+    caloriesKcal: food.calories_kcal,
+    proteinG: food.protein_g,
+    carbsG: food.carbs_g,
+    fatG: food.fat_g,
+    sortOrder: food.sort_order,
   }
 }
 
@@ -124,6 +145,206 @@ function MealPlanFoodPicker({
       onManualEntry={() => setManualMode(true)}
       onAdd={onAdd}
     />
+  )
+}
+
+function MealPlanFoodQuantityEditor({
+  food,
+  disabled,
+  onSave,
+  onCancel,
+}: {
+  food: MealPlanMealFood
+  disabled: boolean
+  onSave: (values: MealPlanMealFoodFormValues) => Promise<void>
+  onCancel: () => void
+}) {
+  const [quantityG, setQuantityG] = React.useState(String(food.quantity_g))
+  const [saving, setSaving] = React.useState(false)
+  const parsedQuantity = Number(quantityG)
+  const quantityIsValid = Number.isFinite(parsedQuantity) && parsedQuantity > 0
+  const preview =
+    quantityIsValid && food.calories_kcal != null
+      ? rescaleFoodMacrosByQuantity(
+          {
+            quantityG: food.quantity_g,
+            caloriesKcal: food.calories_kcal,
+            proteinG: food.protein_g ?? 0,
+            carbsG: food.carbs_g ?? 0,
+            fatG: food.fat_g ?? 0,
+          },
+          parsedQuantity
+        )
+      : null
+
+  async function handleSave() {
+    if (!quantityIsValid) return
+
+    setSaving(true)
+    const scaled =
+      preview ??
+      rescaleFoodMacrosByQuantity(
+        {
+          quantityG: food.quantity_g,
+          caloriesKcal: food.calories_kcal ?? 0,
+          proteinG: food.protein_g ?? 0,
+          carbsG: food.carbs_g ?? 0,
+          fatG: food.fat_g ?? 0,
+        },
+        parsedQuantity
+      )
+
+    await onSave({
+      ...mealFoodToFormValues(food),
+      quantityG: parsedQuantity,
+      caloriesKcal: scaled.caloriesKcal,
+      proteinG: scaled.proteinG,
+      carbsG: scaled.carbsG,
+      fatG: scaled.fatG,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <div className="border-border grid gap-2 rounded-lg border p-2">
+      <p className="text-sm font-medium">{food.food_name}</p>
+      <div className="grid gap-2 sm:max-w-xs">
+        <Label htmlFor={`food-quantity-${food.id}`}>Quantity (g)</Label>
+        <Input
+          id={`food-quantity-${food.id}`}
+          type="number"
+          min="1"
+          step="1"
+          value={quantityG}
+          disabled={disabled || saving}
+          onChange={(event) => setQuantityG(event.target.value)}
+        />
+      </div>
+      {preview ? (
+        <p className="text-muted-foreground text-xs">
+          {formatFoodQuantityLabel(parsedQuantity, food.food_name)}:{' '}
+          {formatFoodMacrosShort({
+            caloriesKcal: preview.caloriesKcal,
+            proteinG: preview.proteinG,
+            carbsG: preview.carbsG,
+            fatG: preview.fatG,
+          })}
+        </p>
+      ) : null}
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={disabled || saving}
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={disabled || saving || !quantityIsValid}
+          onClick={() => void handleSave()}
+        >
+          Save changes
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function MealPlanMealEditForm({
+  meal,
+  disabled,
+  onSave,
+  onCancel,
+}: {
+  meal: MealPlanMealWithFoods
+  disabled: boolean
+  onSave: (values: {
+    mealType: (typeof mealTypes)[number]
+    name: string
+    description: string
+  }) => Promise<void>
+  onCancel: () => void
+}) {
+  const [mealType, setMealType] = React.useState(meal.meal_type)
+  const [mealName, setMealName] = React.useState(meal.name)
+  const [mealDescription, setMealDescription] = React.useState(meal.description ?? '')
+  const [saving, setSaving] = React.useState(false)
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    setSaving(true)
+    await onSave({
+      mealType,
+      name: mealName,
+      description: mealDescription,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={(event) => void handleSubmit(event)} className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label>Meal type</Label>
+          <Select
+            value={mealType}
+            onValueChange={(value) =>
+              setMealType(value as (typeof mealTypes)[number])
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {mealTypes.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {MEAL_TYPE_LABELS[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor={`edit-meal-name-${meal.id}`}>Name</Label>
+          <Input
+            id={`edit-meal-name-${meal.id}`}
+            value={mealName}
+            onChange={(event) => setMealName(event.target.value)}
+            placeholder="e.g. Greek yogurt bowl"
+            disabled={disabled || saving}
+          />
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={`edit-meal-description-${meal.id}`}>Description</Label>
+        <Textarea
+          id={`edit-meal-description-${meal.id}`}
+          rows={2}
+          value={mealDescription}
+          onChange={(event) => setMealDescription(event.target.value)}
+          placeholder="Optional prep notes"
+          disabled={disabled || saving}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={disabled || saving}
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={disabled || saving}>
+          Save changes
+        </Button>
+      </div>
+    </form>
   )
 }
 
@@ -246,6 +467,11 @@ function MealPlanDayCard({
     []
   )
   const [expandedMealId, setExpandedMealId] = React.useState<string | null>(null)
+  const [editingMealId, setEditingMealId] = React.useState<string | null>(null)
+  const [editingFood, setEditingFood] = React.useState<{
+    mealId: string
+    foodId: string
+  } | null>(null)
   const labelSaveTimeoutRef = React.useRef<number | null>(null)
   const defaultDayName = `Day ${day.day_offset + 1}`
   const dayTotals = sumDayMacroTotals(day)
@@ -449,6 +675,51 @@ function MealPlanDayCard({
     deleteFoodConfirm.open()
   }
 
+  async function handleUpdateMeal(
+    mealId: string,
+    values: {
+      mealType: (typeof mealTypes)[number]
+      name: string
+      description: string
+    }
+  ) {
+    setPending(true)
+    const result = await updateMealPlanMeal(mealPlanId, mealId, {
+      mealType: values.mealType,
+      name: values.name,
+      description: values.description.trim() || null,
+    })
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    setEditingMealId(null)
+    toast.success('Meal updated.')
+    router.refresh()
+  }
+
+  async function handleUpdateMealFood(
+    mealId: string,
+    foodId: string,
+    values: MealPlanMealFoodFormValues
+  ) {
+    setPending(true)
+    const result = await updateMealPlanMealFood(mealPlanId, mealId, foodId, values)
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    setEditingFood(null)
+    toast.success('Food updated.')
+    router.refresh()
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -499,45 +770,168 @@ function MealPlanDayCard({
             {day.meals.map((meal) => {
               const mealTotals = getMealMacroTotals(meal)
               const isExpanded = expandedMealId === meal.id
+              const isEditingMeal = editingMealId === meal.id
               return (
                 <li
                   key={meal.id}
                   className="border-border rounded-lg border px-3 py-2"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">
-                        {MEAL_TYPE_LABELS[meal.meal_type]} — {meal.name}
-                      </p>
-                      {mealTotals ? (
-                        <MacroTotalsBadges
-                          totals={mealTotals}
-                          className="mt-1.5"
-                        />
-                      ) : null}
-                      {meal.description ? (
-                        <p className="text-muted-foreground text-sm">
-                          {meal.description}
+                  {isEditingMeal ? (
+                    <MealPlanMealEditForm
+                      meal={meal}
+                      disabled={disabled || pending}
+                      onSave={(values) => handleUpdateMeal(meal.id, values)}
+                      onCancel={() => setEditingMealId(null)}
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">
+                          {MEAL_TYPE_LABELS[meal.meal_type]} — {meal.name}
                         </p>
-                      ) : null}
-                      {meal.foods.length > 0 ? (
-                        <ul className="text-muted-foreground mt-2 grid gap-1 text-sm">
-                          {meal.foods.map((food) => (
-                            <li
-                              key={food.id}
-                              className="flex items-start justify-between gap-2"
-                            >
-                              <span>
-                                {formatFoodQuantityLabel(food.quantity_g, food.food_name)}
-                                {food.calories_kcal != null
-                                  ? ` — ${formatFoodMacrosShort({
-                                      caloriesKcal: food.calories_kcal,
-                                      proteinG: food.protein_g ?? 0,
-                                      carbsG: food.carbs_g ?? 0,
-                                      fatG: food.fat_g ?? 0,
-                                    })}`
-                                  : null}
-                              </span>
+                        {mealTotals ? (
+                          <MacroTotalsBadges
+                            totals={mealTotals}
+                            className="mt-1.5"
+                          />
+                        ) : null}
+                        {meal.description ? (
+                          <p className="text-muted-foreground text-sm">
+                            {meal.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          disabled={disabled || pending}
+                          onClick={() => {
+                            setExpandedMealId(null)
+                            setEditingFood(null)
+                            setEditingMealId(meal.id)
+                          }}
+                          aria-label={`Edit ${meal.name}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={disabled || pending}
+                          onClick={() => {
+                            setEditingMealId(null)
+                            setEditingFood(null)
+                            setExpandedMealId(isExpanded ? null : meal.id)
+                          }}
+                        >
+                          {isExpanded ? 'Close' : 'Add food'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={disabled || pending}
+                          onClick={() => handleDeleteMeal(meal.id)}
+                          aria-label={`Delete ${meal.name}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {meal.foods.length > 0 ? (
+                    <ul
+                      className={`text-muted-foreground grid gap-1 text-sm ${
+                        isEditingMeal ? 'mt-3' : 'mt-2'
+                      }`}
+                    >
+                      {meal.foods.map((food) => {
+                        const isEditingFood =
+                          editingFood?.mealId === meal.id &&
+                          editingFood.foodId === food.id
+
+                        if (isEditingFood) {
+                          return (
+                            <li key={food.id}>
+                              {food.source === 'custom' ? (
+                                <ManualFoodEntryForm
+                                  key={food.id}
+                                  showQuantity
+                                  idPrefix={`edit-food-${food.id}`}
+                                  disabled={disabled || pending}
+                                  submitLabel="Save changes"
+                                  defaultValues={{
+                                    foodName: food.food_name,
+                                    quantityG: food.quantity_g,
+                                    caloriesKcal: food.calories_kcal,
+                                    proteinG: food.protein_g,
+                                    carbsG: food.carbs_g,
+                                    fatG: food.fat_g,
+                                    fiberG: null,
+                                  }}
+                                  onCancel={() => setEditingFood(null)}
+                                  onSubmit={(values) => {
+                                    if (!values.quantityG) return
+                                    void handleUpdateMealFood(meal.id, food.id, {
+                                      source: 'custom',
+                                      externalId: null,
+                                      foodName: values.foodName,
+                                      quantityG: values.quantityG,
+                                      caloriesKcal: values.caloriesKcal,
+                                      proteinG: values.proteinG,
+                                      carbsG: values.carbsG,
+                                      fatG: values.fatG,
+                                      sortOrder: food.sort_order,
+                                    })
+                                  }}
+                                />
+                              ) : (
+                                <MealPlanFoodQuantityEditor
+                                  food={food}
+                                  disabled={disabled || pending}
+                                  onSave={(values) =>
+                                    handleUpdateMealFood(meal.id, food.id, values)
+                                  }
+                                  onCancel={() => setEditingFood(null)}
+                                />
+                              )}
+                            </li>
+                          )
+                        }
+
+                        return (
+                          <li
+                            key={food.id}
+                            className="flex items-start justify-between gap-2"
+                          >
+                            <span>
+                              {formatFoodQuantityLabel(food.quantity_g, food.food_name)}
+                              {food.calories_kcal != null
+                                ? ` — ${formatFoodMacrosShort({
+                                    caloriesKcal: food.calories_kcal,
+                                    proteinG: food.protein_g ?? 0,
+                                    carbsG: food.carbs_g ?? 0,
+                                    fatG: food.fat_g ?? 0,
+                                  })}`
+                                : null}
+                            </span>
+                            <div className="flex shrink-0 items-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 shrink-0"
+                                disabled={disabled || pending}
+                                onClick={() =>
+                                  setEditingFood({
+                                    mealId: meal.id,
+                                    foodId: food.id,
+                                  })
+                                }
+                                aria-label={`Edit ${food.food_name}`}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -548,34 +942,13 @@ function MealPlanDayCard({
                               >
                                 <Trash2 className="size-3.5" />
                               </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={disabled || pending}
-                        onClick={() =>
-                          setExpandedMealId(isExpanded ? null : meal.id)
-                        }
-                      >
-                        {isExpanded ? 'Close' : 'Add food'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={disabled || pending}
-                        onClick={() => handleDeleteMeal(meal.id)}
-                        aria-label={`Delete ${meal.name}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {isExpanded ? (
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                  {!isEditingMeal && isExpanded ? (
                     <div className="border-border mt-3 border-t pt-3">
                       <MealPlanFoodPicker
                         idPrefix={`meal-food-${meal.id}`}

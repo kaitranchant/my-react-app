@@ -12,6 +12,7 @@ import {
   buildActivityFeed,
   buildCheckInActivityFeed,
   buildFormReviewActivityFeed,
+  buildNutritionSetupActivityFeed,
   calcWorkoutCompletionRate,
   getGreeting,
   getWeekRange,
@@ -95,6 +96,7 @@ export default async function DashboardPage() {
     { count: pendingCheckInsCount },
     { data: recentCheckIns },
     { data: recentFormReviews },
+    { data: recentNutritionSetups },
     navBadges,
   ] = await Promise.all([
       supabase
@@ -152,6 +154,15 @@ export default async function DashboardPage() {
         .from('client_form_reviews')
         .select('id, client_id, title, created_at, clients(full_name)')
         .order('created_at', { ascending: false })
+        .limit(8),
+      supabase
+        .from('client_nutrition_profiles')
+        .select(
+          'client_id, setup_form_completed_at, clients!inner(full_name, is_coach_self)'
+        )
+        .eq('clients.is_coach_self', false)
+        .not('setup_form_completed_at', 'is', null)
+        .order('setup_form_completed_at', { ascending: false })
         .limit(8),
       user
         ? fetchCoachNavBadges(supabase, user.id)
@@ -284,6 +295,16 @@ export default async function DashboardPage() {
             client_id: review.client_id,
             title: review.title,
             created_at: review.created_at,
+            clientName: client?.full_name ?? 'Unknown client',
+          }
+        })
+      ),
+      buildNutritionSetupActivityFeed(
+        (recentNutritionSetups ?? []).map((profile) => {
+          const client = profile.clients as { full_name: string } | null
+          return {
+            client_id: profile.client_id,
+            setup_form_completed_at: profile.setup_form_completed_at!,
             clientName: client?.full_name ?? 'Unknown client',
           }
         })

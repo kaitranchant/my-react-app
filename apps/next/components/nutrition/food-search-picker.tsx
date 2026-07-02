@@ -43,15 +43,19 @@ export function FoodSearchPicker({
   const [selected, setSelected] = React.useState<FoodCatalogSearchResult | null>(
     null
   )
+  const [showResults, setShowResults] = React.useState(false)
   const [searching, setSearching] = React.useState(false)
   const [catalogError, setCatalogError] = React.useState<string | null>(null)
+  const userPickedRef = React.useRef(false)
 
   React.useEffect(() => {
     const trimmed = query.trim()
     if (trimmed.length < 2) {
       setResults([])
       setSelected(null)
+      setShowResults(false)
       setCatalogError(null)
+      userPickedRef.current = false
       return
     }
 
@@ -71,21 +75,30 @@ export function FoodSearchPicker({
         if (!response.ok) {
           setResults([])
           setSelected(null)
+          setShowResults(false)
           setCatalogError(response.error)
           return
         }
 
         setCatalogError(null)
         setResults(response.results)
-        setSelected((current) =>
-          current && response.results.some((food) => food.id === current.id)
-            ? current
-            : (response.results[0] ?? null)
-        )
+        setShowResults(response.results.length > 0)
+        setSelected((current) => {
+          if (
+            userPickedRef.current &&
+            current &&
+            response.results.some((food) => food.id === current.id)
+          ) {
+            return current
+          }
+
+          return response.results[0] ?? null
+        })
       } catch {
         if (abortController.signal.aborted) return
         setResults([])
         setSelected(null)
+        setShowResults(false)
         setCatalogError('Food search is temporarily unavailable.')
       } finally {
         if (!abortController.signal.aborted) setSearching(false)
@@ -97,6 +110,29 @@ export function FoodSearchPicker({
       window.clearTimeout(timeout)
     }
   }, [query])
+
+  function handleQueryChange(nextQuery: string) {
+    userPickedRef.current = false
+    setQuery(nextQuery)
+    setCatalogError(null)
+
+    if (nextQuery.trim().length < 2) {
+      setResults([])
+      setSelected(null)
+      setShowResults(false)
+      return
+    }
+
+    setResults([])
+    setSelected(null)
+    setShowResults(true)
+  }
+
+  function handleSelectFood(food: FoodCatalogSearchResult) {
+    userPickedRef.current = true
+    setSelected(food)
+    setShowResults(false)
+  }
 
   const parsedQuantity = Number(quantityG)
   const quantityIsValid = Number.isFinite(parsedQuantity) && parsedQuantity > 0
@@ -111,6 +147,8 @@ export function FoodSearchPicker({
     setQuery('')
     setResults([])
     setSelected(null)
+    setShowResults(false)
+    userPickedRef.current = false
     setQuantityG(String(defaultQuantityG))
   }
 
@@ -123,10 +161,19 @@ export function FoodSearchPicker({
           <Input
             id={searchId}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => handleQueryChange(event.target.value)}
+            onFocus={() => {
+              if (results.length > 0 && query.trim().length >= 2) {
+                setShowResults(true)
+              }
+            }}
             placeholder="Search USDA foods, e.g. chicken breast"
             className="pl-9"
             disabled={disabled}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showResults && results.length > 0}
+            aria-controls={`${idPrefix}-results`}
           />
           {searching ? (
             <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
@@ -152,8 +199,12 @@ export function FoodSearchPicker({
         ) : null}
       </div>
 
-      {results.length > 0 ? (
-        <div className="border-border max-h-48 overflow-y-auto rounded-lg border">
+      {showResults && results.length > 0 ? (
+        <div
+          id={`${idPrefix}-results`}
+          className="border-border max-h-48 overflow-y-auto rounded-lg border"
+          role="listbox"
+        >
           <ul className="divide-border divide-y">
             {results.map((food) => {
               const isSelected = selected?.id === food.id
@@ -167,7 +218,8 @@ export function FoodSearchPicker({
                     className={`hover:bg-muted/50 w-full px-3 py-2 text-left ${
                       isSelected ? 'bg-muted/40' : ''
                     }`}
-                    onClick={() => setSelected(food)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => handleSelectFood(food)}
                     disabled={disabled}
                   >
                     <p className="text-sm font-medium">{food.name}</p>
@@ -181,7 +233,10 @@ export function FoodSearchPicker({
             })}
           </ul>
         </div>
-      ) : query.trim().length >= 2 && !searching && !catalogError ? (
+      ) : showResults &&
+        query.trim().length >= 2 &&
+        !searching &&
+        !catalogError ? (
         <p className="text-muted-foreground text-sm">No foods matched that search.</p>
       ) : null}
 

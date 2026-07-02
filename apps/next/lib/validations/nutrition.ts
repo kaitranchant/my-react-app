@@ -190,6 +190,14 @@ export const mealPlanMealFoodFormSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).optional(),
 })
 
+export const mealPlanMealUpdateSchema = z
+  .object({
+    mealType: z.enum(mealTypes),
+    name: z.string().trim().max(120, 'Name is too long').optional(),
+    description: optionalNotes,
+  })
+  .partial()
+
 export const mealPlanMealFormSchema = z.object({
   mealType: z.enum(mealTypes),
   name: z.string().trim().max(120, 'Name is too long').optional(),
@@ -236,6 +244,7 @@ export type MealPlanFormValues = z.infer<typeof mealPlanFormSchema>
 export type MealPlanDayFormValues = z.infer<typeof mealPlanDayFormSchema>
 export type MealPlanDayUpdateValues = z.infer<typeof mealPlanDayUpdateSchema>
 export type MealPlanMealFormValues = z.infer<typeof mealPlanMealFormSchema>
+export type MealPlanMealUpdateValues = z.infer<typeof mealPlanMealUpdateSchema>
 export type MealPlanMealFoodFormValues = z.infer<typeof mealPlanMealFoodFormSchema>
 export type MealPlanAssignmentFormValues = z.infer<
   typeof mealPlanAssignmentFormSchema

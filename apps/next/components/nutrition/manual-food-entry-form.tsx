@@ -19,33 +19,47 @@ export type ManualFoodEntryValues = {
 type ManualFoodEntryFormProps = {
   onSubmit: (values: ManualFoodEntryValues) => void
   onBack?: () => void
+  onCancel?: () => void
   submitLabel?: string
   disabled?: boolean
   showQuantity?: boolean
   showFiber?: boolean
   defaultQuantityG?: number
+  defaultValues?: Partial<ManualFoodEntryValues>
   idPrefix?: string
+}
+
+function formatDefaultNumber(value: number | null | undefined) {
+  return value == null ? '' : String(value)
 }
 
 export function ManualFoodEntryForm({
   onSubmit,
   onBack,
+  onCancel,
   submitLabel = 'Add food',
   disabled = false,
   showQuantity = false,
   showFiber = false,
   defaultQuantityG = 100,
+  defaultValues,
   idPrefix: idPrefixProp,
 }: ManualFoodEntryFormProps) {
   const generatedId = React.useId()
   const idPrefix = idPrefixProp ?? generatedId
-  const [foodName, setFoodName] = React.useState('')
-  const [quantityG, setQuantityG] = React.useState(String(defaultQuantityG))
-  const [caloriesKcal, setCaloriesKcal] = React.useState('')
-  const [proteinG, setProteinG] = React.useState('')
-  const [carbsG, setCarbsG] = React.useState('')
-  const [fatG, setFatG] = React.useState('')
-  const [fiberG, setFiberG] = React.useState('')
+  const [foodName, setFoodName] = React.useState(defaultValues?.foodName ?? '')
+  const [quantityG, setQuantityG] = React.useState(
+    formatDefaultNumber(defaultValues?.quantityG ?? defaultQuantityG)
+  )
+  const [caloriesKcal, setCaloriesKcal] = React.useState(
+    formatDefaultNumber(defaultValues?.caloriesKcal)
+  )
+  const [proteinG, setProteinG] = React.useState(
+    formatDefaultNumber(defaultValues?.proteinG)
+  )
+  const [carbsG, setCarbsG] = React.useState(formatDefaultNumber(defaultValues?.carbsG))
+  const [fatG, setFatG] = React.useState(formatDefaultNumber(defaultValues?.fatG))
+  const [fiberG, setFiberG] = React.useState(formatDefaultNumber(defaultValues?.fiberG))
 
   function parseOptionalNumber(value: string) {
     return value === '' ? null : Number(value)
@@ -142,6 +156,11 @@ export function ManualFoodEntryForm({
         {onBack ? (
           <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={disabled}>
             Back to search
+          </Button>
+        ) : null}
+        {onCancel ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={disabled}>
+            Cancel
           </Button>
         ) : null}
         <Button type="submit" size="sm" disabled={disabled}>

@@ -28,6 +28,22 @@ export type FoodSelectionSnapshot = {
   fiberG?: number | null
 }
 
+export function rescaleFoodMacrosByQuantity(
+  food: Pick<
+    FoodSelectionSnapshot,
+    'quantityG' | 'caloriesKcal' | 'proteinG' | 'carbsG' | 'fatG'
+  >,
+  newQuantityG: number
+): Pick<FoodSelectionSnapshot, 'caloriesKcal' | 'proteinG' | 'carbsG' | 'fatG'> {
+  const factor = newQuantityG / food.quantityG
+  return {
+    caloriesKcal: roundMacro(food.caloriesKcal * factor),
+    proteinG: roundMacro(food.proteinG * factor),
+    carbsG: roundMacro(food.carbsG * factor),
+    fatG: roundMacro(food.fatG * factor),
+  }
+}
+
 export function scaleFoodMacros(per100g: FoodMacros, quantityG: number): FoodMacros {
   const factor = quantityG / 100
   const scaled: FoodMacros = {

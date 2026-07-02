@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   buildActionItems,
   buildFormReviewActivityFeed,
+  buildNutritionSetupActivityFeed,
   formatActivityMessage,
   groupRapidActivityItems,
   mergeActivityFeed,
@@ -145,6 +146,22 @@ test('buildFormReviewActivityFeed formats review activity', () => {
   assert.equal(
     formatActivityMessage(items[0]!),
     'submitted form review: Squat set 3'
+  )
+})
+
+test('buildNutritionSetupActivityFeed formats nutrition setup activity', () => {
+  const items = buildNutritionSetupActivityFeed([
+    {
+      client_id: 'c1',
+      setup_form_completed_at: '2026-07-02T14:30:00.000Z',
+      clientName: 'AATest Client',
+    },
+  ])
+
+  assert.equal(items[0]?.kind, 'nutrition_setup')
+  assert.equal(
+    formatActivityMessage(items[0]!),
+    'completed their nutrition setup form'
   )
 })
 

@@ -11,6 +11,7 @@ import {
   buildActivityFeed,
   buildCheckInActivityFeed,
   buildFormReviewActivityFeed,
+  buildNutritionSetupActivityFeed,
   calcWorkoutCompletionRate,
   getWeekRange,
   mergeActivityFeed,
@@ -104,6 +105,7 @@ export async function buildWeeklySummaryForCoach(
     { data: recentWorkouts },
     { data: recentCheckIns },
     { data: recentFormReviews },
+    { data: recentNutritionSetups },
     navBadges,
   ] = await Promise.all([
     admin
@@ -152,6 +154,16 @@ export async function buildWeeklySummaryForCoach(
       .select('id, client_id, title, created_at, clients(full_name)')
       .eq('coach_id', coachId)
       .order('created_at', { ascending: false })
+      .limit(8),
+    admin
+      .from('client_nutrition_profiles')
+      .select(
+        'client_id, setup_form_completed_at, clients!inner(full_name, is_coach_self, coach_id)'
+      )
+      .eq('coach_id', coachId)
+      .eq('clients.is_coach_self', false)
+      .not('setup_form_completed_at', 'is', null)
+      .order('setup_form_completed_at', { ascending: false })
       .limit(8),
     fetchCoachNavBadges(admin, coachId),
   ])
@@ -255,6 +267,16 @@ export async function buildWeeklySummaryForCoach(
             client_id: review.client_id,
             title: review.title,
             created_at: review.created_at,
+            clientName: client?.full_name ?? 'Unknown client',
+          }
+        })
+      ),
+      buildNutritionSetupActivityFeed(
+        (recentNutritionSetups ?? []).map((profile) => {
+          const client = profile.clients as { full_name: string } | null
+          return {
+            client_id: profile.client_id,
+            setup_form_completed_at: profile.setup_form_completed_at!,
             clientName: client?.full_name ?? 'Unknown client',
           }
         })

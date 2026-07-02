@@ -78,8 +78,15 @@ test('generateShoppingList aggregates duplicate foods across days', () => {
 })
 
 test('formatShoppingListQuantity uses kg for large amounts', () => {
-  assert.equal(formatShoppingListQuantity(500), '500 g')
-  assert.equal(formatShoppingListQuantity(1500), '1.5 kg')
+  assert.equal(formatShoppingListQuantity('Flour', 500), '500 g')
+  assert.equal(formatShoppingListQuantity('Flour', 1500), '1.5 kg')
+})
+
+test('formatShoppingListQuantity includes purchase estimates when available', () => {
+  assert.equal(
+    formatShoppingListQuantity('Yogurt, Greek, nonfat, plain, CHOBANI', 227),
+    '1 tub (227 g)'
+  )
 })
 
 test('formatShoppingListText builds a copy-friendly list', () => {
@@ -93,6 +100,6 @@ test('formatShoppingListText builds a copy-friendly list', () => {
 
   assert.match(text, /Shopping list — Lean bulk/)
   assert.match(text, /Full 7-day plan cycle/)
-  assert.match(text, /- Eggs — 120 g/)
-  assert.match(text, /- Oats — 80 g/)
+  assert.match(text, /- Eggs — 3 eggs \(120 g\)/)
+  assert.match(text, /- Oats — ~1 cup dry oats \(80 g\)/)
 })
