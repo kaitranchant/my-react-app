@@ -37,17 +37,45 @@ const COACHING_APPOINTMENT_CORE_SELECT = `
   cancelled_at,
   cancellation_reason,
   rescheduled_to_id,
+  series_id,
   created_at
 `
 
 const COACHING_APPOINTMENT_SELECT_WITH_CLIENT = `
   ${COACHING_APPOINTMENT_CORE_SELECT},
   session_type,
+  series:coaching_appointment_series(id, status),
   client:clients(full_name, coaching_type)
 `
 
+const COACHING_APPOINTMENT_CORE_SELECT_LEGACY = `
+  id,
+  coach_id,
+  client_id,
+  starts_at,
+  ends_at,
+  status,
+  location,
+  notes,
+  pre_session_notes,
+  post_session_notes,
+  coaching_type,
+  session_pack_id,
+  booked_by,
+  cancelled_at,
+  cancellation_reason,
+  rescheduled_to_id,
+  created_at
+`
+
 const COACHING_APPOINTMENT_SELECT_WITH_CLIENT_LEGACY = `
+  ${COACHING_APPOINTMENT_CORE_SELECT_LEGACY},
+  client:clients(full_name, coaching_type)
+`
+
+const COACHING_APPOINTMENT_SELECT_WITH_CLIENT_NO_SERIES = `
   ${COACHING_APPOINTMENT_CORE_SELECT},
+  session_type,
   client:clients(full_name, coaching_type)
 `
 
@@ -56,10 +84,18 @@ const COACHING_APPOINTMENT_CLIENT_SELECT = `
   session_type
 `
 
-const COACHING_APPOINTMENT_CLIENT_SELECT_LEGACY = COACHING_APPOINTMENT_CORE_SELECT
+const COACHING_APPOINTMENT_CLIENT_SELECT_LEGACY = COACHING_APPOINTMENT_CORE_SELECT_LEGACY
 
 function isMissingSessionTypeColumn(error: { message?: string } | null) {
   return error?.message?.includes('session_type') ?? false
+}
+
+function isMissingSeriesRelation(error: { message?: string } | null) {
+  const message = error?.message ?? ''
+  return (
+    message.includes('series_id') ||
+    message.includes('coaching_appointment_series')
+  )
 }
 
 function normalizeAppointmentClient<T extends { client: unknown }>(row: T) {
@@ -132,13 +168,31 @@ export async function fetchCoachAvailabilityExceptions(
 function normalizeAppointmentRows(
   rows: Array<Record<string, unknown>>
 ): CoachingAppointment[] {
-  return rows.map((row) => ({
-    ...normalizeAppointmentClient(row as { client: unknown }),
-    session_type:
-      typeof row.session_type === 'string'
-        ? row.session_type
-        : defaultCoachingSessionType,
-  })) as CoachingAppointment[]
+  return rows.map((row) => {
+    const seriesRaw = row.series
+    const series =
+      seriesRaw &&
+      typeof seriesRaw === 'object' &&
+      seriesRaw !== null &&
+      'id' in seriesRaw &&
+      'status' in seriesRaw
+        ? {
+            id: String((seriesRaw as { id: unknown }).id),
+            status: (seriesRaw as { status: 'active' | 'cancelled' }).status,
+          }
+        : null
+
+    return {
+      ...normalizeAppointmentClient(row as { client: unknown }),
+      session_type:
+        typeof row.session_type === 'string'
+          ? row.session_type
+          : defaultCoachingSessionType,
+      series_id:
+        typeof row.series_id === 'string' ? row.series_id : null,
+      series,
+    }
+  }) as CoachingAppointment[]
 }
 
 export async function fetchCoachingAppointments(
@@ -174,6 +228,28 @@ export async function fetchCoachingAppointments(
 
     return normalizeAppointmentRows(
       (legacy.data ?? []) as Array<Record<string, unknown>>
+    )
+  }
+
+  if (primary.error && isMissingSeriesRelation(primary.error)) {
+    const fallback = await supabase
+      .from('coaching_appointments')
+      .select(COACHING_APPOINTMENT_SELECT_WITH_CLIENT_NO_SERIES)
+      .eq('coach_id', coachId)
+      .gte('starts_at', fromIso)
+      .lt('starts_at', toIso)
+      .order('starts_at')
+
+    if (fallback.error) {
+      console.error(
+        '[scheduling] fetchCoachingAppointments failed',
+        fallback.error.message
+      )
+      return []
+    }
+
+    return normalizeAppointmentRows(
+      (fallback.data ?? []) as Array<Record<string, unknown>>
     )
   }
 

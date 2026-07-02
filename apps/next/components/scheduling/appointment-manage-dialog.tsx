@@ -8,6 +8,7 @@ import {
   bookCoachingAppointmentAsCoach,
   cancelCoachingAppointment,
   deleteCoachingAppointment,
+  endCoachingAppointmentSeries,
   getCoachAvailableSlots,
   rescheduleCoachingAppointment,
   updateCoachingAppointmentNotes,
@@ -72,6 +73,10 @@ export function AppointmentManageDialog({
   const [showDuplicate, setShowDuplicate] = React.useState(false)
   const [duplicateDateKey, setDuplicateDateKey] = React.useState('')
   const [duplicateStartsAt, setDuplicateStartsAt] = React.useState<string>()
+  const [showCancelDialog, setShowCancelDialog] = React.useState(false)
+  const [cancelScope, setCancelScope] = React.useState<'single' | 'this_and_future'>(
+    'single'
+  )
 
   const deleteConfirm = useConfirmDialog({
     title: 'Delete session?',
@@ -88,6 +93,24 @@ export function AppointmentManageDialog({
       })
       if (result.success) {
         await refreshAfterSuccess('Session deleted')
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
+
+  const endSeriesConfirm = useConfirmDialog({
+    title: 'Stop recurring sessions?',
+    description:
+      'This cancels all future sessions from today onward and stops the weekly series. To cancel from a specific session instead, use Cancel session.',
+    confirmLabel: 'Stop recurring sessions',
+    destructive: true,
+    onConfirm: async () => {
+      if (!appointment?.series_id) return
+      const result = await endCoachingAppointmentSeries(appointment.series_id)
+      if (result.success) {
+        await refreshAfterSuccess('Recurring sessions stopped')
       } else {
         toast.error(result.error)
         throw new Error(result.error)
@@ -117,6 +140,8 @@ export function AppointmentManageDialog({
     setRescheduleStartsAt(undefined)
     setDuplicateStartsAt(undefined)
     setNoShowPackId(appointment.session_pack_id ?? undefined)
+    setShowCancelDialog(false)
+    setCancelScope('single')
     const appointmentDateKey = getDateKeyFromInstant(
       appointment.starts_at,
       coachPreferences.timezone
@@ -158,6 +183,8 @@ export function AppointmentManageDialog({
   }
 
   const canManage = appointment.status === 'scheduled'
+  const hasActiveSeries =
+    Boolean(appointment.series_id) && appointment.series?.status === 'active'
 
   async function refreshAfterSuccess(message: string) {
     toast.success(message)
@@ -201,18 +228,34 @@ export function AppointmentManageDialog({
     }
   }
 
-  async function handleCancel() {
+  async function handleCancel(
+    scope: 'single' | 'this_and_future' = 'single'
+  ): Promise<boolean> {
     setPending(true)
     const result = await cancelCoachingAppointment({
       appointmentId: appointment!.id,
       notifyClient: true,
+      cancelScope: scope,
     })
     setPending(false)
 
     if (result.success) {
-      await refreshAfterSuccess('Session cancelled and client notified')
-    } else {
-      toast.error(result.error)
+      await refreshAfterSuccess(
+        scope === 'this_and_future'
+          ? 'This and future sessions cancelled'
+          : 'Session cancelled and client notified'
+      )
+      return true
+    }
+
+    toast.error(result.error)
+    return false
+  }
+
+  async function handleConfirmCancel() {
+    const succeeded = await handleCancel(cancelScope)
+    if (succeeded) {
+      setShowCancelDialog(false)
     }
   }
 
@@ -357,6 +400,9 @@ export function AppointmentManageDialog({
           <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{appointmentStatusLabels[appointment.status]}</Badge>
+            {hasActiveSeries ? (
+              <Badge variant="secondary">Recurring weekly</Badge>
+            ) : null}
             {appointment.location ? (
               <span className="text-muted-foreground text-sm">
                 {appointment.location}
@@ -451,11 +497,31 @@ export function AppointmentManageDialog({
                   size="sm"
                   variant="destructive"
                   disabled={pending}
-                  onClick={handleCancel}
+                  onClick={() => {
+                    if (hasActiveSeries) {
+                      setCancelScope('single')
+                      setShowCancelDialog(true)
+                    } else {
+                      void handleCancel('single')
+                    }
+                  }}
                 >
                   Cancel session
                 </Button>
               </div>
+
+              {hasActiveSeries ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={pending}
+                  onClick={() => endSeriesConfirm.open()}
+                >
+                  Stop all future sessions
+                </Button>
+              ) : null}
 
               {showReschedule
                 ? slotPicker(
@@ -520,6 +586,68 @@ export function AppointmentManageDialog({
         </div>
         </div>
         {deleteConfirm.dialog}
+        {endSeriesConfirm.dialog}
+        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cancel recurring session</DialogTitle>
+              <DialogDescription>
+                Choose whether to cancel just this session or this one and all
+                later sessions in the series.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="cancel-scope"
+                  checked={cancelScope === 'single'}
+                  onChange={() => setCancelScope('single')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This session only</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Later weekly sessions stay scheduled.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="cancel-scope"
+                  checked={cancelScope === 'this_and_future'}
+                  onChange={() => setCancelScope('this_and_future')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This and all future sessions</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Cancels from this session onward and stops the weekly series.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setShowCancelDialog(false)}
+              >
+                Keep session
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={pending}
+                onClick={() => void handleConfirmCancel()}
+              >
+                {pending ? 'Cancelling…' : 'Cancel session'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   )

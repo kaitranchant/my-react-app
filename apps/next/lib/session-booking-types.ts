@@ -49,6 +49,13 @@ export type ClientSessionPack = {
   client?: { full_name: string | null } | null
 }
 
+export type CoachingAppointmentSeriesStatus = 'active' | 'cancelled'
+
+export type CoachingAppointmentSeries = {
+  id: string
+  status: CoachingAppointmentSeriesStatus
+}
+
 export type CoachingAppointment = {
   id: string
   coach_id: string
@@ -63,12 +70,14 @@ export type CoachingAppointment = {
   coaching_type: ClientCoachingType | null
   session_type: CoachingSessionType
   session_pack_id: string | null
+  series_id: string | null
   booked_by: CoachingAppointmentBookedBy
   cancelled_at: string | null
   cancellation_reason: string | null
   rescheduled_to_id: string | null
   created_at: string
   client?: { full_name: string | null; coaching_type: ClientCoachingType | null } | null
+  series?: CoachingAppointmentSeries | null
 }
 
 export const SESSION_BOOKING_SETTINGS_SELECT =

@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { PageHeader } from '@/components/dashboard/page-header'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
+import { ensureCoachAppointmentSeriesHorizon } from '@/app/(dashboard)/scheduling/actions'
 import { AvailabilityExceptionsPanel } from '@/components/scheduling/availability-exceptions-panel'
 import { AvailabilityGridEditor } from '@/components/scheduling/availability-grid-editor'
 import { BookAppointmentDialog } from '@/components/scheduling/book-appointment-dialog'
@@ -79,6 +80,8 @@ export default async function SchedulingPage({
     coachPreferences.timezone,
     weekReferenceDate
   )
+
+  await ensureCoachAppointmentSeriesHorizon(user.id)
 
   const [
     settings,

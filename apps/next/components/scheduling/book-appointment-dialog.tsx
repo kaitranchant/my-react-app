@@ -72,6 +72,7 @@ export function BookAppointmentDialog({
   const [location, setLocation] = React.useState(defaultLocation ?? '')
   const [notes, setNotes] = React.useState('')
   const [repeatWeekly, setRepeatWeekly] = React.useState(false)
+  const [repeatMode, setRepeatMode] = React.useState<'fixed' | 'ongoing'>('fixed')
   const [repeatWeeks, setRepeatWeeks] = React.useState('4')
 
   const clientPacks = sessionPacks.filter(
@@ -90,6 +91,7 @@ export function BookAppointmentDialog({
     setLocation(defaultLocation ?? '')
     setNotes('')
     setRepeatWeekly(false)
+    setRepeatMode('fixed')
     setRepeatWeeks('4')
   }, [open, clients, dateOptions, defaultLocation])
 
@@ -139,7 +141,9 @@ export function BookAppointmentDialog({
       notes: notes || null,
       sessionType,
       repeatWeekly,
-      repeatWeeks: repeatWeekly ? Number(repeatWeeks) : undefined,
+      repeatIndefinitely: repeatWeekly && repeatMode === 'ongoing',
+      repeatWeeks:
+        repeatWeekly && repeatMode === 'fixed' ? Number(repeatWeeks) : undefined,
       clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
@@ -147,7 +151,9 @@ export function BookAppointmentDialog({
     if (result.success) {
       toast.success(
         repeatWeekly
-          ? `${repeatWeeks} weekly sessions booked`
+          ? repeatMode === 'ongoing'
+            ? 'Weekly sessions booked on an ongoing schedule'
+            : `${repeatWeeks} weekly sessions booked`
           : 'Session booked'
       )
       setOpen(false)
@@ -304,16 +310,54 @@ export function BookAppointmentDialog({
               Repeat weekly
             </label>
             {repeatWeekly ? (
-              <div className="space-y-2">
-                <Label>Number of weeks</Label>
-                <Input
-                  type="number"
-                  min={2}
-                  max={12}
-                  value={repeatWeeks}
-                  onChange={(event) => setRepeatWeeks(event.target.value)}
-                  className="w-24"
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Repeat schedule</Label>
+                  <div className="grid gap-2">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="repeat-mode"
+                        checked={repeatMode === 'fixed'}
+                        onChange={() => setRepeatMode('fixed')}
+                        className="mt-1 size-4 rounded-full border"
+                      />
+                      <span>
+                        For a set number of weeks
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="repeat-mode"
+                        checked={repeatMode === 'ongoing'}
+                        onChange={() => setRepeatMode('ongoing')}
+                        className="mt-1 size-4 rounded-full border"
+                      />
+                      <span>
+                        Ongoing every week until I stop it
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                {repeatMode === 'fixed' ? (
+                  <div className="space-y-2">
+                    <Label>Number of weeks</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={52}
+                      value={repeatWeeks}
+                      onChange={(event) => setRepeatWeeks(event.target.value)}
+                      className="w-24"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Sessions repeat weekly on the same day and time. Stop the
+                    series anytime from a session&apos;s manage dialog.
+                  </p>
+                )}
               </div>
             ) : null}
           </div>

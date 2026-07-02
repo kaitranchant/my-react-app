@@ -5,6 +5,13 @@ import { defaultCoachingSessionType } from '@/lib/coaching-session-types'
 import { revalidatePath } from 'next/cache'
 
 import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
+import {
+  computeSeriesHorizonDays,
+  countWeekIndexesThroughHorizon,
+  getSeriesHorizonEnd,
+  getWeekIndexFromAnchor,
+  offsetStartsAtByWeeks,
+} from '@/lib/appointment-series'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
@@ -325,6 +332,7 @@ async function insertCoachingAppointment(
     sessionType: import('@/lib/validations/session-booking').BookAppointmentValues['sessionType']
     sessionPackId: string | null
     bookedBy: 'coach' | 'client'
+    seriesId?: string | null
   }
 ) {
   const row = {
@@ -338,6 +346,7 @@ async function insertCoachingAppointment(
     coaching_type: values.coachingType ?? null,
     session_type: values.sessionType ?? defaultCoachingSessionType,
     session_pack_id: values.sessionPackId,
+    series_id: values.seriesId ?? null,
     booked_by: values.bookedBy,
     status: 'scheduled' as const,
   }
@@ -349,7 +358,16 @@ async function insertCoachingAppointment(
     .single()
 
   if (result.error?.message.includes('session_type')) {
-    const { session_type: _sessionType, ...legacyRow } = row
+    const { session_type: _sessionType, series_id: _seriesId, ...legacyRow } = row
+    return supabase
+      .from('coaching_appointments')
+      .insert(legacyRow)
+      .select('id')
+      .single()
+  }
+
+  if (result.error?.message.includes('series_id')) {
+    const { series_id: _seriesId, ...legacyRow } = row
     return supabase
       .from('coaching_appointments')
       .insert(legacyRow)
@@ -358,6 +376,300 @@ async function insertCoachingAppointment(
   }
 
   return result
+}
+
+type WeeklyBookingTemplate = {
+  coachId: string
+  clientId: string
+  location: string | null
+  preSessionNotes: string | null
+  coachingType: import('@/lib/validations/session-booking').BookAppointmentValues['coachingType']
+  sessionType: import('@/lib/validations/session-booking').BookAppointmentValues['sessionType']
+  sessionPackId: string | null
+  clientTimeZone?: string
+  seriesId?: string | null
+}
+
+async function seriesOccurrenceExists(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  seriesId: string,
+  startsAtIso: string
+) {
+  const { data } = await supabase
+    .from('coaching_appointments')
+    .select('id')
+    .eq('series_id', seriesId)
+    .eq('starts_at', startsAtIso)
+    .maybeSingle()
+
+  return Boolean(data)
+}
+
+async function bookWeeklyAppointmentOccurrences(options: {
+  anchorStartsAtIso: string
+  weekIndexes: number[]
+  template: WeeklyBookingTemplate
+  abortOnFailure: boolean
+  weekLabelPrefix?: string
+}): Promise<ActionResult & { bookedCount?: number }> {
+  const supabase = await createClient()
+  let bookedCount = 0
+
+  for (const weekIndex of options.weekIndexes) {
+    const startsAtIso = offsetStartsAtByWeeks(
+      options.anchorStartsAtIso,
+      weekIndex
+    )
+
+    if (
+      options.template.seriesId &&
+      (await seriesOccurrenceExists(
+        supabase,
+        options.template.seriesId,
+        startsAtIso
+      ))
+    ) {
+      continue
+    }
+
+    const validation = await validateBookableSlot({
+      coachId: options.template.coachId,
+      clientId: options.template.clientId,
+      startsAt: startsAtIso,
+      sessionPackId: options.template.sessionPackId,
+      ignoreMinNotice: true,
+      clientTimeZone: options.template.clientTimeZone,
+    })
+
+    if (!validation.ok) {
+      if (options.abortOnFailure) {
+        const label = options.weekLabelPrefix ?? 'Week'
+        return {
+          success: false,
+          error:
+            options.weekIndexes.length > 1
+              ? `${label} ${weekIndex + 1}: ${validation.error}`
+              : validation.error,
+        }
+      }
+      continue
+    }
+
+    const { data: inserted, error } = await insertCoachingAppointment(
+      validation.supabase,
+      {
+        coachId: options.template.coachId,
+        clientId: options.template.clientId,
+        startsAt: startsAtIso,
+        endsAt: validation.endsAt,
+        location: options.template.location,
+        preSessionNotes: options.template.preSessionNotes,
+        coachingType: options.template.coachingType,
+        sessionType: options.template.sessionType,
+        sessionPackId: validation.sessionPackId,
+        bookedBy: 'coach',
+        seriesId: options.template.seriesId,
+      }
+    )
+
+    if (error) {
+      if (options.abortOnFailure) {
+        const label = options.weekLabelPrefix ?? 'Week'
+        return {
+          success: false,
+          error:
+            options.weekIndexes.length > 1
+              ? `${label} ${weekIndex + 1}: ${error.message}`
+              : error.message,
+        }
+      }
+      continue
+    }
+
+    if (inserted?.id) {
+      queueCoachingAppointmentGoogleSync(inserted.id)
+      bookedCount += 1
+    }
+  }
+
+  return { success: true, bookedCount }
+}
+
+async function createCoachingAppointmentSeries(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  values: {
+    coachId: string
+    clientId: string
+    anchorStartsAt: string
+    durationMinutes: number
+    location: string | null
+    preSessionNotes: string | null
+    coachingType: import('@/lib/validations/session-booking').BookAppointmentValues['coachingType']
+    sessionType: import('@/lib/validations/session-booking').BookAppointmentValues['sessionType']
+    sessionPackId: string | null
+  }
+) {
+  const row = {
+    coach_id: values.coachId,
+    client_id: values.clientId,
+    anchor_starts_at: values.anchorStartsAt,
+    duration_minutes: values.durationMinutes,
+    location: values.location,
+    pre_session_notes: values.preSessionNotes,
+    coaching_type: values.coachingType ?? null,
+    session_type: values.sessionType ?? defaultCoachingSessionType,
+    session_pack_id: values.sessionPackId,
+    status: 'active' as const,
+  }
+
+  return supabase
+    .from('coaching_appointment_series')
+    .insert(row)
+    .select('id')
+    .single()
+}
+
+async function extendCoachAppointmentSeriesHorizon(coachId: string) {
+  const supabase = await createClient()
+  const settings = await fetchCoachSessionBookingSettings(supabase, coachId)
+  const horizonDays = computeSeriesHorizonDays(settings.booking_max_days_ahead)
+  const horizonEnd = getSeriesHorizonEnd(new Date(), horizonDays)
+
+  const { data: seriesRows } = await supabase
+    .from('coaching_appointment_series')
+    .select(
+      'id, client_id, anchor_starts_at, location, pre_session_notes, coaching_type, session_type, session_pack_id'
+    )
+    .eq('coach_id', coachId)
+    .eq('status', 'active')
+
+  for (const series of seriesRows ?? []) {
+    const { data: latestAppointment } = await supabase
+      .from('coaching_appointments')
+      .select('starts_at')
+      .eq('series_id', series.id)
+      .order('starts_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const lastWeekIndex = latestAppointment
+      ? getWeekIndexFromAnchor(series.anchor_starts_at, latestAppointment.starts_at)
+      : -1
+
+    const weekIndexes = countWeekIndexesThroughHorizon(
+      series.anchor_starts_at,
+      horizonEnd
+    ).filter((weekIndex) => weekIndex > lastWeekIndex)
+
+    if (weekIndexes.length === 0) continue
+
+    await bookWeeklyAppointmentOccurrences({
+      anchorStartsAtIso: series.anchor_starts_at,
+      weekIndexes,
+      template: {
+        coachId,
+        clientId: series.client_id,
+        location: series.location,
+        preSessionNotes: series.pre_session_notes,
+        coachingType: series.coaching_type,
+        sessionType: series.session_type,
+        sessionPackId: series.session_pack_id,
+        seriesId: series.id,
+      },
+      abortOnFailure: false,
+    })
+  }
+}
+
+export async function ensureCoachAppointmentSeriesHorizon(coachId: string) {
+  try {
+    await extendCoachAppointmentSeriesHorizon(coachId)
+  } catch (error) {
+    console.error('[scheduling] ensureCoachAppointmentSeriesHorizon failed', error)
+  }
+}
+
+async function cancelScheduledSeriesAppointments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  seriesId: string,
+  fromStartsAtIso: string,
+  cancellationReason: string
+) {
+  const { data: toCancel } = await supabase
+    .from('coaching_appointments')
+    .select('id, google_calendar_event_id')
+    .eq('series_id', seriesId)
+    .eq('status', 'scheduled')
+    .gte('starts_at', fromStartsAtIso)
+
+  for (const scheduledAppointment of toCancel ?? []) {
+    queueCoachingAppointmentGoogleRemoval({
+      coachId,
+      googleCalendarEventId: scheduledAppointment.google_calendar_event_id,
+    })
+  }
+
+  const nowIso = new Date().toISOString()
+  return supabase
+    .from('coaching_appointments')
+    .update({
+      status: 'cancelled',
+      cancelled_at: nowIso,
+      cancellation_reason: cancellationReason,
+    })
+    .eq('series_id', seriesId)
+    .eq('status', 'scheduled')
+    .gte('starts_at', fromStartsAtIso)
+}
+
+export async function endCoachingAppointmentSeries(
+  seriesId: string
+): Promise<ActionResult> {
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { data: series } = await ctx.supabase
+    .from('coaching_appointment_series')
+    .select('id, coach_id, status')
+    .eq('id', seriesId)
+    .eq('coach_id', ctx.user.id)
+    .maybeSingle()
+
+  if (!series) {
+    return { success: false, error: 'Recurring series not found.' }
+  }
+
+  if (series.status !== 'active') {
+    return { success: false, error: 'This recurring series has already ended.' }
+  }
+
+  const nowIso = new Date().toISOString()
+  const { error: cancelError } = await cancelScheduledSeriesAppointments(
+    ctx.supabase,
+    ctx.user.id,
+    seriesId,
+    nowIso,
+    'Recurring series ended by coach'
+  )
+
+  if (cancelError) {
+    return { success: false, error: cancelError.message }
+  }
+
+  const { error: seriesError } = await ctx.supabase
+    .from('coaching_appointment_series')
+    .update({ status: 'cancelled' })
+    .eq('id', seriesId)
+
+  if (seriesError) {
+    return { success: false, error: seriesError.message }
+  }
+
+  revalidateScheduling()
+  return { success: true }
 }
 
 export async function bookCoachingAppointmentAsCoach(
@@ -373,16 +685,105 @@ export async function bookCoachingAppointmentAsCoach(
     return { success: false, error: 'Client not found.' }
   }
 
+  const repeatIndefinitely = Boolean(
+    parsed.data.repeatWeekly && parsed.data.repeatIndefinitely
+  )
   const repeatCount =
-    parsed.data.repeatWeekly && parsed.data.repeatWeeks
+    parsed.data.repeatWeekly && !repeatIndefinitely && parsed.data.repeatWeeks
       ? parsed.data.repeatWeeks
-      : 1
+      : repeatIndefinitely
+        ? null
+        : 1
+
+  if (repeatIndefinitely) {
+    const firstValidation = await validateBookableSlot({
+      coachId: access.user.id,
+      clientId: parsed.data.clientId,
+      startsAt: parsed.data.startsAt,
+      sessionPackId: parsed.data.sessionPackId,
+      ignoreMinNotice: true,
+      clientTimeZone: parsed.data.clientTimeZone,
+    })
+
+    if (!firstValidation.ok) {
+      return { success: false, error: firstValidation.error }
+    }
+
+    const durationMinutes = Math.round(
+      (new Date(firstValidation.endsAt).getTime() -
+        new Date(parsed.data.startsAt).getTime()) /
+        60_000
+    )
+    const location =
+      parsed.data.location?.trim() ||
+      firstValidation.settings.default_session_location
+
+    const { data: series, error: seriesError } =
+      await createCoachingAppointmentSeries(firstValidation.supabase, {
+        coachId: access.user.id,
+        clientId: parsed.data.clientId,
+        anchorStartsAt: parsed.data.startsAt,
+        durationMinutes,
+        location,
+        preSessionNotes: parsed.data.notes ?? null,
+        coachingType: parsed.data.coachingType ?? null,
+        sessionType: parsed.data.sessionType,
+        sessionPackId: firstValidation.sessionPackId,
+      })
+
+    if (seriesError || !series) {
+      return {
+        success: false,
+        error: seriesError?.message ?? 'Could not create recurring series.',
+      }
+    }
+
+    const horizonDays = computeSeriesHorizonDays(
+      firstValidation.settings.booking_max_days_ahead
+    )
+    const weekIndexes = countWeekIndexesThroughHorizon(
+      parsed.data.startsAt,
+      getSeriesHorizonEnd(new Date(), horizonDays)
+    )
+
+    const result = await bookWeeklyAppointmentOccurrences({
+      anchorStartsAtIso: parsed.data.startsAt,
+      weekIndexes,
+      template: {
+        coachId: access.user.id,
+        clientId: parsed.data.clientId,
+        location,
+        preSessionNotes: parsed.data.notes ?? null,
+        coachingType: parsed.data.coachingType ?? null,
+        sessionType: parsed.data.sessionType,
+        sessionPackId: firstValidation.sessionPackId,
+        clientTimeZone: parsed.data.clientTimeZone,
+        seriesId: series.id,
+      },
+      abortOnFailure: true,
+    })
+
+    if (!result.success) {
+      await firstValidation.supabase
+        .from('coaching_appointments')
+        .delete()
+        .eq('series_id', series.id)
+      await firstValidation.supabase
+        .from('coaching_appointment_series')
+        .delete()
+        .eq('id', series.id)
+      return result
+    }
+
+    revalidateScheduling()
+    return { success: true }
+  }
 
   let firstValidation:
     | Awaited<ReturnType<typeof validateBookableSlot>>
     | null = null
 
-  for (let weekIndex = 0; weekIndex < repeatCount; weekIndex++) {
+  for (let weekIndex = 0; weekIndex < (repeatCount ?? 1); weekIndex++) {
     const startsAt = new Date(parsed.data.startsAt)
     startsAt.setDate(startsAt.getDate() + weekIndex * 7)
     const startsAtIso = startsAt.toISOString()
@@ -529,13 +930,70 @@ export async function cancelCoachingAppointment(
   const { data: appointment } = await supabase
     .from('coaching_appointments')
     .select(
-      'id, status, session_pack_id, client_id, coach_id, starts_at, ends_at, google_calendar_event_id'
+      'id, status, session_pack_id, client_id, coach_id, starts_at, ends_at, google_calendar_event_id, series_id'
     )
     .eq('id', parsed.data.appointmentId)
     .maybeSingle()
 
   if (!appointment || appointment.status !== 'scheduled') {
     return { success: false, error: 'Appointment not found.' }
+  }
+
+  const cancelScope = parsed.data.cancelScope ?? 'single'
+  const cancellationReason = parsed.data.cancellationReason ?? null
+
+  if (
+    cancelScope === 'this_and_future' &&
+    appointment.series_id
+  ) {
+    const { data: series } = await supabase
+      .from('coaching_appointment_series')
+      .select('id, status')
+      .eq('id', appointment.series_id)
+      .eq('coach_id', appointment.coach_id)
+      .maybeSingle()
+
+    if (series?.status === 'active') {
+      const { error: cancelError } = await cancelScheduledSeriesAppointments(
+        supabase,
+        appointment.coach_id,
+        appointment.series_id,
+        appointment.starts_at,
+        cancellationReason ?? 'Recurring series cancelled by coach'
+      )
+
+      if (cancelError) {
+        return { success: false, error: cancelError.message }
+      }
+
+      const { error: seriesError } = await supabase
+        .from('coaching_appointment_series')
+        .update({ status: 'cancelled' })
+        .eq('id', appointment.series_id)
+
+      if (seriesError) {
+        return { success: false, error: seriesError.message }
+      }
+
+      if (parsed.data.notifyClient !== false) {
+        const coachPreferences = await getCoachPreferencesForUser(
+          appointment.coach_id
+        )
+        const when = formatAppointmentRange(
+          appointment.starts_at,
+          appointment.ends_at,
+          coachPreferences.timezone
+        )
+        void notifyClientOfCoachMessage({
+          clientId: appointment.client_id,
+          coachId: appointment.coach_id,
+          messageBody: `Your recurring coaching sessions from ${when} onward have been cancelled.`,
+        })
+      }
+
+      revalidateScheduling()
+      return { success: true }
+    }
   }
 
   queueCoachingAppointmentGoogleRemoval({
@@ -548,7 +1006,7 @@ export async function cancelCoachingAppointment(
     .update({
       status: 'cancelled',
       cancelled_at: new Date().toISOString(),
-      cancellation_reason: parsed.data.cancellationReason ?? null,
+      cancellation_reason: cancellationReason,
     })
     .eq('id', parsed.data.appointmentId)
 
@@ -920,6 +1378,8 @@ export async function fetchSchedulingWeekData(
   if (!ctx) {
     return { success: false, error: 'You must be signed in.' }
   }
+
+  await extendCoachAppointmentSeriesHorizon(ctx.user.id)
 
   const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
   const weekReferenceDate = getSchedulingWeekReferenceDate(

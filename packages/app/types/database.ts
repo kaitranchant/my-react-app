@@ -3366,6 +3366,7 @@ export type Database = {
           cancelled_at: string | null
           cancellation_reason: string | null
           rescheduled_to_id: string | null
+          series_id: string | null
           google_calendar_event_id: string | null
           google_calendar_updated_at: string | null
           created_at: string
@@ -3389,6 +3390,7 @@ export type Database = {
           cancelled_at?: string | null
           cancellation_reason?: string | null
           rescheduled_to_id?: string | null
+          series_id?: string | null
           google_calendar_event_id?: string | null
           google_calendar_updated_at?: string | null
           created_at?: string
@@ -3412,6 +3414,7 @@ export type Database = {
           cancelled_at?: string | null
           cancellation_reason?: string | null
           rescheduled_to_id?: string | null
+          series_id?: string | null
           google_calendar_event_id?: string | null
           google_calendar_updated_at?: string | null
           created_at?: string
