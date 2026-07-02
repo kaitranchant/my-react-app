@@ -126,6 +126,18 @@ function flattenSegments(segments: WorkoutSegment[]): ExerciseRow[] {
   return segments.flatMap((segment) => segment.exercises)
 }
 
+function removeExerciseFromSegments(
+  segments: WorkoutSegment[],
+  rowId: string
+): WorkoutSegment[] {
+  return segments
+    .map((segment) => ({
+      ...segment,
+      exercises: segment.exercises.filter((row) => row.id !== rowId),
+    }))
+    .filter((segment) => segment.exercises.length > 0)
+}
+
 type SortableExerciseItemProps = {
   row: ExerciseRow
   selected: boolean
@@ -601,16 +613,22 @@ export function WorkoutArrangementPanel({
   }
 
   async function handleRemove(rowId: string) {
+    const previousSegments = localSegments
+    const nextSegments = removeExerciseFromSegments(localSegments, rowId)
+    setLocalSegments(nextSegments)
     setPendingId(rowId)
+    if (selectedRowId === rowId) onSelectRow(null)
+
     const result = await exerciseActions.removeExercise(rowId)
     setPendingId(null)
 
     if (result.success) {
       toast.success('Exercise removed.')
-      if (selectedRowId === rowId) onSelectRow(null)
-      onChanged()
+      void onChanged()
       return
     }
+
+    setLocalSegments(previousSegments)
     toast.error(result.error)
   }
 

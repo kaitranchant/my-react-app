@@ -788,12 +788,23 @@ export function ClientCalendarPanel({
         <>
           <WorkoutBuilderModal
             open={builderOpen}
-            onOpenChange={setBuilderOpen}
+            onOpenChange={(open) => {
+              setBuilderOpen(open)
+              if (!open) {
+                void refreshCalendar()
+              }
+            }}
             clientId={clientId}
             selectedDate={selectedDate}
             workout={workout}
             exercises={exercises}
-            onChanged={() => refreshCalendar()}
+            onChanged={async (nextWorkout) => {
+              if (nextWorkout) {
+                setWorkout(nextWorkout)
+                return
+              }
+              await refreshCalendar()
+            }}
             onCopy={openCopyDialog}
           />
           {!isMobile && (

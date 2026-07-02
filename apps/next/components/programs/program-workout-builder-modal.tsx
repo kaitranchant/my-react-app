@@ -134,7 +134,10 @@ export function ProgramWorkoutBuilderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         viewport
+        hideClose
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
         className="gap-0 p-0"
       >
         <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">

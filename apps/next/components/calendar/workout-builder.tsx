@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Copy, Dumbbell, Layers, Loader2 } from 'lucide-react'
@@ -68,7 +67,6 @@ export function WorkoutBuilder({
   onCopy,
   embedded = false,
 }: WorkoutBuilderProps) {
-  const router = useRouter()
   const [mode, setMode] = React.useState<BuilderMode>('idle')
   const [selectedRowId, setSelectedRowId] = React.useState<string | null>(null)
   const [librarySelection, setLibrarySelection] =
@@ -257,7 +255,6 @@ export function WorkoutBuilder({
         startAddMode()
         setMobileTab('workout')
       }
-      router.refresh()
       onChanged()
       return
     }

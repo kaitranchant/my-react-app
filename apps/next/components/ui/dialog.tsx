@@ -67,12 +67,15 @@ function DialogContent({
   children,
   viewport = false,
   visualViewport = false,
+  hideClose = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   /** Fill the viewport with safe-area margins instead of vertical centering. */
   viewport?: boolean
   /** Compact dialog anchored within the visual viewport on mobile. */
   visualViewport?: boolean
+  /** Hide the default top-right close button. */
+  hideClose?: boolean
 }) {
   const vvBehavior = viewport || visualViewport
 
@@ -97,10 +100,12 @@ function DialogContent({
       >
         {vvBehavior ? <ViewportDialogBehavior /> : null}
         {children}
-        <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4">
-          <XIcon />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        {hideClose ? null : (
+          <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4">
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   )

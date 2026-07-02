@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 import {
   addScheduledExercise,
+  getClientWorkoutWithExercises,
   removeScheduledExercise,
   reorderScheduledExercises,
   updateScheduledExercise,
@@ -51,7 +52,9 @@ type WorkoutBuilderModalProps = {
   selectedDate: string
   workout: ClientScheduledWorkoutWithExercises
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
-  onChanged: () => void
+  onChanged: (
+    workout?: ClientScheduledWorkoutWithExercises
+  ) => void | Promise<void>
   onCopy?: () => void
 }
 
@@ -223,6 +226,15 @@ export function WorkoutBuilderModal({
     [clientId]
   )
 
+  async function refreshWorkout() {
+    const result = await getClientWorkoutWithExercises(clientId, workout.id)
+    if (result.success) {
+      await onChanged(result.workout)
+      return
+    }
+    await onChanged()
+  }
+
   async function handleSave(
     values: ScheduledWorkoutFormValues,
     closeAfter = false
@@ -248,7 +260,7 @@ export function WorkoutBuilderModal({
       exercises={exercises}
       exerciseActions={exerciseActions}
       catalogClientId={clientId}
-      onChanged={onChanged}
+      onChanged={refreshWorkout}
       embedded
     />
   )
@@ -281,7 +293,10 @@ export function WorkoutBuilderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         viewport
+        hideClose
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
         className="gap-0 p-0"
       >
         <DialogTitle className="sr-only">{workout.name}</DialogTitle>

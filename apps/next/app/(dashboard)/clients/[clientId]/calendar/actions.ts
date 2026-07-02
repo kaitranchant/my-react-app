@@ -177,6 +177,37 @@ async function fetchWorkoutWithExercises(
   } as ClientScheduledWorkoutWithExercises
 }
 
+export async function getClientWorkoutWithExercises(
+  clientId: string,
+  workoutId: string
+): Promise<
+  | { success: true; workout: ClientScheduledWorkoutWithExercises }
+  | { success: false; error: string }
+> {
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { data: ownedWorkout, error: workoutError } = await ctx.supabase
+    .from('client_scheduled_workouts')
+    .select('id')
+    .eq('id', workoutId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (workoutError || !ownedWorkout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  const workout = await fetchWorkoutWithExercises(ctx.supabase, workoutId)
+  if (!workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  return { success: true, workout }
+}
+
 export async function getCalendarMonthData(
   clientId: string,
   year: number,
