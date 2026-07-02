@@ -5,12 +5,14 @@ import {
   computeMacroPercents,
   formatAdherenceScore,
   formatMealPlanDayLabel,
+  getMealPlanDayIndexForOffset,
   getMealPlanDayOffset,
   getTodayMealPlanDay,
   gramsFromMacroPercent,
   groupDaysWithMeals,
   isMacroSplitBalanced,
   macroPercentFromGrams,
+  sortMealPlanDays,
   sumMacroPercentTotal,
 } from './nutrition'
 import type {
@@ -95,6 +97,38 @@ test('formatMealPlanDayLabel uses custom label or falls back to Day N', () => {
     'Monday'
   )
   assert.equal(formatMealPlanDayLabel({ day_offset: 2, label: null }), 'Day 3')
+})
+
+test('sortMealPlanDays and getMealPlanDayIndexForOffset support day browsing', () => {
+  const days = groupDaysWithMeals(
+    [
+      {
+        id: 'day-2',
+        meal_plan_id: 'plan-1',
+        day_offset: 2,
+        label: null,
+        notes: null,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+      {
+        id: 'day-0',
+        meal_plan_id: 'plan-1',
+        day_offset: 0,
+        label: 'Day one',
+        notes: null,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    ] satisfies MealPlanDay[],
+    []
+  )
+
+  const sorted = sortMealPlanDays(days)
+  assert.equal(sorted[0]?.id, 'day-0')
+  assert.equal(sorted[1]?.id, 'day-2')
+  assert.equal(getMealPlanDayIndexForOffset(sorted, 2), 1)
+  assert.equal(getMealPlanDayIndexForOffset(sorted, 99), 0)
 })
 
 test('formatAdherenceScore includes label text from check-in scale', () => {

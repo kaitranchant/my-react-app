@@ -364,6 +364,20 @@ export function formatMealPlanDayLabel(
   return `Day ${day.day_offset + 1}`
 }
 
+export function sortMealPlanDays(
+  days: MealPlanDayWithMeals[]
+): MealPlanDayWithMeals[] {
+  return [...days].sort((left, right) => left.day_offset - right.day_offset)
+}
+
+export function getMealPlanDayIndexForOffset(
+  sortedDays: MealPlanDayWithMeals[],
+  dayOffset: number
+): number {
+  const index = sortedDays.findIndex((day) => day.day_offset === dayOffset)
+  return index >= 0 ? index : 0
+}
+
 export type TodayMealPlanResult = {
   dayOffset: number
   day: MealPlanDayWithMeals | null
