@@ -1,4 +1,10 @@
-import type { PreviousSetLog, WorkoutLogFieldFlags, WorkoutLogSetDraft } from '@/lib/workout-log'
+import {
+  getPreviousDurationSeconds,
+  resolvePreviousSetLog,
+  type PreviousSetLog,
+  type WorkoutLogFieldFlags,
+  type WorkoutLogSetDraft,
+} from '@/lib/workout-log'
 import type { WeightUnit } from 'app/types/database'
 
 export type WorkoutLogKeypadField =
@@ -157,7 +163,7 @@ export function getCopyValuesForSet(
     }
   }
 
-  const previous = previousSets[setNumber]
+  const previous = resolvePreviousSetLog(previousSets, setNumber)
   if (previous) {
     if (fields.showWeight && previous.weight != null) {
       patch.weight = String(previous.weight)
@@ -165,8 +171,11 @@ export function getCopyValuesForSet(
     if (fields.showReps && previous.reps != null) {
       patch.reps = String(previous.reps)
     }
-    if (fields.showDuration && previous.durationSeconds != null) {
-      patch.durationSeconds = String(previous.durationSeconds)
+    if (fields.showDuration) {
+      const duration = getPreviousDurationSeconds(previous)
+      if (duration != null) {
+        patch.durationSeconds = String(duration)
+      }
     }
   }
 

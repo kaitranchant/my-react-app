@@ -26,6 +26,7 @@ import { removeScheduledExercise } from '@/app/(dashboard)/clients/[clientId]/ca
 import {
   completeWorkoutLog,
   getWorkoutLogData,
+  persistWorkoutLogPrs,
   saveWorkoutLogSets,
   skipWorkoutLog,
   startWorkoutLog,
@@ -34,6 +35,7 @@ import {
 import {
   completePortalWorkoutLog,
   getPortalWorkoutLogData,
+  persistPortalWorkoutPrs,
   savePortalWorkoutLogSets,
   skipPortalWorkoutLog,
   startPortalWorkoutLog,
@@ -117,6 +119,9 @@ import {
   countTotalSetsFromDrafts,
   findResumeExerciseIndex,
   formatPreviousPerformance,
+  getPreviousDurationSeconds,
+  resolvePreviousSetLog,
+  setHasRequiredLogValues,
   getSectionLabelForExercise,
   isExerciseFullyLogged,
   isWorkoutFullyLogged,
@@ -157,7 +162,10 @@ import type {
   WorkoutLogSet,
 } from 'app/types/database'
 import type { WeightUnit } from 'app/types/database'
-import type { NewPrSummary } from '@/lib/pr-records'
+import {
+  detectNewPrsForWorkout,
+  type WorkoutPrSummary,
+} from '@/lib/workout-pr-detection'
 
 type WorkoutLogBaseProps = {
   clientId: string
@@ -501,18 +509,7 @@ function WorkoutLogExercise({
 
   function canConfirmSet(set: WorkoutLogSetDraft): boolean {
     if (set.completed) return true
-
-    const hasRequiredValues =
-      (fields.showWeight &&
-        fields.showReps &&
-        set.weight.trim() !== '' &&
-        set.reps.trim() !== '') ||
-      (!fields.showWeight &&
-        fields.showReps &&
-        set.reps.trim() !== '') ||
-      (fields.showDuration && set.durationSeconds.trim() !== '')
-
-    return fields.completionOnly || hasRequiredValues
+    return fields.completionOnly || setHasRequiredLogValues(set, fields)
   }
 
   React.useEffect(() => {
@@ -813,7 +810,10 @@ function WorkoutLogExercise({
                     </div>
 
                     {sets.map((set) => {
-                      const previous = previousSets[set.setNumber]
+                      const previous = resolvePreviousSetLog(
+                        previousSets,
+                        set.setNumber
+                      )
                       const isActive =
                         !readOnly &&
                         activeSetNumber === set.setNumber &&
@@ -873,7 +873,8 @@ function WorkoutLogExercise({
                               {previous
                                 ? formatPreviousPerformance(
                                     previous.weight,
-                                    previous.reps
+                                    fields.showReps ? previous.reps : null,
+                                    getPreviousDurationSeconds(previous)
                                   )
                                 : '—'}
                             </span>
@@ -1166,7 +1167,7 @@ export function WorkoutLogScreen({
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const [replacingExercise, setReplacingExercise] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
-  const [celebrationPrs, setCelebrationPrs] = React.useState<NewPrSummary[]>([])
+  const [celebrationPrs, setCelebrationPrs] = React.useState<WorkoutPrSummary[]>([])
   const [showCelebration, setShowCelebration] = React.useState(false)
   const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
   const [exerciseToRemove, setExerciseToRemove] =
@@ -1280,7 +1281,8 @@ export function WorkoutLogScreen({
   const dataRef = React.useRef(data)
   dataRef.current = data
 
-  const readOnly = data?.status === 'skipped'
+  const readOnly =
+    data?.status === 'skipped' || data?.status === 'completed'
   const useCustomKeypad = preferWorkoutLogKeypad && !readOnly
   const isCompleted = data?.status === 'completed'
   const canEditPrescription = allowPrescriptionEdits && !isCompleted && !readOnly
@@ -1454,6 +1456,24 @@ export function WorkoutLogScreen({
         }
       }
 
+      const currentData = dataRef.current
+      const predictedPrs = currentData
+        ? detectNewPrsForWorkout(
+            currentData.exercises,
+            Object.fromEntries(
+              currentData.exercises.map((exercise) => [
+                exercise.id,
+                (currentState[exercise.id] ?? []).map((set) => ({
+                  weight: parseOptionalNumber(set.weight),
+                  reps: parseOptionalInt(set.reps),
+                  completed: set.completed,
+                })),
+              ])
+            ),
+            currentData.personalBestsByExerciseId
+          )
+        : []
+
       const result = isClientPortal
         ? await completePortalWorkoutLog(workoutId)
         : await completeWorkoutLog(clientId, workoutId)
@@ -1463,13 +1483,19 @@ export function WorkoutLogScreen({
           current ? { ...current, status: 'completed' } : current
         )
 
-        if (result.newPrs.length > 0) {
+        if (predictedPrs.length > 0) {
           setShowWorkoutComplete(false)
-          setCelebrationPrs(result.newPrs)
+          setCelebrationPrs(predictedPrs)
           setShowCelebration(true)
         }
-        void loadData()
-        onChangedRef.current()
+
+        void (isClientPortal
+          ? persistPortalWorkoutPrs(workoutId)
+          : persistWorkoutLogPrs(clientId, workoutId))
+
+        window.setTimeout(() => {
+          onChangedRef.current()
+        }, 0)
         return
       }
 
@@ -1479,7 +1505,7 @@ export function WorkoutLogScreen({
       autoCompletingRef.current = false
       saveInFlightRef.current = false
     }
-  }, [clientId, isClientPortal, loadData, workoutId])
+  }, [clientId, isClientPortal, workoutId])
 
   const maybeTriggerWorkoutComplete = React.useCallback(
     (state: ExerciseLogState) => {
@@ -1715,6 +1741,11 @@ export function WorkoutLogScreen({
     notifyParent?: boolean
     revalidate?: boolean
   }) {
+    const status = dataRef.current?.status
+    if (status === 'completed' || status === 'skipped') {
+      return
+    }
+
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
@@ -1776,6 +1807,10 @@ export function WorkoutLogScreen({
     }
     stabilizeViewportScroll()
 
+    const isFinished =
+      dataRef.current?.status === 'completed' ||
+      dataRef.current?.status === 'skipped'
+
     startTransition(() => {
       if (returnHref) {
         router.push(returnHref)
@@ -1784,14 +1819,9 @@ export function WorkoutLogScreen({
       }
     })
 
-    // Defer server actions so Next.js client navigation is not blocked by the
-    // server-action queue. Skip revalidation on pause to avoid invalidating the
-    // destination page mid-transition.
-    scheduleFlushOnClose({ notifyParent: false, revalidate: false })
-
-    window.setTimeout(() => {
-      router.refresh()
-    }, 1500)
+    if (!isFinished) {
+      scheduleFlushOnClose({ notifyParent: false, revalidate: false })
+    }
   }
 
   const completedSetCount = React.useMemo(() => {

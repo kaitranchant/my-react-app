@@ -58,7 +58,6 @@ async function requireClient(clientId: string) {
 function revalidateClientCalendar(clientId: string) {
   revalidatePath(`/clients/${clientId}`)
   revalidatePath('/clients')
-  revalidatePath('/portal', 'layout')
 }
 
 export async function getWorkoutLogData(
@@ -84,18 +83,18 @@ export async function getWorkoutLogData(
   const libraryExerciseIds = Array.from(
     new Set(workout.exercises.map((row) => row.exercise_id))
   )
-  const { previousSetsByExerciseId, previousSessionDateByExerciseId } =
-    await fetchPreviousSetsForExercises(
+  const [
+    { previousSetsByExerciseId, previousSessionDateByExerciseId },
+    personalBestsByExerciseId,
+  ] = await Promise.all([
+    fetchPreviousSetsForExercises(
       supabase,
       clientId,
       workoutId,
       libraryExerciseIds
-    )
-  const personalBestsByExerciseId = await fetchPersonalBestsByExerciseIds(
-    supabase,
-    clientId,
-    libraryExerciseIds
-  )
+    ),
+    fetchPersonalBestsByExerciseIds(supabase, clientId, libraryExerciseIds),
+  ])
 
   return {
     success: true,
@@ -218,21 +217,21 @@ export async function saveWorkoutLogSets(
     }
   }
 
-  for (const set of parsed.data.sets) {
-    const row = {
-      scheduled_workout_id: workoutId,
-      scheduled_exercise_id: set.scheduledExerciseId,
-      set_number: set.setNumber,
-      weight: set.weight,
-      reps: set.reps,
-      duration_seconds: set.durationSeconds,
-      bar_speed: set.barSpeed,
-      peak_power: set.peakPower,
-      completed: set.completed,
-      notes: set.notes,
-    }
+  const rows = parsed.data.sets.map((set) => ({
+    scheduled_workout_id: workoutId,
+    scheduled_exercise_id: set.scheduledExerciseId,
+    set_number: set.setNumber,
+    weight: set.weight,
+    reps: set.reps,
+    duration_seconds: set.durationSeconds,
+    bar_speed: set.barSpeed,
+    peak_power: set.peakPower,
+    completed: set.completed,
+    notes: set.notes,
+  }))
 
-    const { error } = await supabase.from('workout_log_sets').upsert(row, {
+  if (rows.length > 0) {
+    const { error } = await supabase.from('workout_log_sets').upsert(rows, {
       onConflict: 'scheduled_exercise_id,set_number',
     })
 
@@ -290,7 +289,7 @@ export async function completeWorkoutLog(
     return { success: false, error: 'Client not found.' }
   }
 
-  const { supabase, user } = ctx
+  const { supabase } = ctx
   const workout = await fetchWorkoutWithExercises(supabase, workoutId)
   if (!workout || workout.client_id !== clientId) {
     return { success: false, error: 'Workout not found.' }
@@ -310,6 +309,30 @@ export async function completeWorkoutLog(
     return { success: false, error: error.message }
   }
 
+  revalidateClientCalendar(clientId)
+  return { success: true, newPrs: [] }
+}
+
+export async function persistWorkoutLogPrs(
+  clientId: string,
+  workoutId: string
+): Promise<CompleteWorkoutResult> {
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, user } = ctx
+  const workout = await fetchWorkoutWithExercises(supabase, workoutId)
+  if (!workout || workout.client_id !== clientId) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  if (workout.status !== 'completed') {
+    return { success: false, error: 'Workout is not completed.' }
+  }
+
+  const achievedAt = workout.completed_at ?? new Date().toISOString()
   const { logSets } = await fetchLogSets(supabase, workoutId)
   const newPrs = await evaluateAndPersistWorkoutPrs(supabase, {
     clientId,
@@ -319,7 +342,7 @@ export async function completeWorkoutLog(
     achievedAt,
   })
 
-  revalidateClientCalendar(clientId)
+  revalidatePath(`/clients/${clientId}`)
   return { success: true, newPrs }
 }
 

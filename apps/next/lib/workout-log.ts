@@ -147,6 +147,41 @@ export function parsePrescriptionNumber(
   return match ? match[1] : null
 }
 
+/** Parse duration prescriptions like "30", "30s", or "1:00" into seconds for logging. */
+export function parseDurationPrescription(
+  target: string | null | undefined
+): string | null {
+  if (!target?.trim()) return null
+
+  const trimmed = target.trim().toLowerCase().replace(/s$/, '')
+
+  const colonMatch = trimmed.match(/^(\d+):(\d{1,2})$/)
+  if (colonMatch) {
+    const minutes = Number.parseInt(colonMatch[1], 10)
+    const seconds = Number.parseInt(colonMatch[2], 10)
+    if (Number.isFinite(minutes) && Number.isFinite(seconds)) {
+      return String(minutes * 60 + seconds)
+    }
+  }
+
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)/)
+  if (!match) return null
+
+  const value = Number.parseFloat(match[1])
+  if (!Number.isFinite(value) || value <= 0) return null
+
+  return String(Math.round(value))
+}
+
+export function getPreviousDurationSeconds(
+  previous: PreviousSetLog | null | undefined
+): number | null {
+  if (!previous) return null
+  if (previous.durationSeconds != null) return previous.durationSeconds
+  if (previous.reps != null) return previous.reps
+  return null
+}
+
 /** Parse a percent-of-1RM prescription like "75", "75%", or "70-80". */
 export function parseWeightPercent(
   value: string | null | undefined
@@ -211,10 +246,13 @@ export function calculateWeightFromPercent(
 export function previousSessionMetTargets(
   exercise: Pick<
     ScheduledWorkoutExerciseWithDetails,
-    'reps' | 'prescription' | 'sets'
+    'reps' | 'prescription' | 'sets' | 'rep_mode' | 'tracking_options'
   >,
   previousSets: Record<number, PreviousSetLog>
 ): boolean {
+  const fields = getLogFieldsForExercise(
+    exercise as ScheduledWorkoutExerciseWithDetails
+  )
   const prescribedCount = parseSetCount(exercise.sets)
   const setNumbers = Object.keys(previousSets)
     .map(Number)
@@ -229,6 +267,17 @@ export function previousSessionMetTargets(
     if (!previous) return false
 
     const targetLabel = getTargetLabelForSet(exercise, setNumber)
+
+    if (fields.showDuration) {
+      const targetDuration = parseDurationPrescription(targetLabel)
+      if (!targetDuration) return true
+
+      const loggedDuration = getPreviousDurationSeconds(previous)
+      if (loggedDuration == null) return false
+
+      return loggedDuration >= Number.parseInt(targetDuration, 10)
+    }
+
     const targetReps = parsePrescriptionNumber(targetLabel)
     if (!targetReps) return true
     if (previous.reps == null) return false
@@ -310,10 +359,11 @@ export function getSuggestedLogValuesForSet(
   }
 
   if (fields.showDuration) {
-    if (previous?.durationSeconds != null) {
-      durationSeconds = String(previous.durationSeconds)
+    const previousDuration = getPreviousDurationSeconds(previous)
+    if (previousDuration != null) {
+      durationSeconds = String(previousDuration)
     } else {
-      const prescribed = parsePrescriptionNumber(targetLabel)
+      const prescribed = parseDurationPrescription(targetLabel)
       if (prescribed) {
         durationSeconds = prescribed
       }
@@ -677,6 +727,15 @@ export function appendSetDraft(
         reps = lastSet.reps
         predicted = true
       }
+    } else if (fields.showWeight && fields.showDuration) {
+      if (
+        lastSet.weight.trim() !== '' &&
+        lastSet.durationSeconds.trim() !== ''
+      ) {
+        weight = lastSet.weight
+        durationSeconds = lastSet.durationSeconds
+        predicted = true
+      }
     } else if (!fields.showWeight && fields.showReps && lastSet.reps.trim() !== '') {
       reps = lastSet.reps
       predicted = true
@@ -751,8 +810,16 @@ export function calculateE1rm(weight: number, reps: number): number | null {
 
 export function formatPreviousPerformance(
   weight: number | null,
-  reps: number | null
+  reps: number | null,
+  durationSeconds?: number | null
 ): string {
+  if (durationSeconds != null) {
+    if (weight != null) {
+      return `${weight} × ${durationSeconds}s`
+    }
+    return `${durationSeconds}s`
+  }
+
   if (weight != null && reps != null) {
     return `${weight} × ${reps}`
   }
@@ -763,6 +830,35 @@ export function formatPreviousPerformance(
     return `${weight}`
   }
   return '—'
+}
+
+export function setHasRequiredLogValues(
+  set: WorkoutLogSetDraft,
+  fields: WorkoutLogFieldFlags
+): boolean {
+  if (fields.completionOnly) return true
+
+  if (fields.showWeight && fields.showReps) {
+    return set.weight.trim() !== '' && set.reps.trim() !== ''
+  }
+
+  if (fields.showWeight && fields.showDuration) {
+    return set.weight.trim() !== '' && set.durationSeconds.trim() !== ''
+  }
+
+  if (fields.showReps) {
+    return set.reps.trim() !== ''
+  }
+
+  if (fields.showDuration) {
+    return set.durationSeconds.trim() !== ''
+  }
+
+  if (fields.showWeight) {
+    return set.weight.trim() !== ''
+  }
+
+  return false
 }
 
 export function getBestE1rmFromDrafts(
@@ -813,19 +909,7 @@ function isSetLogEmpty(
   set: WorkoutLogSetDraft,
   fields: ReturnType<typeof getLogFieldsForExercise>
 ): boolean {
-  if (fields.showWeight && fields.showReps) {
-    return set.weight.trim() === '' && set.reps.trim() === ''
-  }
-
-  if (!fields.showWeight && fields.showReps) {
-    return set.reps.trim() === ''
-  }
-
-  if (fields.showDuration) {
-    return set.durationSeconds.trim() === ''
-  }
-
-  return true
+  return !setHasRequiredLogValues(set, fields)
 }
 
 function canReceivePrediction(
@@ -855,7 +939,7 @@ function findPropagationSourceSet(
 
     const hasUserAnchor =
       (fields.showWeight && set.weight.trim() !== '') ||
-      (!fields.showWeight && fields.showReps && set.reps.trim() !== '') ||
+      (fields.showReps && set.reps.trim() !== '') ||
       (fields.showDuration && set.durationSeconds.trim() !== '')
 
     if (hasUserAnchor) {
@@ -908,21 +992,16 @@ function getPropagationValues(
     Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>
   > = {}
 
-  if (fields.showWeight && fields.showReps) {
-    if (source.weight.trim() !== '') {
-      values.weight = source.weight
-    }
-    if (source.reps.trim() !== '') {
-      values.reps = source.reps
-    }
-  } else if (!fields.showWeight && fields.showReps) {
-    if (source.reps.trim() !== '') {
-      values.reps = source.reps
-    }
-  } else if (fields.showDuration) {
-    if (source.durationSeconds.trim() !== '') {
-      values.durationSeconds = source.durationSeconds
-    }
+  if (fields.showWeight && source.weight.trim() !== '') {
+    values.weight = source.weight
+  }
+
+  if (fields.showReps && source.reps.trim() !== '') {
+    values.reps = source.reps
+  }
+
+  if (fields.showDuration && source.durationSeconds.trim() !== '') {
+    values.durationSeconds = source.durationSeconds
   }
 
   return Object.keys(values).length > 0 ? values : null
@@ -973,15 +1052,7 @@ export function applyExerciseSetChanges(
         return { ...set, completed: true, predicted: false }
       }
 
-      const hasValues =
-        (fields.showWeight &&
-          fields.showReps &&
-          set.weight.trim() !== '' &&
-          set.reps.trim() !== '') ||
-        (!fields.showWeight &&
-          fields.showReps &&
-          set.reps.trim() !== '') ||
-        (fields.showDuration && set.durationSeconds.trim() !== '')
+      const hasValues = setHasRequiredLogValues(set, fields)
 
       if (!hasValues) return set
 

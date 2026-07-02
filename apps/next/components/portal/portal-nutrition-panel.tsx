@@ -14,6 +14,7 @@ import { MacroTargetsCard } from '@/components/nutrition/macro-targets-card'
 import { NutritionAdherenceSelector } from '@/components/nutrition/nutrition-adherence-selector'
 import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
 import { NutritionDietarySummary } from '@/components/nutrition/nutrition-dietary-card'
+import { ShoppingListCard } from '@/components/nutrition/shopping-list-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
 import { ClientNutritionNotesCard } from '@/components/nutrition/client-nutrition-notes-card'
@@ -38,7 +39,7 @@ import type {
   ClientFoodDiaryEntry,
   ClientNutritionLog,
   ClientNutritionProfile,
-  MealPlanAssignment,
+  MealPlanAssignmentWithPlan,
   MealPlanDayWithMeals,
 } from 'app/types/database'
 
@@ -46,7 +47,7 @@ type PortalNutritionPanelProps = {
   profile: ClientNutritionProfile | null
   todayLog: ClientNutritionLog | null
   recentLogs: ClientNutritionLog[]
-  assignment: MealPlanAssignment | null
+  assignment: MealPlanAssignmentWithPlan | null
   planDays: MealPlanDayWithMeals[]
   foodDiaryEntries: ClientFoodDiaryEntry[]
 }
@@ -122,6 +123,12 @@ export function PortalNutritionPanel({
         days={planDays}
         todayKey={todayKey}
         profile={profile}
+      />
+
+      <ShoppingListCard
+        assignment={assignment}
+        days={planDays}
+        planName={assignment?.meal_plan?.name}
       />
 
       <FoodDiaryPanel

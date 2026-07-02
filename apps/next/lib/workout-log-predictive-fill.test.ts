@@ -12,7 +12,9 @@ import type {
   WorkoutLogSet,
 } from 'app/types/database'
 
-function baseExercise(): ScheduledWorkoutExerciseWithDetails {
+function baseExercise(
+  overrides: Partial<ScheduledWorkoutExerciseWithDetails> = {}
+): ScheduledWorkoutExerciseWithDetails {
   return {
     id: 'exercise-row-1',
     scheduled_workout_id: 'workout-1',
@@ -56,6 +58,7 @@ function baseExercise(): ScheduledWorkoutExerciseWithDetails {
       demo_video_path: null,
       instructions: null,
     },
+    ...overrides,
   }
 }
 
@@ -233,5 +236,30 @@ describe('predictive fill propagation', () => {
 
     assert.equal(drafts[0]?.predicted, false)
     assert.equal(drafts[1]?.predicted, true)
+  })
+
+  it('propagates duration to following sets for time-based exercises', () => {
+    const exercise = baseExercise({ rep_mode: 'time', reps: '30' })
+    const fields = getLogFieldsForExercise(exercise)
+    const sets = [
+      {
+        ...emptySet(1, { reps: '', durationSeconds: '', predicted: false }),
+        targetLabel: '30',
+      },
+      {
+        ...emptySet(2, { reps: '', durationSeconds: '' }),
+        targetLabel: '30',
+      },
+    ]
+
+    const next = applyExerciseSetChanges(
+      sets,
+      1,
+      { durationSeconds: '45' },
+      fields
+    )
+
+    assert.equal(next[1]?.durationSeconds, '45')
+    assert.equal(next[1]?.predicted, true)
   })
 })

@@ -29,8 +29,9 @@ export type WorkoutLogResult =
   | { success: false; error: string }
 
 function revalidatePortal() {
-  revalidatePath('/portal', 'layout')
+  revalidatePath('/portal/workouts')
   revalidatePath('/portal/progress')
+  revalidatePath('/portal')
 }
 
 type PortalWorkoutContext = PortalClientContext & {
@@ -78,18 +79,18 @@ export async function getPortalWorkoutLogData(
   const libraryExerciseIds = Array.from(
     new Set(workout.exercises.map((row) => row.exercise_id))
   )
-  const { previousSetsByExerciseId, previousSessionDateByExerciseId } =
-    await fetchPreviousSetsForExercises(
+  const [
+    { previousSetsByExerciseId, previousSessionDateByExerciseId },
+    personalBestsByExerciseId,
+  ] = await Promise.all([
+    fetchPreviousSetsForExercises(
       supabase,
       client.id,
       workout.id,
       libraryExerciseIds
-    )
-  const personalBestsByExerciseId = await fetchPersonalBestsByExerciseIds(
-    supabase,
-    client.id,
-    libraryExerciseIds
-  )
+    ),
+    fetchPersonalBestsByExerciseIds(supabase, client.id, libraryExerciseIds),
+  ])
 
   return {
     success: true,
@@ -202,21 +203,21 @@ export async function savePortalWorkoutLogSets(
     }
   }
 
-  for (const set of parsed.data.sets) {
-    const row = {
-      scheduled_workout_id: workout.id,
-      scheduled_exercise_id: set.scheduledExerciseId,
-      set_number: set.setNumber,
-      weight: set.weight,
-      reps: set.reps,
-      duration_seconds: set.durationSeconds,
-      bar_speed: set.barSpeed,
-      peak_power: set.peakPower,
-      completed: set.completed,
-      notes: set.notes,
-    }
+  const rows = parsed.data.sets.map((set) => ({
+    scheduled_workout_id: workout.id,
+    scheduled_exercise_id: set.scheduledExerciseId,
+    set_number: set.setNumber,
+    weight: set.weight,
+    reps: set.reps,
+    duration_seconds: set.durationSeconds,
+    bar_speed: set.barSpeed,
+    peak_power: set.peakPower,
+    completed: set.completed,
+    notes: set.notes,
+  }))
 
-    const { error } = await supabase.from('workout_log_sets').upsert(row, {
+  if (rows.length > 0) {
+    const { error } = await supabase.from('workout_log_sets').upsert(rows, {
       onConflict: 'scheduled_exercise_id,set_number',
     })
 
@@ -273,17 +274,7 @@ export async function completePortalWorkoutLog(
     return { success: false, error: ctx.error }
   }
 
-  const { supabase, client, workout } = ctx
-  const { data: clientRow, error: clientError } = await supabase
-    .from('clients')
-    .select('coach_id')
-    .eq('id', client.id)
-    .maybeSingle()
-
-  if (clientError || !clientRow?.coach_id) {
-    return { success: false, error: 'Client coach not found.' }
-  }
-
+  const { supabase, workout } = ctx
   const achievedAt = new Date().toISOString()
   const { error } = await supabase
     .from('client_scheduled_workouts')
@@ -298,6 +289,35 @@ export async function completePortalWorkoutLog(
     return { success: false, error: error.message }
   }
 
+  revalidatePortal()
+  return { success: true, newPrs: [] }
+}
+
+export async function persistPortalWorkoutPrs(
+  workoutId: string
+): Promise<CompleteWorkoutResult> {
+  const ctx = await requirePortalWorkout(workoutId)
+  if (isPortalWorkoutError(ctx)) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { supabase, client, workout } = ctx
+
+  if (workout.status !== 'completed') {
+    return { success: false, error: 'Workout is not completed.' }
+  }
+
+  const { data: clientRow, error: clientError } = await supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', client.id)
+    .maybeSingle()
+
+  if (clientError || !clientRow?.coach_id) {
+    return { success: false, error: 'Client coach not found.' }
+  }
+
+  const achievedAt = workout.completed_at ?? new Date().toISOString()
   const { logSets } = await fetchLogSets(supabase, workout.id)
   const newPrs = await evaluateAndPersistWorkoutPrs(supabase, {
     clientId: client.id,
@@ -315,7 +335,7 @@ export async function completePortalWorkoutLog(
     newPrs,
   }).catch(() => undefined)
 
-  revalidatePortal()
+  revalidatePath('/portal/progress')
   return { success: true, newPrs }
 }
 

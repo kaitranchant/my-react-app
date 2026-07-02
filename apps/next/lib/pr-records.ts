@@ -13,15 +13,9 @@ import type {
   WorkoutLogSet,
 } from 'app/types/database'
 
-export type NewPrSummary = {
-  exerciseId: string
-  exerciseName: string
-  recordType: 'e1rm' | 'top_set'
-  e1rm: number | null
-  weight: number | null
-  reps: number | null
-  forced: boolean
-}
+import type { WorkoutPrSummary } from '@/lib/workout-pr-detection'
+
+export type NewPrSummary = WorkoutPrSummary
 
 export type CompleteWorkoutResult =
   | { success: true; newPrs: NewPrSummary[] }
@@ -94,6 +88,20 @@ export async function evaluateAndPersistWorkoutPrs(
   )
 
   const newPrs: NewPrSummary[] = []
+  const insertRows: Array<{
+    client_id: string
+    coach_id: string
+    exercise_id: string
+    record_type: 'e1rm' | 'top_set'
+    e1rm: number | null
+    weight: number | null
+    reps: number | null
+    session_volume: number
+    scheduled_workout_id: string
+    scheduled_exercise_id: string
+    forced: boolean
+    achieved_at: string
+  }> = []
 
   for (const exercise of workout.exercises) {
     const options = parseTrackingOptions(exercise.tracking_options)
@@ -109,7 +117,7 @@ export async function evaluateAndPersistWorkoutPrs(
     const candidates = detectSessionPrs(exerciseSets, historicalBest, options)
 
     for (const candidate of candidates) {
-      const { error } = await supabase.from('exercise_pr_records').insert({
+      insertRows.push({
         client_id: clientId,
         coach_id: coachId,
         exercise_id: exercise.exercise_id,
@@ -124,10 +132,6 @@ export async function evaluateAndPersistWorkoutPrs(
         achieved_at: achievedAt,
       })
 
-      if (error) {
-        continue
-      }
-
       newPrs.push({
         exerciseId: exercise.exercise_id,
         exerciseName: exercise.exercise.name,
@@ -138,6 +142,26 @@ export async function evaluateAndPersistWorkoutPrs(
         forced: candidate.forced,
       })
     }
+  }
+
+  if (insertRows.length > 0) {
+    const { error } = await supabase.from('exercise_pr_records').insert(insertRows)
+    if (!error) {
+      return newPrs
+    }
+
+    const persisted: NewPrSummary[] = []
+    for (let index = 0; index < insertRows.length; index++) {
+      const { error: rowError } = await supabase
+        .from('exercise_pr_records')
+        .insert(insertRows[index])
+
+      if (!rowError) {
+        persisted.push(newPrs[index]!)
+      }
+    }
+
+    return persisted
   }
 
   return newPrs

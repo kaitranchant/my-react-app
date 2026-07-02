@@ -286,7 +286,7 @@ export function AppointmentManageDialog({
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[100] max-h-60">
               {Array.from({ length: 14 }, (_, index) => {
                 const date = new Date()
                 date.setDate(date.getDate() + index)
@@ -310,7 +310,7 @@ export function AppointmentManageDialog({
             <SelectTrigger>
               <SelectValue placeholder="Select slot" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[100] max-h-60">
               {slots.map((slot) => (
                 <SelectItem key={slot.startsAt} value={slot.startsAt}>
                   {slot.startTimeLabel}
@@ -335,8 +335,11 @@ export function AppointmentManageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent
+        viewport
+        className="flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] max-w-lg flex-col overflow-hidden sm:max-w-lg"
+      >
+        <DialogHeader className="shrink-0 px-6 pt-6 pr-12">
           <DialogTitle>Manage session</DialogTitle>
           <DialogDescription>
             {formatAppointmentRange(
@@ -350,7 +353,8 @@ export function AppointmentManageDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-6">
+          <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{appointmentStatusLabels[appointment.status]}</Badge>
             {appointment.location ? (
@@ -513,6 +517,7 @@ export function AppointmentManageDialog({
               </>
             ) : null}
           </div>
+        </div>
         </div>
         {deleteConfirm.dialog}
       </DialogContent>

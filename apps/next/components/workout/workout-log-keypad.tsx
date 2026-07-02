@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import {
+  ChevronDown,
   Copy,
   Delete,
   Keyboard,
@@ -71,6 +72,15 @@ function useViewportFrame(active: boolean) {
   }, [active])
 
   return frame
+}
+
+function HideKeyboardIcon({ className }: { className?: string }) {
+  return (
+    <span className={cn('inline-flex flex-col items-center leading-none', className)}>
+      <Keyboard className="size-4" />
+      <ChevronDown className="-mt-0.5 size-3" strokeWidth={2.5} />
+    </span>
+  )
 }
 
 function KeypadButton({
@@ -231,7 +241,7 @@ function WorkoutLogKeypadContent({
         onClick={closeKeypad}
         className="h-full min-h-11 sm:min-h-12"
       >
-        <Keyboard className="size-5" />
+        <HideKeyboardIcon />
       </KeypadButton>
     </div>
   )

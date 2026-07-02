@@ -8,8 +8,8 @@ import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
-import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchPortalSessionBookingSettings } from '@/lib/session-booking-queries'
-import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
+import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
+import { formatAppointmentRange, getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import {
   queueCoachingAppointmentGoogleRemoval,
@@ -29,7 +29,7 @@ import {
   updateAppointmentStatusSchema,
 } from '@/lib/validations/session-booking'
 import { notifyClientOfCoachMessage } from '@/lib/notifications/notify-client-coach-message'
-import { formatAppointmentRange } from '@/lib/session-booking-slots'
+import type { CoachingAppointment } from '@/lib/session-booking-types'
 
 function revalidateScheduling() {
   revalidatePath('/scheduling')
@@ -903,4 +903,40 @@ export async function getClientAvailableSlots(
   )
 
   return { success: true as const, slots, settings }
+}
+
+export type SchedulingWeekDataResult =
+  | { success: true; appointments: CoachingAppointment[]; weekKeys: string[] }
+  | { success: false; error: string }
+
+export async function fetchSchedulingWeekData(
+  weekStartKey: string
+): Promise<SchedulingWeekDataResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStartKey)) {
+    return { success: false, error: 'Invalid week.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
+  const weekReferenceDate = getSchedulingWeekReferenceDate(
+    coachPreferences.timezone,
+    weekStartKey
+  )
+  const { startIso, endIso, weekKeys } = getWeekAppointmentRange(
+    coachPreferences.weekStartsOn,
+    coachPreferences.timezone,
+    weekReferenceDate
+  )
+  const appointments = await fetchCoachingAppointments(
+    ctx.supabase,
+    ctx.user.id,
+    startIso,
+    endIso
+  )
+
+  return { success: true, appointments, weekKeys }
 }

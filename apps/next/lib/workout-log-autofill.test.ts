@@ -4,6 +4,7 @@ import { describe, it } from 'node:test'
 import {
   buildSetDrafts,
   getSuggestedLogValuesForSet,
+  parseDurationPrescription,
   resolvePreviousSetLog,
 } from './workout-log'
 import type { ScheduledWorkoutExerciseWithDetails } from 'app/types/database'
@@ -143,6 +144,58 @@ describe('auto-fill from previous session', () => {
     assert.equal(drafts[0]?.predicted, true)
     assert.equal(drafts[1]?.weight, '200')
     assert.equal(drafts[1]?.reps, '9')
+    assert.equal(drafts[1]?.predicted, true)
+  })
+})
+
+describe('time-based exercise autofill', () => {
+  it('parses mm:ss duration prescriptions into seconds', () => {
+    assert.equal(parseDurationPrescription('1:00'), '60')
+    assert.equal(parseDurationPrescription('30s'), '30')
+    assert.equal(parseDurationPrescription('45'), '45')
+  })
+
+  it('prefills duration from previous session duration_seconds', () => {
+    const exercise = baseExercise({ rep_mode: 'time', reps: '1:00' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {
+      1: { weight: null, reps: null, durationSeconds: 55 },
+    })
+
+    assert.equal(suggested.durationSeconds, '55')
+    assert.equal(suggested.reps, '')
+  })
+
+  it('falls back to legacy reps column for time exercises', () => {
+    const exercise = baseExercise({ rep_mode: 'time', reps: '45' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {
+      1: { weight: null, reps: 45, durationSeconds: null },
+    })
+
+    assert.equal(suggested.durationSeconds, '45')
+  })
+
+  it('uses parsed prescription when no previous session exists', () => {
+    const exercise = baseExercise({ rep_mode: 'time', reps: '1:30' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {})
+
+    assert.equal(suggested.durationSeconds, '90')
+  })
+
+  it('marks time-based prefilled sets as predicted in buildSetDrafts', () => {
+    const exercise = baseExercise({ rep_mode: 'time', sets: '2', reps: '30' })
+    const drafts = buildSetDrafts(
+      exercise,
+      [],
+      {
+        1: { weight: null, reps: null, durationSeconds: 32 },
+        2: { weight: null, reps: null, durationSeconds: 30 },
+      },
+      null
+    )
+
+    assert.equal(drafts[0]?.durationSeconds, '32')
+    assert.equal(drafts[0]?.predicted, true)
+    assert.equal(drafts[1]?.durationSeconds, '30')
     assert.equal(drafts[1]?.predicted, true)
   })
 })

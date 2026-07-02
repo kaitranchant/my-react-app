@@ -12,7 +12,7 @@ import type {
   ClientFoodDiaryEntry,
   ClientNutritionLog,
   ClientNutritionProfile,
-  MealPlanAssignment,
+  MealPlanAssignmentWithPlan,
   MealPlanDayWithMeals,
 } from 'app/types/database'
 
@@ -28,7 +28,7 @@ export default async function PortalNutritionPage() {
   let profile: ClientNutritionProfile | null = null
   let todayLog: ClientNutritionLog | null = null
   let recentLogs: ClientNutritionLog[] = []
-  let assignment: MealPlanAssignment | null = null
+  let assignment: MealPlanAssignmentWithPlan | null = null
   let planDays: MealPlanDayWithMeals[] = []
   let foodDiaryEntries: ClientFoodDiaryEntry[] = []
   let nutritionSchemaError: string | null = null
@@ -63,7 +63,7 @@ export default async function PortalNutritionPage() {
         .limit(90),
       supabase
         .from('meal_plan_assignments')
-        .select('*')
+        .select('*, meal_plan:meal_plans(id, name, description)')
         .eq('client_id', clientRecord.id)
         .eq('status', 'active')
         .maybeSingle(),
@@ -78,7 +78,7 @@ export default async function PortalNutritionPage() {
     profile = (profileResult.data ?? null) as ClientNutritionProfile | null
     todayLog = (todayLogResult.data ?? null) as ClientNutritionLog | null
     recentLogs = (logsResult.data ?? []) as ClientNutritionLog[]
-    assignment = (assignmentResult.data ?? null) as MealPlanAssignment | null
+    assignment = (assignmentResult.data ?? null) as MealPlanAssignmentWithPlan | null
     foodDiaryEntries = (foodDiaryResult.data ?? []) as ClientFoodDiaryEntry[]
 
     nutritionSchemaError = [
