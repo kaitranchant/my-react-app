@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import {
-  completePendingClientInvite,
-  readPendingInviteToken,
-  repairClientInviteLinkForUser,
+  ensureClientInviteLinked,
 } from '@/lib/auth/client-invite-signup'
 import { createClient } from '@/lib/supabase/server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
@@ -24,23 +22,7 @@ export async function GET(request: Request) {
 
       let destination = next
       if (user) {
-        const pendingInviteToken = readPendingInviteToken(user.user_metadata)
-        if (pendingInviteToken && user.email) {
-          const linked = await completePendingClientInvite(supabase, {
-            inviteToken: pendingInviteToken,
-            userId: user.id,
-            email: user.email,
-          })
-
-          if (!linked.ok) {
-            const url = new URL('/signup', getAppBaseUrl())
-            url.searchParams.set('invite', pendingInviteToken)
-            url.searchParams.set('error', linked.error)
-            return NextResponse.redirect(url.toString())
-          }
-        } else {
-          await repairClientInviteLinkForUser(user)
-        }
+        await ensureClientInviteLinked(user)
 
         const { data: profile } = await supabase
           .from('profiles')

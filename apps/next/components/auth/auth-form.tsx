@@ -60,7 +60,9 @@ export function AuthForm({
   const [state, formAction] = useActionState<AuthState, FormData>(action, {
     error: initialError,
   })
-  const formError = normalizeAuthFormError(state.error ?? initialError)
+  const formError = normalizeAuthFormError(
+    state.error ?? (state.redirectTo || state.message ? undefined : initialError)
+  )
   const isSignup = mode === 'signup'
   const isClientInvite = Boolean(isSignup && invitePreview)
   const isGymInvite = Boolean(isSignup && gymInvitePreview)

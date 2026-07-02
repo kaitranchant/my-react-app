@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+
 import { AuthForm } from '@/components/auth/auth-form'
 import { createClient } from '@/lib/supabase/server'
 
@@ -15,6 +17,19 @@ export default async function SignupPage({
 }) {
   const { invite, gym_invite: gymInvite, error } = await searchParams
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    redirect(profile?.role === 'client' ? '/portal' : '/dashboard')
+  }
 
   let invitePreview: {
     clientName: string
@@ -65,8 +80,9 @@ export default async function SignupPage({
   }
 
   const hasInvalidInvite =
-    (invite && !invitePreview && !gymInvitePreview) ||
-    (gymInvite && !gymInvitePreview && !invitePreview)
+    !error &&
+    ((invite && !invitePreview && !gymInvitePreview) ||
+      (gymInvite && !gymInvitePreview && !invitePreview))
 
   return (
     <>

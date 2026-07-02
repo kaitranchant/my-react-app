@@ -58,6 +58,45 @@ export async function deleteOrphanedInvitedAuthUser(
   return !error
 }
 
+async function isClientAccountLinked(userId: string): Promise<boolean> {
+  const admin = createAdminClient()
+  if (!admin) {
+    return false
+  }
+
+  const { data } = await admin
+    .from('clients')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  return Boolean(data)
+}
+
+export async function clearPendingInviteMetadata(userId: string): Promise<void> {
+  const admin = createAdminClient()
+  if (!admin) {
+    return
+  }
+
+  const { data, error } = await admin.auth.admin.getUserById(userId)
+  if (error || !data.user) {
+    return
+  }
+
+  const metadata = { ...(data.user.user_metadata ?? {}) }
+  delete metadata.pending_invite_token
+  delete metadata.invite_token
+
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: metadata,
+  })
+}
+
+async function finalizeClientInviteLink(userId: string): Promise<void> {
+  await clearPendingInviteMetadata(userId)
+}
+
 export async function linkClientInviteAsAdmin(input: {
   inviteToken: string
   userId: string
@@ -79,6 +118,7 @@ export async function linkClientInviteAsAdmin(input: {
     .maybeSingle()
 
   if (existingClient) {
+    await finalizeClientInviteLink(input.userId)
     return { ok: true }
   }
 
@@ -89,11 +129,18 @@ export async function linkClientInviteAsAdmin(input: {
   })
 
   if (error) {
+    if (await isClientAccountLinked(input.userId)) {
+      await finalizeClientInviteLink(input.userId)
+      return { ok: true }
+    }
+
     return {
       ok: false,
       error: formatClientInviteLinkError(error.message),
     }
   }
+
+  await finalizeClientInviteLink(input.userId)
 
   return { ok: true }
 }
@@ -301,11 +348,7 @@ export async function signInClientAccount(
   })
 
   if (!firstAttempt.error && firstAttempt.data.user) {
-    await repairClientInviteLink({
-      userId: firstAttempt.data.user.id,
-      email: firstAttempt.data.user.email,
-      userMetadata: firstAttempt.data.user.user_metadata,
-    })
+    await ensureClientInviteLinked(firstAttempt.data.user)
     return { ok: true }
   }
 
@@ -356,11 +399,7 @@ export async function signInClientAccount(
     return { ok: false, error: formatSupabaseAuthError(retry.error) }
   }
 
-  await repairClientInviteLink({
-    userId: retry.data.user.id,
-    email: retry.data.user.email,
-    userMetadata: retry.data.user.user_metadata,
-  })
+  await ensureClientInviteLinked(retry.data.user)
 
   return { ok: true }
 }
@@ -389,12 +428,46 @@ export async function completePendingClientInvite(
   return linkClientInviteAsAdmin(input)
 }
 
-export async function repairClientInviteLinkForUser(
+export async function ensureClientInviteLinked(
   user: Pick<User, 'id' | 'email' | 'user_metadata'>
 ): Promise<boolean> {
-  return repairClientInviteLink({
+  if (await isClientAccountLinked(user.id)) {
+    await finalizeClientInviteLink(user.id)
+    return true
+  }
+
+  const repaired = await repairClientInviteLink({
     userId: user.id,
     email: user.email,
     userMetadata: user.user_metadata,
   })
+
+  if (repaired || (await isClientAccountLinked(user.id))) {
+    await finalizeClientInviteLink(user.id)
+    return true
+  }
+
+  const inviteToken = readPendingInviteToken(user.user_metadata)
+  if (!inviteToken || !user.email) {
+    return false
+  }
+
+  const linked = await linkClientInviteAsAdmin({
+    inviteToken,
+    userId: user.id,
+    email: user.email,
+  })
+
+  if (linked.ok || (await isClientAccountLinked(user.id))) {
+    await finalizeClientInviteLink(user.id)
+    return true
+  }
+
+  return false
+}
+
+export async function repairClientInviteLinkForUser(
+  user: Pick<User, 'id' | 'email' | 'user_metadata'>
+): Promise<boolean> {
+  return ensureClientInviteLinked(user)
 }
