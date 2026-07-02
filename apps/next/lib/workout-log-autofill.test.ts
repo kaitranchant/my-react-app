@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 
 import {
   buildSetDrafts,
+  getPrescribedDurationSecondsForSet,
   getSuggestedLogValuesForSet,
   parseDurationPrescription,
   resolvePreviousSetLog,
@@ -197,5 +198,18 @@ describe('time-based exercise autofill', () => {
     assert.equal(drafts[0]?.predicted, true)
     assert.equal(drafts[1]?.durationSeconds, '30')
     assert.equal(drafts[1]?.predicted, true)
+  })
+
+  it('reads prescribed duration seconds per set from prescription', () => {
+    const exercise = baseExercise({
+      rep_mode: 'time',
+      sets: '3',
+      reps: '30,45,1:00',
+    })
+
+    assert.equal(getPrescribedDurationSecondsForSet(exercise, 1), 30)
+    assert.equal(getPrescribedDurationSecondsForSet(exercise, 2), 45)
+    assert.equal(getPrescribedDurationSecondsForSet(exercise, 3), 60)
+    assert.equal(getPrescribedDurationSecondsForSet(exercise, 4), 60)
   })
 })

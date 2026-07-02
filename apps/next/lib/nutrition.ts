@@ -435,6 +435,30 @@ export function sortMealsByOrder(meals: MealPlanMeal[]): MealPlanMeal[] {
   })
 }
 
+export type MealPlanMealInPlanOrder = MealPlanMealWithFoods & {
+  dayOffset: number
+  dayLabel: string
+}
+
+export function flattenMealPlanMealsInOrder(
+  days: MealPlanDayWithMeals[]
+): MealPlanMealInPlanOrder[] {
+  const flattened: MealPlanMealInPlanOrder[] = []
+
+  for (const day of sortMealPlanDays(days)) {
+    const dayLabel = formatMealPlanDayLabel(day)
+    for (const meal of sortMealsByOrder(day.meals)) {
+      flattened.push({
+        ...meal,
+        dayOffset: day.day_offset,
+        dayLabel,
+      })
+    }
+  }
+
+  return flattened
+}
+
 export function groupDaysWithMeals(
   days: MealPlanDay[],
   meals: MealPlanMeal[],

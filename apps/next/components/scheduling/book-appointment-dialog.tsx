@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -59,6 +59,9 @@ export function BookAppointmentDialog({
   weekStartsOn = 'monday',
 }: BookAppointmentDialogProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const handledBookShortcutRef = React.useRef(false)
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [loadingSlots, setLoadingSlots] = React.useState(false)
@@ -80,6 +83,19 @@ export function BookAppointmentDialog({
       pack.client_id === clientId &&
       isSessionPackActive(pack, dateKey)
   )
+
+  React.useEffect(() => {
+    if (handledBookShortcutRef.current) return
+    if (searchParams.get('book') !== '1') return
+
+    handledBookShortcutRef.current = true
+    setOpen(true)
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('book')
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
 
   React.useEffect(() => {
     if (!open) return

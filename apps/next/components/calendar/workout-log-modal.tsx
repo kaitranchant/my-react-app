@@ -65,6 +65,7 @@ import {
   RestTimerProvider,
   useRestTimer,
 } from '@/components/calendar/rest-timer'
+import { SetDurationTimerChip } from '@/components/calendar/set-duration-timer'
 import {
   WorkoutElapsedTimer,
   WorkoutProgressBar,
@@ -119,6 +120,7 @@ import {
   findResumeExerciseIndex,
   formatPreviousPerformance,
   getPreviousDurationSeconds,
+  getPrescribedDurationSecondsForSet,
   resolvePreviousSetLog,
   setHasRequiredLogValues,
   getSectionLabelForExercise,
@@ -430,6 +432,10 @@ function WorkoutLogExercise({
 
   const activeSetNumber =
     sets.find((set) => !set.completed)?.setNumber ?? null
+  const activeSetPrescribedDurationSeconds = React.useMemo(() => {
+    if (activeSetNumber == null) return null
+    return getPrescribedDurationSecondsForSet(exercise, activeSetNumber)
+  }, [activeSetNumber, exercise])
   const completedCount = sets.filter((set) => set.completed).length
   const allComplete = sets.length > 0 && completedCount === sets.length
 
@@ -721,6 +727,20 @@ function WorkoutLogExercise({
                   seconds={restSeconds}
                 />
               )}
+              {!readOnly &&
+                fields.showDuration &&
+                activeSetNumber != null &&
+                activeSetPrescribedDurationSeconds != null && (
+                  <SetDurationTimerChip
+                    key={`${exercise.id}-${activeSetNumber}-${activeSetPrescribedDurationSeconds}`}
+                    seconds={activeSetPrescribedDurationSeconds}
+                    onComplete={(secs) =>
+                      handleLocalSetChange(activeSetNumber, {
+                        durationSeconds: String(secs),
+                      })
+                    }
+                  />
+                )}
               {currentE1rm != null && (
                 <span className="text-sm">
                   1RM{' '}

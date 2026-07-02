@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   computeMacroPercents,
+  flattenMealPlanMealsInOrder,
   formatAdherenceScore,
   formatMealPlanDayLabel,
   getMealPlanDayIndexForOffset,
@@ -129,6 +130,84 @@ test('sortMealPlanDays and getMealPlanDayIndexForOffset support day browsing', (
   assert.equal(sorted[1]?.id, 'day-2')
   assert.equal(getMealPlanDayIndexForOffset(sorted, 2), 1)
   assert.equal(getMealPlanDayIndexForOffset(sorted, 99), 0)
+})
+
+test('flattenMealPlanMealsInOrder returns meals across days in plan order', () => {
+  const days = groupDaysWithMeals(
+    [
+      {
+        id: 'day-1',
+        meal_plan_id: 'plan-1',
+        day_offset: 1,
+        label: 'Day two',
+        notes: null,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+      {
+        id: 'day-0',
+        meal_plan_id: 'plan-1',
+        day_offset: 0,
+        label: 'Day one',
+        notes: null,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    ] satisfies MealPlanDay[],
+    [
+      {
+        id: 'meal-b',
+        meal_plan_day_id: 'day-0',
+        sort_order: 1,
+        meal_type: 'lunch',
+        name: 'Lunch',
+        description: null,
+        calories_kcal: 500,
+        protein_g: 30,
+        carbs_g: 40,
+        fat_g: 20,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+      {
+        id: 'meal-a',
+        meal_plan_day_id: 'day-0',
+        sort_order: 0,
+        meal_type: 'breakfast',
+        name: 'Breakfast',
+        description: null,
+        calories_kcal: 400,
+        protein_g: 20,
+        carbs_g: 50,
+        fat_g: 10,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+      {
+        id: 'meal-c',
+        meal_plan_day_id: 'day-1',
+        sort_order: 0,
+        meal_type: 'dinner',
+        name: 'Dinner',
+        description: null,
+        calories_kcal: 600,
+        protein_g: 40,
+        carbs_g: 30,
+        fat_g: 25,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    ] satisfies MealPlanMeal[]
+  )
+
+  const flattened = flattenMealPlanMealsInOrder(days)
+
+  assert.deepEqual(
+    flattened.map((meal) => meal.id),
+    ['meal-a', 'meal-b', 'meal-c']
+  )
+  assert.equal(flattened[0]?.dayLabel, 'Day one')
+  assert.equal(flattened[2]?.dayLabel, 'Day two')
 })
 
 test('formatAdherenceScore includes label text from check-in scale', () => {

@@ -173,6 +173,18 @@ export function parseDurationPrescription(
   return String(Math.round(value))
 }
 
+export function getPrescribedDurationSecondsForSet(
+  exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'reps' | 'prescription'>,
+  setNumber: number
+): number | null {
+  const label = getTargetLabelForSet(exercise, setNumber)
+  const parsed = parseDurationPrescription(label)
+  if (!parsed) return null
+
+  const value = Number.parseInt(parsed, 10)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
 export function getPreviousDurationSeconds(
   previous: PreviousSetLog | null | undefined
 ): number | null {

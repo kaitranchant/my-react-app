@@ -40,6 +40,21 @@ export function parseTrackingOptions(
   }
 }
 
+function formatPrescriptionRepUnit(
+  repMode: ScheduledWorkoutExercise['rep_mode'] | null | undefined,
+  reps: string
+): string | null {
+  if (repMode !== 'time') return 'reps'
+
+  const trimmed = reps.trim()
+  if (!trimmed) return 'seconds'
+
+  // Values like 30s, 1:00, or 300m already carry their own unit/format.
+  if (/[a-z:]/i.test(trimmed)) return null
+
+  return 'seconds'
+}
+
 export function formatExercisePrescriptionSummary(
   row: Pick<
     ScheduledWorkoutExercise,
@@ -62,8 +77,12 @@ export function formatExercisePrescriptionSummary(
   const parts: string[] = []
 
   if (row.sets?.trim() && row.reps?.trim()) {
-    const unit = row.rep_mode === 'time' ? 'time' : 'reps'
-    parts.push(`${row.sets.trim()} x ${row.reps.trim()} ${unit}`)
+    const unit = formatPrescriptionRepUnit(row.rep_mode, row.reps)
+    parts.push(
+      unit
+        ? `${row.sets.trim()} x ${row.reps.trim()} ${unit}`
+        : `${row.sets.trim()} x ${row.reps.trim()}`
+    )
   } else if (row.sets?.trim()) {
     parts.push(`${row.sets.trim()} sets`)
   } else if (row.reps?.trim()) {
