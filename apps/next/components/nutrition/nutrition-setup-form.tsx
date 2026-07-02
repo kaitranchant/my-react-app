@@ -143,7 +143,8 @@ export function NutritionSetupForm({
         <div>
           <Label>About you</Label>
           <p className="text-muted-foreground mt-1 text-xs">
-            Used to estimate calorie and macro needs. Weight is required.
+            Used to estimate calorie and macro needs. Weight and height are
+            required for accurate calculations.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -171,12 +172,16 @@ export function NutritionSetupForm({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="nutrition-setup-height">Height (in)</Label>
+            <Label htmlFor="nutrition-setup-height">
+              Height (in) <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="nutrition-setup-height"
               type="number"
               min="0"
               step="0.1"
+              required
+              aria-required="true"
               value={values.heightIn ?? ''}
               onChange={(event) =>
                 updateField(

@@ -97,7 +97,17 @@ export const nutritionSetupFormSchema = z.object({
     .refine((value): value is number => value != null, {
       message: 'Enter your current weight',
     }),
-  heightIn: optionalPositiveNumber,
+  heightIn: z
+    .union([z.string(), z.number(), z.null()])
+    .transform((value) => {
+      if (value == null || value === '') return null
+      const parsed = typeof value === 'number' ? value : Number(value)
+      if (!Number.isFinite(parsed) || parsed <= 0) return null
+      return parsed
+    })
+    .refine((value): value is number => value != null, {
+      message: 'Enter your height',
+    }),
   ageYears: optionalAgeYears,
   setupBiologicalSex: optionalSetupBiologicalSex,
   activityLevel: optionalActivityLevel,
