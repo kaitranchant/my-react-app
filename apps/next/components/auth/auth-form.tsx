@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { login, signup, type AuthState } from '@/app/(auth)/actions'
+import { normalizeAuthFormError } from '@/lib/auth/errors'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -46,15 +47,20 @@ export function AuthForm({
   invitePreview,
   gymInvitePreview,
   redirectTo,
+  initialError,
 }: {
   mode: 'login' | 'signup'
   invitePreview?: InvitePreview | null
   gymInvitePreview?: GymInvitePreview | null
   redirectTo?: string
+  initialError?: string
 }) {
   const router = useRouter()
   const action = mode === 'login' ? login : signup
-  const [state, formAction] = useActionState<AuthState, FormData>(action, {})
+  const [state, formAction] = useActionState<AuthState, FormData>(action, {
+    error: initialError,
+  })
+  const formError = normalizeAuthFormError(state.error ?? initialError)
   const isSignup = mode === 'signup'
   const isClientInvite = Boolean(isSignup && invitePreview)
   const isGymInvite = Boolean(isSignup && gymInvitePreview)
@@ -147,14 +153,12 @@ export function AuthForm({
             />
           </div>
 
-          {state.error && (
+          {formError && (
             <div
               className="bg-destructive/5 text-destructive rounded-lg border border-destructive/15 px-3 py-2.5 text-sm leading-relaxed"
               role="alert"
             >
-              {typeof state.error === 'string'
-                ? state.error
-                : 'Something went wrong. Please try again.'}
+              {formError}
             </div>
           )}
           {state.message && (

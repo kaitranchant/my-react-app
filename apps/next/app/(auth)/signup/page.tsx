@@ -11,9 +11,9 @@ const INVITE_TOKEN_PATTERN =
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string; gym_invite?: string }>
+  searchParams: Promise<{ invite?: string; gym_invite?: string; error?: string }>
 }) {
-  const { invite, gym_invite: gymInvite } = await searchParams
+  const { invite, gym_invite: gymInvite, error } = await searchParams
   const supabase = await createClient()
 
   let invitePreview: {
@@ -79,6 +79,7 @@ export default async function SignupPage({
         mode="signup"
         invitePreview={invitePreview}
         gymInvitePreview={gymInvitePreview}
+        initialError={error ? decodeURIComponent(error) : undefined}
       />
     </>
   )

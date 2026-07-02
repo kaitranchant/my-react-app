@@ -2,7 +2,11 @@ export type SupabaseAuthErrorLike = {
   message?: string
   code?: string
   status?: number | string
+  msg?: string
+  error_description?: string
 }
+
+const GENERIC_AUTH_ERROR = 'Something went wrong. Please try again.'
 
 export function formatAuthErrorMessage(message: string): string {
   if (message === 'fetch failed') {
@@ -12,18 +16,42 @@ export function formatAuthErrorMessage(message: string): string {
   return message
 }
 
-export function formatSupabaseAuthError(
-  error: SupabaseAuthErrorLike | null | undefined
-): string {
-  if (!error) {
-    return 'Something went wrong. Please try again.'
+function readAuthErrorMessage(error: SupabaseAuthErrorLike): string {
+  for (const value of [
+    error.message,
+    error.msg,
+    error.error_description,
+  ]) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
   }
 
-  const message =
-    typeof error.message === 'string' && error.message.trim()
-      ? error.message.trim()
-      : ''
-  const code = typeof error.code === 'string' ? error.code : ''
+  return ''
+}
+
+export function formatSupabaseAuthError(error: unknown): string {
+  if (!error) {
+    return GENERIC_AUTH_ERROR
+  }
+
+  if (typeof error === 'string') {
+    const message = error.trim()
+    return message ? formatAuthErrorMessage(message) : GENERIC_AUTH_ERROR
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.trim()
+    return message ? formatAuthErrorMessage(message) : GENERIC_AUTH_ERROR
+  }
+
+  if (typeof error !== 'object') {
+    return GENERIC_AUTH_ERROR
+  }
+
+  const record = error as SupabaseAuthErrorLike
+  const message = readAuthErrorMessage(record)
+  const code = typeof record.code === 'string' ? record.code : ''
 
   if (
     code === 'user_already_exists' ||
@@ -40,7 +68,11 @@ export function formatSupabaseAuthError(
     return formatAuthErrorMessage(message)
   }
 
-  return 'Something went wrong. Please try again.'
+  if (code) {
+    return `Sign up failed (${code}). Please try again.`
+  }
+
+  return GENERIC_AUTH_ERROR
 }
 
 export function formatClientInviteLinkError(message: string): string {
@@ -55,6 +87,22 @@ export function formatClientInviteLinkError(message: string): string {
   return message
 }
 
+export function normalizeAuthFormError(error: unknown): string | null {
+  if (error == null || error === false) {
+    return null
+  }
+
+  if (typeof error === 'string') {
+    const trimmed = error.trim()
+    if (!trimmed || trimmed === '{}') {
+      return GENERIC_AUTH_ERROR
+    }
+    return trimmed
+  }
+
+  return formatSupabaseAuthError(error)
+}
+
 export function authErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     const cause = error.cause as NodeJS.ErrnoException | undefined
@@ -62,12 +110,8 @@ export function authErrorMessage(error: unknown): string {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)'
       return `Could not reach Supabase at ${url}. That hostname does not exist — copy the correct Project URL from Supabase Dashboard → Project Settings → API into apps/next/.env.local.`
     }
-    return formatAuthErrorMessage(error.message)
+    return formatSupabaseAuthError(error)
   }
 
-  if (error && typeof error === 'object' && 'message' in error) {
-    return formatSupabaseAuthError(error as SupabaseAuthErrorLike)
-  }
-
-  return 'Something went wrong. Please try again.'
+  return formatSupabaseAuthError(error)
 }

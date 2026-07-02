@@ -110,3 +110,27 @@ export async function recoverExistingClientInviteSignup(
     canRetrySignup: false,
   }
 }
+
+export function readPendingInviteToken(
+  metadata: Record<string, unknown> | null | undefined
+): string | null {
+  if (!metadata) {
+    return null
+  }
+
+  for (const key of ['pending_invite_token', 'invite_token']) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+export async function completePendingClientInvite(
+  supabase: SupabaseServerClient,
+  input: { userId: string; email: string; inviteToken: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return linkClientInviteForUser(supabase, input)
+}

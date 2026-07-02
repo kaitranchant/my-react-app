@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 
+import {
+  completePendingClientInvite,
+  readPendingInviteToken,
+} from '@/lib/auth/client-invite-signup'
 import { createClient } from '@/lib/supabase/server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
+import { getAppBaseUrl } from '@/lib/email/config'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
 
@@ -18,6 +23,22 @@ export async function GET(request: Request) {
 
       let destination = next
       if (user) {
+        const pendingInviteToken = readPendingInviteToken(user.user_metadata)
+        if (pendingInviteToken && user.email) {
+          const linked = await completePendingClientInvite(supabase, {
+            inviteToken: pendingInviteToken,
+            userId: user.id,
+            email: user.email,
+          })
+
+          if (!linked.ok) {
+            const url = new URL('/signup', getAppBaseUrl())
+            url.searchParams.set('invite', pendingInviteToken)
+            url.searchParams.set('error', linked.error)
+            return NextResponse.redirect(url.toString())
+          }
+        }
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
@@ -29,9 +50,9 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${destination}`)
+      return NextResponse.redirect(`${getAppBaseUrl()}${destination}`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  return NextResponse.redirect(`${getAppBaseUrl()}/login?error=auth_callback_failed`)
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { formatSupabaseAuthError } from './errors'
+import { formatSupabaseAuthError, normalizeAuthFormError } from './errors'
 
 test('formatSupabaseAuthError maps user already exists', () => {
   assert.equal(
@@ -16,6 +16,10 @@ test('formatSupabaseAuthError maps user already exists', () => {
 test('formatSupabaseAuthError falls back when message is missing', () => {
   assert.equal(
     formatSupabaseAuthError({ code: 'unexpected_failure' }),
-    'Something went wrong. Please try again.'
+    'Sign up failed (unexpected_failure). Please try again.'
   )
+})
+
+test('normalizeAuthFormError maps empty object strings to a friendly message', () => {
+  assert.equal(normalizeAuthFormError('{}'), 'Something went wrong. Please try again.')
 })

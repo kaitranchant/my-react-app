@@ -8,7 +8,10 @@ import {
   authErrorMessage,
   formatSupabaseAuthError,
 } from '@/lib/auth/errors'
-import { recoverExistingClientInviteSignup } from '@/lib/auth/client-invite-signup'
+import {
+  linkClientInviteForUser,
+  recoverExistingClientInviteSignup,
+} from '@/lib/auth/client-invite-signup'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
 
@@ -56,6 +59,22 @@ function inviteSignupDatabaseError(isClientSignup: boolean): string {
   return isClientSignup
     ? 'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.'
     : 'Could not complete signup. The gym invite may be invalid, expired, or the email may not match.'
+}
+
+function signupMetadata(input: {
+  fullName: string
+  isClientSignup: boolean
+  inviteToken: string
+  gymInviteToken: string
+}) {
+  return {
+    full_name: input.fullName,
+    role: input.isClientSignup ? 'client' : 'coach',
+    pending_invite_token: input.isClientSignup
+      ? input.inviteToken || undefined
+      : undefined,
+    gym_invite_token: input.gymInviteToken || undefined,
+  }
 }
 
 export async function login(
@@ -152,13 +171,13 @@ export async function signup(
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-            role: isClientSignup ? 'client' : 'coach',
-            invite_token: inviteToken || undefined,
-            gym_invite_token: gymInviteToken || undefined,
-          },
-          emailRedirectTo: `${getAppBaseUrl()}/auth/callback`,
+          data: signupMetadata({
+            fullName,
+            isClientSignup,
+            inviteToken,
+            gymInviteToken,
+          }),
+          emailRedirectTo: `${getAppBaseUrl()}/auth/callback?next=/portal`,
         },
       })
 
@@ -208,21 +227,35 @@ export async function signup(
       }
 
       signedUpUserId = data.user?.id ?? null
+
+      if (isClientSignup && signedUpUserId) {
+        const linked = await linkClientInviteForUser(supabase, {
+          inviteToken,
+          userId: signedUpUserId,
+          email,
+        })
+
+        if (!linked.ok) {
+          return { error: linked.error }
+        }
+      }
+
       break
+    }
+
+    revalidatePath('/', 'layout')
+
+    if (isClientSignup && signedUpUserId) {
+      void runOnboardingAutomationForUser(signedUpUserId)
+    }
+
+    return {
+      redirectTo: isClientSignup
+        ? '/portal'
+        : await postAuthRedirectPath(supabase),
     }
   } catch (error) {
     return { error: authErrorMessage(error) }
-  }
-
-  revalidatePath('/', 'layout')
-  const supabase = await createClient()
-  if (isClientSignup && signedUpUserId) {
-    void runOnboardingAutomationForUser(signedUpUserId)
-  }
-  return {
-    redirectTo: isClientSignup
-      ? '/portal'
-      : await postAuthRedirectPath(supabase),
   }
 }
 
