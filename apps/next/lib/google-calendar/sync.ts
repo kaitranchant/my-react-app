@@ -208,6 +208,7 @@ export async function fetchGoogleBusyAppointments(
       cancelled_at: null,
       cancellation_reason: null,
       rescheduled_to_id: null,
+      series_id: null,
       created_at: interval.startsAt,
     }))
   } catch (error) {

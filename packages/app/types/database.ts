@@ -126,6 +126,7 @@ export type CoachingAppointmentStatus =
   | 'no_show'
   | 'rescheduled'
 export type CoachingAppointmentBookedBy = 'coach' | 'client'
+export type CoachingAppointmentSeriesStatus = 'active' | 'cancelled'
 export type CoachingSessionType =
   | 'coaching'
   | 'nutrition'
@@ -3344,6 +3345,54 @@ export type Database = {
           appointment_id?: string
           recipient?: 'client' | 'coach'
           sent_at?: string
+        }
+        Relationships: []
+      }
+      coaching_appointment_series: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string
+          anchor_starts_at: string
+          duration_minutes: number
+          status: CoachingAppointmentSeriesStatus
+          location: string | null
+          pre_session_notes: string | null
+          coaching_type: ClientCoachingType | null
+          session_type: CoachingSessionType
+          session_pack_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id: string
+          anchor_starts_at: string
+          duration_minutes: number
+          status?: CoachingAppointmentSeriesStatus
+          location?: string | null
+          pre_session_notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          session_type?: CoachingSessionType
+          session_pack_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string
+          anchor_starts_at?: string
+          duration_minutes?: number
+          status?: CoachingAppointmentSeriesStatus
+          location?: string | null
+          pre_session_notes?: string | null
+          coaching_type?: ClientCoachingType | null
+          session_type?: CoachingSessionType
+          session_pack_id?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

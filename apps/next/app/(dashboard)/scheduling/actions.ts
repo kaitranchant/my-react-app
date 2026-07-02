@@ -801,7 +801,7 @@ export async function bookCoachingAppointmentAsCoach(
       return {
         success: false,
         error:
-          repeatCount > 1
+          (repeatCount ?? 1) > 1
             ? `Week ${weekIndex + 1}: ${validation.error}`
             : validation.error,
       }
