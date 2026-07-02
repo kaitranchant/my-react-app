@@ -33,6 +33,7 @@ import {
   sessionBookingSettingsSchema,
   sessionPackSchema,
   updateAppointmentNotesSchema,
+  updateAppointmentSchema,
   updateAppointmentStatusSchema,
 } from '@/lib/validations/session-booking'
 import { notifyClientOfCoachMessage } from '@/lib/notifications/notify-client-coach-message'
@@ -224,6 +225,7 @@ async function validateBookableSlot(options: {
   ignoreMinNotice?: boolean
   settings?: Awaited<ReturnType<typeof fetchCoachSessionBookingSettings>>
   clientTimeZone?: string | null
+  excludeAppointmentId?: string
 }): Promise<
   | { ok: false; error: string }
   | {
@@ -255,6 +257,7 @@ async function validateBookableSlot(options: {
       ignoreMinNotice: options.ignoreMinNotice,
       settings,
       clientTimeZone: options.clientTimeZone,
+      excludeAppointmentId: options.excludeAppointmentId,
     }
   )
 
@@ -1277,6 +1280,124 @@ export async function rescheduleCoachingAppointment(
   return { success: true }
 }
 
+export async function updateCoachingAppointment(
+  values: import('@/lib/validations/session-booking').UpdateAppointmentValues
+): Promise<ActionResult> {
+  const parsed = updateAppointmentSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid appointment data.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { data: appointment } = await ctx.supabase
+    .from('coaching_appointments')
+    .select(
+      'id, client_id, coach_id, status, location, starts_at, ends_at, session_type, session_pack_id'
+    )
+    .eq('id', parsed.data.appointmentId)
+    .eq('coach_id', ctx.user.id)
+    .maybeSingle()
+
+  if (!appointment || appointment.status !== 'scheduled') {
+    return { success: false, error: 'Appointment not found.' }
+  }
+
+  if (parsed.data.clientId !== appointment.client_id) {
+    const access = await requireClientAccess(parsed.data.clientId)
+    if (!access) {
+      return { success: false, error: 'Client not found.' }
+    }
+  }
+
+  const clientChanged = parsed.data.clientId !== appointment.client_id
+  const sessionPackId = clientChanged
+    ? parsed.data.sessionPackId ?? null
+    : parsed.data.sessionPackId !== undefined
+      ? parsed.data.sessionPackId
+      : appointment.session_pack_id
+
+  const validation = await validateBookableSlot({
+    coachId: ctx.user.id,
+    clientId: parsed.data.clientId,
+    startsAt: parsed.data.startsAt,
+    sessionPackId,
+    ignoreMinNotice: true,
+    clientTimeZone: parsed.data.clientTimeZone,
+    excludeAppointmentId: appointment.id,
+  })
+
+  if (!validation.ok) {
+    return { success: false, error: validation.error }
+  }
+
+  const location = parsed.data.location?.trim() || null
+  const sessionType = parsed.data.sessionType ?? appointment.session_type
+
+  const { error } = await ctx.supabase
+    .from('coaching_appointments')
+    .update({
+      client_id: parsed.data.clientId,
+      starts_at: parsed.data.startsAt,
+      ends_at: validation.endsAt,
+      location,
+      session_type: sessionType,
+      session_pack_id: sessionPackId,
+    })
+    .eq('id', appointment.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  queueCoachingAppointmentGoogleSync(appointment.id)
+
+  const timeChanged = appointment.starts_at !== parsed.data.startsAt
+  const locationChanged = (appointment.location ?? '') !== (location ?? '')
+
+  if (
+    parsed.data.notifyClient !== false &&
+    (timeChanged || clientChanged || locationChanged)
+  ) {
+    const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
+    const newWhen = formatAppointmentRange(
+      parsed.data.startsAt,
+      validation.endsAt,
+      coachPreferences.timezone
+    )
+    const changes: string[] = []
+    if (timeChanged) {
+      const previousWhen = formatAppointmentRange(
+        appointment.starts_at,
+        appointment.ends_at,
+        coachPreferences.timezone
+      )
+      changes.push(`time from ${previousWhen} to ${newWhen}`)
+    }
+    if (clientChanged) {
+      changes.push('client assignment')
+    }
+    if (locationChanged) {
+      changes.push(
+        location
+          ? `location to ${location}`
+          : 'location (removed)'
+      )
+    }
+    void notifyClientOfCoachMessage({
+      clientId: parsed.data.clientId,
+      coachId: ctx.user.id,
+      messageBody: `Your session has been updated: ${changes.join(', ')}.`,
+    })
+  }
+
+  revalidateScheduling()
+  return { success: true }
+}
+
 export async function deleteSessionPack(packId: string): Promise<ActionResult> {
   const ctx = await requireCoach()
   if (!ctx) {
@@ -1310,7 +1431,8 @@ export async function getSessionPackUsage(packId: string) {
 
 export async function getCoachAvailableSlots(
   dateKey: string,
-  clientTimeZone?: string
+  clientTimeZone?: string,
+  excludeAppointmentId?: string
 ) {
   const ctx = await requireCoach()
   if (!ctx) {
@@ -1324,7 +1446,11 @@ export async function getCoachAvailableSlots(
     [dateKey],
     coachPreferences,
     new Date(),
-    { ignoreMinNotice: true, clientTimeZone }
+    {
+      ignoreMinNotice: true,
+      clientTimeZone,
+      excludeAppointmentId,
+    }
   )
 
   return { success: true as const, slots }

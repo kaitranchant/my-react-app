@@ -1,10 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { KeyRound, Mail } from 'lucide-react'
+import { Copy, KeyRound, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
+  getClientInviteLink,
   resendClientActivationEmail,
   sendClientPasswordResetEmail,
 } from '@/app/(dashboard)/clients/actions'
@@ -13,6 +14,10 @@ import type { Client } from 'app/types/database'
 
 type ClientAccountEmailActionsProps = {
   client: Client
+}
+
+async function copyInviteUrl(url: string) {
+  await navigator.clipboard.writeText(url)
 }
 
 export function ClientAccountEmailActions({
@@ -36,15 +41,47 @@ export function ClientAccountEmailActions({
     }
   }
 
+  async function handleCopyInviteLink() {
+    setPending(true)
+    try {
+      const result = await getClientInviteLink(client.id)
+
+      if (result.success) {
+        await copyInviteUrl(result.inviteUrl)
+        toast.success('Invite link copied')
+      } else {
+        toast.error(result.error)
+      }
+    } catch {
+      toast.error('Could not copy invite link.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   async function handleResendActivation() {
     setPending(true)
-    const result = await resendClientActivationEmail(client.id)
-    setPending(false)
+    try {
+      const result = await resendClientActivationEmail(client.id)
 
-    if (result.success) {
-      toast.success('Activation email sent')
-    } else {
-      toast.error(result.error)
+      if (result.success) {
+        toast.success('Activation email sent')
+        return
+      }
+
+      if (result.inviteUrl) {
+        await copyInviteUrl(result.inviteUrl)
+        toast.error(result.error, {
+          description: 'Invite link copied so you can send it manually.',
+        })
+        return
+      }
+
+      toast.error(result.error || 'Could not send activation email.')
+    } catch {
+      toast.error('Could not send activation email.')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -80,17 +117,28 @@ export function ClientAccountEmailActions({
           ? `Resend the activation email so ${client.full_name} can create their account.`
           : 'Add an email address to send an activation email.'}
       </p>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-3"
-        disabled={pending || !hasEmail}
-        onClick={handleResendActivation}
-      >
-        <Mail className="size-4" />
-        Resend activation email
-      </Button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending || !hasEmail}
+          onClick={handleResendActivation}
+        >
+          <Mail className="size-4" />
+          Resend activation email
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={handleCopyInviteLink}
+        >
+          <Copy className="size-4" />
+          Copy invite link
+        </Button>
+      </div>
     </div>
   )
 }

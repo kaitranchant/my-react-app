@@ -398,6 +398,7 @@ export async function fetchAvailableSlotsForCoach(
     ignoreMinNotice?: boolean
     settings?: SessionBookingSettings
     clientTimeZone?: string | null
+    excludeAppointmentId?: string
   }
 ) {
   const settings =
@@ -424,11 +425,17 @@ export async function fetchAvailableSlotsForCoach(
     fetchGoogleBusyAppointments(coachId, timeMin, timeMax),
   ])
 
+  const bookedAppointments = options?.excludeAppointmentId
+    ? appointments.filter(
+        (appointment) => appointment.id !== options.excludeAppointmentId
+      )
+    : appointments
+
   return computeAvailableSlots({
     dateKeys,
     rules,
     exceptions,
-    appointments: [...appointments, ...googleBusy],
+    appointments: [...bookedAppointments, ...googleBusy],
     settings,
     timezone: coachPreferences.timezone,
     referenceDate,

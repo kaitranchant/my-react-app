@@ -34,6 +34,8 @@ type SchedulingWeekPanelProps = {
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
   weekKeys: string[]
+  clients: Array<{ id: string; full_name: string | null }>
+  dateOptions: string[]
 }
 
 type WeekViewMode = 'calendar' | 'list'
@@ -55,6 +57,8 @@ export function SchedulingWeekPanel({
   coachPreferences,
   sessionPacks,
   weekKeys: initialWeekKeys,
+  clients,
+  dateOptions,
 }: SchedulingWeekPanelProps) {
   const pathname = usePathname()
   const [viewMode, setViewMode] = React.useState<WeekViewMode>('calendar')
@@ -297,6 +301,8 @@ export function SchedulingWeekPanel({
         }}
         coachPreferences={coachPreferences}
         sessionPacks={sessionPacks}
+        clients={clients}
+        dateOptions={dateOptions}
       />
     </div>
   )

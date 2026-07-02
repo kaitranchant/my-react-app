@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-import { getEmailFromAddress, isEmailDeliveryConfigured } from '@/lib/email/config'
+import { getEmailFromAddress, isEmailDeliveryConfigured, formatResendDeliveryError } from '@/lib/email/config'
 
 export type SendEmailInput = {
   to: string
@@ -40,7 +40,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   })
 
   if (error) {
-    return { ok: false, error: error.message }
+    return { ok: false, error: formatResendDeliveryError(error.message) }
   }
 
   return { ok: true, id: data?.id ?? 'unknown' }

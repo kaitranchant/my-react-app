@@ -10,10 +10,11 @@ import {
   deleteCoachingAppointment,
   endCoachingAppointmentSeries,
   getCoachAvailableSlots,
-  rescheduleCoachingAppointment,
+  updateCoachingAppointment,
   updateCoachingAppointmentNotes,
   updateCoachingAppointmentStatus,
 } from '@/app/(dashboard)/scheduling/actions'
+import { SessionTypeSelect } from '@/components/scheduling/session-type-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -26,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -45,6 +47,9 @@ import {
   type CoachingAppointment,
 } from '@/lib/session-booking-types'
 import { isSessionPackActive, sessionsRemaining } from '@/lib/session-booking-slots'
+import type { CoachingSessionType } from 'app/types/database'
+
+const selectInDialogClassName = 'z-[100] max-h-60'
 
 type AppointmentManageDialogProps = {
   appointment: CoachingAppointment | null
@@ -52,6 +57,8 @@ type AppointmentManageDialogProps = {
   onOpenChange: (open: boolean) => void
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
+  clients: Array<{ id: string; full_name: string | null }>
+  dateOptions: string[]
 }
 
 export function AppointmentManageDialog({
@@ -60,16 +67,23 @@ export function AppointmentManageDialog({
   onOpenChange,
   coachPreferences,
   sessionPacks,
+  clients,
+  dateOptions,
 }: AppointmentManageDialogProps) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
   const [preNotes, setPreNotes] = React.useState('')
   const [postNotes, setPostNotes] = React.useState('')
-  const [rescheduleDateKey, setRescheduleDateKey] = React.useState('')
   const [slots, setSlots] = React.useState<AvailableSlot[]>([])
-  const [rescheduleStartsAt, setRescheduleStartsAt] = React.useState<string>()
   const [noShowPackId, setNoShowPackId] = React.useState<string>()
-  const [showReschedule, setShowReschedule] = React.useState(false)
+  const [showEditDetails, setShowEditDetails] = React.useState(false)
+  const [editClientId, setEditClientId] = React.useState('')
+  const [editDateKey, setEditDateKey] = React.useState('')
+  const [editStartsAt, setEditStartsAt] = React.useState<string>()
+  const [editLocation, setEditLocation] = React.useState('')
+  const [editSessionType, setEditSessionType] =
+    React.useState<CoachingSessionType>('coaching')
+  const [editSessionPackId, setEditSessionPackId] = React.useState<string>()
   const [showDuplicate, setShowDuplicate] = React.useState(false)
   const [duplicateDateKey, setDuplicateDateKey] = React.useState('')
   const [duplicateStartsAt, setDuplicateStartsAt] = React.useState<string>()
@@ -131,13 +145,20 @@ export function AppointmentManageDialog({
     )
   }, [appointment, coachPreferences.timezone, sessionPacks])
 
+  const editClientPacks = React.useMemo(() => {
+    if (!editClientId || !editDateKey) return []
+    return sessionPacks.filter(
+      (pack) =>
+        pack.client_id === editClientId && isSessionPackActive(pack, editDateKey)
+    )
+  }, [editClientId, editDateKey, sessionPacks])
+
   React.useEffect(() => {
     if (!appointment || !open) return
     setPreNotes(appointment.pre_session_notes ?? appointment.notes ?? '')
     setPostNotes(appointment.post_session_notes ?? '')
-    setShowReschedule(false)
+    setShowEditDetails(false)
     setShowDuplicate(false)
-    setRescheduleStartsAt(undefined)
     setDuplicateStartsAt(undefined)
     setNoShowPackId(appointment.session_pack_id ?? undefined)
     setShowCancelDialog(false)
@@ -146,12 +167,17 @@ export function AppointmentManageDialog({
       appointment.starts_at,
       coachPreferences.timezone
     )
-    setRescheduleDateKey(appointmentDateKey)
+    setEditClientId(appointment.client_id)
+    setEditDateKey(appointmentDateKey)
+    setEditStartsAt(appointment.starts_at)
+    setEditLocation(appointment.location ?? '')
+    setEditSessionType(appointment.session_type)
+    setEditSessionPackId(appointment.session_pack_id ?? undefined)
     setDuplicateDateKey(addDaysToDateKey(appointmentDateKey, 7))
   }, [appointment, coachPreferences.timezone, open])
 
-  const slotDateKey = showReschedule
-    ? rescheduleDateKey
+  const slotDateKey = showEditDetails
+    ? editDateKey
     : showDuplicate
       ? duplicateDateKey
       : ''
@@ -163,7 +189,11 @@ export function AppointmentManageDialog({
     }
 
     let cancelled = false
-    getCoachAvailableSlots(slotDateKey, getBrowserTimeZone()).then((result) => {
+    getCoachAvailableSlots(
+      slotDateKey,
+      getBrowserTimeZone(),
+      showEditDetails ? appointment?.id : undefined
+    ).then((result) => {
       if (cancelled) return
       if (result.success) {
         setSlots(result.slots)
@@ -176,7 +206,13 @@ export function AppointmentManageDialog({
     return () => {
       cancelled = true
     }
-  }, [open, slotDateKey])
+  }, [open, slotDateKey, showEditDetails, appointment?.id])
+
+  React.useEffect(() => {
+    if (!showEditDetails) return
+    setEditStartsAt(undefined)
+    setEditSessionPackId(undefined)
+  }, [editClientId, editDateKey])
 
   if (!appointment) {
     return null
@@ -259,23 +295,27 @@ export function AppointmentManageDialog({
     }
   }
 
-  async function handleReschedule() {
-    if (!rescheduleStartsAt) {
-      toast.error('Select a new time slot.')
+  async function handleSaveDetails() {
+    if (!editStartsAt) {
+      toast.error('Select a time slot.')
       return
     }
 
     setPending(true)
-    const result = await rescheduleCoachingAppointment({
+    const result = await updateCoachingAppointment({
       appointmentId: appointment!.id,
-      startsAt: rescheduleStartsAt,
+      clientId: editClientId,
+      startsAt: editStartsAt,
+      location: editLocation || null,
+      sessionType: editSessionType,
+      sessionPackId: editSessionPackId ?? null,
       notifyClient: true,
       clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 
     if (result.success) {
-      await refreshAfterSuccess('Session rescheduled and client notified')
+      await refreshAfterSuccess('Session updated and client notified')
     } else {
       toast.error(result.error)
     }
@@ -330,16 +370,18 @@ export function AppointmentManageDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[100] max-h-60">
-              {Array.from({ length: 14 }, (_, index) => {
-                const date = new Date()
-                date.setDate(date.getDate() + index)
-                const key = date.toISOString().slice(0, 10)
-                return (
-                  <SelectItem key={key} value={key}>
-                    {formatDayHeader(key)} · {key}
-                  </SelectItem>
-                )
-              })}
+              {(dateOptions.length > 0
+                ? dateOptions
+                : Array.from({ length: 14 }, (_, index) => {
+                    const date = new Date()
+                    date.setDate(date.getDate() + index)
+                    return date.toISOString().slice(0, 10)
+                  })
+              ).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {formatDayHeader(key)} · {key}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -444,6 +486,143 @@ export function AppointmentManageDialog({
 
           {canManage ? (
             <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">Session details</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    setShowDuplicate(false)
+                    setShowEditDetails((value) => {
+                      if (!value && appointment) {
+                        setEditStartsAt(appointment.starts_at)
+                        setEditSessionPackId(appointment.session_pack_id ?? undefined)
+                      }
+                      return !value
+                    })
+                  }}
+                >
+                  {showEditDetails ? 'Hide editor' : 'Edit details'}
+                </Button>
+              </div>
+
+              {showEditDetails ? (
+                <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
+                  <div className="space-y-2">
+                    <Label>Client</Label>
+                    <Select value={editClientId} onValueChange={setEditClientId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select client" />
+                      </SelectTrigger>
+                      <SelectContent className={selectInDialogClassName}>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.full_name ?? 'Unnamed client'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <SessionTypeSelect
+                    value={editSessionType}
+                    onValueChange={setEditSessionType}
+                    contentClassName={selectInDialogClassName}
+                  />
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Date</Label>
+                      <Select
+                        value={editDateKey}
+                        onValueChange={(value) => {
+                          setEditDateKey(value)
+                          setEditStartsAt(undefined)
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className={selectInDialogClassName}>
+                          {(dateOptions.length > 0
+                            ? dateOptions
+                            : Array.from({ length: 14 }, (_, index) => {
+                                const date = new Date()
+                                date.setDate(date.getDate() + index)
+                                return date.toISOString().slice(0, 10)
+                              })
+                          ).map((key) => (
+                            <SelectItem key={key} value={key}>
+                              {formatDayHeader(key)} · {key}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Time</Label>
+                      <Select
+                        value={editStartsAt}
+                        onValueChange={setEditStartsAt}
+                        disabled={slots.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select slot" />
+                        </SelectTrigger>
+                        <SelectContent className={selectInDialogClassName}>
+                          {slots.map((slot) => (
+                            <SelectItem key={slot.startsAt} value={slot.startsAt}>
+                              {slot.startTimeLabel}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {editClientPacks.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label>Session pack (optional)</Label>
+                      <Select
+                        value={editSessionPackId}
+                        onValueChange={setEditSessionPackId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pack" />
+                        </SelectTrigger>
+                        <SelectContent className={selectInDialogClassName}>
+                          {editClientPacks.map((pack) => (
+                            <SelectItem key={pack.id} value={pack.id}>
+                              {pack.label} ({sessionsRemaining(pack)} left)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      value={editLocation}
+                      onChange={(event) => setEditLocation(event.target.value)}
+                      placeholder="Gym, studio, Zoom…"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending || !editStartsAt}
+                    onClick={() => void handleSaveDetails()}
+                  >
+                    Save changes
+                  </Button>
+                </div>
+              ) : null}
+
               {!appointment.session_pack_id && clientPacks.length > 0 ? (
                 <div className="space-y-2">
                   <Label>Deduct session pack on no-show (optional)</Label>
@@ -483,18 +662,6 @@ export function AppointmentManageDialog({
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => {
-                    setShowDuplicate(false)
-                    setShowReschedule((value) => !value)
-                  }}
-                >
-                  Reschedule
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
                   variant="destructive"
                   disabled={pending}
                   onClick={() => {
@@ -522,17 +689,6 @@ export function AppointmentManageDialog({
                   Stop all future sessions
                 </Button>
               ) : null}
-
-              {showReschedule
-                ? slotPicker(
-                    rescheduleDateKey,
-                    rescheduleStartsAt,
-                    setRescheduleDateKey,
-                    setRescheduleStartsAt,
-                    'Confirm reschedule',
-                    handleReschedule
-                  )
-                : null}
             </div>
           ) : null}
 
@@ -549,7 +705,7 @@ export function AppointmentManageDialog({
                 variant="outline"
                 disabled={pending}
                 onClick={() => {
-                  setShowReschedule(false)
+                  setShowEditDetails(false)
                   setShowDuplicate((value) => !value)
                 }}
               >

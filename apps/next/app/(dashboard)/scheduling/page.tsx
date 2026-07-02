@@ -177,6 +177,8 @@ export default async function SchedulingPage({
                 coachPreferences={coachPreferences}
                 sessionPacks={sessionPacks}
                 weekKeys={weekKeys}
+                clients={clients ?? []}
+                dateOptions={bookingDateKeys}
               />
             </CardContent>
           </Card>

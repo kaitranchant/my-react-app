@@ -1,11 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient, findAuthUserByEmail } from '@/lib/supabase/admin'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
+import { sendClientInviteEmail } from '@/lib/email/client-invite'
+import { getAppBaseUrl } from '@/lib/email/config'
 import { getGymMembershipForCoach, getGymIdsForCoach } from '@/lib/gym-access'
 import { buildClientInviteUrl } from '@/lib/invite'
 import {
@@ -20,6 +20,10 @@ import type { ClientCoachingType, ClientStatus } from 'app/types/database'
 import { getCoachSubscriptionContext, assertCanAddClient } from '@/lib/subscription-entitlements'
 
 export type ActionResult = { success: true } | { success: false; error: string }
+
+export type ActivationEmailResult =
+  | { success: true }
+  | { success: false; error: string; inviteUrl?: string }
 
 export type CreateClientResult =
   | { success: true; clientId: string }
@@ -38,10 +42,6 @@ async function requireUser() {
     throw new Error('You must be signed in.')
   }
   return { supabase, user }
-}
-
-async function getOrigin() {
-  return (await headers()).get('origin') ?? ''
 }
 
 function inviteExpiresAt() {
@@ -281,39 +281,44 @@ export async function inviteClientRecord(
     return { success: false, error: clientLimitCheck.error }
   }
 
-  const { data, error } = await supabase
+  const { data: clientId, error } = await supabase.rpc('coach_create_client', {
+    p_full_name: parsed.data.fullName,
+    p_email: parsed.data.email,
+    p_phone: '',
+    p_status: 'active',
+    p_coaching_type: coachingTypeForInsert(parsed.data.coachingType),
+    p_gym_id: gymResult.gymId,
+    p_goal: parsed.data.goal ?? '',
+    p_notes: '',
+  })
+
+  if (error || !clientId) {
+    return { success: false, error: error?.message ?? 'Could not create invite.' }
+  }
+
+  const { error: inviteError } = await supabase
     .from('clients')
-    .insert({
-      coach_id: user.id,
-      full_name: parsed.data.fullName,
-      email: parsed.data.email,
-      coaching_type:
-        parsed.data.coachingType && parsed.data.coachingType !== 'none'
-          ? parsed.data.coachingType
-          : null,
-      gym_id: gymResult.gymId,
-      goal: parsed.data.goal ? parsed.data.goal : null,
-      status: 'active',
+    .update({
       invite_status: 'pending',
       invite_token: token,
       invite_expires_at: inviteExpiresAt(),
       biological_sex: biologicalSexFromForm(parsed.data.biologicalSex),
       leaderboard_opt_out: parsed.data.leaderboardOptOut ?? false,
     })
-    .select('id')
-    .single()
+    .eq('id', clientId)
+    .eq('coach_id', user.id)
 
-  if (error || !data) {
-    return { success: false, error: error?.message ?? 'Could not create invite.' }
+  if (inviteError) {
+    return { success: false, error: inviteError.message }
   }
 
   revalidateClients()
   revalidatePath('/leaderboards')
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   return {
     success: true,
     inviteUrl: buildClientInviteUrl(token, origin),
-    clientId: data.id,
+    clientId,
   }
 }
 
@@ -361,7 +366,7 @@ export async function sendClientInvite(
 
   revalidateClients()
   revalidatePath(`/clients/${clientId}`)
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   return {
     success: true,
     inviteUrl: buildClientInviteUrl(token, origin),
@@ -396,7 +401,7 @@ export async function getClientInviteLink(
     return { success: false, error: 'Invite has expired. Send a new one.' }
   }
 
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   return {
     success: true,
     inviteUrl: buildClientInviteUrl(client.invite_token, origin),
@@ -540,7 +545,7 @@ export async function sendClientPasswordResetEmail(
     }
   }
 
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   const { error } = await supabase.auth.resetPasswordForEmail(
     client.email.trim(),
     {
@@ -557,7 +562,7 @@ export async function sendClientPasswordResetEmail(
 
 export async function resendClientActivationEmail(
   clientId: string
-): Promise<ActionResult> {
+): Promise<ActivationEmailResult> {
   const { supabase, user } = await requireUser()
 
   const { data: client, error: fetchError } = await supabase
@@ -591,9 +596,6 @@ export async function resendClientActivationEmail(
   }
 
   const email = client.email.trim()
-  const origin = (await getOrigin()).replace(/\/$/, '')
-  const redirectTo = `${origin}/auth/callback?next=/portal`
-
   let token = client.invite_token
   const inviteExpired =
     client.invite_expires_at &&
@@ -616,58 +618,30 @@ export async function resendClientActivationEmail(
     }
   }
 
-  const admin = createAdminClient()
-  if (!admin) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, business_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const coachName =
+    profile?.full_name?.trim() ||
+    profile?.business_name?.trim() ||
+    'Your coach'
+
+  const inviteUrl = buildClientInviteUrl(token, getAppBaseUrl())
+  const emailResult = await sendClientInviteEmail({
+    clientName: client.full_name,
+    clientEmail: email,
+    coachName,
+    inviteUrl,
+  })
+
+  if (!emailResult.ok) {
     return {
       success: false,
-      error:
-        'Activation emails require SUPABASE_SERVICE_ROLE_KEY in your server environment.',
-    }
-  }
-
-  try {
-    const authUser = await findAuthUserByEmail(admin, email)
-
-    if (authUser && !authUser.email_confirmed_at) {
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: { emailRedirectTo: redirectTo },
-      })
-
-      if (resendError) {
-        return { success: false, error: resendError.message }
-      }
-    } else if (authUser) {
-      return {
-        success: false,
-        error:
-          'This email already has a confirmed account. Ask the client to sign in or send a password reset instead.',
-      }
-    } else {
-      const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-        email,
-        {
-          redirectTo,
-          data: {
-            full_name: client.full_name,
-            role: 'client',
-            invite_token: token,
-          },
-        }
-      )
-
-      if (inviteError) {
-        return { success: false, error: inviteError.message }
-      }
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Could not send activation email.',
+      error: emailResult.error,
+      inviteUrl,
     }
   }
 

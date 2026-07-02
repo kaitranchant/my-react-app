@@ -1,9 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
+import { getAppBaseUrl } from '@/lib/email/config'
 import {
   getGymMembershipForCoach,
   requireUser,
@@ -37,10 +37,6 @@ export type CreateGymResult =
 export type InviteCoachResult =
   | { success: true; inviteUrl: string }
   | { success: false; error: string }
-
-async function getOrigin() {
-  return (await headers()).get('origin') ?? ''
-}
 
 function inviteExpiresAt() {
   const expires = new Date()
@@ -226,7 +222,7 @@ export async function inviteCoachToGym(
     return { success: false, error: inviteError?.message ?? 'Could not send invite.' }
   }
 
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   revalidateGym()
   return {
     success: true,
@@ -386,7 +382,7 @@ export async function getGymInviteLink(
     return { success: false, error: 'Invite not found.' }
   }
 
-  const origin = await getOrigin()
+  const origin = getAppBaseUrl()
   return {
     success: true,
     inviteUrl: buildGymJoinUrl(invite.invite_token, origin),

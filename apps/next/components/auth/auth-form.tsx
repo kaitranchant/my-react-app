@@ -152,7 +152,9 @@ export function AuthForm({
               className="bg-destructive/5 text-destructive rounded-lg border border-destructive/15 px-3 py-2.5 text-sm leading-relaxed"
               role="alert"
             >
-              {state.error}
+              {typeof state.error === 'string'
+                ? state.error
+                : 'Something went wrong. Please try again.'}
             </div>
           )}
           {state.message && (

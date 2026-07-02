@@ -25,3 +25,15 @@ export function getEmailFromAddress(): string {
   }
   return from
 }
+
+export function formatResendDeliveryError(message: string): string {
+  if (/only send testing emails to your own email address/i.test(message)) {
+    return 'Resend is in test mode, so only your Resend account email can receive messages. Verify a domain at resend.com/domains, update RESEND_FROM_EMAIL, or copy the invite link and send it manually.'
+  }
+
+  if (/verify a domain/i.test(message)) {
+    return 'Verify a domain at resend.com/domains and set RESEND_FROM_EMAIL to an address on that domain before sending client emails.'
+  }
+
+  return message
+}

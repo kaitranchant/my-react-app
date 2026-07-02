@@ -2,35 +2,20 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 
 import { createClient } from '@/lib/supabase/server'
+import {
+  authErrorMessage,
+  formatSupabaseAuthError,
+} from '@/lib/auth/errors'
+import { recoverExistingClientInviteSignup } from '@/lib/auth/client-invite-signup'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
+import { getAppBaseUrl } from '@/lib/email/config'
 
 export type AuthState = {
   error?: string
   message?: string
   redirectTo?: string
-}
-
-function formatAuthError(message: string): string {
-  if (message === 'fetch failed') {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)'
-    return `Could not connect to Supabase at ${url}. Open Supabase Dashboard → Project Settings → API, copy the Project URL and anon key into apps/next/.env.local, then restart \`yarn web\`.`
-  }
-  return message
-}
-
-function authErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    const cause = error.cause as NodeJS.ErrnoException | undefined
-    if (cause?.code === 'ENOTFOUND') {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)'
-      return `Could not reach Supabase at ${url}. That hostname does not exist — copy the correct Project URL from Supabase Dashboard → Project Settings → API into apps/next/.env.local.`
-    }
-    return formatAuthError(error.message)
-  }
-  return 'Something went wrong. Please try again.'
 }
 
 function missingEnvError(): AuthState | null {
@@ -67,6 +52,12 @@ function isSafeRedirectPath(path: string | null | undefined): path is string {
   return Boolean(path?.startsWith('/') && !path.startsWith('//'))
 }
 
+function inviteSignupDatabaseError(isClientSignup: boolean): string {
+  return isClientSignup
+    ? 'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.'
+    : 'Could not complete signup. The gym invite may be invalid, expired, or the email may not match.'
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
@@ -87,7 +78,7 @@ export async function login(
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      return { error: formatAuthError(error.message) }
+      return { error: formatSupabaseAuthError(error) }
     }
   } catch (error) {
     return { error: authErrorMessage(error) }
@@ -151,46 +142,74 @@ export async function signup(
 
   const isClientSignup = Boolean(inviteToken)
   let signedUpUserId: string | null = null
+  let retriedAfterOrphanCleanup = false
 
   try {
-    const origin = (await headers()).get('origin') ?? ''
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: isClientSignup ? 'client' : 'coach',
-          invite_token: inviteToken || undefined,
-          gym_invite_token: gymInviteToken || undefined,
-        },
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    })
 
-    if (error) {
-      const message = formatAuthError(error.message)
-      if (message.toLowerCase().includes('database error saving new user')) {
+    while (true) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: isClientSignup ? 'client' : 'coach',
+            invite_token: inviteToken || undefined,
+            gym_invite_token: gymInviteToken || undefined,
+          },
+          emailRedirectTo: `${getAppBaseUrl()}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        const message = formatSupabaseAuthError(error)
+
+        if (message === 'DATABASE_ERROR_SAVING_USER') {
+          return { error: inviteSignupDatabaseError(isClientSignup) }
+        }
+
+        if (message === 'USER_ALREADY_EXISTS' && isClientSignup) {
+          const recovery = await recoverExistingClientInviteSignup(supabase, {
+            email,
+            password,
+            inviteToken,
+          })
+
+          if (recovery.ok) {
+            signedUpUserId = recovery.userId
+            break
+          }
+
+          if (recovery.canRetrySignup && !retriedAfterOrphanCleanup) {
+            retriedAfterOrphanCleanup = true
+            continue
+          }
+
+          return { error: recovery.error }
+        }
+
+        if (message === 'USER_ALREADY_EXISTS') {
+          return {
+            error:
+              'An account with this email already exists. Sign in instead.',
+          }
+        }
+
+        return { error: message }
+      }
+
+      if (!data.session) {
         return {
-          error: isClientSignup
-            ? 'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.'
-            : 'Could not complete signup. The gym invite may be invalid, expired, or the email may not match.',
+          message: isClientSignup
+            ? 'Check your email to confirm your account, then sign in to view your program.'
+            : 'Check your email to confirm your account, then sign in.',
         }
       }
-      return { error: message }
-    }
 
-    // When email confirmation is enabled, no session is returned yet.
-    if (!data.session) {
-      return {
-        message: isClientSignup
-          ? 'Check your email to confirm your account, then sign in to view your program.'
-          : 'Check your email to confirm your account, then sign in.',
-      }
+      signedUpUserId = data.user?.id ?? null
+      break
     }
-
-    signedUpUserId = data.user?.id ?? null
   } catch (error) {
     return { error: authErrorMessage(error) }
   }

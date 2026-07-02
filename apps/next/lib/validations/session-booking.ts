@@ -152,6 +152,19 @@ export type RescheduleAppointmentValues = z.infer<
   typeof rescheduleAppointmentSchema
 >
 
+export const updateAppointmentSchema = z.object({
+  appointmentId: z.string().uuid(),
+  clientId: z.string().uuid(),
+  startsAt: z.string().datetime({ offset: true }),
+  location: z.string().max(500).optional().nullable(),
+  sessionType: z.enum(coachingSessionTypes).optional(),
+  sessionPackId: z.string().uuid().optional().nullable(),
+  notifyClient: z.boolean().optional(),
+  clientTimeZone: z.string().min(1).optional(),
+})
+
+export type UpdateAppointmentValues = z.infer<typeof updateAppointmentSchema>
+
 export type UpdateAppointmentStatusValues = z.infer<
   typeof updateAppointmentStatusSchema
 >
