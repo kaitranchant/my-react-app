@@ -75,6 +75,31 @@ export function formatSupabaseAuthError(error: unknown): string {
   return GENERIC_AUTH_ERROR
 }
 
+export function isUserAlreadyExistsError(error: SupabaseAuthErrorLike): boolean {
+  const message = readAuthErrorMessage(error).toLowerCase()
+  const code = typeof error.code === 'string' ? error.code : ''
+  return (
+    code === 'user_already_exists' ||
+    message.includes('already registered') ||
+    message.includes('already been registered')
+  )
+}
+
+export function isEmailNotConfirmedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const record = error as SupabaseAuthErrorLike
+  const message = readAuthErrorMessage(record).toLowerCase()
+  const code = typeof record.code === 'string' ? record.code : ''
+
+  return (
+    code === 'email_not_confirmed' ||
+    message.includes('email not confirmed')
+  )
+}
+
 export function formatClientInviteLinkError(message: string): string {
   if (message.includes('Invalid or expired invite')) {
     return 'This invite link is invalid or has expired. Ask your coach for a new one.'

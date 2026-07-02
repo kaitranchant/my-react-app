@@ -9,8 +9,8 @@ import {
   formatSupabaseAuthError,
 } from '@/lib/auth/errors'
 import {
-  linkClientInviteForUser,
-  recoverExistingClientInviteSignup,
+  registerInvitedClient,
+  signInClientAccount,
 } from '@/lib/auth/client-invite-signup'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
@@ -94,10 +94,10 @@ export async function login(
 
   try {
     const supabase = await createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const signIn = await signInClientAccount(supabase, { email, password })
 
-    if (error) {
-      return { error: formatSupabaseAuthError(error) }
+    if (!signIn.ok) {
+      return { error: signIn.error }
     }
   } catch (error) {
     return { error: authErrorMessage(error) }
@@ -161,12 +161,24 @@ export async function signup(
 
   const isClientSignup = Boolean(inviteToken)
   let signedUpUserId: string | null = null
-  let retriedAfterOrphanCleanup = false
 
   try {
     const supabase = await createClient()
 
-    while (true) {
+    if (isClientSignup) {
+      const registered = await registerInvitedClient(supabase, {
+        email,
+        password,
+        fullName,
+        inviteToken,
+      })
+
+      if (!registered.ok) {
+        return { error: registered.error }
+      }
+
+      signedUpUserId = registered.userId
+    } else {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -177,7 +189,7 @@ export async function signup(
             inviteToken,
             gymInviteToken,
           }),
-          emailRedirectTo: `${getAppBaseUrl()}/auth/callback?next=/portal`,
+          emailRedirectTo: `${getAppBaseUrl()}/auth/callback`,
         },
       })
 
@@ -186,26 +198,6 @@ export async function signup(
 
         if (message === 'DATABASE_ERROR_SAVING_USER') {
           return { error: inviteSignupDatabaseError(isClientSignup) }
-        }
-
-        if (message === 'USER_ALREADY_EXISTS' && isClientSignup) {
-          const recovery = await recoverExistingClientInviteSignup(supabase, {
-            email,
-            password,
-            inviteToken,
-          })
-
-          if (recovery.ok) {
-            signedUpUserId = recovery.userId
-            break
-          }
-
-          if (recovery.canRetrySignup && !retriedAfterOrphanCleanup) {
-            retriedAfterOrphanCleanup = true
-            continue
-          }
-
-          return { error: recovery.error }
         }
 
         if (message === 'USER_ALREADY_EXISTS') {
@@ -220,27 +212,12 @@ export async function signup(
 
       if (!data.session) {
         return {
-          message: isClientSignup
-            ? 'Check your email to confirm your account, then sign in to view your program.'
-            : 'Check your email to confirm your account, then sign in.',
+          message:
+            'Check your email to confirm your account, then sign in.',
         }
       }
 
       signedUpUserId = data.user?.id ?? null
-
-      if (isClientSignup && signedUpUserId) {
-        const linked = await linkClientInviteForUser(supabase, {
-          inviteToken,
-          userId: signedUpUserId,
-          email,
-        })
-
-        if (!linked.ok) {
-          return { error: linked.error }
-        }
-      }
-
-      break
     }
 
     revalidatePath('/', 'layout')

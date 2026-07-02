@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { formatSupabaseAuthError, normalizeAuthFormError } from './errors'
+import {
+  formatSupabaseAuthError,
+  isEmailNotConfirmedError,
+  normalizeAuthFormError,
+} from './errors'
 
 test('formatSupabaseAuthError maps user already exists', () => {
   assert.equal(
@@ -22,4 +26,14 @@ test('formatSupabaseAuthError falls back when message is missing', () => {
 
 test('normalizeAuthFormError maps empty object strings to a friendly message', () => {
   assert.equal(normalizeAuthFormError('{}'), 'Something went wrong. Please try again.')
+})
+
+test('isEmailNotConfirmedError detects unconfirmed auth errors', () => {
+  assert.equal(
+    isEmailNotConfirmedError({
+      code: 'email_not_confirmed',
+      message: 'Email not confirmed',
+    }),
+    true
+  )
 })
