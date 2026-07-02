@@ -497,7 +497,7 @@ async function fetchProgramWorkoutExerciseRows(
 ): Promise<OrderedExerciseRow[]> {
   const { data, error } = await supabase
     .from('program_scheduled_workout_exercises')
-    .select('id, sort_order, exercise_block')
+    .select('id, sort_order, exercise_block, superset_group')
     .eq('program_scheduled_workout_id', workoutId)
     .order('sort_order', { ascending: true })
 
@@ -509,6 +509,7 @@ async function fetchProgramWorkoutExerciseRows(
     id: row.id,
     sort_order: row.sort_order,
     exercise_block: row.exercise_block as ScheduledExerciseBlock | null,
+    superset_group: row.superset_group,
   }))
 }
 
@@ -866,7 +867,8 @@ export async function addProgramScheduledExercise(
   const orderedIds = buildOrderedIdsAfterInsert(
     existingRows,
     inserted.id,
-    newBlock
+    newBlock,
+    { newSupersetGroup: dbRow.superset_group }
   )
   const orderResult = await applyProgramExerciseSortOrders(supabase, orderedIds)
   if (!orderResult.success) {
@@ -896,7 +898,7 @@ export async function updateProgramScheduledExercise(
 
   const { data: row, error: rowError } = await supabase
     .from('program_scheduled_workout_exercises')
-    .select('id, program_scheduled_workout_id, exercise_block')
+    .select('id, program_scheduled_workout_id, exercise_block, superset_group')
     .eq('id', exerciseRowId)
     .maybeSingle()
 
@@ -923,6 +925,7 @@ export async function updateProgramScheduledExercise(
   const dbRow = prescriptionValuesToDbRow(parsed.data)
   const newBlock = dbRow.exercise_block
   const blockChanged = row.exercise_block !== newBlock
+  const supersetGroupChanged = row.superset_group !== dbRow.superset_group
 
   const { error: updateError } = await supabase
     .from('program_scheduled_workout_exercises')
@@ -933,7 +936,7 @@ export async function updateProgramScheduledExercise(
     return { success: false, error: mapProgramCalendarDbError(updateError.message) }
   }
 
-  if (blockChanged) {
+  if (blockChanged || supersetGroupChanged) {
     const existingRows = await fetchProgramWorkoutExerciseRows(
       supabase,
       row.program_scheduled_workout_id
@@ -942,7 +945,10 @@ export async function updateProgramScheduledExercise(
       existingRows,
       exerciseRowId,
       newBlock,
-      exerciseRowId
+      {
+        excludeId: exerciseRowId,
+        newSupersetGroup: dbRow.superset_group,
+      }
     )
     const orderResult = await applyProgramExerciseSortOrders(supabase, orderedIds)
     if (!orderResult.success) {

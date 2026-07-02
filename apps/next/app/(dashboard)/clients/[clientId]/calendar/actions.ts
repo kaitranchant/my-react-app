@@ -110,7 +110,7 @@ async function fetchWorkoutExerciseRows(
 ): Promise<OrderedExerciseRow[]> {
   const { data, error } = await supabase
     .from('scheduled_workout_exercises')
-    .select('id, sort_order, exercise_block')
+    .select('id, sort_order, exercise_block, superset_group')
     .eq('scheduled_workout_id', workoutId)
     .order('sort_order', { ascending: true })
 
@@ -122,6 +122,7 @@ async function fetchWorkoutExerciseRows(
     id: row.id,
     sort_order: row.sort_order,
     exercise_block: row.exercise_block as ScheduledExerciseBlock | null,
+    superset_group: row.superset_group,
   }))
 }
 
@@ -756,7 +757,8 @@ export async function addScheduledExercise(
   const orderedIds = buildOrderedIdsAfterInsert(
     existingRows,
     inserted.id,
-    newBlock
+    newBlock,
+    { newSupersetGroup: dbRow.superset_group }
   )
   const orderResult = await applyExerciseSortOrders(supabase, orderedIds)
   if (!orderResult.success) {
@@ -786,7 +788,7 @@ export async function updateScheduledExercise(
 
   const { data: row, error: rowError } = await supabase
     .from('scheduled_workout_exercises')
-    .select('id, scheduled_workout_id, exercise_block')
+    .select('id, scheduled_workout_id, exercise_block, superset_group')
     .eq('id', exerciseRowId)
     .maybeSingle()
 
@@ -808,6 +810,7 @@ export async function updateScheduledExercise(
   const dbRow = prescriptionValuesToDbRow(parsed.data)
   const newBlock = dbRow.exercise_block
   const blockChanged = row.exercise_block !== newBlock
+  const supersetGroupChanged = row.superset_group !== dbRow.superset_group
 
   const { error } = await supabase
     .from('scheduled_workout_exercises')
@@ -818,7 +821,7 @@ export async function updateScheduledExercise(
     return { success: false, error: error.message }
   }
 
-  if (blockChanged) {
+  if (blockChanged || supersetGroupChanged) {
     const existingRows = await fetchWorkoutExerciseRows(
       supabase,
       row.scheduled_workout_id
@@ -827,7 +830,10 @@ export async function updateScheduledExercise(
       existingRows,
       exerciseRowId,
       newBlock,
-      exerciseRowId
+      {
+        excludeId: exerciseRowId,
+        newSupersetGroup: dbRow.superset_group,
+      }
     )
     const orderResult = await applyExerciseSortOrders(supabase, orderedIds)
     if (!orderResult.success) {

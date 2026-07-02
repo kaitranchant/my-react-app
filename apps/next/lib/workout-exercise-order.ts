@@ -5,6 +5,7 @@ export type OrderedExerciseRow = {
   id: string
   sort_order: number
   exercise_block: ScheduledExerciseBlock | null
+  superset_group: string | null
 }
 
 const BLOCK_RANK = new Map<ScheduledExerciseBlock, number>(
@@ -25,19 +26,36 @@ function sortByOrder(rows: OrderedExerciseRow[]): OrderedExerciseRow[] {
   return [...rows].sort((a, b) => a.sort_order - b.sort_order)
 }
 
+export type InsertOrderOptions = {
+  excludeId?: string
+  newSupersetGroup?: string | null
+}
+
 /**
  * Returns the index (0..length) where a new exercise should be inserted so it
- * lands in the correct section — after peers with the same block, or by canonical
- * block order when no peers exist yet.
+ * lands with its superset peers or in the correct section by block.
  */
 export function computeInsertIndex(
   exercises: OrderedExerciseRow[],
   newBlock: ScheduledExerciseBlock | null,
-  excludeId?: string
+  options: InsertOrderOptions = {}
 ): number {
+  const { excludeId, newSupersetGroup } = options
   const sorted = sortByOrder(
     excludeId ? exercises.filter((row) => row.id !== excludeId) : exercises
   )
+
+  if (newSupersetGroup) {
+    let lastSameGroupIndex = -1
+    for (let index = 0; index < sorted.length; index++) {
+      if (sorted[index].superset_group === newSupersetGroup) {
+        lastSameGroupIndex = index
+      }
+    }
+    if (lastSameGroupIndex >= 0) {
+      return lastSameGroupIndex + 1
+    }
+  }
 
   if (newBlock) {
     let lastSameBlockIndex = -1
@@ -72,17 +90,18 @@ export function computeInsertIndex(
   return sorted.length
 }
 
-/** Build a full id list with `newId` inserted at the computed section position. */
+/** Build a full id list with `newId` inserted at the computed position. */
 export function buildOrderedIdsAfterInsert(
   exercises: OrderedExerciseRow[],
   newId: string,
   newBlock: ScheduledExerciseBlock | null,
-  excludeId?: string
+  options: InsertOrderOptions = {}
 ): string[] {
+  const { excludeId } = options
   const sorted = sortByOrder(
     excludeId ? exercises.filter((row) => row.id !== excludeId) : exercises
   )
-  const insertIndex = computeInsertIndex(exercises, newBlock, excludeId)
+  const insertIndex = computeInsertIndex(exercises, newBlock, options)
   const ids = sorted.map((row) => row.id)
   ids.splice(insertIndex, 0, newId)
   return ids
