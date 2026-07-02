@@ -118,173 +118,205 @@ export function PortalNutritionPanel({
   const setupFormDue = isNutritionSetupFormDue(profile)
 
   return (
-    <div className="grid gap-6">
-      {setupFormDue ? (
-        <PortalNutritionSetupFormCard
-          profile={profile}
-          defaultBiologicalSex={defaultBiologicalSex}
-        />
-      ) : null}
+    <div className="flex flex-col gap-8 md:gap-10">
+      <section aria-labelledby="portal-nutrition-adherence-heading" className="grid gap-4">
+        <div className="space-y-1">
+          <h2
+            id="portal-nutrition-adherence-heading"
+            className="text-lg font-semibold tracking-tight"
+          >
+            Daily adherence
+          </h2>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Log how closely you followed your plan and review your recent
+            progress.
+          </p>
+        </div>
 
-      <TodaysMealsCard
-        assignment={assignment}
-        days={planDays}
-        todayKey={todayKey}
-        profile={profile}
-      />
-
-      <ShoppingListCard
-        assignment={assignment}
-        days={planDays}
-        planName={assignment?.meal_plan?.name}
-      />
-
-      <FoodDiaryPanel
-        entries={foodDiaryEntries}
-        enableDateNavigation
-        profile={profile}
-        nutritionLog={viewedLog}
-        waterMl={values.waterMl}
-        fiberG={values.fiberG}
-        onLogDateChange={setViewedDate}
-        onAdd={async (entryValues) => {
-          const result = await addFoodDiaryEntry(entryValues)
-          if (result.success) {
-            router.refresh()
-          } else {
-            toast.error(result.error)
-          }
-          return result
-        }}
-        onDelete={async (entryId) => {
-          const result = await deleteFoodDiaryEntry(entryId)
-          if (result.success) {
-            router.refresh()
-          } else {
-            toast.error(result.error)
-          }
-          return result
-        }}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {isViewingToday
-              ? "Today's adherence"
-              : `Adherence for ${adherenceDateLabel}`}
-          </CardTitle>
-          <CardDescription>
-            {isViewingToday
-              ? 'How closely did you follow your nutrition plan today?'
-              : `How closely did you follow your nutrition plan on ${adherenceDateLabel}?`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid gap-4">
-            <NutritionAdherenceSelector
-              value={values.adherenceScore}
-              onChange={(score) =>
-                setValues((current) => ({
-                  ...current,
-                  adherenceScore: score,
-                }))
-              }
-              disabled={pending}
-            />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="nutrition-fiber">
-                  Fiber{isViewingToday ? ' today' : ''} (g)
-                </Label>
-                <Input
-                  id="nutrition-fiber"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="Optional"
-                  value={values.fiberG ?? ''}
-                  onChange={(event) =>
-                    setValues((current) => ({
-                      ...current,
-                      fiberG:
-                        event.target.value === ''
-                          ? null
-                          : Number(event.target.value),
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="nutrition-water">
-                  Water{isViewingToday ? ' today' : ''} (ml)
-                </Label>
-                <Input
-                  id="nutrition-water"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="Optional"
-                  value={values.waterMl ?? ''}
-                  onChange={(event) =>
-                    setValues((current) => ({
-                      ...current,
-                      waterMl:
-                        event.target.value === ''
-                          ? null
-                          : Number(event.target.value),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="nutrition-client-notes">Notes (optional)</Label>
-              <Textarea
-                id="nutrition-client-notes"
-                rows={2}
-                placeholder={
-                  isViewingToday
-                    ? 'Anything you want your coach to know about today'
-                    : 'Anything you want your coach to know about this day'
-                }
-                value={values.clientNotes ?? ''}
-                onChange={(event) =>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {isViewingToday
+                ? "Today's adherence"
+                : `Adherence for ${adherenceDateLabel}`}
+            </CardTitle>
+            <CardDescription>
+              {isViewingToday
+                ? 'How closely did you follow your nutrition plan today?'
+                : `How closely did you follow your nutrition plan on ${adherenceDateLabel}?`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="grid gap-4">
+              <NutritionAdherenceSelector
+                value={values.adherenceScore}
+                onChange={(score) =>
                   setValues((current) => ({
                     ...current,
-                    clientNotes: event.target.value || null,
+                    adherenceScore: score,
                   }))
                 }
+                disabled={pending}
               />
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={pending}>
-                {pending
-                  ? 'Saving…'
-                  : viewedLog
-                    ? 'Update log'
-                    : isViewingToday
-                      ? 'Log today'
-                      : 'Save log'}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="nutrition-fiber">
+                    Fiber{isViewingToday ? ' today' : ''} (g)
+                  </Label>
+                  <Input
+                    id="nutrition-fiber"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="Optional"
+                    value={values.fiberG ?? ''}
+                    onChange={(event) =>
+                      setValues((current) => ({
+                        ...current,
+                        fiberG:
+                          event.target.value === ''
+                            ? null
+                            : Number(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="nutrition-water">
+                    Water{isViewingToday ? ' today' : ''} (ml)
+                  </Label>
+                  <Input
+                    id="nutrition-water"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Optional"
+                    value={values.waterMl ?? ''}
+                    onChange={(event) =>
+                      setValues((current) => ({
+                        ...current,
+                        waterMl:
+                          event.target.value === ''
+                            ? null
+                            : Number(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="nutrition-client-notes">Notes (optional)</Label>
+                <Textarea
+                  id="nutrition-client-notes"
+                  rows={2}
+                  placeholder={
+                    isViewingToday
+                      ? 'Anything you want your coach to know about today'
+                      : 'Anything you want your coach to know about this day'
+                  }
+                  value={values.clientNotes ?? ''}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      clientNotes: event.target.value || null,
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={pending}>
+                  {pending
+                    ? 'Saving…'
+                    : viewedLog
+                      ? 'Update log'
+                      : isViewingToday
+                        ? 'Log today'
+                        : 'Save log'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-      <MacroTargetsCard profile={profile} />
+        <FoodDiaryPanel
+          entries={foodDiaryEntries}
+          enableDateNavigation
+          profile={profile}
+          nutritionLog={viewedLog}
+          waterMl={values.waterMl}
+          fiberG={values.fiberG}
+          onLogDateChange={setViewedDate}
+          onAdd={async (entryValues) => {
+            const result = await addFoodDiaryEntry(entryValues)
+            if (result.success) {
+              router.refresh()
+            } else {
+              toast.error(result.error)
+            }
+            return result
+          }}
+          onDelete={async (entryId) => {
+            const result = await deleteFoodDiaryEntry(entryId)
+            if (result.success) {
+              router.refresh()
+            } else {
+              toast.error(result.error)
+            }
+            return result
+          }}
+        />
 
-      <NutritionDietarySummary profile={profile} />
+        <NutritionAdherenceSection
+          logs={recentLogs}
+          profile={profile}
+          foodDiaryEntries={foodDiaryEntries}
+        />
+      </section>
 
-      <NutritionAdherenceSection
-        logs={recentLogs}
-        profile={profile}
-        foodDiaryEntries={foodDiaryEntries}
-      />
+      <section
+        aria-labelledby="portal-nutrition-plan-heading"
+        className="grid gap-4"
+      >
+        <div className="space-y-1">
+          <h2
+            id="portal-nutrition-plan-heading"
+            className="text-lg font-semibold tracking-tight"
+          >
+            Your nutrition plan
+          </h2>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Meal plan, macro targets, and preferences from your coach.
+          </p>
+        </div>
 
-      <ClientNutritionNotesCard
-        initialNotes={profile?.client_nutrition_notes ?? null}
-      />
+        {setupFormDue ? (
+          <PortalNutritionSetupFormCard
+            profile={profile}
+            defaultBiologicalSex={defaultBiologicalSex}
+          />
+        ) : null}
+
+        <TodaysMealsCard
+          assignment={assignment}
+          days={planDays}
+          todayKey={todayKey}
+          profile={profile}
+        />
+
+        <ShoppingListCard
+          assignment={assignment}
+          days={planDays}
+          planName={assignment?.meal_plan?.name}
+        />
+
+        <MacroTargetsCard profile={profile} />
+
+        <NutritionDietarySummary profile={profile} />
+
+        <ClientNutritionNotesCard
+          initialNotes={profile?.client_nutrition_notes ?? null}
+        />
+      </section>
     </div>
   )
 }
