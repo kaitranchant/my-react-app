@@ -114,7 +114,7 @@ export function NutritionSetupForm({
   const isDisabled = disabled || pending
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-5">
+    <form onSubmit={handleSubmit} className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor="nutrition-setup-goal">
           Goal <span className="text-destructive">*</span>
@@ -147,10 +147,10 @@ export function NutritionSetupForm({
             required for accurate calculations.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label htmlFor="nutrition-setup-weight">
-              Current weight (lbs) <span className="text-destructive">*</span>
+              Weight (lbs) <span className="text-destructive">*</span>
             </Label>
             <Input
               id="nutrition-setup-weight"
@@ -238,7 +238,7 @@ export function NutritionSetupForm({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2 sm:col-span-2">
+          <div className="col-span-2 grid gap-2">
             <Label htmlFor="nutrition-setup-activity">Activity level</Label>
             <Select
               value={values.activityLevel ?? ''}
@@ -265,32 +265,34 @@ export function NutritionSetupForm({
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="nutrition-setup-favorite-foods">Favorite foods</Label>
-        <Textarea
-          id="nutrition-setup-favorite-foods"
-          rows={3}
-          placeholder="Foods and meals you enjoy — e.g. chicken, rice bowls, Greek yogurt, berries…"
-          value={values.favoriteFoods ?? ''}
-          onChange={(event) =>
-            updateField('favoriteFoods', event.target.value || null)
-          }
-          disabled={isDisabled}
-        />
-      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-2">
+          <Label htmlFor="nutrition-setup-favorite-foods">Favorite foods</Label>
+          <Textarea
+            id="nutrition-setup-favorite-foods"
+            rows={2}
+            placeholder="Foods and meals you enjoy — e.g. chicken, rice bowls, Greek yogurt, berries…"
+            value={values.favoriteFoods ?? ''}
+            onChange={(event) =>
+              updateField('favoriteFoods', event.target.value || null)
+            }
+            disabled={isDisabled}
+          />
+        </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="nutrition-setup-food-dislikes">Food dislikes</Label>
-        <Textarea
-          id="nutrition-setup-food-dislikes"
-          rows={2}
-          placeholder="Foods you avoid or strongly dislike — separate from allergies"
-          value={values.foodDislikes ?? ''}
-          onChange={(event) =>
-            updateField('foodDislikes', event.target.value || null)
-          }
-          disabled={isDisabled}
-        />
+        <div className="grid gap-2">
+          <Label htmlFor="nutrition-setup-food-dislikes">Food dislikes</Label>
+          <Textarea
+            id="nutrition-setup-food-dislikes"
+            rows={2}
+            placeholder="Foods you avoid or strongly dislike — separate from allergies"
+            value={values.foodDislikes ?? ''}
+            onChange={(event) =>
+              updateField('foodDislikes', event.target.value || null)
+            }
+            disabled={isDisabled}
+          />
+        </div>
       </div>
 
       <div className="grid gap-3">
@@ -301,7 +303,7 @@ export function NutritionSetupForm({
             targets. Leave blank if unsure.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label htmlFor="nutrition-setup-calories">Calories (kcal)</Label>
             <Input
@@ -390,7 +392,7 @@ export function NutritionSetupForm({
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <Label htmlFor="nutrition-setup-meal-frequency">
             Meal frequency / eating window
@@ -473,9 +475,9 @@ export function NutritionSetupForm({
             {(values.supplements ?? []).map((supplement, index) => (
               <div
                 key={index}
-                className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
+                className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
               >
-                <div className="grid gap-1.5">
+                <div className="col-span-2 grid gap-1.5 sm:col-span-1">
                   <Label className="text-xs">Name</Label>
                   <Input
                     placeholder="Creatine"
@@ -512,6 +514,7 @@ export function NutritionSetupForm({
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="col-span-2 justify-self-end sm:col-span-1"
                   aria-label={`Remove supplement ${supplement.name || 'entry'}`}
                   onClick={() =>
                     updateField(
@@ -537,7 +540,7 @@ export function NutritionSetupForm({
         </Label>
         <Textarea
           id="nutrition-setup-additional-notes"
-          rows={3}
+          rows={2}
           placeholder="Schedule, travel, medical notes…"
           value={values.additionalNotes ?? ''}
           onChange={(event) =>
