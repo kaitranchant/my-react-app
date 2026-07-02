@@ -47,19 +47,30 @@ export function DietaryRestrictionsPicker({
     const trimmed = customInput.trim()
     if (!trimmed) return
 
-    const presetMatch = DIETARY_RESTRICTION_PRESETS.find(
-      (preset) => preset.toLowerCase() === trimmed.toLowerCase()
-    )
-    if (presetMatch) {
-      if (!parsed.presets.includes(presetMatch)) {
-        updateSelection([...parsed.presets, presetMatch], parsed.custom)
+    let nextPresets = [...parsed.presets]
+    let nextCustom = [...parsed.custom]
+
+    for (const rawEntry of trimmed.split(',')) {
+      const entry = rawEntry.trim()
+      if (!entry) continue
+
+      const presetMatch = DIETARY_RESTRICTION_PRESETS.find(
+        (preset) => preset.toLowerCase() === entry.toLowerCase()
+      )
+      if (presetMatch) {
+        if (!nextPresets.includes(presetMatch)) {
+          nextPresets = [...nextPresets, presetMatch]
+        }
+      } else if (
+        !nextCustom.some(
+          (item) => item.toLowerCase() === entry.toLowerCase()
+        )
+      ) {
+        nextCustom = [...nextCustom, entry]
       }
-    } else if (
-      !parsed.custom.some((entry) => entry.toLowerCase() === trimmed.toLowerCase())
-    ) {
-      updateSelection(parsed.presets, [...parsed.custom, trimmed])
     }
 
+    updateSelection(nextPresets, nextCustom)
     setCustomInput('')
   }
 
@@ -118,7 +129,7 @@ export function DietaryRestrictionsPicker({
             <Label htmlFor="dietary-custom-entry">Custom restriction</Label>
             <Input
               id="dietary-custom-entry"
-              placeholder="e.g. Shellfish allergy"
+              placeholder="e.g. Shellfish allergy (comma-separated OK)"
               value={customInput}
               onChange={(event) => setCustomInput(event.target.value)}
               onKeyDown={(event) => {

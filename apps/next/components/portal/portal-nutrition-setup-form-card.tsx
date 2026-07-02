@@ -14,14 +14,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { ClientNutritionProfile } from 'app/types/database'
+import type { BiologicalSex, ClientNutritionProfile } from 'app/types/database'
 
 type PortalNutritionSetupFormCardProps = {
   profile: ClientNutritionProfile | null
+  defaultBiologicalSex?: BiologicalSex | null
 }
 
 export function PortalNutritionSetupFormCard({
   profile,
+  defaultBiologicalSex = null,
 }: PortalNutritionSetupFormCardProps) {
   const router = useRouter()
 
@@ -33,13 +35,14 @@ export function PortalNutritionSetupFormCard({
           Nutrition setup form
         </CardTitle>
         <CardDescription>
-          Help your coach plan your meals by sharing your favorite foods, what
-          you eat now, and any allergies or preferences.
+          Help your coach plan your meals by sharing your goal, daily habits,
+          favorite foods, and any allergies or preferences.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <NutritionSetupForm
           profile={profile}
+          defaultBiologicalSex={defaultBiologicalSex}
           onSubmit={async (values) => {
             const result = await submitNutritionSetupForm(values)
             if (!result.success) {

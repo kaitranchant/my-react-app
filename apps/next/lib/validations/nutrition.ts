@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+import {
+  NUTRITION_SETUP_ACTIVITY_LEVELS,
+  NUTRITION_SETUP_BIOLOGICAL_SEX_OPTIONS,
+  NUTRITION_SETUP_GOAL_OPTIONS,
+} from '@/lib/nutrition-setup-options'
 import type { MealType } from 'app/types/database'
 
 const optionalPositiveNumber = z
@@ -53,7 +58,54 @@ export const clientNutritionNotesSchema = z.object({
   clientNutritionNotes: optionalNotes,
 })
 
+const optionalAgeYears = z
+  .union([z.string(), z.number(), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value == null || value === '') return null
+    const parsed = typeof value === 'number' ? value : Number(value)
+    if (!Number.isFinite(parsed) || parsed < 14 || parsed > 100) return null
+    return Math.round(parsed)
+  })
+
+const optionalSetupBiologicalSex = z
+  .union([z.enum(NUTRITION_SETUP_BIOLOGICAL_SEX_OPTIONS), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value ? value : null))
+
+const optionalActivityLevel = z
+  .union([z.enum(NUTRITION_SETUP_ACTIVITY_LEVELS), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value ? value : null))
+
 export const nutritionSetupFormSchema = z.object({
+  setupGoal: z
+    .union([z.enum(NUTRITION_SETUP_GOAL_OPTIONS), z.literal(''), z.null()])
+    .refine(
+      (value): value is (typeof NUTRITION_SETUP_GOAL_OPTIONS)[number] =>
+        value != null && value !== '',
+      { message: 'Select a goal' }
+    ),
+  bodyWeightLbs: z
+    .union([z.string(), z.number(), z.null()])
+    .transform((value) => {
+      if (value == null || value === '') return null
+      const parsed = typeof value === 'number' ? value : Number(value)
+      if (!Number.isFinite(parsed) || parsed <= 0) return null
+      return parsed
+    })
+    .refine((value): value is number => value != null, {
+      message: 'Enter your current weight',
+    }),
+  heightIn: optionalPositiveNumber,
+  ageYears: optionalAgeYears,
+  setupBiologicalSex: optionalSetupBiologicalSex,
+  activityLevel: optionalActivityLevel,
+  mealFrequency: optionalNotes,
+  cookingTimeSkill: optionalNotes,
+  budgetConstraints: optionalNotes,
+  foodDislikes: optionalNotes,
+  groceryAccess: optionalNotes,
   favoriteFoods: optionalNotes,
   currentCaloriesKcal: optionalPositiveNumber,
   currentProteinG: optionalPositiveNumber,
@@ -166,7 +218,8 @@ export type NutritionProfileFormValues = z.infer<typeof nutritionProfileFormSche
 export type ClientNutritionNotesFormValues = z.infer<
   typeof clientNutritionNotesSchema
 >
-export type NutritionSetupFormValues = z.infer<typeof nutritionSetupFormSchema>
+export type NutritionSetupFormInputValues = z.input<typeof nutritionSetupFormSchema>
+export type NutritionSetupFormValues = z.output<typeof nutritionSetupFormSchema>
 export type NutritionLogFormValues = z.infer<typeof nutritionLogFormSchema>
 export type FoodDiaryEntryFormValues = z.infer<typeof foodDiaryEntryFormSchema>
 export type MealPlanFormValues = z.infer<typeof mealPlanFormSchema>

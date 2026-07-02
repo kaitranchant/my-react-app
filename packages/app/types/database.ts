@@ -107,6 +107,13 @@ export type NutritionSupplement = {
   dosage: string | null
   timing: string | null
 }
+export type NutritionSetupGoal = 'lose' | 'maintain' | 'gain' | 'performance'
+export type NutritionActivityLevel =
+  | 'sedentary'
+  | 'light'
+  | 'moderate'
+  | 'active'
+  | 'very_active'
 
 export type WearableProvider =
   | 'whoop'
@@ -3007,6 +3014,17 @@ export type Database = {
           current_protein_g: number | null
           current_carbs_g: number | null
           current_fat_g: number | null
+          setup_goal: NutritionSetupGoal | null
+          body_weight_lbs: number | null
+          height_in: number | null
+          age_years: number | null
+          setup_biological_sex: BiologicalSex | null
+          activity_level: NutritionActivityLevel | null
+          meal_frequency: string | null
+          cooking_time_skill: string | null
+          budget_constraints: string | null
+          food_dislikes: string | null
+          grocery_access: string | null
           created_at: string
           updated_at: string
         }
@@ -3030,6 +3048,17 @@ export type Database = {
           current_protein_g?: number | null
           current_carbs_g?: number | null
           current_fat_g?: number | null
+          setup_goal?: NutritionSetupGoal | null
+          body_weight_lbs?: number | null
+          height_in?: number | null
+          age_years?: number | null
+          setup_biological_sex?: BiologicalSex | null
+          activity_level?: NutritionActivityLevel | null
+          meal_frequency?: string | null
+          cooking_time_skill?: string | null
+          budget_constraints?: string | null
+          food_dislikes?: string | null
+          grocery_access?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -3053,6 +3082,17 @@ export type Database = {
           current_protein_g?: number | null
           current_carbs_g?: number | null
           current_fat_g?: number | null
+          setup_goal?: NutritionSetupGoal | null
+          body_weight_lbs?: number | null
+          height_in?: number | null
+          age_years?: number | null
+          setup_biological_sex?: BiologicalSex | null
+          activity_level?: NutritionActivityLevel | null
+          meal_frequency?: string | null
+          cooking_time_skill?: string | null
+          budget_constraints?: string | null
+          food_dislikes?: string | null
+          grocery_access?: string | null
           created_at?: string
           updated_at?: string
         }

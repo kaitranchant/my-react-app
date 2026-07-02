@@ -10,6 +10,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { parseSupplements } from '@/lib/nutrition'
+import {
+  ACTIVITY_LEVEL_LABELS,
+  NUTRITION_SETUP_BIOLOGICAL_SEX_LABELS,
+  NUTRITION_SETUP_GOAL_LABELS,
+} from '@/lib/nutrition-setup-options'
 import type { ClientNutritionProfile } from 'app/types/database'
 
 type NutritionSetupIntakeSummaryProps = {
@@ -22,6 +27,27 @@ function formatMacro(value: number | null, suffix: string): string | null {
   }
 
   return `${value}${suffix}`
+}
+
+function SummaryField({
+  label,
+  value,
+}: {
+  label: string
+  value: string | null | undefined
+}) {
+  if (!value?.trim()) {
+    return null
+  }
+
+  return (
+    <div>
+      <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+        {label}
+      </p>
+      <p className="leading-relaxed whitespace-pre-wrap">{value}</p>
+    </div>
+  )
 }
 
 export function NutritionSetupIntakeSummary({
@@ -39,6 +65,20 @@ export function NutritionSetupIntakeSummary({
     formatMacro(profile.current_fat_g, 'g fat'),
   ].filter(Boolean)
 
+  const biometrics = [
+    profile.body_weight_lbs != null
+      ? `${profile.body_weight_lbs} lbs`
+      : null,
+    profile.height_in != null ? `${profile.height_in} in` : null,
+    profile.age_years != null ? `${profile.age_years} years` : null,
+    profile.setup_biological_sex
+      ? NUTRITION_SETUP_BIOLOGICAL_SEX_LABELS[profile.setup_biological_sex]
+      : null,
+    profile.activity_level
+      ? ACTIVITY_LEVEL_LABELS[profile.activity_level]
+      : null,
+  ].filter(Boolean)
+
   return (
     <Card className="border-dashed">
       <CardHeader className="pb-3">
@@ -47,16 +87,26 @@ export function NutritionSetupIntakeSummary({
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 text-sm">
-        {profile.favorite_foods?.trim() ? (
+        {profile.setup_goal ? (
           <div>
             <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
-              Favorite foods
+              Goal
             </p>
-            <p className="leading-relaxed whitespace-pre-wrap">
-              {profile.favorite_foods}
-            </p>
+            <p>{NUTRITION_SETUP_GOAL_LABELS[profile.setup_goal]}</p>
           </div>
         ) : null}
+
+        {biometrics.length > 0 ? (
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+              Biometrics & activity
+            </p>
+            <p>{biometrics.join(' · ')}</p>
+          </div>
+        ) : null}
+
+        <SummaryField label="Favorite foods" value={profile.favorite_foods} />
+        <SummaryField label="Food dislikes" value={profile.food_dislikes} />
 
         {currentMacros.length > 0 ? (
           <div>
@@ -75,6 +125,20 @@ export function NutritionSetupIntakeSummary({
             <DietaryRestrictionsDisplay value={profile.dietary_restrictions} />
           </div>
         ) : null}
+
+        <SummaryField
+          label="Meal frequency / eating window"
+          value={profile.meal_frequency}
+        />
+        <SummaryField
+          label="Cooking time & skill"
+          value={profile.cooking_time_skill}
+        />
+        <SummaryField
+          label="Budget constraints"
+          value={profile.budget_constraints}
+        />
+        <SummaryField label="Grocery access" value={profile.grocery_access} />
 
         {supplements.length > 0 ? (
           <div>
@@ -107,16 +171,10 @@ export function NutritionSetupIntakeSummary({
           </div>
         ) : null}
 
-        {profile.client_nutrition_notes?.trim() ? (
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
-              Additional notes
-            </p>
-            <p className="leading-relaxed whitespace-pre-wrap">
-              {profile.client_nutrition_notes}
-            </p>
-          </div>
-        ) : null}
+        <SummaryField
+          label="Additional notes"
+          value={profile.client_nutrition_notes}
+        />
       </CardContent>
     </Card>
   )

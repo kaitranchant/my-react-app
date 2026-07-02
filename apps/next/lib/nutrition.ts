@@ -3,6 +3,7 @@ import { CHECK_IN_SCALES } from '@/lib/check-ins'
 import type {
   NutritionLogFormValues,
   NutritionProfileFormValues,
+  NutritionSetupFormInputValues,
   NutritionSetupFormValues,
 } from '@/lib/validations/nutrition'
 import type {
@@ -20,6 +21,7 @@ import type {
   MealPlanMealWithFoods,
   MealType,
   NutritionSupplement,
+  BiologicalSex,
 } from 'app/types/database'
 
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
@@ -100,6 +102,17 @@ export function preserveNutritionIntakeFields(
   | 'current_protein_g'
   | 'current_carbs_g'
   | 'current_fat_g'
+  | 'setup_goal'
+  | 'body_weight_lbs'
+  | 'height_in'
+  | 'age_years'
+  | 'setup_biological_sex'
+  | 'activity_level'
+  | 'meal_frequency'
+  | 'cooking_time_skill'
+  | 'budget_constraints'
+  | 'food_dislikes'
+  | 'grocery_access'
   | 'setup_form_requested_at'
   | 'setup_form_completed_at'
 > {
@@ -110,6 +123,17 @@ export function preserveNutritionIntakeFields(
     current_protein_g: profile?.current_protein_g ?? null,
     current_carbs_g: profile?.current_carbs_g ?? null,
     current_fat_g: profile?.current_fat_g ?? null,
+    setup_goal: profile?.setup_goal ?? null,
+    body_weight_lbs: profile?.body_weight_lbs ?? null,
+    height_in: profile?.height_in ?? null,
+    age_years: profile?.age_years ?? null,
+    setup_biological_sex: profile?.setup_biological_sex ?? null,
+    activity_level: profile?.activity_level ?? null,
+    meal_frequency: profile?.meal_frequency ?? null,
+    cooking_time_skill: profile?.cooking_time_skill ?? null,
+    budget_constraints: profile?.budget_constraints ?? null,
+    food_dislikes: profile?.food_dislikes ?? null,
+    grocery_access: profile?.grocery_access ?? null,
     setup_form_requested_at: profile?.setup_form_requested_at ?? null,
     setup_form_completed_at: profile?.setup_form_completed_at ?? null,
   }
@@ -146,10 +170,22 @@ export function nutritionProfileToFormValues(
 }
 
 export function nutritionSetupFormToFormValues(
-  profile: ClientNutritionProfile | null
-): NutritionSetupFormValues {
+  profile: ClientNutritionProfile | null,
+  options?: { defaultBiologicalSex?: BiologicalSex | null }
+): NutritionSetupFormInputValues {
   if (!profile) {
     return {
+      setupGoal: null,
+      bodyWeightLbs: null,
+      heightIn: null,
+      ageYears: null,
+      setupBiologicalSex: options?.defaultBiologicalSex ?? null,
+      activityLevel: null,
+      mealFrequency: null,
+      cookingTimeSkill: null,
+      budgetConstraints: null,
+      foodDislikes: null,
+      groceryAccess: null,
       favoriteFoods: null,
       currentCaloriesKcal: null,
       currentProteinG: null,
@@ -162,6 +198,18 @@ export function nutritionSetupFormToFormValues(
   }
 
   return {
+    setupGoal: profile.setup_goal,
+    bodyWeightLbs: profile.body_weight_lbs,
+    heightIn: profile.height_in,
+    ageYears: profile.age_years,
+    setupBiologicalSex:
+      profile.setup_biological_sex ?? options?.defaultBiologicalSex ?? null,
+    activityLevel: profile.activity_level,
+    mealFrequency: profile.meal_frequency,
+    cookingTimeSkill: profile.cooking_time_skill,
+    budgetConstraints: profile.budget_constraints,
+    foodDislikes: profile.food_dislikes,
+    groceryAccess: profile.grocery_access,
     favoriteFoods: profile.favorite_foods,
     currentCaloriesKcal: profile.current_calories_kcal,
     currentProteinG: profile.current_protein_g,

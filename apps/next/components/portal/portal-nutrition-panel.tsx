@@ -36,6 +36,7 @@ import {
   nutritionLogToFormValues,
 } from '@/lib/nutrition'
 import type {
+  BiologicalSex,
   ClientFoodDiaryEntry,
   ClientNutritionLog,
   ClientNutritionProfile,
@@ -45,6 +46,7 @@ import type {
 
 type PortalNutritionPanelProps = {
   profile: ClientNutritionProfile | null
+  defaultBiologicalSex?: BiologicalSex | null
   todayLog: ClientNutritionLog | null
   recentLogs: ClientNutritionLog[]
   assignment: MealPlanAssignmentWithPlan | null
@@ -54,6 +56,7 @@ type PortalNutritionPanelProps = {
 
 export function PortalNutritionPanel({
   profile,
+  defaultBiologicalSex = null,
   todayLog,
   recentLogs,
   assignment,
@@ -116,7 +119,12 @@ export function PortalNutritionPanel({
 
   return (
     <div className="grid gap-6">
-      {setupFormDue ? <PortalNutritionSetupFormCard profile={profile} /> : null}
+      {setupFormDue ? (
+        <PortalNutritionSetupFormCard
+          profile={profile}
+          defaultBiologicalSex={defaultBiologicalSex}
+        />
+      ) : null}
 
       <TodaysMealsCard
         assignment={assignment}

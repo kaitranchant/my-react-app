@@ -12,6 +12,12 @@ test('parseDietaryRestrictions splits presets and custom entries', () => {
   assert.deepEqual(parsed.custom, ['Shellfish allergy'])
 })
 
+test('parseDietaryRestrictions splits multiple custom entries', () => {
+  const parsed = parseDietaryRestrictions('Shellfish allergy, Soy allergy')
+  assert.deepEqual(parsed.presets, [])
+  assert.deepEqual(parsed.custom, ['Shellfish allergy', 'Soy allergy'])
+})
+
 test('serializeDietaryRestrictions round-trips selections', () => {
   const serialized = serializeDietaryRestrictions(
     ['Gluten-free', 'Vegan'],

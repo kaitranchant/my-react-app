@@ -31,6 +31,17 @@ export function hasNutritionSetupIntake(
 
   return (
     Boolean(profile.favorite_foods?.trim()) ||
+    profile.setup_goal != null ||
+    profile.body_weight_lbs != null ||
+    profile.height_in != null ||
+    profile.age_years != null ||
+    profile.setup_biological_sex != null ||
+    profile.activity_level != null ||
+    Boolean(profile.meal_frequency?.trim()) ||
+    Boolean(profile.cooking_time_skill?.trim()) ||
+    Boolean(profile.budget_constraints?.trim()) ||
+    Boolean(profile.food_dislikes?.trim()) ||
+    Boolean(profile.grocery_access?.trim()) ||
     profile.current_calories_kcal != null ||
     profile.current_protein_g != null ||
     profile.current_carbs_g != null ||

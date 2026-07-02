@@ -128,6 +128,7 @@ export default async function PortalNutritionPage() {
       ) : (
         <PortalNutritionPanel
           profile={profile}
+          defaultBiologicalSex={clientRecord.biological_sex}
           todayLog={todayLog}
           recentLogs={recentLogs}
           assignment={assignment}
