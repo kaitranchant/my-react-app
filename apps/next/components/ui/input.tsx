@@ -39,6 +39,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
     type,
     inputMode,
     autoComplete,
+    name,
+    id,
     disabled,
     readOnly,
     nativeKeyboard,

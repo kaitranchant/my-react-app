@@ -390,7 +390,13 @@ export function AddClientDialog({
                       <FormItem>
                         <FormLabel>Phone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(555) 123-4567" {...field} />
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            placeholder="(555) 123-4567"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

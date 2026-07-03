@@ -224,7 +224,118 @@ function TextGrid({
   )
 }
 
+function TelGrid({
+  appendChar,
+  backspace,
+  closeKeyboard,
+}: Omit<MobileKeyboardLayoutProps, 'multiline' | 'mode'>) {
+  return (
+    <div
+      className="box-border grid w-full max-w-full min-w-0 grid-cols-4 gap-1 px-2 pt-2 pb-1 sm:gap-1.5 sm:px-3 sm:pt-2.5 sm:pb-1.5"
+      style={{ gridTemplateRows: 'repeat(5, minmax(3rem, auto))' }}
+    >
+      {['1', '2', '3'].map((digit) => (
+        <KeypadButton
+          key={digit}
+          aria-label={`Digit ${digit}`}
+          onClick={() => appendChar(digit)}
+          className="h-full min-h-11 sm:min-h-12"
+        >
+          {digit}
+        </KeypadButton>
+      ))}
+      <KeypadButton
+        aria-label="Backspace"
+        variant="icon"
+        onClick={backspace}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        <Delete className="size-5" />
+      </KeypadButton>
+
+      {['4', '5', '6'].map((digit) => (
+        <KeypadButton
+          key={digit}
+          aria-label={`Digit ${digit}`}
+          onClick={() => appendChar(digit)}
+          className="h-full min-h-11 sm:min-h-12"
+        >
+          {digit}
+        </KeypadButton>
+      ))}
+      <KeypadButton
+        aria-label="Done"
+        variant="accent"
+        onClick={closeKeyboard}
+        className="row-span-3 h-full min-h-[calc(9rem+0.5rem)] text-sm font-bold sm:min-h-[calc(10rem+0.75rem)] sm:text-base"
+      >
+        Done
+      </KeypadButton>
+
+      {['7', '8', '9'].map((digit) => (
+        <KeypadButton
+          key={digit}
+          aria-label={`Digit ${digit}`}
+          onClick={() => appendChar(digit)}
+          className="h-full min-h-11 sm:min-h-12"
+        >
+          {digit}
+        </KeypadButton>
+      ))}
+
+      <KeypadButton
+        aria-label="Open parenthesis"
+        onClick={() => appendChar('(')}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        (
+      </KeypadButton>
+      <KeypadButton
+        aria-label="Close parenthesis"
+        onClick={() => appendChar(')')}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        )
+      </KeypadButton>
+      <KeypadButton
+        aria-label="Hyphen"
+        onClick={() => appendChar('-')}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        -
+      </KeypadButton>
+
+      <KeypadButton
+        aria-label="Plus"
+        onClick={() => appendChar('+')}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        +
+      </KeypadButton>
+      <KeypadButton
+        aria-label="Digit 0"
+        onClick={() => appendChar('0')}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        0
+      </KeypadButton>
+      <KeypadButton
+        aria-label="Hide keyboard"
+        variant="icon"
+        onClick={closeKeyboard}
+        className="h-full min-h-11 sm:min-h-12"
+      >
+        <HideKeyboardIcon />
+      </KeypadButton>
+    </div>
+  )
+}
+
 export function MobileKeyboardLayout(props: MobileKeyboardLayoutProps) {
+  if (props.mode === 'tel') {
+    return <TelGrid {...props} />
+  }
+
   if (props.mode === 'numeric' || props.mode === 'decimal') {
     return <NumericGrid {...props} />
   }

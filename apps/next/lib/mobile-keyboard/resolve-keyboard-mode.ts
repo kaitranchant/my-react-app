@@ -1,4 +1,4 @@
-export type MobileKeyboardMode = 'text' | 'numeric' | 'decimal' | 'email'
+export type MobileKeyboardMode = 'text' | 'numeric' | 'decimal' | 'email' | 'tel'
 
 const NATIVE_ONLY_TYPES = new Set([
   'password',
@@ -25,21 +25,25 @@ export function resolveKeyboardMode({
   inputMode,
   autoComplete,
   multiline = false,
+  name,
+  id,
 }: {
   type?: string
   inputMode?: string
   autoComplete?: string
   multiline?: boolean
+  name?: string
+  id?: string
 }): MobileKeyboardMode {
   if (type === 'email' || autoComplete === 'email') {
     return 'email'
   }
 
-  if (
-    type === 'number' ||
-    inputMode === 'numeric' ||
-    inputMode === 'tel'
-  ) {
+  if (isPhoneField({ type, inputMode, autoComplete, name, id })) {
+    return 'tel'
+  }
+
+  if (type === 'number' || inputMode === 'numeric') {
     return 'numeric'
   }
 
@@ -54,11 +58,37 @@ export function resolveKeyboardMode({
   return 'text'
 }
 
+function isPhoneField({
+  type,
+  inputMode,
+  autoComplete,
+  name,
+  id,
+}: {
+  type?: string
+  inputMode?: string
+  autoComplete?: string
+  name?: string
+  id?: string
+}) {
+  if (type === 'tel' || inputMode === 'tel') return true
+  if (autoComplete?.startsWith('tel')) return true
+
+  const hint = `${name ?? ''} ${id ?? ''}`.toLowerCase()
+  return /\b(phone|tel|mobile|fax)\b/.test(hint)
+}
+
+const TEL_CHARS = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '(', ')', '-', ' '])
+
 export function appendKeyboardChar(
   current: string,
   char: string,
   mode: MobileKeyboardMode
 ) {
+  if (mode === 'tel' && !TEL_CHARS.has(char)) {
+    return current
+  }
+
   if (char === '.' && mode === 'decimal') {
     if (current.includes('.')) return current
     return current ? `${current}.` : '0.'

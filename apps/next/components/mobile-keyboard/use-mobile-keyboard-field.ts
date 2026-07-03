@@ -19,6 +19,8 @@ type UseMobileKeyboardFieldOptions = {
   type?: string
   inputMode?: string
   autoComplete?: string
+  name?: string
+  id?: string
   disabled?: boolean
   readOnly?: boolean
   nativeKeyboard?: boolean
@@ -55,6 +57,8 @@ export function useMobileKeyboardField({
   type,
   inputMode,
   autoComplete,
+  name,
+  id,
   disabled = false,
   readOnly = false,
   nativeKeyboard = false,
@@ -92,6 +96,8 @@ export function useMobileKeyboardField({
     inputMode,
     autoComplete,
     multiline: kind === 'textarea',
+    name,
+    id,
   })
 
   const optedOut =
