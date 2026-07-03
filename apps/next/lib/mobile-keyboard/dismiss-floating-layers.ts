@@ -1,15 +1,26 @@
-/** Close open Radix selects, dropdowns, and popovers before showing the mobile keyboard. */
+/** Close open Radix selects and dropdowns without dismissing parent dialogs. */
 export function dismissFloatingLayers() {
   if (typeof document === 'undefined') return
 
-  document.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key: 'Escape',
-      code: 'Escape',
-      keyCode: 27,
-      which: 27,
-      bubbles: true,
-      cancelable: true,
+  document
+    .querySelectorAll('[data-slot="select-trigger"]')
+    .forEach((trigger) => {
+      if (
+        trigger instanceof HTMLElement &&
+        trigger.getAttribute('aria-expanded') === 'true'
+      ) {
+        trigger.click()
+      }
     })
-  )
+
+  document
+    .querySelectorAll('[data-slot="dropdown-menu-trigger"]')
+    .forEach((trigger) => {
+      if (
+        trigger instanceof HTMLElement &&
+        trigger.getAttribute('data-state') === 'open'
+      ) {
+        trigger.click()
+      }
+    })
 }
