@@ -5,6 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
 import { useMainContentScrollLock } from '@/lib/hooks/use-main-content-scroll-lock'
+import { isMobileKeypadInteraction } from '@/lib/mobile-keyboard/is-keypad-interaction'
 import { cn } from '@/lib/utils'
 
 function ViewportDialogBehavior() {
@@ -68,6 +69,9 @@ function DialogContent({
   viewport = false,
   visualViewport = false,
   hideClose = false,
+  onPointerDownOutside,
+  onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   /** Fill the viewport with safe-area margins instead of vertical centering. */
@@ -78,6 +82,45 @@ function DialogContent({
   hideClose?: boolean
 }) {
   const vvBehavior = viewport || visualViewport
+
+  const handlePointerDownOutside = React.useCallback<
+    NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onPointerDownOutside']>
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onPointerDownOutside?.(event)
+    },
+    [onPointerDownOutside]
+  )
+
+  const handleInteractOutside = React.useCallback<
+    NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onInteractOutside']>
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onInteractOutside?.(event)
+    },
+    [onInteractOutside]
+  )
+
+  const handleFocusOutside = React.useCallback<
+    NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onFocusOutside']>
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onFocusOutside?.(event)
+    },
+    [onFocusOutside]
+  )
 
   return (
     <DialogPortal>
@@ -96,6 +139,9 @@ function DialogContent({
               : 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 top-[50%] left-[50%] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border p-6 sm:max-w-lg',
           className
         )}
+        onPointerDownOutside={handlePointerDownOutside}
+        onInteractOutside={handleInteractOutside}
+        onFocusOutside={handleFocusOutside}
         {...props}
       >
         {vvBehavior ? <ViewportDialogBehavior /> : null}

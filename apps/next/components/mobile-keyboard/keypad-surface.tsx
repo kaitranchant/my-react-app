@@ -255,6 +255,7 @@ export function KeypadSurfaceOverlay({
             : 'closed'
       }
       className="mobile-keypad-surface"
+      data-mobile-keypad=""
       style={{
         left: viewport.left,
         width: viewport.width,
