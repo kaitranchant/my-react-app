@@ -426,7 +426,7 @@ export function getTodayMealPlanDay(
   }
 }
 
-export function sortMealsByOrder(meals: MealPlanMeal[]): MealPlanMeal[] {
+export function sortMealsByOrder<T extends MealPlanMeal>(meals: T[]): T[] {
   return [...meals].sort((left, right) => {
     if (left.sort_order !== right.sort_order) {
       return left.sort_order - right.sort_order
