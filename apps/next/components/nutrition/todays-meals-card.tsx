@@ -14,14 +14,12 @@ import {
 import { EmptyState } from '@/components/ui/empty-state'
 import { MacroTotalsBadges } from '@/components/nutrition/macro-totals-badges'
 import {
-  flattenMealPlanMealsInOrder,
   formatMealMacros,
   formatMealPlanDayLabel,
   getMealPlanDayIndexForOffset,
   getTodayMealPlanDay,
   MEAL_TYPE_LABELS,
   sortMealPlanDays,
-  type MealPlanMealInPlanOrder,
 } from '@/lib/nutrition'
 import {
   assessMealPlanTargetAlignment,
@@ -42,148 +40,33 @@ type TodaysMealsCardProps = {
   audience?: 'coach' | 'client'
 }
 
-function ClientMealPlanCard({
-  assignment,
-  days,
-}: Pick<TodaysMealsCardProps, 'assignment' | 'days'>) {
-  const meals = React.useMemo(() => flattenMealPlanMealsInOrder(days), [days])
-  const [selectedMealIndex, setSelectedMealIndex] = React.useState(0)
-
-  React.useEffect(() => {
-    setSelectedMealIndex(0)
-  }, [meals])
-
-  const selectedMeal = meals[selectedMealIndex] ?? null
-  const showMealNavigation = meals.length > 1
-
-  function goToPreviousMeal() {
-    setSelectedMealIndex((current) => Math.max(0, current - 1))
-  }
-
-  function goToNextMeal() {
-    setSelectedMealIndex((current) => Math.min(meals.length - 1, current + 1))
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1">
-          <CardTitle>Your meals</CardTitle>
-          <CardDescription>
-            {assignment
-              ? 'Browse your assigned meals in order.'
-              : 'Your coach can assign a meal plan for daily guidance.'}
-          </CardDescription>
-        </div>
-        {assignment && showMealNavigation ? (
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={selectedMealIndex <= 0}
-              onClick={goToPreviousMeal}
-              aria-label="Previous meal"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="min-w-[5.5rem] px-1 text-center text-sm font-medium">
-              Meal {selectedMealIndex + 1} of {meals.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={selectedMealIndex >= meals.length - 1}
-              onClick={goToNextMeal}
-              aria-label="Next meal"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {!assignment ? (
-          <EmptyState
-            icon={UtensilsCrossed}
-            title="No meal plan assigned"
-            description="When your coach assigns a plan, your meals will appear here."
-            className="py-4"
-          />
-        ) : meals.length === 0 ? (
-          <EmptyState
-            icon={UtensilsCrossed}
-            title="No meals planned yet"
-            description="Your coach may still be building your meal plan."
-            className="py-4"
-          />
-        ) : selectedMeal ? (
-          <ClientMealPlanMealDetails meal={selectedMeal} />
-        ) : null}
-      </CardContent>
-    </Card>
-  )
-}
-
-function ClientMealPlanMealDetails({
-  meal,
-}: {
-  meal: MealPlanMealInPlanOrder
-}) {
-  const macros = formatMealMacros(meal)
-
-  return (
-    <div className="border-border bg-muted/20 rounded-lg border px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-          {MEAL_TYPE_LABELS[meal.meal_type]}
-        </span>
-        <span className="font-medium">{meal.name}</span>
-      </div>
-      {meal.foods.length > 0 ? (
-        <ul className="text-muted-foreground mt-2 grid gap-1 text-sm">
-          {meal.foods.map((food) => (
-            <li key={food.id}>
-              {food.quantity_g} g {food.food_name}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {meal.description ? (
-        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          {meal.description}
-        </p>
-      ) : null}
-      {macros ? (
-        <p className="text-muted-foreground mt-2 text-xs">{macros}</p>
-      ) : null}
-    </div>
-  )
-}
-
-function CoachMealsDayCard({
+export function TodaysMealsCard({
   assignment,
   days,
   todayKey,
   profile = null,
-}: Pick<
-  TodaysMealsCardProps,
-  'assignment' | 'days' | 'todayKey' | 'profile'
->) {
+  audience = 'client',
+}: TodaysMealsCardProps) {
+  const isCoachView = audience === 'coach'
   const sortedDays = React.useMemo(() => sortMealPlanDays(days), [days])
   const todayPlan = React.useMemo(
-    () => getTodayMealPlanDay(assignment, days, todayKey),
-    [assignment, days, todayKey]
+    () =>
+      isCoachView
+        ? getTodayMealPlanDay(assignment, days, todayKey)
+        : {
+            dayOffset: 0,
+            day: null,
+            planComplete: false,
+            planDayLabel: null,
+          },
+    [assignment, days, isCoachView, todayKey]
   )
   const defaultDayIndex = React.useMemo(() => {
-    if (todayPlan.day) {
+    if (isCoachView && todayPlan.day) {
       return getMealPlanDayIndexForOffset(sortedDays, todayPlan.day.day_offset)
     }
     return 0
-  }, [sortedDays, todayPlan.day])
+  }, [isCoachView, sortedDays, todayPlan.day])
   const [selectedDayIndex, setSelectedDayIndex] = React.useState(defaultDayIndex)
 
   React.useEffect(() => {
@@ -193,12 +76,16 @@ function CoachMealsDayCard({
   const selectedDay = sortedDays[selectedDayIndex] ?? null
   const selectedDayLabel = selectedDay ? formatMealPlanDayLabel(selectedDay) : null
   const isViewingScheduledToday =
+    isCoachView &&
     !todayPlan.planComplete &&
     selectedDay != null &&
     selectedDay.day_offset === todayPlan.dayOffset
   const showDayNavigation = sortedDays.length > 1
   const showPlanCompleteState =
-    todayPlan.planComplete && sortedDays.length <= 1 && !selectedDay?.meals.length
+    isCoachView &&
+    todayPlan.planComplete &&
+    sortedDays.length <= 1 &&
+    !selectedDay?.meals.length
   const dayTotals = selectedDay ? sumDayMacroTotals(selectedDay) : null
   const dayAlignment =
     dayTotals && dayTotals.caloriesKcal > 0
@@ -223,20 +110,26 @@ function CoachMealsDayCard({
   }
 
   const description = !assignment
-    ? 'Assign a meal plan for daily guidance.'
+    ? isCoachView
+      ? 'Assign a meal plan for daily guidance.'
+      : 'Your coach can assign a meal plan for daily guidance.'
     : isViewingScheduledToday
       ? "Meals scheduled for today from your assigned plan."
       : selectedDayLabel
         ? `${selectedDayLabel} from your assigned plan.`
         : 'Meals from your assigned plan.'
 
+  const cardTitle = isCoachView
+    ? isViewingScheduledToday
+      ? "Today's meals"
+      : 'Plan meals'
+    : 'Meal plan'
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1">
-          <CardTitle>
-            {isViewingScheduledToday ? "Today's meals" : 'Plan meals'}
-          </CardTitle>
+          <CardTitle>{cardTitle}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
         {assignment && showDayNavigation ? (
@@ -274,14 +167,22 @@ function CoachMealsDayCard({
           <EmptyState
             icon={UtensilsCrossed}
             title="No meal plan assigned"
-            description="Assign a meal plan from Setup to show daily meals here."
+            description={
+              isCoachView
+                ? 'Assign a meal plan from Setup to show daily meals here.'
+                : 'When your coach assigns a plan, your meals will appear here.'
+            }
             className="py-4"
           />
         ) : showPlanCompleteState ? (
           <EmptyState
             icon={UtensilsCrossed}
             title="Plan cycle complete"
-            description="Extend or assign a new meal plan for the next phase."
+            description={
+              isCoachView
+                ? 'Extend or assign a new meal plan for the next phase.'
+                : "You've reached the end of your current meal plan. Ask your coach for the next phase."
+            }
             className="py-4"
           />
         ) : !selectedDay || selectedDay.meals.length === 0 ? (
@@ -290,14 +191,20 @@ function CoachMealsDayCard({
             title={
               selectedDayLabel
                 ? `No meals planned for ${selectedDayLabel}`
-                : 'No meals planned for today'
+                : isCoachView
+                  ? 'No meals planned for today'
+                  : 'No meals planned yet'
             }
-            description="Add meals to this day in the meal plan builder."
+            description={
+              isCoachView
+                ? 'Add meals to this day in the meal plan builder.'
+                : 'Your coach may still be building this day in your plan.'
+            }
             className="py-4"
           />
         ) : (
           <div className="grid gap-4">
-            {todayPlan.planComplete ? (
+            {isCoachView && todayPlan.planComplete ? (
               <div className="flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
                 <Info className="mt-0.5 size-4 shrink-0" />
                 <p>
@@ -359,26 +266,5 @@ function CoachMealsDayCard({
         )}
       </CardContent>
     </Card>
-  )
-}
-
-export function TodaysMealsCard({
-  assignment,
-  days,
-  todayKey,
-  profile = null,
-  audience = 'client',
-}: TodaysMealsCardProps) {
-  if (audience === 'client') {
-    return <ClientMealPlanCard assignment={assignment} days={days} />
-  }
-
-  return (
-    <CoachMealsDayCard
-      assignment={assignment}
-      days={days}
-      todayKey={todayKey}
-      profile={profile}
-    />
   )
 }

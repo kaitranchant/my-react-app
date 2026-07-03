@@ -278,7 +278,7 @@ test.describe('Nutrition', () => {
     await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
-    await expect(page.getByText('Your meals', { exact: true })).toBeVisible()
+    await expect(page.getByText('Meal plan', { exact: true })).toBeVisible()
     await expect(page.getByText(E2E_MEAL_PLAN_MEAL_NAME)).toBeVisible({
       timeout: 10_000,
     })
@@ -409,7 +409,7 @@ test.describe('Nutrition', () => {
     await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
-    await expect(page.getByText('Your meals', { exact: true })).toBeVisible()
+    await expect(page.getByText('Meal plan', { exact: true })).toBeVisible()
     await expect(page.getByText(E2E_MEAL_PLAN_MEAL_NAME)).toBeVisible({
       timeout: 10_000,
     })
