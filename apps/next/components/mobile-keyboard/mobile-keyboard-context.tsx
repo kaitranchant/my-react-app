@@ -7,6 +7,7 @@ import {
   backspaceKeyboardValue,
   type MobileKeyboardMode,
 } from '@/lib/mobile-keyboard/resolve-keyboard-mode'
+import { dismissFloatingLayers } from '@/lib/mobile-keyboard/dismiss-floating-layers'
 import {
   scrollElementIntoMainContent,
   scrollFocusedInputIntoView,
@@ -97,6 +98,8 @@ export function MobileKeyboardProvider({
 
       const registration = fieldsRef.current.get(id)
       if (!registration) return
+
+      dismissFloatingLayers()
 
       setEditingValue(registration.getValue())
       setActiveField({

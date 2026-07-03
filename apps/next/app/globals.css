@@ -378,7 +378,7 @@
   .mobile-keypad-surface,
   .workout-log-keypad-surface {
     position: fixed;
-    z-index: 60;
+    z-index: 200;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -388,6 +388,8 @@
     background-color: var(--card);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     transform: translateY(100%);
+    pointer-events: auto;
+    touch-action: manipulation;
   }
 
   @keyframes mobile-keypad-enter {

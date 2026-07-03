@@ -99,7 +99,7 @@ export function KeypadButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex min-w-0 items-center justify-center rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 sm:rounded-xl sm:text-base',
+        'flex min-w-0 items-center justify-center rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 sm:rounded-xl sm:text-base touch-manipulation',
         variant === 'accent' &&
           'bg-brand text-brand-foreground hover:bg-brand/90',
         variant === 'icon' &&
