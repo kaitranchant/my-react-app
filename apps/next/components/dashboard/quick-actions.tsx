@@ -1,13 +1,22 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { CalendarPlus, ClipboardList, UserPlus } from 'lucide-react'
+import { Calendar, CalendarPlus, UserPlus } from 'lucide-react'
 
 import { AddClientDialog } from '@/components/clients/add-client-dialog'
-import { WorkoutFormDialog } from '@/components/workouts/workout-form-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 type QuickActionsProps = {
+  clients: { id: string; full_name: string }[]
   gyms?: { id: string; name: string }[]
 }
 
@@ -20,10 +29,10 @@ const actions = [
     accent: 'bg-brand/10 text-brand',
   },
   {
-    key: 'create-workout',
-    label: 'Build program',
-    description: 'Create a workout or session template',
-    icon: ClipboardList,
+    key: 'client-calendar',
+    label: 'Client calendar',
+    description: "Open a client's training calendar",
+    icon: Calendar,
     accent: 'bg-chart-2/10 text-chart-2',
   },
   {
@@ -42,7 +51,64 @@ const mobileActionClass =
 const desktopActionClass =
   'group hover:border-brand/30 hover:shadow-elevated flex items-start gap-3 rounded-xl border bg-background/80 p-4 text-left transition-all'
 
-export function QuickActions({ gyms = [] }: QuickActionsProps) {
+function ClientCalendarDialog({
+  clients,
+  gyms,
+  trigger,
+}: {
+  clients: QuickActionsProps['clients']
+  gyms: QuickActionsProps['gyms']
+  trigger: ReactNode
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Open client calendar</DialogTitle>
+          <DialogDescription>
+            Choose a client to view and manage their training calendar.
+          </DialogDescription>
+        </DialogHeader>
+        {clients.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No clients yet.{' '}
+            <AddClientDialog
+              gyms={gyms}
+              trigger={
+                <button
+                  type="button"
+                  className="text-brand font-medium underline-offset-4 hover:underline"
+                >
+                  Add your first client
+                </button>
+              }
+            />
+          </p>
+        ) : (
+          <ul className="max-h-64 space-y-1 overflow-y-auto">
+            {clients.map((client) => (
+              <li key={client.id}>
+                <Link
+                  href={`/clients/${client.id}?tab=training&section=calendar`}
+                  className="hover:bg-accent flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors"
+                >
+                  <span className="font-medium">{client.full_name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    Open calendar →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function QuickActions({ clients, gyms = [] }: QuickActionsProps) {
+  const calendarAction = actions[1]
   const scheduleAction = actions[2]
 
   return (
@@ -58,11 +124,13 @@ export function QuickActions({ gyms = [] }: QuickActionsProps) {
           }
         />
 
-        <WorkoutFormDialog
+        <ClientCalendarDialog
+          clients={clients}
+          gyms={gyms}
           trigger={
             <button type="button" className={mobileActionClass}>
-              <ClipboardList className="text-chart-2 size-4 shrink-0" />
-              <span>{actions[1].label}</span>
+              <Calendar className="text-chart-2 size-4 shrink-0" />
+              <span>{calendarAction.label}</span>
             </button>
           }
         />
@@ -96,21 +164,23 @@ export function QuickActions({ gyms = [] }: QuickActionsProps) {
           }
         />
 
-        <WorkoutFormDialog
+        <ClientCalendarDialog
+          clients={clients}
+          gyms={gyms}
           trigger={
             <button type="button" className={desktopActionClass}>
               <div
                 className={cn(
                   'flex size-10 shrink-0 items-center justify-center rounded-lg',
-                  actions[1].accent
+                  calendarAction.accent
                 )}
               >
-                <ClipboardList className="size-[18px]" />
+                <Calendar className="size-[18px]" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">{actions[1].label}</p>
+                <p className="text-sm font-semibold">{calendarAction.label}</p>
                 <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                  {actions[1].description}
+                  {calendarAction.description}
                 </p>
               </div>
             </button>

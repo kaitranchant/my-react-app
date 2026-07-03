@@ -349,6 +349,10 @@ export default async function DashboardPage() {
             <p className="helper-text max-w-lg leading-relaxed">{summary}</p>
           </div>
           <QuickActions
+            clients={activeClients.map((client) => ({
+              id: client.id,
+              full_name: client.full_name,
+            }))}
             gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
           />
         </div>
