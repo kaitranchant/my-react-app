@@ -134,27 +134,41 @@ export function useMobileKeyboardField({
     [isControlled, kind, onChange, onTextareaChange]
   )
 
-  React.useEffect(() => {
-    if (!useCustomKeyboard || !keyboard) return
+  const setValueRef = React.useRef(setValue)
+  const onDoneRef = React.useRef(onDone)
+  setValueRef.current = setValue
+  onDoneRef.current = onDone
 
-    keyboard.registerField({
+  const keyboardRef = React.useRef(keyboard)
+  keyboardRef.current = keyboard
+
+  React.useLayoutEffect(() => {
+    if (!useCustomKeyboard) return
+    const kb = keyboardRef.current
+    if (!kb) return
+
+    kb.registerField({
       id: fieldId,
       kind,
       mode,
       multiline: kind === 'textarea',
       getValue: () => currentValueRef.current,
-      setValue,
+      setValue: (nextValue) => setValueRef.current(nextValue),
       getElement: () => elementRef.current,
-      onDone,
+      onDone: () => onDoneRef.current?.(),
     })
+  })
 
-    return () => keyboard.unregisterField(fieldId)
-  }, [fieldId, keyboard, kind, mode, onDone, setValue, useCustomKeyboard])
+  React.useEffect(() => {
+    if (!useCustomKeyboard) return
+    return () => keyboardRef.current?.unregisterField(fieldId)
+  }, [fieldId, useCustomKeyboard])
 
   const openKeyboard = React.useCallback(() => {
-    if (!useCustomKeyboard || !keyboard) return
-    keyboard.openField(fieldId, elementRef.current)
-  }, [fieldId, keyboard, useCustomKeyboard])
+    const kb = keyboardRef.current
+    if (!useCustomKeyboard || !kb) return
+    kb.openField(fieldId, elementRef.current)
+  }, [fieldId, useCustomKeyboard])
 
   const tapHandlers = useTapToOpen(openKeyboard, !useCustomKeyboard)
 

@@ -28,12 +28,12 @@ export function MobileKeyboardOverlay() {
     activeFieldRef.current = keyboard.activeField
   }
 
-  const setReserveHeight = React.useCallback(
-    (height: number) => {
-      keyboard?.setKeypadReserveHeight(height)
-    },
-    [keyboard]
-  )
+  const keyboardRef = React.useRef(keyboard)
+  keyboardRef.current = keyboard
+
+  const setReserveHeight = React.useCallback((height: number) => {
+    keyboardRef.current?.setKeypadReserveHeight(height)
+  }, [])
 
   if (!keyboard?.enabled) {
     return null
