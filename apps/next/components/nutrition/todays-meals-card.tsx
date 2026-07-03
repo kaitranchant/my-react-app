@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Info, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,15 +16,9 @@ import { MacroTotalsBadges } from '@/components/nutrition/macro-totals-badges'
 import {
   formatMealMacros,
   formatMealPlanDayLabel,
-  getMealPlanDayIndexForOffset,
-  getTodayMealPlanDay,
   MEAL_TYPE_LABELS,
   sortMealPlanDays,
 } from '@/lib/nutrition'
-import {
-  assessMealPlanTargetAlignment,
-  formatMealPlanTargetHintForClient,
-} from '@/lib/meal-plan-target-alignment'
 import { sumDayMacroTotals } from '@/lib/meal-plan-stats'
 import type {
   ClientNutritionProfile,
@@ -43,61 +37,20 @@ type TodaysMealsCardProps = {
 export function TodaysMealsCard({
   assignment,
   days,
-  todayKey,
-  profile = null,
   audience = 'client',
 }: TodaysMealsCardProps) {
   const isCoachView = audience === 'coach'
   const sortedDays = React.useMemo(() => sortMealPlanDays(days), [days])
-  const todayPlan = React.useMemo(
-    () =>
-      isCoachView
-        ? getTodayMealPlanDay(assignment, days, todayKey)
-        : {
-            dayOffset: 0,
-            day: null,
-            planComplete: false,
-            planDayLabel: null,
-          },
-    [assignment, days, isCoachView, todayKey]
-  )
-  const defaultDayIndex = React.useMemo(() => {
-    if (isCoachView && todayPlan.day) {
-      return getMealPlanDayIndexForOffset(sortedDays, todayPlan.day.day_offset)
-    }
-    return 0
-  }, [isCoachView, sortedDays, todayPlan.day])
-  const [selectedDayIndex, setSelectedDayIndex] = React.useState(defaultDayIndex)
+  const [selectedDayIndex, setSelectedDayIndex] = React.useState(0)
 
   React.useEffect(() => {
-    setSelectedDayIndex(defaultDayIndex)
-  }, [defaultDayIndex])
+    setSelectedDayIndex(0)
+  }, [sortedDays])
 
   const selectedDay = sortedDays[selectedDayIndex] ?? null
   const selectedDayLabel = selectedDay ? formatMealPlanDayLabel(selectedDay) : null
-  const isViewingScheduledToday =
-    isCoachView &&
-    !todayPlan.planComplete &&
-    selectedDay != null &&
-    selectedDay.day_offset === todayPlan.dayOffset
   const showDayNavigation = sortedDays.length > 1
-  const showPlanCompleteState =
-    isCoachView &&
-    todayPlan.planComplete &&
-    sortedDays.length <= 1 &&
-    !selectedDay?.meals.length
   const dayTotals = selectedDay ? sumDayMacroTotals(selectedDay) : null
-  const dayAlignment =
-    dayTotals && dayTotals.caloriesKcal > 0
-      ? assessMealPlanTargetAlignment(
-          {
-            dayCount: days.length,
-            avgDailyMacros: dayTotals,
-            hasMacroData: true,
-          },
-          profile?.calories_kcal
-        )
-      : null
 
   function goToPreviousDay() {
     setSelectedDayIndex((current) => Math.max(0, current - 1))
@@ -113,23 +66,19 @@ export function TodaysMealsCard({
     ? isCoachView
       ? 'Assign a meal plan for daily guidance.'
       : 'Your coach can assign a meal plan for daily guidance.'
-    : isViewingScheduledToday
-      ? "Meals scheduled for today from your assigned plan."
-      : selectedDayLabel
-        ? `${selectedDayLabel} from your assigned plan.`
+    : selectedDayLabel
+      ? isCoachView
+        ? `${selectedDayLabel} in the assigned meal plan.`
+        : `${selectedDayLabel} from your assigned plan.`
+      : isCoachView
+        ? 'Meals from the assigned plan.'
         : 'Meals from your assigned plan.'
-
-  const cardTitle = isCoachView
-    ? isViewingScheduledToday
-      ? "Today's meals"
-      : 'Plan meals'
-    : 'Meal plan'
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1">
-          <CardTitle>{cardTitle}</CardTitle>
+          <CardTitle>Meal plan</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
         {assignment && showDayNavigation ? (
@@ -169,19 +118,8 @@ export function TodaysMealsCard({
             title="No meal plan assigned"
             description={
               isCoachView
-                ? 'Assign a meal plan from Setup to show daily meals here.'
+                ? 'Assign a meal plan from Setup to show meals here.'
                 : 'When your coach assigns a plan, your meals will appear here.'
-            }
-            className="py-4"
-          />
-        ) : showPlanCompleteState ? (
-          <EmptyState
-            icon={UtensilsCrossed}
-            title="Plan cycle complete"
-            description={
-              isCoachView
-                ? 'Extend or assign a new meal plan for the next phase.'
-                : "You've reached the end of your current meal plan. Ask your coach for the next phase."
             }
             className="py-4"
           />
@@ -191,9 +129,7 @@ export function TodaysMealsCard({
             title={
               selectedDayLabel
                 ? `No meals planned for ${selectedDayLabel}`
-                : isCoachView
-                  ? 'No meals planned for today'
-                  : 'No meals planned yet'
+                : 'No meals planned yet'
             }
             description={
               isCoachView
@@ -204,21 +140,6 @@ export function TodaysMealsCard({
           />
         ) : (
           <div className="grid gap-4">
-            {isCoachView && todayPlan.planComplete ? (
-              <div className="flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
-                <Info className="mt-0.5 size-4 shrink-0" />
-                <p>
-                  This client has reached the end of the current plan cycle.
-                  Extend or assign a new plan for the next phase.
-                </p>
-              </div>
-            ) : null}
-            {dayAlignment?.isMisaligned && isViewingScheduledToday ? (
-              <div className="flex gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-sm text-blue-900 dark:text-blue-100">
-                <Info className="mt-0.5 size-4 shrink-0" />
-                <p>{formatMealPlanTargetHintForClient(dayAlignment)}</p>
-              </div>
-            ) : null}
             {dayTotals ? (
               <MacroTotalsBadges totals={dayTotals} label="Day total" />
             ) : null}
