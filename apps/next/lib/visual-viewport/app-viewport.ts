@@ -24,6 +24,12 @@ export function isManagingNestedKeyboardScroll() {
 }
 
 export function isKeyboardOpen() {
+  if (typeof document !== 'undefined') {
+    if (document.documentElement.hasAttribute('data-mobile-keyboard-open')) {
+      return false
+    }
+  }
+
   const visualViewport = window.visualViewport
   if (!visualViewport) return false
   return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX

@@ -13,6 +13,7 @@ const completedSet: WorkoutLogSetDraft = {
   weight: '135',
   reps: '5',
   durationSeconds: '',
+  distanceMeters: '',
   barSpeed: '',
   peakPower: '',
   completed: true,

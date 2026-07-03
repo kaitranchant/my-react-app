@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { AuthMobileKeyboardLayout } from '@/components/auth/auth-mobile-keyboard-layout'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { SwiftWordmark } from '@/components/brand/swift-wordmark'
 
@@ -35,7 +36,7 @@ export default function AuthLayout({
             className="mb-8 justify-center"
             markClassName="h-10 w-auto"
           />
-          <div className="w-full max-w-sm">{children}</div>
+          <AuthMobileKeyboardLayout>{children}</AuthMobileKeyboardLayout>
           <p className="text-muted-foreground mt-8 text-center text-xs">
             <Link
               href="/privacy"

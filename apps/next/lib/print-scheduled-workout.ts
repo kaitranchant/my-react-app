@@ -23,7 +23,12 @@ function buildExerciseSection(
   const summary = formatExercisePrescriptionSummary(row)
   const badges = getExerciseOptionBadges(row)
   const setCount = parseSetCount(row.sets)
-  const valueHeader = row.rep_mode === 'time' ? 'Time' : 'Reps'
+  const valueHeader =
+    row.rep_mode === 'time'
+      ? 'Time'
+      : row.rep_mode === 'distance'
+        ? 'Distance'
+        : 'Reps'
   const setRows = Array.from({ length: setCount }, (_, setIndex) => {
     const setNumber = setIndex + 1
     return `

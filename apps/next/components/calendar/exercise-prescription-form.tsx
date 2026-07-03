@@ -299,7 +299,7 @@ export function ExercisePrescriptionForm({
           name="repMode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Reps or time</FormLabel>
+              <FormLabel>Reps, time, or distance</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger id={`${idPrefix}-rep-mode`} className={compact ? 'h-9' : undefined}>
@@ -309,10 +309,13 @@ export function ExercisePrescriptionForm({
                 <SelectContent>
                   <SelectItem value="reps">Reps</SelectItem>
                   <SelectItem value="time">Time</SelectItem>
+                  <SelectItem value="distance">Distance</SelectItem>
                 </SelectContent>
               </Select>
               {!compact ? (
-                <FieldHint>Time for holds, carries, or intervals.</FieldHint>
+                <FieldHint>
+                  Time for holds and carries; distance for runs, rows, and sled work.
+                </FieldHint>
               ) : null}
               <FormMessage />
             </FormItem>
@@ -327,9 +330,11 @@ export function ExercisePrescriptionForm({
               <FormLabel>
                 {repMode === 'time'
                   ? 'Duration'
-                  : customRepsActive
-                    ? 'Reps per set'
-                    : 'Reps'}
+                  : repMode === 'distance'
+                    ? 'Distance'
+                    : customRepsActive
+                      ? 'Reps per set'
+                      : 'Reps'}
               </FormLabel>
               <FormControl>
                 {repMode === 'reps' && customRepsActive ? (
@@ -345,10 +350,12 @@ export function ExercisePrescriptionForm({
                     className={compact ? 'h-9' : undefined}
                     placeholder={
                       repMode === 'time'
-                        ? '30s, 1:00, 300m'
-                        : compact
-                          ? '10, 10-12'
-                          : '10, 10-12, F for to failure, C for custom'
+                        ? '30s, 1:00'
+                        : repMode === 'distance'
+                          ? '400m, 5k, 1mi'
+                          : compact
+                            ? '10, 10-12'
+                            : '10, 10-12, F for to failure, C for custom'
                     }
                     {...field}
                     onChange={(event) => {
@@ -379,10 +386,12 @@ export function ExercisePrescriptionForm({
               {!compact ? (
                 <FieldHint>
                   {repMode === 'time'
-                    ? 'Seconds, mm:ss, or distance.'
-                    : customRepsActive
-                      ? 'Enter a target for each set. Values are saved as a custom prescription.'
-                      : 'Use F for to failure, C for a custom target per set.'}
+                    ? 'Seconds or mm:ss.'
+                    : repMode === 'distance'
+                      ? 'Meters (m), kilometers (k/km), or miles (mi).'
+                      : customRepsActive
+                        ? 'Enter a target for each set. Values are saved as a custom prescription.'
+                        : 'Use F for to failure, C for a custom target per set.'}
                 </FieldHint>
               ) : null}
               <FormMessage />

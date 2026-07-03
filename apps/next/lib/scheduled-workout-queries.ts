@@ -62,6 +62,7 @@ type HistoricalLogRow = {
   weight: number | null
   reps: number | null
   duration_seconds: number | null
+  distance_meters: number | null
   scheduled_workout_id: string
   scheduled_workout_exercises: { exercise_id: string }
   client_scheduled_workouts: {
@@ -79,7 +80,12 @@ function sessionSortKey(workout: HistoricalLogRow['client_scheduled_workouts']):
 }
 
 function isUsablePreviousSet(row: HistoricalLogRow): boolean {
-  return row.reps != null || row.duration_seconds != null || row.weight != null
+  return (
+    row.reps != null ||
+    row.duration_seconds != null ||
+    row.distance_meters != null ||
+    row.weight != null
+  )
 }
 
 export async function fetchPreviousSetsForExercises(
@@ -106,6 +112,7 @@ export async function fetchPreviousSetsForExercises(
       weight,
       reps,
       duration_seconds,
+      distance_meters,
       scheduled_workout_id,
       scheduled_workout_exercises!inner (exercise_id),
       client_scheduled_workouts!inner (client_id, scheduled_date, completed_at, status)
@@ -158,6 +165,7 @@ export async function fetchPreviousSetsForExercises(
       weight: row.weight,
       reps: row.reps,
       durationSeconds: row.duration_seconds,
+      distanceMeters: row.distance_meters,
     }
   }
 
@@ -169,6 +177,7 @@ type ExerciseHistoryRow = {
   weight: number | null
   reps: number | null
   duration_seconds: number | null
+  distance_meters: number | null
   completed: boolean
   scheduled_workout_id: string
   scheduled_workout_exercises: { exercise_id: string }
@@ -196,6 +205,7 @@ export async function fetchExerciseHistory(
       weight,
       reps,
       duration_seconds,
+      distance_meters,
       completed,
       scheduled_workout_id,
       scheduled_workout_exercises!inner (exercise_id),
@@ -252,6 +262,7 @@ export async function fetchExerciseHistory(
       weight: row.weight,
       reps: row.reps,
       durationSeconds: row.duration_seconds,
+      distanceMeters: row.distance_meters,
       e1rm,
     }
 

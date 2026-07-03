@@ -11,6 +11,8 @@ import { GlobalSearch } from '@/components/dashboard/global-search'
 import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { UserMenu } from '@/components/dashboard/user-menu'
+import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
+import { MobileKeyboardShell } from '@/components/mobile-keyboard/mobile-keyboard-shell'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
 import type { CoachNotificationItem } from '@/lib/coach-notifications'
 import { cn } from '@/lib/utils'
@@ -41,6 +43,7 @@ export function DashboardShell({
   const immersiveLog = COACH_IMMERSIVE_LOG_ROUTE.test(pathname)
 
   return (
+    <MobileKeyboardShell enabled={!immersiveLog}>
     <div data-app-shell className="flex overflow-hidden">
       <RealtimePushListener role="coach" userId={userId} />
       <a
@@ -89,10 +92,12 @@ export function DashboardShell({
           >
             {children}
           </div>
+          <MobileKeyboardReserve />
         </main>
         {!immersiveLog ? <DashboardMobileBottomNav badges={navBadges} /> : null}
         <DashboardShortcuts />
       </div>
     </div>
+    </MobileKeyboardShell>
   )
 }

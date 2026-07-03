@@ -38,7 +38,7 @@ export const scheduledExercisePrescriptionSchema = z.object({
   reps: z.string().trim().max(40).optional(),
   prescription: z.string().trim().max(120).optional(),
   workoutNotes: z.string().trim().max(255).optional(),
-  repMode: z.enum(['reps', 'time']),
+  repMode: z.enum(['reps', 'time', 'distance']),
   eachSide: z.boolean(),
   tempo: z.string().trim().max(40).optional(),
   restSeconds: z.string().trim().max(20).optional(),
@@ -206,7 +206,12 @@ export function rowToPrescriptionValues(row: {
     reps: row.reps ?? '',
     prescription: row.prescription ?? '',
     workoutNotes: row.workout_notes ?? '',
-    repMode: row.rep_mode === 'time' ? 'time' : 'reps',
+    repMode:
+      row.rep_mode === 'time'
+        ? 'time'
+        : row.rep_mode === 'distance'
+          ? 'distance'
+          : 'reps',
     eachSide: Boolean(row.each_side),
     tempo: row.tempo ?? '',
     restSeconds: row.rest_seconds ?? '',

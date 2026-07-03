@@ -44,6 +44,13 @@ function formatPrescriptionRepUnit(
   repMode: ScheduledWorkoutExercise['rep_mode'] | null | undefined,
   reps: string
 ): string | null {
+  if (repMode === 'distance') {
+    const trimmed = reps.trim()
+    if (!trimmed) return 'meters'
+    if (/[a-z]/i.test(trimmed)) return null
+    return 'meters'
+  }
+
   if (repMode !== 'time') return 'reps'
 
   const trimmed = reps.trim()
@@ -135,6 +142,7 @@ export function getExerciseOptionBadges(
   if (row.superset_group) badges.push(`Superset ${row.superset_group}`)
   if (row.each_side) badges.push('Each side')
   if (row.rep_mode === 'time') badges.push('Time')
+  if (row.rep_mode === 'distance') badges.push('Distance')
   if (options.completionLift) badges.push('Completion')
   if (options.bodyweight) badges.push('Bodyweight')
   if (options.coachCompletes) badges.push('Coach logs')

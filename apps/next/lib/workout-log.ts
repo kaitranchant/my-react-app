@@ -18,6 +18,7 @@ export type PreviousSetLog = {
   weight: number | null
   reps: number | null
   durationSeconds?: number | null
+  distanceMeters?: number | null
 }
 
 export type WorkoutLogSetDraft = {
@@ -26,6 +27,7 @@ export type WorkoutLogSetDraft = {
   weight: string
   reps: string
   durationSeconds: string
+  distanceMeters: string
   barSpeed: string
   peakPower: string
   completed: boolean
@@ -123,8 +125,10 @@ export function parseTargetForSet(
 
 export function getExerciseRepMode(
   exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'rep_mode'>
-): 'reps' | 'time' {
-  return exercise.rep_mode === 'time' ? 'time' : 'reps'
+): 'reps' | 'time' | 'distance' {
+  if (exercise.rep_mode === 'time') return 'time'
+  if (exercise.rep_mode === 'distance') return 'distance'
+  return 'reps'
 }
 
 export function getTargetLabelForSet(
@@ -185,6 +189,80 @@ export function getPrescribedDurationSecondsForSet(
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+const METERS_PER_MILE = 1609.34
+
+/** Parse distance prescriptions like "400", "400m", "5k", "1.5km", or "1mi" into meters. */
+export function parseDistancePrescription(
+  target: string | null | undefined
+): string | null {
+  if (!target?.trim()) return null
+
+  const trimmed = target.trim().toLowerCase()
+
+  const mileMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:mi(?:les?)?)$/)
+  if (mileMatch) {
+    const miles = Number.parseFloat(mileMatch[1])
+    if (Number.isFinite(miles) && miles > 0) {
+      return String(Math.round(miles * METERS_PER_MILE))
+    }
+  }
+
+  const kmMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:k(?:m)?)$/)
+  if (kmMatch) {
+    const km = Number.parseFloat(kmMatch[1])
+    if (Number.isFinite(km) && km > 0) {
+      return String(Math.round(km * 1000))
+    }
+  }
+
+  const meterMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*m$/)
+  if (meterMatch) {
+    const meters = Number.parseFloat(meterMatch[1])
+    if (Number.isFinite(meters) && meters > 0) {
+      return String(Math.round(meters))
+    }
+  }
+
+  const plainMatch = trimmed.match(/^(\d+(?:\.\d+)?)$/)
+  if (plainMatch) {
+    const meters = Number.parseFloat(plainMatch[1])
+    if (Number.isFinite(meters) && meters > 0) {
+      return String(Math.round(meters))
+    }
+  }
+
+  return null
+}
+
+export function getPrescribedDistanceMetersForSet(
+  exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'reps' | 'prescription'>,
+  setNumber: number
+): number | null {
+  const label = getTargetLabelForSet(exercise, setNumber)
+  const parsed = parseDistancePrescription(label)
+  if (!parsed) return null
+
+  const value = Number.parseInt(parsed, 10)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
+export function formatDistanceMeters(meters: number): string {
+  if (meters >= METERS_PER_MILE) {
+    const miles = meters / METERS_PER_MILE
+    if (Math.abs(miles - Math.round(miles)) < 0.05) {
+      return `${Math.round(miles)}mi`
+    }
+  }
+
+  if (meters >= 1000) {
+    const km = meters / 1000
+    const rounded = Math.round(km * 10) / 10
+    return Number.isInteger(rounded) ? `${rounded}km` : `${rounded}km`
+  }
+
+  return `${meters}m`
+}
+
 export function getPreviousDurationSeconds(
   previous: PreviousSetLog | null | undefined
 ): number | null {
@@ -192,6 +270,13 @@ export function getPreviousDurationSeconds(
   if (previous.durationSeconds != null) return previous.durationSeconds
   if (previous.reps != null) return previous.reps
   return null
+}
+
+export function getPreviousDistanceMeters(
+  previous: PreviousSetLog | null | undefined
+): number | null {
+  if (!previous) return null
+  return previous.distanceMeters ?? null
 }
 
 /** Parse a percent-of-1RM prescription like "75", "75%", or "70-80". */
@@ -290,6 +375,16 @@ export function previousSessionMetTargets(
       return loggedDuration >= Number.parseInt(targetDuration, 10)
     }
 
+    if (fields.showDistance) {
+      const targetDistance = parseDistancePrescription(targetLabel)
+      if (!targetDistance) return true
+
+      const loggedDistance = getPreviousDistanceMeters(previous)
+      if (loggedDistance == null) return false
+
+      return loggedDistance >= Number.parseInt(targetDistance, 10)
+    }
+
     const targetReps = parsePrescriptionNumber(targetLabel)
     if (!targetReps) return true
     if (previous.reps == null) return false
@@ -349,7 +444,7 @@ export function getSuggestedLogValuesForSet(
   setNumber: number,
   previousSets: Record<number, PreviousSetLog> = {},
   options: SuggestLogValuesOptions = {}
-): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'> {
+): Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds' | 'distanceMeters'> {
   const fields = getLogFieldsForExercise(exercise)
   const targetLabel = getTargetLabelForSet(exercise, setNumber)
   const previous = resolvePreviousSetLog(previousSets, setNumber)
@@ -358,6 +453,7 @@ export function getSuggestedLogValuesForSet(
   let weight = ''
   let reps = ''
   let durationSeconds = ''
+  let distanceMeters = ''
 
   if (fields.showReps) {
     if (previous?.reps != null) {
@@ -382,6 +478,18 @@ export function getSuggestedLogValuesForSet(
     }
   }
 
+  if (fields.showDistance) {
+    const previousDistance = getPreviousDistanceMeters(previous)
+    if (previousDistance != null) {
+      distanceMeters = String(previousDistance)
+    } else {
+      const prescribed = parseDistancePrescription(targetLabel)
+      if (prescribed) {
+        distanceMeters = prescribed
+      }
+    }
+  }
+
   if (fields.showWeight) {
     const targetWeight = parseTargetWeight(exercise.target_weight)
     const e1rm = options.personalBest?.e1rm ?? null
@@ -402,13 +510,18 @@ export function getSuggestedLogValuesForSet(
     }
   }
 
-  return { weight, reps, durationSeconds }
+  return { weight, reps, durationSeconds, distanceMeters }
 }
 
 function hasSuggestedLogValues(
-  values: Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>
+  values: Pick<
+    WorkoutLogSetDraft,
+    'weight' | 'reps' | 'durationSeconds' | 'distanceMeters'
+  >
 ): boolean {
-  return Boolean(values.weight || values.reps || values.durationSeconds)
+  return Boolean(
+    values.weight || values.reps || values.durationSeconds || values.distanceMeters
+  )
 }
 
 export function getWorkoutStatusLabel(status: ScheduledWorkoutStatus): string {
@@ -522,6 +635,7 @@ function buildSetDraft(
       weight: suggested.weight,
       reps: suggested.reps,
       durationSeconds: suggested.durationSeconds,
+      distanceMeters: suggested.distanceMeters,
       barSpeed: '',
       peakPower: '',
       completed: false,
@@ -537,10 +651,15 @@ function buildSetDraft(
     existing.duration_seconds != null
       ? String(existing.duration_seconds)
       : suggested.durationSeconds
+  const distanceMeters =
+    existing.distance_meters != null
+      ? String(existing.distance_meters)
+      : suggested.distanceMeters
   const usedSuggestion =
     (existing.weight == null && suggested.weight !== '') ||
     (existing.reps == null && suggested.reps !== '') ||
-    (existing.duration_seconds == null && suggested.durationSeconds !== '')
+    (existing.duration_seconds == null && suggested.durationSeconds !== '') ||
+    (existing.distance_meters == null && suggested.distanceMeters !== '')
 
   return {
     setNumber,
@@ -548,6 +667,7 @@ function buildSetDraft(
     weight,
     reps,
     durationSeconds,
+    distanceMeters,
     barSpeed: existing.bar_speed != null ? String(existing.bar_speed) : '',
     peakPower: existing.peak_power != null ? String(existing.peak_power) : '',
     completed: existing.completed ?? false,
@@ -592,6 +712,7 @@ export function getLogFieldsForExercise(
     showWeight: !options.completionLift && !options.bodyweight,
     showReps: !options.completionLift && repMode === 'reps',
     showDuration: !options.completionLift && repMode === 'time',
+    showDistance: !options.completionLift && repMode === 'distance',
     showBarSpeed: options.trackBarSpeed,
     showPeakPower: options.trackPeakPower,
     completionOnly: options.completionLift,
@@ -620,7 +741,8 @@ export function getWorkoutLogSetGridTemplate(
   const inputCount =
     Number(fields.showWeight) +
     Number(fields.showReps) +
-    Number(fields.showDuration)
+    Number(fields.showDuration) +
+    Number(fields.showDistance)
 
   const parts = ['1.5rem', '3.25rem']
 
@@ -730,6 +852,7 @@ export function appendSetDraft(
   let weight = suggested.weight
   let reps = suggested.reps
   let durationSeconds = suggested.durationSeconds
+  let distanceMeters = suggested.distanceMeters
   let predicted = hasSuggestedLogValues(suggested)
 
   if (lastSet) {
@@ -748,6 +871,15 @@ export function appendSetDraft(
         durationSeconds = lastSet.durationSeconds
         predicted = true
       }
+    } else if (fields.showWeight && fields.showDistance) {
+      if (
+        lastSet.weight.trim() !== '' &&
+        lastSet.distanceMeters.trim() !== ''
+      ) {
+        weight = lastSet.weight
+        distanceMeters = lastSet.distanceMeters
+        predicted = true
+      }
     } else if (!fields.showWeight && fields.showReps && lastSet.reps.trim() !== '') {
       reps = lastSet.reps
       predicted = true
@@ -756,6 +888,12 @@ export function appendSetDraft(
       lastSet.durationSeconds.trim() !== ''
     ) {
       durationSeconds = lastSet.durationSeconds
+      predicted = true
+    } else if (
+      fields.showDistance &&
+      lastSet.distanceMeters.trim() !== ''
+    ) {
+      distanceMeters = lastSet.distanceMeters
       predicted = true
     }
   }
@@ -768,6 +906,7 @@ export function appendSetDraft(
       weight,
       reps,
       durationSeconds,
+      distanceMeters,
       barSpeed: '',
       peakPower: '',
       completed: false,
@@ -823,8 +962,17 @@ export function calculateE1rm(weight: number, reps: number): number | null {
 export function formatPreviousPerformance(
   weight: number | null,
   reps: number | null,
-  durationSeconds?: number | null
+  durationSeconds?: number | null,
+  distanceMeters?: number | null
 ): string {
+  if (distanceMeters != null) {
+    const distanceLabel = formatDistanceMeters(distanceMeters)
+    if (weight != null) {
+      return `${weight} × ${distanceLabel}`
+    }
+    return distanceLabel
+  }
+
   if (durationSeconds != null) {
     if (weight != null) {
       return `${weight} × ${durationSeconds}s`
@@ -858,12 +1006,20 @@ export function setHasRequiredLogValues(
     return set.weight.trim() !== '' && set.durationSeconds.trim() !== ''
   }
 
+  if (fields.showWeight && fields.showDistance) {
+    return set.weight.trim() !== '' && set.distanceMeters.trim() !== ''
+  }
+
   if (fields.showReps) {
     return set.reps.trim() !== ''
   }
 
   if (fields.showDuration) {
     return set.durationSeconds.trim() !== ''
+  }
+
+  if (fields.showDistance) {
+    return set.distanceMeters.trim() !== ''
   }
 
   if (fields.showWeight) {
@@ -907,6 +1063,7 @@ export function applySetPatchWithCompletion(
     'weight' in patch ||
     'reps' in patch ||
     'durationSeconds' in patch ||
+    'distanceMeters' in patch ||
     'barSpeed' in patch ||
     'peakPower' in patch
 
@@ -952,7 +1109,8 @@ function findPropagationSourceSet(
     const hasUserAnchor =
       (fields.showWeight && set.weight.trim() !== '') ||
       (fields.showReps && set.reps.trim() !== '') ||
-      (fields.showDuration && set.durationSeconds.trim() !== '')
+      (fields.showDuration && set.durationSeconds.trim() !== '') ||
+      (fields.showDistance && set.distanceMeters.trim() !== '')
 
     if (hasUserAnchor) {
       return set
@@ -992,16 +1150,19 @@ function propagationValuesMatch(
   return (
     (a.weight ?? '') === (b.weight ?? '') &&
     (a.reps ?? '') === (b.reps ?? '') &&
-    (a.durationSeconds ?? '') === (b.durationSeconds ?? '')
+    (a.durationSeconds ?? '') === (b.durationSeconds ?? '') &&
+    (a.distanceMeters ?? '') === (b.distanceMeters ?? '')
   )
 }
 
 function getPropagationValues(
   source: WorkoutLogSetDraft,
   fields: ReturnType<typeof getLogFieldsForExercise>
-): Partial<Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>> | null {
+): Partial<
+  Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds' | 'distanceMeters'>
+> | null {
   const values: Partial<
-    Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds'>
+    Pick<WorkoutLogSetDraft, 'weight' | 'reps' | 'durationSeconds' | 'distanceMeters'>
   > = {}
 
   if (fields.showWeight && source.weight.trim() !== '') {
@@ -1014,6 +1175,10 @@ function getPropagationValues(
 
   if (fields.showDuration && source.durationSeconds.trim() !== '') {
     values.durationSeconds = source.durationSeconds
+  }
+
+  if (fields.showDistance && source.distanceMeters.trim() !== '') {
+    values.distanceMeters = source.distanceMeters
   }
 
   return Object.keys(values).length > 0 ? values : null
@@ -1089,7 +1254,10 @@ export function applyExerciseSetChanges(
   })
 
   const touchesLogValues =
-    'weight' in patch || 'reps' in patch || 'durationSeconds' in patch
+    'weight' in patch ||
+    'reps' in patch ||
+    'durationSeconds' in patch ||
+    'distanceMeters' in patch
 
   if (touchesLogValues) {
     nextSets = propagateValuesToFollowingSets(nextSets, setNumber, fields)

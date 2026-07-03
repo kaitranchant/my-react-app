@@ -93,6 +93,76 @@ test.describe('Mobile smoke — client portal', () => {
     await keypad.getByRole('button', { name: 'Hide keyboard' }).click()
     await expect(page.getByRole('group', { name: 'Workout entry keypad' })).toHaveCount(0)
   })
+
+  test('custom mobile keyboard enters nutrition fiber without native keyboard', async ({
+    clientPage: page,
+  }) => {
+    test.setTimeout(60_000)
+    await page.goto('/portal/nutrition')
+    await expect(page.getByText('Macro targets').first()).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const fiberField = page.locator('#nutrition-fiber')
+    const hasFiberField = await fiberField.isVisible().catch(() => false)
+    if (!hasFiberField) {
+      test.skip(true, 'No fiber field on nutrition adherence form')
+    }
+
+    const initialViewportHeight = await page.evaluate(
+      () => window.visualViewport?.height ?? window.innerHeight
+    )
+
+    await fiberField.click()
+    const keypad = page.getByRole('group', { name: 'Mobile entry keyboard' })
+    await expect(keypad).toBeVisible()
+
+    const viewportAfterOpen = await page.evaluate(
+      () => window.visualViewport?.height ?? window.innerHeight
+    )
+    expect(Math.abs(viewportAfterOpen - initialViewportHeight)).toBeLessThan(40)
+
+    await keypad.getByRole('button', { name: 'Digit 2' }).click()
+    await keypad.getByRole('button', { name: 'Digit 5' }).click()
+    await expect(fiberField).toHaveText('25')
+
+    await keypad.getByRole('button', { name: 'Hide keyboard' }).click()
+    await expect(page.getByRole('group', { name: 'Mobile entry keyboard' })).toHaveCount(0)
+  })
+
+  test('custom mobile keyboard composes message without native keyboard', async ({
+    clientPage: page,
+  }) => {
+    test.setTimeout(60_000)
+    await page.goto('/portal/messages')
+    await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible()
+
+    const messageField = page.getByRole('button', { name: 'Write a message…' })
+    const hasMessageField = await messageField.isVisible().catch(() => false)
+    if (!hasMessageField) {
+      test.skip(true, 'No message compose field')
+    }
+
+    const initialViewportHeight = await page.evaluate(
+      () => window.visualViewport?.height ?? window.innerHeight
+    )
+
+    await messageField.click()
+    const keypad = page.getByRole('group', { name: 'Mobile entry keyboard' })
+    await expect(keypad).toBeVisible()
+
+    const viewportAfterOpen = await page.evaluate(
+      () => window.visualViewport?.height ?? window.innerHeight
+    )
+    expect(Math.abs(viewportAfterOpen - initialViewportHeight)).toBeLessThan(40)
+
+    await keypad.getByRole('button', { name: 'h' }).click()
+    await keypad.getByRole('button', { name: 'i' }).click()
+    await expect(messageField).toHaveText('hi')
+
+    await keypad.getByRole('button', { name: 'Hide keyboard' }).click()
+    await expect(page.getByRole('group', { name: 'Mobile entry keyboard' })).toHaveCount(0)
+  })
 })
 
 test.describe('Mobile smoke — coach dashboard', () => {

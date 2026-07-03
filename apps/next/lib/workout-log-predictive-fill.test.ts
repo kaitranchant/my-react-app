@@ -69,6 +69,7 @@ function emptySet(setNumber: number, overrides: Partial<WorkoutLogSetDraft> = {}
     weight: '',
     reps: '8',
     durationSeconds: '',
+    distanceMeters: '',
     barSpeed: '',
     peakPower: '',
     completed: false,

@@ -224,6 +224,7 @@ export async function saveWorkoutLogSets(
     weight: set.weight,
     reps: set.reps,
     duration_seconds: set.durationSeconds,
+    distance_meters: set.distanceMeters,
     bar_speed: set.barSpeed,
     peak_power: set.peakPower,
     completed: set.completed,

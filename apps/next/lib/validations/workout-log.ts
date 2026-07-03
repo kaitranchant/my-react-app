@@ -6,6 +6,7 @@ export const workoutLogSetSchema = z.object({
   weight: z.number().min(0).max(9999).nullable(),
   reps: z.number().int().min(0).max(999).nullable(),
   durationSeconds: z.number().int().min(0).max(86400).nullable(),
+  distanceMeters: z.number().int().min(0).max(1_000_000).nullable(),
   barSpeed: z.number().min(0).max(99).nullable(),
   peakPower: z.number().min(0).max(99999).nullable(),
   completed: z.boolean(),

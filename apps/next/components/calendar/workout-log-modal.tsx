@@ -119,6 +119,7 @@ import {
   countTotalSetsFromDrafts,
   findResumeExerciseIndex,
   formatPreviousPerformance,
+  getPreviousDistanceMeters,
   getPreviousDurationSeconds,
   getPrescribedDurationSecondsForSet,
   resolvePreviousSetLog,
@@ -252,6 +253,7 @@ function serializeExerciseStateForSave(state: ExerciseLogState): string {
           weight: set.weight,
           reps: set.reps,
           durationSeconds: set.durationSeconds,
+          distanceMeters: set.distanceMeters,
           barSpeed: set.barSpeed,
           peakPower: set.peakPower,
           completed: set.completed,
@@ -419,7 +421,8 @@ function WorkoutLogExercise({
     fields.completionOnly ||
     fields.showWeight ||
     fields.showReps ||
-    fields.showDuration
+    fields.showDuration ||
+    fields.showDistance
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
   const hasExerciseNotes = Boolean(
     exercise.workout_notes?.trim() || exercise.client_notes?.trim()
@@ -533,6 +536,7 @@ function WorkoutLogExercise({
   }, [
     exercise.id,
     fields.showBarSpeed,
+    fields.showDistance,
     fields.showDuration,
     fields.showPeakPower,
     fields.showReps,
@@ -821,6 +825,7 @@ function WorkoutLogExercise({
                           {fields.showWeight && <span>{weightUnitLabel(weightUnit)}</span>}
                           {fields.showReps && <span>Reps</span>}
                           {fields.showDuration && <span>Sec</span>}
+                          {fields.showDistance && <span>m</span>}
                         </>
                       )}
                       {!useConfirmAllButton && (
@@ -893,7 +898,12 @@ function WorkoutLogExercise({
                                 ? formatPreviousPerformance(
                                     previous.weight,
                                     fields.showReps ? previous.reps : null,
-                                    getPreviousDurationSeconds(previous)
+                                    fields.showDuration
+                                      ? getPreviousDurationSeconds(previous)
+                                      : undefined,
+                                    fields.showDistance
+                                      ? getPreviousDistanceMeters(previous)
+                                      : undefined
                                   )
                                 : '—'}
                             </span>
@@ -949,6 +959,25 @@ function WorkoutLogExercise({
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
                               ariaLabel={`Set ${set.setNumber} duration`}
+                            />
+                          )}
+
+                          {fields.showDistance && (
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="distanceMeters"
+                              value={set.distanceMeters}
+                              disabled={readOnly}
+                              predicted={showPredictedValues}
+                              onChange={(value) =>
+                                handleLocalSetChange(set.setNumber, {
+                                  distanceMeters: value,
+                                })
+                              }
+                              placeholder="—"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
+                              ariaLabel={`Set ${set.setNumber} distance`}
                             />
                           )}
 
@@ -1395,6 +1424,7 @@ export function WorkoutLogScreen({
           weight: parseOptionalNumber(set.weight),
           reps: parseOptionalInt(set.reps),
           durationSeconds: parseOptionalInt(set.durationSeconds),
+          distanceMeters: parseOptionalInt(set.distanceMeters),
           barSpeed: parseOptionalNumber(set.barSpeed),
           peakPower: parseOptionalNumber(set.peakPower),
           completed: set.completed,

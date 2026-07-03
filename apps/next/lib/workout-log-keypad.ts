@@ -1,4 +1,5 @@
 import {
+  getPreviousDistanceMeters,
   getPreviousDurationSeconds,
   resolvePreviousSetLog,
   type PreviousSetLog,
@@ -11,6 +12,7 @@ export type WorkoutLogKeypadField =
   | 'weight'
   | 'reps'
   | 'durationSeconds'
+  | 'distanceMeters'
   | 'barSpeed'
   | 'peakPower'
 
@@ -93,6 +95,7 @@ export function getVisibleKeypadFields(
   if (fields.showWeight) visible.push('weight')
   if (fields.showReps) visible.push('reps')
   if (fields.showDuration) visible.push('durationSeconds')
+  if (fields.showDistance) visible.push('distanceMeters')
   if (fields.showBarSpeed) visible.push('barSpeed')
   if (fields.showPeakPower) visible.push('peakPower')
   return visible
@@ -157,6 +160,7 @@ export function getCopyValuesForSet(
       if (fields.showWeight) patch.weight = prior.weight
       if (fields.showReps) patch.reps = prior.reps
       if (fields.showDuration) patch.durationSeconds = prior.durationSeconds
+      if (fields.showDistance) patch.distanceMeters = prior.distanceMeters
       if (fields.showBarSpeed) patch.barSpeed = prior.barSpeed
       if (fields.showPeakPower) patch.peakPower = prior.peakPower
       return patch
@@ -175,6 +179,12 @@ export function getCopyValuesForSet(
       const duration = getPreviousDurationSeconds(previous)
       if (duration != null) {
         patch.durationSeconds = String(duration)
+      }
+    }
+    if (fields.showDistance) {
+      const distance = getPreviousDistanceMeters(previous)
+      if (distance != null) {
+        patch.distanceMeters = String(distance)
       }
     }
   }

@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { formatDayHeader } from '@/lib/calendar'
-import { formatPreviousPerformance } from '@/lib/workout-log'
+import { formatDistanceMeters, formatPreviousPerformance } from '@/lib/workout-log'
 import { cn } from '@/lib/utils'
 import type { ExerciseHistorySession } from 'app/types/database'
 
@@ -157,7 +157,9 @@ function HistorySessionCard({ session }: { session: ExerciseHistorySession }) {
               ? formatPreviousPerformance(set.weight, set.reps)
               : set.durationSeconds != null
                 ? `${set.durationSeconds}s`
-                : '—'
+                : set.distanceMeters != null
+                  ? formatDistanceMeters(set.distanceMeters)
+                  : '—'
 
           return (
             <div

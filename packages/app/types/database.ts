@@ -77,7 +77,7 @@ export type MessageSenderRole = 'coach' | 'client'
 export type ClientMessageType = 'text' | 'voice'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
-export type ScheduledExerciseRepMode = 'reps' | 'time'
+export type ScheduledExerciseRepMode = 'reps' | 'time' | 'distance'
 export type ClientGoalCategory =
   | 'composition'
   | 'daily'
@@ -1865,6 +1865,7 @@ export type Database = {
           weight: number | null
           reps: number | null
           duration_seconds: number | null
+          distance_meters: number | null
           bar_speed: number | null
           peak_power: number | null
           completed: boolean
@@ -1880,6 +1881,7 @@ export type Database = {
           weight?: number | null
           reps?: number | null
           duration_seconds?: number | null
+          distance_meters?: number | null
           bar_speed?: number | null
           peak_power?: number | null
           completed?: boolean
@@ -1895,6 +1897,7 @@ export type Database = {
           weight?: number | null
           reps?: number | null
           duration_seconds?: number | null
+          distance_meters?: number | null
           bar_speed?: number | null
           peak_power?: number | null
           completed?: boolean
@@ -4070,6 +4073,7 @@ export type PreviousSetLog = {
   weight: number | null
   reps: number | null
   durationSeconds?: number | null
+  distanceMeters?: number | null
 }
 
 export type ExercisePreviousSets = Record<number, PreviousSetLog>
@@ -4092,6 +4096,7 @@ export type ExerciseHistorySet = {
   weight: number | null
   reps: number | null
   durationSeconds: number | null
+  distanceMeters: number | null
   e1rm: number | null
 }
 

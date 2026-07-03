@@ -3,8 +3,10 @@ import { describe, it } from 'node:test'
 
 import {
   buildSetDrafts,
+  getPrescribedDistanceMetersForSet,
   getPrescribedDurationSecondsForSet,
   getSuggestedLogValuesForSet,
+  parseDistancePrescription,
   parseDurationPrescription,
   resolvePreviousSetLog,
 } from './workout-log'
@@ -211,5 +213,60 @@ describe('time-based exercise autofill', () => {
     assert.equal(getPrescribedDurationSecondsForSet(exercise, 2), 45)
     assert.equal(getPrescribedDurationSecondsForSet(exercise, 3), 60)
     assert.equal(getPrescribedDurationSecondsForSet(exercise, 4), 60)
+  })
+})
+
+describe('distance-based exercise autofill', () => {
+  it('parses distance prescriptions into meters', () => {
+    assert.equal(parseDistancePrescription('400m'), '400')
+    assert.equal(parseDistancePrescription('5k'), '5000')
+    assert.equal(parseDistancePrescription('1mi'), '1609')
+    assert.equal(parseDistancePrescription('1.5km'), '1500')
+  })
+
+  it('prefills distance from previous session distance_meters', () => {
+    const exercise = baseExercise({ rep_mode: 'distance', reps: '400m' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {
+      1: { weight: null, reps: null, distanceMeters: 425 },
+    })
+
+    assert.equal(suggested.distanceMeters, '425')
+    assert.equal(suggested.reps, '')
+  })
+
+  it('uses parsed prescription when no previous session exists', () => {
+    const exercise = baseExercise({ rep_mode: 'distance', reps: '5k' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {})
+
+    assert.equal(suggested.distanceMeters, '5000')
+  })
+
+  it('marks distance-based prefilled sets as predicted in buildSetDrafts', () => {
+    const exercise = baseExercise({ rep_mode: 'distance', sets: '2', reps: '400m' })
+    const drafts = buildSetDrafts(
+      exercise,
+      [],
+      {
+        1: { weight: null, reps: null, distanceMeters: 410 },
+        2: { weight: null, reps: null, distanceMeters: 400 },
+      },
+      null
+    )
+
+    assert.equal(drafts[0]?.distanceMeters, '410')
+    assert.equal(drafts[0]?.predicted, true)
+    assert.equal(drafts[1]?.distanceMeters, '400')
+    assert.equal(drafts[1]?.predicted, true)
+  })
+
+  it('reads prescribed distance meters per set from prescription', () => {
+    const exercise = baseExercise({
+      rep_mode: 'distance',
+      sets: '2',
+      reps: '400m,800m',
+    })
+
+    assert.equal(getPrescribedDistanceMetersForSet(exercise, 1), 400)
+    assert.equal(getPrescribedDistanceMetersForSet(exercise, 2), 800)
   })
 })

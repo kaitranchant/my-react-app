@@ -9,6 +9,8 @@ import { PortalMobileNav } from '@/components/portal/portal-mobile-nav'
 import { PortalNavBadgesProvider } from '@/components/portal/portal-nav-badges-provider'
 import { PortalSidebar } from '@/components/portal/portal-sidebar'
 import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
+import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
+import { MobileKeyboardShell } from '@/components/mobile-keyboard/mobile-keyboard-shell'
 import type { PortalNavBadges } from '@/lib/portal-nav-badges'
 import type { PortalNotificationPreferences } from '@/lib/portal-notification-preferences'
 import { cn } from '@/lib/utils'
@@ -43,6 +45,7 @@ export function PortalShell({
 
   return (
     <PortalNavBadgesProvider initialBadges={navBadges}>
+      <MobileKeyboardShell enabled={!immersiveLog}>
       <div data-app-shell className="flex overflow-hidden">
         <RealtimePushListener
           role="client"
@@ -96,12 +99,14 @@ export function PortalShell({
             >
               {children}
             </div>
+            <MobileKeyboardReserve />
           </main>
           {!immersiveLog ? (
             <PortalMobileNav showTeamNav={showTeamNav} />
           ) : null}
         </div>
       </div>
+      </MobileKeyboardShell>
     </PortalNavBadgesProvider>
   )
 }
