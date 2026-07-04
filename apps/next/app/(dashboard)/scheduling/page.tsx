@@ -72,7 +72,7 @@ export default async function SchedulingPage({
     weekReferenceDate
   )
 
-  void ensureCoachAppointmentSeriesHorizon(user.id)
+  await ensureCoachAppointmentSeriesHorizon(user.id)
 
   const todayKey = getCoachDateKeyFromReference(coachPreferences.timezone)
   const exceptionHorizonKey = addDaysToDateKey(todayKey, 90)

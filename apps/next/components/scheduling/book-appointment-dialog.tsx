@@ -201,6 +201,7 @@ export function BookAppointmentDialog({
         dateKey ||
         (startsAt ? toDateKey(new Date(startsAt)) : toDateKey(new Date()))
       const weekStart = getWeekStartDateKey(bookedDateKey, weekStartsOn)
+      window.dispatchEvent(new Event('scheduling:appointments-changed'))
       router.push(`/scheduling?view=week&week=${weekStart}`)
       router.refresh()
     } else {
@@ -431,7 +432,7 @@ export function BookAppointmentDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={pending || !startsAt}>
-              Book session
+              {pending ? 'Booking…' : 'Book session'}
             </Button>
           </DialogFooter>
         </form>

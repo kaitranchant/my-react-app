@@ -481,8 +481,10 @@ export function validateCoachBookableInstant(options: {
   startsAt: string
   settings: SessionBookingSettings
   appointments: CoachingAppointment[]
+  durationMinutes?: number
 }): { ok: true; endsAt: string } | { ok: false; error: string } {
-  const duration = options.settings.default_session_duration_minutes
+  const duration =
+    options.durationMinutes ?? options.settings.default_session_duration_minutes
   const slotStart = new Date(options.startsAt)
   const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
 

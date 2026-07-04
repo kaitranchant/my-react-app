@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   CalendarDays,
   ChevronLeft,
@@ -10,9 +10,7 @@ import {
   List,
   Loader2,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
-import { fetchSchedulingWeekData } from '@/app/(dashboard)/scheduling/actions'
 import { AppointmentsList } from '@/components/scheduling/appointments-list'
 import { AppointmentManageDialog } from '@/components/scheduling/appointment-manage-dialog'
 import { SchedulingWeekCalendar } from '@/components/scheduling/scheduling-week-calendar'
@@ -22,8 +20,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import {
   addDaysToDateKey,
   formatSchedulingWeekRange,
-  getCurrentWeekDateKeys,
-  parseDateKey,
 } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { ClientSessionPack, CoachingAppointment } from '@/lib/session-booking-types'
@@ -40,36 +36,22 @@ type SchedulingWeekPanelProps = {
 
 type WeekViewMode = 'calendar' | 'list'
 
-type WeekData = {
-  appointments: CoachingAppointment[]
-  weekKeys: string[]
-}
-
-function weekKeysForStart(
-  weekStartsOn: CoachPreferences['weekStartsOn'],
-  weekStartKey: string
-) {
-  return getCurrentWeekDateKeys(weekStartsOn, parseDateKey(weekStartKey))
-}
-
 export function SchedulingWeekPanel({
-  appointments: initialAppointments,
+  appointments,
   coachPreferences,
   sessionPacks,
-  weekKeys: initialWeekKeys,
+  weekKeys,
   clients,
   dateOptions,
 }: SchedulingWeekPanelProps) {
+  const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = React.useTransition()
   const [viewMode, setViewMode] = React.useState<WeekViewMode>('calendar')
   const [selectedAppointment, setSelectedAppointment] =
     React.useState<CoachingAppointment | null>(null)
   const [manageOpen, setManageOpen] = React.useState(false)
-  const [appointments, setAppointments] = React.useState(initialAppointments)
-  const [weekKeys, setWeekKeys] = React.useState(initialWeekKeys)
-  const [isLoadingWeek, setIsLoadingWeek] = React.useState(false)
-  const weekCacheRef = React.useRef<Map<string, WeekData>>(new Map())
-  const requestIdRef = React.useRef(0)
 
   const weekStartKey = weekKeys[0]!
   const weekEndKey = weekKeys[weekKeys.length - 1]!
@@ -77,112 +59,37 @@ export function SchedulingWeekPanel({
   const prevWeekStart = addDaysToDateKey(weekStartKey, -7)
   const nextWeekStart = addDaysToDateKey(weekStartKey, 7)
 
-  React.useEffect(() => {
-    weekCacheRef.current.set(weekStartKey, { appointments, weekKeys })
-  }, [appointments, weekKeys, weekStartKey])
-
-  React.useEffect(() => {
-    setAppointments(initialAppointments)
-    setWeekKeys(initialWeekKeys)
-  }, [initialAppointments, initialWeekKeys])
-
-  const syncWeekUrl = React.useCallback(
+  const navigateWeek = React.useCallback(
     (targetWeekStart: string) => {
-      const params = new URLSearchParams(window.location.search)
+      const params = new URLSearchParams(searchParams.toString())
       params.set('view', 'week')
       params.set('week', targetWeekStart)
-      window.history.replaceState(
-        null,
-        '',
-        `${pathname}?${params.toString()}`
-      )
-    },
-    [pathname]
-  )
-
-  const loadWeek = React.useCallback(
-    async (targetWeekStart: string, options?: { fromPopState?: boolean }) => {
-      const cached = weekCacheRef.current.get(targetWeekStart)
-      const optimisticWeekKeys = weekKeysForStart(
-        coachPreferences.weekStartsOn,
-        targetWeekStart
-      )
-
-      if (cached) {
-        setWeekKeys(cached.weekKeys)
-        setAppointments(cached.appointments)
-        if (!options?.fromPopState) {
-          syncWeekUrl(targetWeekStart)
-        }
-        return
-      }
-
-      const requestId = ++requestIdRef.current
-      setWeekKeys(optimisticWeekKeys)
-      if (!options?.fromPopState) {
-        syncWeekUrl(targetWeekStart)
-      }
-      setIsLoadingWeek(true)
-
-      try {
-        const result = await fetchSchedulingWeekData(targetWeekStart)
-        if (requestId !== requestIdRef.current) {
-          return
-        }
-
-        if (!result.success) {
-          toast.error(result.error)
-          return
-        }
-
-        weekCacheRef.current.set(targetWeekStart, {
-          appointments: result.appointments,
-          weekKeys: result.weekKeys,
-        })
-        setWeekKeys(result.weekKeys)
-        setAppointments(result.appointments)
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setIsLoadingWeek(false)
-        }
-      }
-    },
-    [coachPreferences.weekStartsOn, syncWeekUrl]
-  )
-
-  React.useEffect(() => {
-    for (const targetWeekStart of [prevWeekStart, nextWeekStart]) {
-      if (weekCacheRef.current.has(targetWeekStart)) {
-        continue
-      }
-
-      void fetchSchedulingWeekData(targetWeekStart).then((result) => {
-        if (!result.success) {
-          return
-        }
-
-        weekCacheRef.current.set(targetWeekStart, {
-          appointments: result.appointments,
-          weekKeys: result.weekKeys,
-        })
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`)
       })
-    }
-  }, [nextWeekStart, prevWeekStart])
+    },
+    [pathname, router, searchParams]
+  )
+
+  const refreshWeek = React.useCallback(() => {
+    startTransition(() => {
+      router.refresh()
+    })
+  }, [router])
 
   React.useEffect(() => {
-    function onPopState() {
-      const params = new URLSearchParams(window.location.search)
-      const week = params.get('week')
-      if (!week || !/^\d{4}-\d{2}-\d{2}$/.test(week)) {
-        return
-      }
-
-      void loadWeek(week, { fromPopState: true })
+    function onAppointmentsChanged() {
+      refreshWeek()
     }
 
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [loadWeek])
+    window.addEventListener('scheduling:appointments-changed', onAppointmentsChanged)
+    return () => {
+      window.removeEventListener(
+        'scheduling:appointments-changed',
+        onAppointmentsChanged
+      )
+    }
+  }, [refreshWeek])
 
   function openManage(appointment: CoachingAppointment) {
     setSelectedAppointment(appointment)
@@ -205,14 +112,14 @@ export function SchedulingWeekPanel({
             size="icon"
             className="size-8 shrink-0"
             aria-label="Previous week"
-            disabled={isLoadingWeek}
-            onClick={() => void loadWeek(prevWeekStart)}
+            disabled={isPending}
+            onClick={() => navigateWeek(prevWeekStart)}
           >
             <ChevronLeft className="size-4" />
           </Button>
           <p className="relative min-w-[7.5rem] text-center text-sm font-medium sm:min-w-[8.5rem]">
             {weekLabel}
-            {isLoadingWeek ? (
+            {isPending ? (
               <Loader2 className="text-muted-foreground absolute -right-5 top-1/2 size-3.5 -translate-y-1/2 animate-spin" />
             ) : null}
           </p>
@@ -222,8 +129,8 @@ export function SchedulingWeekPanel({
             size="icon"
             className="size-8 shrink-0"
             aria-label="Next week"
-            disabled={isLoadingWeek}
-            onClick={() => void loadWeek(nextWeekStart)}
+            disabled={isPending}
+            onClick={() => navigateWeek(nextWeekStart)}
           >
             <ChevronRight className="size-4" />
           </Button>
@@ -256,7 +163,7 @@ export function SchedulingWeekPanel({
       <div
         className={cn(
           'transition-opacity duration-150',
-          isLoadingWeek && 'pointer-events-none opacity-60'
+          isPending && 'pointer-events-none opacity-60'
         )}
       >
         {viewMode === 'calendar' ? (
@@ -297,12 +204,8 @@ export function SchedulingWeekPanel({
       <AppointmentManageDialog
         appointment={selectedAppointment}
         open={manageOpen}
-        onOpenChange={(open) => {
-          setManageOpen(open)
-          if (!open) {
-            void loadWeek(weekStartKey)
-          }
-        }}
+        onOpenChange={setManageOpen}
+        onAppointmentsMutated={refreshWeek}
         coachPreferences={coachPreferences}
         sessionPacks={sessionPacks}
         clients={clients}

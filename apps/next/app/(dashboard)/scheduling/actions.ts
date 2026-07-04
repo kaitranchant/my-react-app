@@ -460,6 +460,12 @@ type WeeklyBookingTemplate = {
   seriesId?: string | null
 }
 
+type CoachSeriesBookingContext = {
+  supabase: Awaited<ReturnType<typeof createClient>>
+  settings: Awaited<ReturnType<typeof fetchCoachSessionBookingSettings>>
+  durationMinutes: number
+}
+
 async function seriesOccurrenceExists(
   supabase: Awaited<ReturnType<typeof createClient>>,
   seriesId: string,
@@ -481,9 +487,38 @@ async function bookWeeklyAppointmentOccurrences(options: {
   template: WeeklyBookingTemplate
   abortOnFailure: boolean
   weekLabelPrefix?: string
+  coachSeriesContext?: CoachSeriesBookingContext
 }): Promise<ActionResult & { bookedCount?: number }> {
-  const supabase = await createClient()
+  const supabase =
+    options.coachSeriesContext?.supabase ?? (await createClient())
   let bookedCount = 0
+  let cachedAppointments: CoachingAppointment[] | null = null
+
+  if (options.coachSeriesContext && options.weekIndexes.length > 0) {
+    const firstWeekIndex = Math.min(...options.weekIndexes)
+    const lastWeekIndex = Math.max(...options.weekIndexes)
+    const firstStartsAt = offsetStartsAtByWeeks(
+      options.anchorStartsAtIso,
+      firstWeekIndex
+    )
+    const lastStartsAt = offsetStartsAtByWeeks(
+      options.anchorStartsAtIso,
+      lastWeekIndex
+    )
+    const durationMs = options.coachSeriesContext.durationMinutes * 60_000
+    const timeMin = new Date(
+      new Date(firstStartsAt).getTime() - 24 * 60 * 60 * 1000
+    ).toISOString()
+    const timeMax = new Date(
+      new Date(lastStartsAt).getTime() + durationMs + 24 * 60 * 60 * 1000
+    ).toISOString()
+    cachedAppointments = await fetchCoachingAppointments(
+      supabase,
+      options.template.coachId,
+      timeMin,
+      timeMax
+    )
+  }
 
   for (const weekIndex of options.weekIndexes) {
     const startsAtIso = offsetStartsAtByWeeks(
@@ -502,42 +537,75 @@ async function bookWeeklyAppointmentOccurrences(options: {
       continue
     }
 
-    const validation = await validateBookableSlot({
-      coachId: options.template.coachId,
-      clientId: options.template.clientId,
-      startsAt: startsAtIso,
-      sessionPackId: options.template.sessionPackId,
-      ignoreMinNotice: true,
-      coachBooking: true,
-      clientTimeZone: options.template.clientTimeZone,
-    })
+    let insertSupabase = supabase
+    let endsAt: string
+    let sessionPackId = options.template.sessionPackId
 
-    if (!validation.ok) {
-      if (options.abortOnFailure) {
-        const label = options.weekLabelPrefix ?? 'Week'
-        return {
-          success: false,
-          error:
-            options.weekIndexes.length > 1
-              ? `${label} ${weekIndex + 1}: ${validation.error}`
-              : validation.error,
+    if (options.coachSeriesContext) {
+      const coachValidation = validateCoachBookableInstant({
+        startsAt: startsAtIso,
+        settings: options.coachSeriesContext.settings,
+        appointments: cachedAppointments ?? [],
+        durationMinutes: options.coachSeriesContext.durationMinutes,
+      })
+
+      if (!coachValidation.ok) {
+        if (options.abortOnFailure) {
+          const label = options.weekLabelPrefix ?? 'Week'
+          return {
+            success: false,
+            error:
+              options.weekIndexes.length > 1
+                ? `${label} ${weekIndex + 1}: ${coachValidation.error}`
+                : coachValidation.error,
+          }
         }
+        continue
       }
-      continue
+
+      endsAt = coachValidation.endsAt
+    } else {
+      const validation = await validateBookableSlot({
+        coachId: options.template.coachId,
+        clientId: options.template.clientId,
+        startsAt: startsAtIso,
+        sessionPackId: options.template.sessionPackId,
+        ignoreMinNotice: true,
+        coachBooking: true,
+        clientTimeZone: options.template.clientTimeZone,
+      })
+
+      if (!validation.ok) {
+        if (options.abortOnFailure) {
+          const label = options.weekLabelPrefix ?? 'Week'
+          return {
+            success: false,
+            error:
+              options.weekIndexes.length > 1
+                ? `${label} ${weekIndex + 1}: ${validation.error}`
+                : validation.error,
+          }
+        }
+        continue
+      }
+
+      insertSupabase = validation.supabase
+      endsAt = validation.endsAt
+      sessionPackId = validation.sessionPackId
     }
 
     const { data: inserted, error } = await insertCoachingAppointment(
-      validation.supabase,
+      insertSupabase,
       {
         coachId: options.template.coachId,
         clientId: options.template.clientId,
         startsAt: startsAtIso,
-        endsAt: validation.endsAt,
+        endsAt,
         location: options.template.location,
         preSessionNotes: options.template.preSessionNotes,
         coachingType: options.template.coachingType,
         sessionType: options.template.sessionType,
-        sessionPackId: validation.sessionPackId,
+        sessionPackId,
         bookedBy: 'coach',
         seriesId: options.template.seriesId,
       }
@@ -719,7 +787,7 @@ async function extendCoachAppointmentSeriesHorizon(coachId: string) {
   const { data: seriesRows } = await supabase
     .from('coaching_appointment_series')
     .select(
-      'id, client_id, anchor_starts_at, location, pre_session_notes, coaching_type, session_type, session_pack_id, max_week_index'
+      'id, client_id, anchor_starts_at, duration_minutes, location, pre_session_notes, coaching_type, session_type, session_pack_id, max_week_index'
     )
     .eq('coach_id', coachId)
     .eq('status', 'active')
@@ -765,6 +833,11 @@ async function extendCoachAppointmentSeriesHorizon(coachId: string) {
         seriesId: series.id,
       },
       abortOnFailure: false,
+      coachSeriesContext: {
+        supabase,
+        settings,
+        durationMinutes: series.duration_minutes,
+      },
     })
   }
 }
@@ -1030,14 +1103,6 @@ async function bookCoachAppointmentOccurrences(options: {
       }
     }
 
-    const horizonDays = computeSeriesHorizonDays(
-      firstValidation.settings.booking_max_days_ahead
-    )
-    const weekIndexes = countWeekIndexesThroughHorizon(
-      anchorStartsAt,
-      getSeriesHorizonEnd(new Date(), horizonDays)
-    )
-
     const weekZeroResult = await bookWeeklyAppointmentOccurrences({
       anchorStartsAtIso: anchorStartsAt,
       weekIndexes: [0],
@@ -1065,26 +1130,6 @@ async function bookCoachAppointmentOccurrences(options: {
         .delete()
         .eq('id', series.id)
       return weekZeroResult
-    }
-
-    const remainingWeekIndexes = weekIndexes.filter((weekIndex) => weekIndex > 0)
-    if (remainingWeekIndexes.length > 0) {
-      await bookWeeklyAppointmentOccurrences({
-        anchorStartsAtIso: anchorStartsAt,
-        weekIndexes: remainingWeekIndexes,
-        template: {
-          coachId: options.coachId,
-          clientId: parsed.clientId,
-          location,
-          preSessionNotes: parsed.notes ?? null,
-          coachingType: parsed.coachingType ?? null,
-          sessionType: parsed.sessionType,
-          sessionPackId: firstValidation.sessionPackId,
-          clientTimeZone: parsed.clientTimeZone,
-          seriesId: series.id,
-        },
-        abortOnFailure: false,
-      })
     }
 
     return { success: true }
@@ -1185,6 +1230,11 @@ async function bookCoachAppointmentOccurrences(options: {
           seriesId: series.id,
         },
         abortOnFailure: false,
+        coachSeriesContext: {
+          supabase: firstValidation.supabase,
+          settings: firstValidation.settings,
+          durationMinutes,
+        },
       })
     }
 
@@ -1992,6 +2042,8 @@ export async function fetchSchedulingWeekData(
   if (!ctx) {
     return { success: false, error: 'You must be signed in.' }
   }
+
+  await ensureCoachAppointmentSeriesHorizon(ctx.user.id)
 
   const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
   const weekReferenceDate = getSchedulingWeekReferenceDate(

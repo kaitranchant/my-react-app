@@ -55,6 +55,7 @@ type AppointmentManageDialogProps = {
   appointment: CoachingAppointment | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onAppointmentsMutated?: () => void
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
   clients: Array<{ id: string; full_name: string | null }>
@@ -65,6 +66,7 @@ export function AppointmentManageDialog({
   appointment,
   open,
   onOpenChange,
+  onAppointmentsMutated,
   coachPreferences,
   sessionPacks,
   clients,
@@ -231,6 +233,7 @@ export function AppointmentManageDialog({
   async function refreshAfterSuccess(message: string) {
     toast.success(message)
     onOpenChange(false)
+    onAppointmentsMutated?.()
     router.refresh()
   }
 
