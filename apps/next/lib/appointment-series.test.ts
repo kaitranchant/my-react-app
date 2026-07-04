@@ -5,6 +5,8 @@ import {
   computeSeriesHorizonDays,
   countWeekIndexesThroughHorizon,
   getWeekIndexFromAnchor,
+  isOrphanSeriesOccurrenceAtOrAfterWeek,
+  isSeriesOccurrenceAtOrAfterWeek,
   offsetStartsAtByWeeks,
 } from './appointment-series'
 
@@ -37,4 +39,32 @@ test('countWeekIndexesThroughHorizon includes anchor week through horizon', () =
   )
 
   assert.deepEqual(indexes, [0, 1, 2, 3])
+})
+
+test('isSeriesOccurrenceAtOrAfterWeek uses anchor week index, not calendar ordering', () => {
+  const anchor = '2026-06-01T15:00:00.000Z'
+  const weekTwo = '2026-06-15T15:00:00.000Z'
+  const weekThree = '2026-06-22T15:00:00.000Z'
+
+  assert.equal(isSeriesOccurrenceAtOrAfterWeek(anchor, weekTwo, 2), true)
+  assert.equal(isSeriesOccurrenceAtOrAfterWeek(anchor, weekThree, 2), true)
+  assert.equal(isSeriesOccurrenceAtOrAfterWeek(anchor, weekTwo, 3), false)
+})
+
+test('isOrphanSeriesOccurrenceAtOrAfterWeek requires exact weekly slot match', () => {
+  const anchor = '2026-06-01T15:00:00.000Z'
+  const weekTwo = '2026-06-15T15:00:00.000Z'
+
+  assert.equal(
+    isOrphanSeriesOccurrenceAtOrAfterWeek(anchor, weekTwo, 2),
+    true
+  )
+  assert.equal(
+    isOrphanSeriesOccurrenceAtOrAfterWeek(
+      anchor,
+      '2026-06-16T15:00:00.000Z',
+      2
+    ),
+    false
+  )
 })

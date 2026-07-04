@@ -124,24 +124,28 @@ export function SchedulingWeekPanel({
       }
       setIsLoadingWeek(true)
 
-      const result = await fetchSchedulingWeekData(targetWeekStart)
-      if (requestId !== requestIdRef.current) {
-        return
+      try {
+        const result = await fetchSchedulingWeekData(targetWeekStart)
+        if (requestId !== requestIdRef.current) {
+          return
+        }
+
+        if (!result.success) {
+          toast.error(result.error)
+          return
+        }
+
+        weekCacheRef.current.set(targetWeekStart, {
+          appointments: result.appointments,
+          weekKeys: result.weekKeys,
+        })
+        setWeekKeys(result.weekKeys)
+        setAppointments(result.appointments)
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsLoadingWeek(false)
+        }
       }
-
-      setIsLoadingWeek(false)
-
-      if (!result.success) {
-        toast.error(result.error)
-        return
-      }
-
-      weekCacheRef.current.set(targetWeekStart, {
-        appointments: result.appointments,
-        weekKeys: result.weekKeys,
-      })
-      setWeekKeys(result.weekKeys)
-      setAppointments(result.appointments)
     },
     [coachPreferences.weekStartsOn, syncWeekUrl]
   )

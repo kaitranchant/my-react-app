@@ -3448,6 +3448,7 @@ export type Database = {
           coaching_type: ClientCoachingType | null
           session_type: CoachingSessionType
           session_pack_id: string | null
+          max_week_index: number | null
           created_at: string
           updated_at: string
         }
@@ -3463,6 +3464,7 @@ export type Database = {
           coaching_type?: ClientCoachingType | null
           session_type?: CoachingSessionType
           session_pack_id?: string | null
+          max_week_index?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -3478,6 +3480,7 @@ export type Database = {
           coaching_type?: ClientCoachingType | null
           session_type?: CoachingSessionType
           session_pack_id?: string | null
+          max_week_index?: number | null
           created_at?: string
           updated_at?: string
         }

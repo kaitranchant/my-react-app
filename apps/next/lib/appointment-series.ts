@@ -26,6 +26,30 @@ export function getWeekIndexFromAnchor(
   return Math.round((startsAt - anchor) / MS_PER_WEEK)
 }
 
+export function isSeriesOccurrenceAtOrAfterWeek(
+  anchorStartsAtIso: string,
+  startsAtIso: string,
+  fromWeekIndex: number,
+  maxWeekIndex: number | null = null
+) {
+  const weekIndex = getWeekIndexFromAnchor(anchorStartsAtIso, startsAtIso)
+  if (weekIndex < fromWeekIndex) return false
+  if (maxWeekIndex != null && weekIndex > maxWeekIndex) return false
+  return true
+}
+
+export function isOrphanSeriesOccurrenceAtOrAfterWeek(
+  anchorStartsAtIso: string,
+  startsAtIso: string,
+  fromWeekIndex: number,
+  maxWeekIndex: number | null = null
+) {
+  const weekIndex = getWeekIndexFromAnchor(anchorStartsAtIso, startsAtIso)
+  if (weekIndex < fromWeekIndex) return false
+  if (maxWeekIndex != null && weekIndex > maxWeekIndex) return false
+  return startsAtIso === offsetStartsAtByWeeks(anchorStartsAtIso, weekIndex)
+}
+
 export function countWeekIndexesThroughHorizon(
   anchorStartsAtIso: string,
   horizonEnd: Date
