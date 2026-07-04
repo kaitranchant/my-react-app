@@ -56,7 +56,7 @@ export function TabletFullscreenOverlay({
         overlay.style.top = '0px'
         overlay.style.left = '0px'
         overlay.style.width = '100%'
-        overlay.style.height = '100dvh'
+        overlay.style.height = '100svh'
       }
     }
 

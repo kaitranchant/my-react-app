@@ -35,7 +35,6 @@ import type {
   WorkoutBuilderExerciseActions,
 } from '@/lib/workout-builder-types'
 import { cn } from '@/lib/utils'
-import { NestedKeyboardScroll } from '@/components/layout/nested-keyboard-scroll'
 import type { Exercise } from 'app/types/database'
 
 type BuilderMode = 'idle' | 'add' | 'add-superset' | 'edit'
@@ -440,7 +439,7 @@ export function WorkoutBuilder({
               onSubmit={addForm.handleSubmit(handleAdd)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <NestedKeyboardScroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
                 <ExercisePrescriptionForm
                   key={`builder-add-${addPrescriptionKey}`}
                   form={addForm}
@@ -448,7 +447,7 @@ export function WorkoutBuilder({
                   compact={compact}
                   hideSupersetGroup={mode === 'add-superset'}
                 />
-              </NestedKeyboardScroll>
+              </div>
               <div className="shrink-0 space-y-2 border-t px-4 py-3">
                 <Button
                   type="submit"
@@ -503,14 +502,14 @@ export function WorkoutBuilder({
               onSubmit={editForm.handleSubmit(handleUpdate)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <NestedKeyboardScroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
                 <ExercisePrescriptionForm
                   key={selectedRowId ?? 'builder-edit'}
                   form={editForm}
                   idPrefix="builder-edit"
                   compact={compact}
                 />
-              </NestedKeyboardScroll>
+              </div>
               <div className="flex shrink-0 gap-2 border-t px-4 py-3">
                 <Button type="submit" disabled={pending} className="flex-1">
                   {pending && <Loader2 className="size-4 animate-spin" />}
