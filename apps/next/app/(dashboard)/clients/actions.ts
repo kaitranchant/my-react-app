@@ -381,7 +381,9 @@ export async function getClientInviteLink(
 
   const { data: client, error } = await supabase
     .from('clients')
-    .select('invite_token, invite_status, invite_expires_at')
+    .select(
+      'invite_token, invite_status, invite_expires_at, user_id, email'
+    )
     .eq('id', clientId)
     .eq('coach_id', user.id)
     .maybeSingle()
@@ -390,21 +392,52 @@ export async function getClientInviteLink(
     return { success: false, error: 'Client not found.' }
   }
 
-  if (client.invite_status !== 'pending' || !client.invite_token) {
-    return { success: false, error: 'No active invite for this client.' }
+  const hasAccount =
+    client.invite_status === 'accepted' || Boolean(client.user_id)
+
+  if (hasAccount) {
+    return {
+      success: false,
+      error: 'This client already has an active account.',
+    }
   }
 
-  if (
+  if (!client.email?.trim()) {
+    return {
+      success: false,
+      error: 'Add an email to this client before generating an invite link.',
+    }
+  }
+
+  let token = client.invite_token
+  const inviteExpired =
     client.invite_expires_at &&
     new Date(client.invite_expires_at) <= new Date()
-  ) {
-    return { success: false, error: 'Invite has expired. Send a new one.' }
+
+  if (!token || inviteExpired || client.invite_status === 'not_invited') {
+    token = newInviteToken()
+    const { error: updateError } = await supabase
+      .from('clients')
+      .update({
+        invite_status: 'pending',
+        invite_token: token,
+        invite_expires_at: inviteExpiresAt(),
+      })
+      .eq('id', clientId)
+      .eq('coach_id', user.id)
+
+    if (updateError) {
+      return { success: false, error: updateError.message }
+    }
+
+    revalidateClients()
+    revalidatePath(`/clients/${clientId}`)
   }
 
   const origin = getAppBaseUrl()
   return {
     success: true,
-    inviteUrl: buildClientInviteUrl(client.invite_token, origin),
+    inviteUrl: buildClientInviteUrl(token, origin),
     clientId,
   }
 }

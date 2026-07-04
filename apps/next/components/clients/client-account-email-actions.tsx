@@ -114,8 +114,8 @@ export function ClientAccountEmailActions({
       <p className="text-sm font-medium">Account activation</p>
       <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
         {hasEmail
-          ? `Resend the activation email so ${client.full_name} can create their account.`
-          : 'Add an email address to send an activation email.'}
+          ? `Send an activation email or copy an invite link so ${client.full_name} can create their account.`
+          : 'Add an email address to send an activation email or invite link.'}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
