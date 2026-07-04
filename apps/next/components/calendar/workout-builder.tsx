@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Dumbbell, Layers, Loader2 } from 'lucide-react'
+import { Copy, Dumbbell, Layers, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
@@ -17,6 +17,7 @@ import {
   type LibrarySelection,
 } from '@/components/calendar/exercise-library-panel'
 import { ExercisePrescriptionForm } from '@/components/calendar/exercise-prescription-form'
+import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
 import { WorkoutArrangementPanel } from '@/components/calendar/workout-arrangement-panel'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
@@ -36,6 +37,7 @@ import type {
 } from '@/lib/workout-builder-types'
 import { cn } from '@/lib/utils'
 import type { Exercise } from 'app/types/database'
+import type { ScheduledWorkoutExerciseWithDetails } from 'app/types/database'
 
 type BuilderMode = 'idle' | 'add' | 'add-superset' | 'edit'
 
@@ -78,6 +80,8 @@ export function WorkoutBuilder({
     null
   )
   const [addPrescriptionKey, setAddPrescriptionKey] = React.useState(0)
+  const [replacingRow, setReplacingRow] =
+    React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
 
   React.useEffect(() => {
     setLibraryExercises(exercises)
@@ -488,12 +492,22 @@ export function WorkoutBuilder({
                   />
                 </div>
               )}
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-muted-foreground text-xs font-medium">
                   Editing exercise
                 </p>
                 <p className="font-semibold">{selectedRow.exercise.name}</p>
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setReplacingRow(selectedRow)}
+              >
+                <RefreshCw className="size-3.5" />
+                Replace
+              </Button>
             </div>
           </div>
 
@@ -538,6 +552,7 @@ export function WorkoutBuilder({
       onSelectRow={handleSelectRow}
       onChanged={onChanged}
       onStartSuperset={startSupersetMode}
+      onReplaceExercise={setReplacingRow}
       activeSupersetGroup={mode === 'add-superset' ? activeSupersetGroup : null}
     />
   )
@@ -545,6 +560,24 @@ export function WorkoutBuilder({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {!embedded ? panelHeader : null}
+
+      {replacingRow ? (
+        <ReplaceExerciseDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setReplacingRow(null)
+          }}
+          exerciseRowId={replacingRow.id}
+          currentExerciseName={replacingRow.exercise.name}
+          exercises={libraryExercises}
+          catalogClientId={catalogClientId}
+          onReplace={exerciseActions.replaceExercise}
+          onReplaced={() => {
+            setReplacingRow(null)
+            onChanged()
+          }}
+        />
+      ) : null}
 
       {/* Desktop + tablet: 3-panel layout */}
       <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] md:overflow-hidden">

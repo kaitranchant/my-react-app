@@ -22,7 +22,10 @@ import {
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { removeScheduledExercise } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
+import {
+  removeScheduledExercise,
+  replaceScheduledExercise,
+} from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import {
   completeWorkoutLog,
   getWorkoutLogData,
@@ -853,10 +856,7 @@ function WorkoutLogExercise({
                           onOpenChange={(open) =>
                             setOpenSwipeSetNumber(open ? set.setNumber : null)
                           }
-                          onDelete={() => {
-                            setOpenSwipeSetNumber(null)
-                            onRemoveSet(set.setNumber)
-                          }}
+                          onDelete={() => onRemoveSet(set.setNumber)}
                           onInteractionStart={() => {
                             setOpenSwipeSetNumber((current) =>
                               current === set.setNumber ? current : null
@@ -1223,6 +1223,7 @@ export function WorkoutLogScreen({
   >([])
   const pendingCelebrationPrsRef = React.useRef<WorkoutPrSummary[]>([])
   const celebrationRevealedRef = React.useRef(false)
+  const workoutCompleteDismissedRef = React.useRef(false)
   const [exerciseToRemove, setExerciseToRemove] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
@@ -1343,7 +1344,6 @@ export function WorkoutLogScreen({
     data?.status === 'scheduled' || data?.status === 'in_progress'
 
   const AUTO_SAVE_DELAY_MS = 600
-  const PR_CELEBRATION_AUTO_ADVANCE_MS = 700
 
   const revealCelebration = React.useCallback(() => {
     if (celebrationRevealedRef.current) return
@@ -1362,9 +1362,12 @@ export function WorkoutLogScreen({
   const handleWorkoutCompleteOpenChange = React.useCallback(
     (open: boolean) => {
       if (open) {
+        workoutCompleteDismissedRef.current = false
         setShowWorkoutComplete(true)
         return
       }
+
+      workoutCompleteDismissedRef.current = true
 
       if (pendingCelebrationPrsRef.current.length > 0) {
         revealCelebration()
@@ -1377,14 +1380,12 @@ export function WorkoutLogScreen({
   )
 
   React.useEffect(() => {
-    if (!showWorkoutComplete || pendingCelebrationPrs.length === 0) return
+    if (pendingCelebrationPrs.length === 0) return
+    if (celebrationRevealedRef.current) return
+    if (!workoutCompleteDismissedRef.current) return
 
-    const timer = window.setTimeout(
-      revealCelebration,
-      PR_CELEBRATION_AUTO_ADVANCE_MS
-    )
-    return () => window.clearTimeout(timer)
-  }, [pendingCelebrationPrs, revealCelebration, showWorkoutComplete])
+    revealCelebration()
+  }, [pendingCelebrationPrs, revealCelebration])
 
   const loadData = React.useCallback(async () => {
     setLoading(true)
@@ -1514,6 +1515,7 @@ export function WorkoutLogScreen({
     if (autoCompletingRef.current) return
     autoCompletingRef.current = true
     celebrationRevealedRef.current = false
+    workoutCompleteDismissedRef.current = false
     pendingCelebrationPrsRef.current = []
     setPendingCelebrationPrs([])
 
@@ -1527,6 +1529,30 @@ export function WorkoutLogScreen({
       autoSaveTimerRef.current = null
     }
 
+    const currentState = exerciseStateRef.current
+    const currentData = dataRef.current
+    const predictedPrs = currentData
+      ? detectNewPrsForWorkout(
+          currentData.exercises,
+          Object.fromEntries(
+            currentData.exercises.map((exercise) => [
+              exercise.id,
+              (currentState[exercise.id] ?? []).map((set) => ({
+                weight: parseOptionalNumber(set.weight),
+                reps: parseOptionalInt(set.reps),
+                completed: set.completed,
+              })),
+            ])
+          ),
+          currentData.personalBestsByExerciseId
+        )
+      : []
+
+    if (predictedPrs.length > 0) {
+      pendingCelebrationPrsRef.current = predictedPrs
+      setPendingCelebrationPrs(predictedPrs)
+    }
+
     setShowWorkoutComplete(true)
 
     try {
@@ -1534,7 +1560,6 @@ export function WorkoutLogScreen({
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
 
-      const currentState = exerciseStateRef.current
       const payloadKey = serializeExerciseStateForSave(currentState)
       const needsSave = payloadKey !== lastPersistedStateRef.current
 
@@ -1551,33 +1576,12 @@ export function WorkoutLogScreen({
 
         if (!saved) {
           setShowWorkoutComplete(false)
+          pendingCelebrationPrsRef.current = []
+          setPendingCelebrationPrs([])
           autoCompletingRef.current = false
           saveInFlightRef.current = false
           return
         }
-      }
-
-      const currentData = dataRef.current
-      const predictedPrs = currentData
-        ? detectNewPrsForWorkout(
-            currentData.exercises,
-            Object.fromEntries(
-              currentData.exercises.map((exercise) => [
-                exercise.id,
-                (currentState[exercise.id] ?? []).map((set) => ({
-                  weight: parseOptionalNumber(set.weight),
-                  reps: parseOptionalInt(set.reps),
-                  completed: set.completed,
-                })),
-              ])
-            ),
-            currentData.personalBestsByExerciseId
-          )
-        : []
-
-      if (predictedPrs.length > 0) {
-        pendingCelebrationPrsRef.current = predictedPrs
-        setPendingCelebrationPrs(predictedPrs)
       }
 
       void (async () => {
@@ -2447,10 +2451,13 @@ export function WorkoutLogScreen({
             onOpenChange={(next) => {
               if (!next) setReplacingExercise(null)
             }}
-            clientId={clientId}
             exerciseRowId={replacingExercise.id}
             currentExerciseName={replacingExercise.exercise.name}
             exercises={exercises}
+            catalogClientId={clientId}
+            onReplace={(exerciseRowId, newExerciseId) =>
+              replaceScheduledExercise(clientId, exerciseRowId, newExerciseId)
+            }
             onReplaced={() => {
               setReplacingExercise(null)
               void handleExerciseStructureChanged()

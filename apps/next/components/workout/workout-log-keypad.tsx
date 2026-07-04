@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Copy, Delete, Layers } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Delete, Layers } from 'lucide-react'
 
 import {
   HideKeyboardIcon,
@@ -25,6 +25,10 @@ function WorkoutLogKeypadContent({
   adjustWeight,
   copyPrevious,
   goNext,
+  goPreviousSet,
+  goNextSet,
+  canGoPreviousSet,
+  canGoNextSet,
   closeKeypad,
   openPlateSheet,
 }: {
@@ -35,6 +39,10 @@ function WorkoutLogKeypadContent({
   adjustWeight: (delta: number) => void
   copyPrevious: () => void
   goNext: () => void
+  goPreviousSet: () => void
+  goNextSet: () => void
+  canGoPreviousSet: boolean
+  canGoNextSet: boolean
   closeKeypad: () => void
   openPlateSheet: () => void
 }) {
@@ -122,7 +130,26 @@ function WorkoutLogKeypadContent({
         9
       </KeypadButton>
 
-      <div />
+      <div className="flex h-full gap-1">
+        <KeypadButton
+          aria-label="Previous set"
+          variant="icon"
+          disabled={!canGoPreviousSet}
+          onClick={goPreviousSet}
+          className="h-full min-h-11 flex-1 sm:min-h-12"
+        >
+          <ChevronUp className="size-5" />
+        </KeypadButton>
+        <KeypadButton
+          aria-label="Next set"
+          variant="icon"
+          disabled={!canGoNextSet}
+          onClick={goNextSet}
+          className="h-full min-h-11 flex-1 sm:min-h-12"
+        >
+          <ChevronDown className="size-5" />
+        </KeypadButton>
+      </div>
       <KeypadButton aria-label="Decimal point" onClick={() => appendDigit('.')} className="h-full">
         .
       </KeypadButton>
@@ -189,6 +216,10 @@ function WorkoutLogKeypadOverlay() {
           adjustWeight={keypad.adjustWeight}
           copyPrevious={keypad.copyPrevious}
           goNext={keypad.goNext}
+          goPreviousSet={keypad.goPreviousSet}
+          goNextSet={keypad.goNextSet}
+          canGoPreviousSet={keypad.canGoPreviousSet}
+          canGoNextSet={keypad.canGoNextSet}
           closeKeypad={keypad.closeKeypad}
           openPlateSheet={keypad.openPlateSheet}
         />

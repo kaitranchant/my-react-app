@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { replaceScheduledExercise } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { createExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
 import {
   CustomExerciseTab,
@@ -23,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { WorkoutBuilderActionResult } from '@/lib/workout-builder-types'
 import type { Exercise } from 'app/types/database'
 
 type ExerciseSource = 'library' | 'custom'
@@ -30,20 +30,25 @@ type ExerciseSource = 'library' | 'custom'
 type ReplaceExerciseDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  clientId: string
   exerciseRowId: string
   currentExerciseName: string
   exercises: Pick<Exercise, 'id' | 'name' | 'muscle_group' | 'external_id'>[]
+  catalogClientId?: string
+  onReplace: (
+    exerciseRowId: string,
+    newExerciseId: string
+  ) => Promise<WorkoutBuilderActionResult>
   onReplaced: () => void
 }
 
 export function ReplaceExerciseDialog({
   open,
   onOpenChange,
-  clientId,
   exerciseRowId,
   currentExerciseName,
   exercises,
+  catalogClientId,
+  onReplace,
   onReplaced,
 }: ReplaceExerciseDialogProps) {
   const [pending, setPending] = React.useState(false)
@@ -90,7 +95,7 @@ export function ReplaceExerciseDialog({
           equipment: parsedCustom.data.equipment ?? '',
           status: parsedCustom.data.saveToLibrary ? 'active' : 'archived',
         },
-        { clientId }
+        catalogClientId ? { clientId: catalogClientId } : undefined
       )
 
       if (!created.success) {
@@ -124,11 +129,7 @@ export function ReplaceExerciseDialog({
       return
     }
 
-    const result = await replaceScheduledExercise(
-      clientId,
-      exerciseRowId,
-      exerciseId
-    )
+    const result = await onReplace(exerciseRowId, exerciseId)
     setPending(false)
 
     if (result.success) {
@@ -162,7 +163,8 @@ export function ReplaceExerciseDialog({
         <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
           <DialogTitle>Replace exercise</DialogTitle>
           <p className="text-muted-foreground text-sm">
-            Replacing <span className="font-medium">{currentExerciseName}</span>
+            Replacing <span className="font-medium">{currentExerciseName}</span>.
+            Sets, reps, and other prescription settings stay the same.
           </p>
         </DialogHeader>
 

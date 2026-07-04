@@ -10,6 +10,7 @@ import {
   addScheduledExercise,
   getClientWorkoutWithExercises,
   removeScheduledExercise,
+  replaceScheduledExercise,
   reorderScheduledExercises,
   updateScheduledExercise,
   updateScheduledWorkout,
@@ -218,6 +219,8 @@ export function WorkoutBuilderModal({
         addScheduledExercise(clientId, workoutId, values),
       updateExercise: (exerciseRowId, values) =>
         updateScheduledExercise(clientId, exerciseRowId, values),
+      replaceExercise: (exerciseRowId, newExerciseId) =>
+        replaceScheduledExercise(clientId, exerciseRowId, newExerciseId),
       removeExercise: (exerciseRowId) =>
         removeScheduledExercise(clientId, exerciseRowId),
       reorderExercises: (workoutId, orderedRowIds) =>

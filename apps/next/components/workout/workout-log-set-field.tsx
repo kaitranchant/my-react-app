@@ -64,6 +64,11 @@ export function WorkoutLogSetField({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
+        onFocus={(event) => {
+          if (predicted && value) {
+            event.target.select()
+          }
+        }}
         placeholder={placeholder}
         className={cn(
           className,

@@ -17,6 +17,10 @@ export type WorkoutBuilderExerciseActions = {
     exerciseRowId: string,
     values: ScheduledExerciseUpdateValues
   ) => Promise<WorkoutBuilderActionResult>
+  replaceExercise: (
+    exerciseRowId: string,
+    newExerciseId: string
+  ) => Promise<WorkoutBuilderActionResult>
   removeExercise: (exerciseRowId: string) => Promise<WorkoutBuilderActionResult>
   reorderExercises: (
     workoutId: string,

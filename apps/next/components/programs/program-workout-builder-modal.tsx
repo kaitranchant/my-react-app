@@ -11,6 +11,7 @@ import {
   getProgramWorkoutWithExercises,
   isProgramExercisesSchemaReady,
   removeProgramScheduledExercise,
+  replaceProgramScheduledExercise,
   reorderProgramScheduledExercises,
   updateProgramScheduledExercise,
   updateProgramScheduledWorkout,
@@ -91,6 +92,8 @@ export function ProgramWorkoutBuilderModal({
         addProgramScheduledExercise(programId, workoutId, values),
       updateExercise: (exerciseRowId, values) =>
         updateProgramScheduledExercise(programId, exerciseRowId, values),
+      replaceExercise: (exerciseRowId, newExerciseId) =>
+        replaceProgramScheduledExercise(programId, exerciseRowId, newExerciseId),
       removeExercise: (exerciseRowId) =>
         removeProgramScheduledExercise(programId, exerciseRowId),
       reorderExercises: (workoutId, orderedRowIds) =>

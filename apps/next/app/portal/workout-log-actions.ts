@@ -402,22 +402,34 @@ export async function reopenPortalWorkoutLog(
 export async function updatePortalExerciseClientNotes(
   workoutId: string,
   exerciseRowId: string,
-  notes: string
+  notes: string,
+  options?: { revalidate?: boolean }
 ): Promise<ActionResult> {
   const parsed = exerciseLogNotesSchema.safeParse({ notes })
   if (!parsed.success) {
     return { success: false, error: 'Notes must be 500 characters or fewer.' }
   }
 
-  const ctx = await requirePortalWorkout(workoutId)
-  if (isPortalWorkoutError(ctx)) {
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
     return { success: false, error: ctx.error }
   }
 
-  const { supabase, workout } = ctx
-  const exercise = workout.exercises.find((row) => row.id === exerciseRowId)
-  if (!exercise) {
+  const { supabase, client } = ctx
+
+  const { data: row, error: rowError } = await supabase
+    .from('scheduled_workout_exercises')
+    .select('id, scheduled_workout:client_scheduled_workouts!inner(id, client_id)')
+    .eq('id', exerciseRowId)
+    .maybeSingle()
+
+  if (rowError || !row) {
     return { success: false, error: 'Exercise not found.' }
+  }
+
+  const workout = row.scheduled_workout as { id: string; client_id: string }
+  if (workout.id !== workoutId || workout.client_id !== client.id) {
+    return { success: false, error: 'Workout not found.' }
   }
 
   const trimmed = parsed.data.notes
@@ -430,7 +442,9 @@ export async function updatePortalExerciseClientNotes(
     return { success: false, error: error.message }
   }
 
-  revalidatePortal()
+  if (options?.revalidate !== false) {
+    revalidatePortal()
+  }
   return { success: true }
 }
 

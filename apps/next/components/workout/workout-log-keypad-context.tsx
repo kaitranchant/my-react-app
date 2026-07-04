@@ -2,14 +2,23 @@
 
 import * as React from 'react'
 
-import type { PreviousSetLog, WorkoutLogFieldFlags, WorkoutLogSetDraft } from '@/lib/workout-log'
+import {
+  applyExerciseSetChanges,
+  type PreviousSetLog,
+  type WorkoutLogFieldFlags,
+  type WorkoutLogSetDraft,
+} from '@/lib/workout-log'
 import {
   adjustKeypadWeight,
-  appendKeypadDigit,
+  appendKeypadDigitReplacingPredicted,
   backspaceKeypadValue,
+  canNavigateSet,
+  getAdjacentSetKeypadTarget,
   getCopyValuesForSet,
   getNextKeypadTarget,
   getWeightIncrement,
+  shouldCompleteSetOnKeypadNext,
+  shouldReplacePredictedFieldValue,
   type ActiveKeypadTarget,
   type WorkoutLogKeypadField,
 } from '@/lib/workout-log-keypad'
@@ -46,6 +55,10 @@ type WorkoutLogKeypadContextValue = {
   adjustWeight: (delta: number) => void
   copyPrevious: () => void
   goNext: () => void
+  goPreviousSet: () => void
+  goNextSet: () => void
+  canGoPreviousSet: boolean
+  canGoNextSet: boolean
   getActiveValue: () => string
   keypadReserveHeight: number
   setKeypadReserveHeight: (height: number) => void
@@ -79,10 +92,24 @@ export function WorkoutLogKeypadProvider({
   const exerciseContextsRef = React.useRef(
     new Map<string, KeypadExerciseContext>()
   )
+  const replacePredictedRef = React.useRef(false)
 
   const getContext = React.useCallback((exerciseId: string) => {
     return exerciseContextsRef.current.get(exerciseId) ?? null
   }, [])
+
+  const syncReplacePredictedForTarget = React.useCallback(
+    (target: ActiveKeypadTarget) => {
+      const context = getContext(target.exerciseId)
+      const set = context?.sets.find((row) => row.setNumber === target.setNumber)
+      const fieldValue = set?.[target.field] ?? ''
+      replacePredictedRef.current = shouldReplacePredictedFieldValue(
+        set,
+        fieldValue
+      )
+    },
+    [getContext]
+  )
 
   const scrollCellIntoView = React.useCallback(
     (cellElement?: HTMLElement | null) => {
@@ -126,6 +153,7 @@ export function WorkoutLogKeypadProvider({
       if (!enabled) return
       const context = getContext(target.exerciseId)
       const set = context?.sets.find((row) => row.setNumber === target.setNumber)
+      syncReplacePredictedForTarget(target)
       setEditingValue(set?.[target.field] ?? '')
       setActiveTarget(target)
       setPlateSheetOpen(false)
@@ -135,10 +163,11 @@ export function WorkoutLogKeypadProvider({
         scrollToField(target)
       }
     },
-    [enabled, getContext, scrollCellIntoView, scrollToField]
+    [enabled, getContext, scrollCellIntoView, scrollToField, syncReplacePredictedForTarget]
   )
 
   const closeKeypad = React.useCallback(() => {
+    replacePredictedRef.current = false
     setActiveTarget(null)
     setPlateSheetOpen(false)
   }, [])
@@ -195,21 +224,31 @@ export function WorkoutLogKeypadProvider({
   const appendDigit = React.useCallback(
     (digit: string) => {
       if (!activeTarget) return
-      const current = getActiveValue()
-      patchActiveField(
-        appendKeypadDigit(current, digit, activeTarget.field)
+      const result = appendKeypadDigitReplacingPredicted(
+        getActiveValue(),
+        digit,
+        activeTarget.field,
+        replacePredictedRef.current
       )
+      replacePredictedRef.current = result.replacePredicted
+      patchActiveField(result.value)
     },
     [activeTarget, getActiveValue, patchActiveField]
   )
 
   const backspace = React.useCallback(() => {
+    if (replacePredictedRef.current) {
+      replacePredictedRef.current = false
+      patchActiveField('')
+      return
+    }
     patchActiveField(backspaceKeypadValue(getActiveValue()))
   }, [getActiveValue, patchActiveField])
 
   const adjustWeight = React.useCallback(
     (delta: number) => {
       if (!activeTarget || activeTarget.field !== 'weight') return
+      replacePredictedRef.current = false
       patchActiveField(
         adjustKeypadWeight(getActiveValue(), delta, weightUnit)
       )
@@ -234,6 +273,7 @@ export function WorkoutLogKeypadProvider({
       if (activeTarget.field in patch) {
         setEditingValue(String(patch[activeTarget.field as keyof typeof patch] ?? ''))
       }
+      replacePredictedRef.current = false
     }
   }, [activeTarget, getContext])
 
@@ -242,15 +282,38 @@ export function WorkoutLogKeypadProvider({
     const context = getContext(activeTarget.exerciseId)
     if (!context) return
 
+    let sets = context.sets
+    const currentSet = sets.find((row) => row.setNumber === activeTarget.setNumber)
+    const currentSetWithEdits = currentSet
+      ? { ...currentSet, [activeTarget.field]: editingValue }
+      : undefined
+
     const next = getNextKeypadTarget(
       activeTarget,
-      context.sets,
+      sets,
       context.fields
     )
 
+    if (
+      shouldCompleteSetOnKeypadNext(
+        activeTarget,
+        next,
+        currentSetWithEdits,
+        context.fields
+      )
+    ) {
+      sets = applyExerciseSetChanges(
+        sets,
+        activeTarget.setNumber,
+        { completed: true },
+        context.fields
+      )
+      context.onSetChange(activeTarget.setNumber, { completed: true })
+    }
+
     if (next) {
-      const nextContext = getContext(next.exerciseId)
-      const set = nextContext?.sets.find((row) => row.setNumber === next.setNumber)
+      syncReplacePredictedForTarget(next)
+      const set = sets.find((row) => row.setNumber === next.setNumber)
       setEditingValue(set?.[next.field] ?? '')
       setActiveTarget(next)
       scrollToField(next)
@@ -258,7 +321,65 @@ export function WorkoutLogKeypadProvider({
     }
 
     closeKeypad()
-  }, [activeTarget, closeKeypad, getContext, scrollToField])
+  }, [
+    activeTarget,
+    closeKeypad,
+    editingValue,
+    getContext,
+    scrollToField,
+  ])
+
+  const navigateToTarget = React.useCallback(
+    (next: ActiveKeypadTarget) => {
+      syncReplacePredictedForTarget(next)
+      const nextContext = getContext(next.exerciseId)
+      const set = nextContext?.sets.find((row) => row.setNumber === next.setNumber)
+      setEditingValue(set?.[next.field] ?? '')
+      setActiveTarget(next)
+      scrollToField(next)
+    },
+    [getContext, scrollToField, syncReplacePredictedForTarget]
+  )
+
+  const canGoPreviousSet = React.useMemo(() => {
+    if (!activeTarget) return false
+    const context = getContext(activeTarget.exerciseId)
+    if (!context) return false
+    return canNavigateSet(activeTarget, context.sets, 'up')
+  }, [activeTarget, getContext])
+
+  const canGoNextSet = React.useMemo(() => {
+    if (!activeTarget) return false
+    const context = getContext(activeTarget.exerciseId)
+    if (!context) return false
+    return canNavigateSet(activeTarget, context.sets, 'down')
+  }, [activeTarget, getContext])
+
+  const goPreviousSet = React.useCallback(() => {
+    if (!activeTarget) return
+    const context = getContext(activeTarget.exerciseId)
+    if (!context) return
+
+    const previous = getAdjacentSetKeypadTarget(
+      activeTarget,
+      context.sets,
+      'up'
+    )
+    if (previous) navigateToTarget(previous)
+  }, [activeTarget, getContext, navigateToTarget])
+
+  const goNextSet = React.useCallback(() => {
+    if (!activeTarget) return
+    const context = getContext(activeTarget.exerciseId)
+    if (!context) return
+
+    const next = getAdjacentSetKeypadTarget(
+      activeTarget,
+      context.sets,
+      'down'
+    )
+    if (next) navigateToTarget(next)
+  }, [activeTarget, getContext, navigateToTarget])
 
   const value = React.useMemo<WorkoutLogKeypadContextValue>(
     () => ({
@@ -278,6 +399,10 @@ export function WorkoutLogKeypadProvider({
       adjustWeight,
       copyPrevious,
       goNext,
+      goPreviousSet,
+      goNextSet,
+      canGoPreviousSet,
+      canGoNextSet,
       getActiveValue,
       keypadReserveHeight,
       setKeypadReserveHeight,
@@ -299,6 +424,10 @@ export function WorkoutLogKeypadProvider({
       adjustWeight,
       copyPrevious,
       goNext,
+      goPreviousSet,
+      goNextSet,
+      canGoPreviousSet,
+      canGoNextSet,
       getActiveValue,
       keypadReserveHeight,
     ]

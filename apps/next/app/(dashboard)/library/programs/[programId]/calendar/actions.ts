@@ -960,6 +960,77 @@ export async function updateProgramScheduledExercise(
   return { success: true }
 }
 
+export async function replaceProgramScheduledExercise(
+  programId: string,
+  exerciseRowId: string,
+  newExerciseId: string
+): Promise<ActionResult> {
+  const exerciseIdParsed = z.string().uuid().safeParse(newExerciseId)
+  if (!exerciseIdParsed.success) {
+    return { success: false, error: 'Select a valid exercise.' }
+  }
+
+  const ctx = await requireProgram(programId)
+  if (!ctx) {
+    return { success: false, error: 'Program not found.' }
+  }
+
+  const { supabase, user } = ctx
+
+  const { data: row, error: rowError } = await supabase
+    .from('program_scheduled_workout_exercises')
+    .select('id, program_scheduled_workout_id, exercise_id')
+    .eq('id', exerciseRowId)
+    .maybeSingle()
+
+  if (rowError || !row) {
+    return {
+      success: false,
+      error: rowError
+        ? mapProgramCalendarDbError(rowError.message)
+        : 'Exercise row not found.',
+    }
+  }
+
+  if (row.exercise_id === exerciseIdParsed.data) {
+    return { success: true }
+  }
+
+  const { data: workout } = await supabase
+    .from('program_scheduled_workouts')
+    .select('id')
+    .eq('id', row.program_scheduled_workout_id)
+    .eq('program_id', programId)
+    .maybeSingle()
+
+  if (!workout) {
+    return { success: false, error: 'Workout not found.' }
+  }
+
+  const { data: exercise, error: exerciseError } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('id', exerciseIdParsed.data)
+    .eq('coach_id', user.id)
+    .maybeSingle()
+
+  if (exerciseError || !exercise) {
+    return { success: false, error: 'Exercise not found.' }
+  }
+
+  const { error } = await supabase
+    .from('program_scheduled_workout_exercises')
+    .update({ exercise_id: exerciseIdParsed.data })
+    .eq('id', exerciseRowId)
+
+  if (error) {
+    return { success: false, error: mapProgramCalendarDbError(error.message) }
+  }
+
+  await afterProgramCalendarChange(supabase, user.id, programId)
+  return { success: true }
+}
+
 export async function removeProgramScheduledExercise(
   programId: string,
   exerciseRowId: string

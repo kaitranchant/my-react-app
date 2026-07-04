@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Clock, Pause, Play, RotateCcw, Square } from 'lucide-react'
 
+import { WorkoutTimerOverlay } from '@/components/calendar/workout-timer-overlay'
 import { formatElapsedTime } from '@/lib/workout-log'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,8 @@ type RestTimerContextValue = {
   resumeRestTimer: () => void
   resetRestTimer: () => void
   addRestTime: () => void
+  openRestTimerOverlay: () => void
+  closeRestTimerOverlay: () => void
 }
 
 const RestTimerContext = React.createContext<RestTimerContextValue | null>(null)
@@ -38,6 +41,7 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
   const [activeTimer, setActiveTimer] = React.useState<RestTimerState | null>(
     null
   )
+  const [overlayOpen, setOverlayOpen] = React.useState(false)
   const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
   const clearIntervalRef = React.useCallback(() => {
@@ -49,12 +53,14 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
 
   const dismissRestTimer = React.useCallback(() => {
     clearIntervalRef()
+    setOverlayOpen(false)
     setActiveTimer(null)
   }, [clearIntervalRef])
 
   const startRestTimer = React.useCallback(
     (exerciseName: string, seconds: number) => {
       clearIntervalRef()
+      setOverlayOpen(false)
       setActiveTimer({
         exerciseName,
         totalSeconds: seconds,
@@ -105,6 +111,20 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
+  const openRestTimerOverlay = React.useCallback(() => {
+    setOverlayOpen(true)
+  }, [])
+
+  const closeRestTimerOverlay = React.useCallback(() => {
+    setOverlayOpen(false)
+  }, [])
+
+  React.useEffect(() => {
+    if (!activeTimer) {
+      setOverlayOpen(false)
+    }
+  }, [activeTimer])
+
   React.useEffect(() => {
     if (!activeTimer || activeTimer.paused) {
       clearIntervalRef()
@@ -138,9 +158,28 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
         resumeRestTimer,
         resetRestTimer,
         addRestTime,
+        openRestTimerOverlay,
+        closeRestTimerOverlay,
       }}
     >
       {children}
+      {activeTimer ? (
+        <WorkoutTimerOverlay
+          open={overlayOpen}
+          onMinimize={closeRestTimerOverlay}
+          title={activeTimer.exerciseName}
+          remainingSeconds={activeTimer.remainingSeconds}
+          totalSeconds={activeTimer.totalSeconds}
+          paused={activeTimer.paused}
+          variant="rest"
+          onPause={pauseRestTimer}
+          onResume={resumeRestTimer}
+          onReset={resetRestTimer}
+          onDismiss={dismissRestTimer}
+          onAddTime={addRestTime}
+          dismissLabel="Skip rest"
+        />
+      ) : null}
     </RestTimerContext.Provider>
   )
 }
@@ -183,6 +222,7 @@ export function RestTimerChip({
     resumeRestTimer,
     resetRestTimer,
     addRestTime,
+    openRestTimerOverlay,
   } = useRestTimer()
 
   const isActive = activeTimer?.exerciseName === exerciseName
@@ -223,10 +263,17 @@ export function RestTimerChip({
         style={{ width: `${progress * 100}%` }}
         aria-hidden
       />
-      <Clock className="relative size-3.5 shrink-0" />
-      <span className="relative min-w-[2.75rem] tabular-nums font-semibold">
-        {formatElapsedTime(activeTimer.remainingSeconds)}
-      </span>
+      <button
+        type="button"
+        onClick={openRestTimerOverlay}
+        className="relative inline-flex min-w-0 items-center gap-1 rounded-full pr-1 transition-colors hover:bg-brand/10"
+        aria-label="Expand rest timer"
+      >
+        <Clock className="size-3.5 shrink-0" />
+        <span className="min-w-[2.75rem] tabular-nums font-semibold">
+          {formatElapsedTime(activeTimer.remainingSeconds)}
+        </span>
+      </button>
       <div className="relative flex items-center">
         <RestTimerControlButton
           label={activeTimer.paused ? 'Resume timer' : 'Pause timer'}

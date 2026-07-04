@@ -2,6 +2,7 @@ import {
   getPreviousDistanceMeters,
   getPreviousDurationSeconds,
   resolvePreviousSetLog,
+  setHasRequiredLogValues,
   type PreviousSetLog,
   type WorkoutLogFieldFlags,
   type WorkoutLogSetDraft,
@@ -71,6 +72,27 @@ export function appendKeypadDigit(
   }
 
   return `${current}${digit}`
+}
+
+/** First keypad input on a predicted autofill value should replace it, not append. */
+export function appendKeypadDigitReplacingPredicted(
+  current: string,
+  digit: string,
+  field: WorkoutLogKeypadField,
+  replacePredicted: boolean
+): { value: string; replacePredicted: boolean } {
+  const base = replacePredicted ? '' : current
+  return {
+    value: appendKeypadDigit(base, digit, field),
+    replacePredicted: false,
+  }
+}
+
+export function shouldReplacePredictedFieldValue(
+  set: { predicted?: boolean } | null | undefined,
+  fieldValue: string
+): boolean {
+  return Boolean(set?.predicted && fieldValue !== '')
 }
 
 export function backspaceKeypadValue(current: string): string {
@@ -144,6 +166,55 @@ export function getNextKeypadTarget(
   }
 
   return null
+}
+
+export function shouldCompleteSetOnKeypadNext(
+  current: ActiveKeypadTarget,
+  next: ActiveKeypadTarget | null,
+  currentSet: WorkoutLogSetDraft | undefined,
+  fields: WorkoutLogFieldFlags
+): boolean {
+  if (!currentSet || currentSet.completed) return false
+
+  const leavingSet =
+    !next ||
+    next.exerciseId !== current.exerciseId ||
+    next.setNumber !== current.setNumber
+
+  if (!leavingSet) return false
+
+  return setHasRequiredLogValues(currentSet, fields)
+}
+
+export function getAdjacentSetKeypadTarget(
+  current: ActiveKeypadTarget,
+  sets: WorkoutLogSetDraft[],
+  direction: 'up' | 'down'
+): ActiveKeypadTarget | null {
+  const sortedSetNumbers = [...sets]
+    .map((set) => set.setNumber)
+    .sort((a, b) => a - b)
+
+  const currentIndex = sortedSetNumbers.indexOf(current.setNumber)
+  if (currentIndex === -1) return null
+
+  const nextIndex =
+    direction === 'up' ? currentIndex - 1 : currentIndex + 1
+  if (nextIndex < 0 || nextIndex >= sortedSetNumbers.length) return null
+
+  return {
+    exerciseId: current.exerciseId,
+    setNumber: sortedSetNumbers[nextIndex]!,
+    field: current.field,
+  }
+}
+
+export function canNavigateSet(
+  current: ActiveKeypadTarget,
+  sets: WorkoutLogSetDraft[],
+  direction: 'up' | 'down'
+): boolean {
+  return getAdjacentSetKeypadTarget(current, sets, direction) !== null
 }
 
 export function getCopyValuesForSet(

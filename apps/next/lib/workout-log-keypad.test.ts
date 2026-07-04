@@ -5,12 +5,17 @@ import type { WorkoutLogSetDraft } from '@/lib/workout-log'
 import {
   adjustKeypadWeight,
   appendKeypadDigit,
+  appendKeypadDigitReplacingPredicted,
   backspaceKeypadValue,
   calculatePlatesPerSide,
+  canNavigateSet,
   getCopyValuesForSet,
+  getAdjacentSetKeypadTarget,
   getNextKeypadTarget,
   getVisibleKeypadFields,
   getWeightIncrement,
+  shouldCompleteSetOnKeypadNext,
+  shouldReplacePredictedFieldValue,
 } from './workout-log-keypad'
 
 const weightRepsFields = {
@@ -47,6 +52,31 @@ describe('workout-log-keypad', () => {
     assert.equal(appendKeypadDigit('25.', '5', 'weight'), '25.5')
     assert.equal(appendKeypadDigit('25', '.', 'weight'), '25.')
     assert.equal(appendKeypadDigit('25', '.', 'reps'), '25')
+  })
+
+  it('replaces predicted autofill on the first digit instead of appending', () => {
+    assert.equal(
+      shouldReplacePredictedFieldValue({ predicted: true }, '135'),
+      true
+    )
+    assert.equal(
+      shouldReplacePredictedFieldValue({ predicted: false }, '135'),
+      false
+    )
+    assert.equal(shouldReplacePredictedFieldValue({ predicted: true }, ''), false)
+
+    assert.deepEqual(
+      appendKeypadDigitReplacingPredicted('135', '2', 'weight', true),
+      { value: '2', replacePredicted: false }
+    )
+    assert.deepEqual(
+      appendKeypadDigitReplacingPredicted('135', '2', 'weight', false),
+      { value: '1352', replacePredicted: false }
+    )
+    assert.deepEqual(
+      appendKeypadDigitReplacingPredicted('8', '1', 'reps', true),
+      { value: '1', replacePredicted: false }
+    )
   })
 
   it('backspaces values', () => {
@@ -103,6 +133,104 @@ describe('workout-log-keypad', () => {
       setNumber: 2,
       field: 'weight',
     })
+  })
+
+  it('navigates up and down between sets on the same field', () => {
+    const sets = makeSets(3)
+    const target = {
+      exerciseId: 'ex-1',
+      setNumber: 2,
+      field: 'weight' as const,
+    }
+
+    assert.deepEqual(getAdjacentSetKeypadTarget(target, sets, 'up'), {
+      exerciseId: 'ex-1',
+      setNumber: 1,
+      field: 'weight',
+    })
+    assert.deepEqual(getAdjacentSetKeypadTarget(target, sets, 'down'), {
+      exerciseId: 'ex-1',
+      setNumber: 3,
+      field: 'weight',
+    })
+
+    assert.equal(
+      getAdjacentSetKeypadTarget(
+        { exerciseId: 'ex-1', setNumber: 1, field: 'reps' },
+        sets,
+        'up'
+      ),
+      null
+    )
+    assert.equal(
+      getAdjacentSetKeypadTarget(
+        { exerciseId: 'ex-1', setNumber: 3, field: 'reps' },
+        sets,
+        'down'
+      ),
+      null
+    )
+    assert.equal(canNavigateSet(target, sets, 'up'), true)
+    assert.equal(canNavigateSet(target, sets, 'down'), true)
+    assert.equal(
+      canNavigateSet(
+        { exerciseId: 'ex-1', setNumber: 1, field: 'weight' },
+        sets,
+        'up'
+      ),
+      false
+    )
+  })
+
+  it('marks set complete on NEXT when leaving a set with required values', () => {
+    const sets = makeSets(2)
+    sets[0]!.weight = '135'
+    sets[0]!.reps = '5'
+
+    const onReps = {
+      exerciseId: 'ex-1',
+      setNumber: 1,
+      field: 'reps' as const,
+    }
+    const nextSet = getNextKeypadTarget(onReps, sets, weightRepsFields)
+
+    assert.deepEqual(nextSet, {
+      exerciseId: 'ex-1',
+      setNumber: 2,
+      field: 'weight',
+    })
+    assert.equal(
+      shouldCompleteSetOnKeypadNext(onReps, nextSet, sets[0], weightRepsFields),
+      true
+    )
+
+    const onWeight = {
+      exerciseId: 'ex-1',
+      setNumber: 1,
+      field: 'weight' as const,
+    }
+    const nextField = getNextKeypadTarget(onWeight, sets, weightRepsFields)
+
+    assert.deepEqual(nextField, {
+      exerciseId: 'ex-1',
+      setNumber: 1,
+      field: 'reps',
+    })
+    assert.equal(
+      shouldCompleteSetOnKeypadNext(
+        onWeight,
+        nextField,
+        sets[0],
+        weightRepsFields
+      ),
+      false
+    )
+
+    sets[0]!.reps = ''
+    assert.equal(
+      shouldCompleteSetOnKeypadNext(onReps, nextSet, sets[0], weightRepsFields),
+      false
+    )
   })
 
   it('copies from prior set or previous performance', () => {

@@ -22,9 +22,11 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   ChevronDown,
   ChevronRight,
+  EllipsisVertical,
   GripVertical,
   Layers,
   Link2,
+  RefreshCw,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -80,6 +82,7 @@ type WorkoutArrangementPanelProps = {
   onSelectRow: (rowId: string | null) => void
   onChanged: () => void
   onStartSuperset?: () => void
+  onReplaceExercise?: (row: ExerciseRow) => void
   activeSupersetGroup?: string | null
 }
 
@@ -146,6 +149,7 @@ type SortableExerciseItemProps = {
   usedSupersetGroups: string[]
   onSelect: () => void
   onRemove: () => void
+  onReplace?: () => void
   onAssignSuperset: (group: string | null) => void
 }
 
@@ -157,6 +161,7 @@ function SortableExerciseItem({
   usedSupersetGroups,
   onSelect,
   onRemove,
+  onReplace,
   onAssignSuperset,
 }: SortableExerciseItemProps) {
   const {
@@ -257,6 +262,29 @@ function SortableExerciseItem({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {onReplace ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+              disabled={pending}
+              aria-label="Exercise options"
+            >
+              <EllipsisVertical className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={onReplace}>
+              <RefreshCw className="size-3.5" />
+              Replace exercise
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+
       <Button
         type="button"
         variant="ghost"
@@ -279,6 +307,7 @@ type ExerciseClusterListProps = {
   usedSupersetGroups: string[]
   onSelectRow: (rowId: string) => void
   onRemove: (rowId: string) => void
+  onReplace?: (rowId: string) => void
   onAssignSuperset: (rowId: string, group: string | null) => void
   allExercises: ExerciseRow[]
 }
@@ -290,6 +319,7 @@ function ExerciseClusterList({
   usedSupersetGroups,
   onSelectRow,
   onRemove,
+  onReplace,
   onAssignSuperset,
   allExercises,
 }: ExerciseClusterListProps) {
@@ -315,6 +345,9 @@ function ExerciseClusterList({
             usedSupersetGroups={usedSupersetGroups}
             onSelect={() => onSelectRow(cluster.exercise.id)}
             onRemove={() => onRemove(cluster.exercise.id)}
+            onReplace={
+              onReplace ? () => onReplace(cluster.exercise.id) : undefined
+            }
             onAssignSuperset={(group) => handleAssign(cluster.exercise.id, group)}
           />
         </li>
@@ -352,6 +385,7 @@ function ExerciseClusterList({
                   usedSupersetGroups={usedSupersetGroups}
                   onSelect={() => onSelectRow(row.id)}
                   onRemove={() => onRemove(row.id)}
+                  onReplace={onReplace ? () => onReplace(row.id) : undefined}
                   onAssignSuperset={(group) => handleAssign(row.id, group)}
                 />
               </li>
@@ -411,6 +445,7 @@ type SortableSectionProps = {
   onToggle: () => void
   onSelectRow: (rowId: string) => void
   onRemove: (rowId: string) => void
+  onReplace?: (rowId: string) => void
   onAssignSuperset: (rowId: string, group: string | null) => void
 }
 
@@ -425,6 +460,7 @@ function SortableSection({
   onToggle,
   onSelectRow,
   onRemove,
+  onReplace,
   onAssignSuperset,
 }: SortableSectionProps) {
   const {
@@ -496,6 +532,7 @@ function SortableSection({
           allExercises={allExercises}
           onSelectRow={onSelectRow}
           onRemove={onRemove}
+          onReplace={onReplace}
           onAssignSuperset={onAssignSuperset}
         />
       )}
@@ -510,6 +547,7 @@ export function WorkoutArrangementPanel({
   onSelectRow,
   onChanged,
   onStartSuperset,
+  onReplaceExercise,
   activeSupersetGroup,
 }: WorkoutArrangementPanelProps) {
   const [pendingId, setPendingId] = React.useState<string | null>(null)
@@ -630,6 +668,11 @@ export function WorkoutArrangementPanel({
 
     setLocalSegments(previousSegments)
     toast.error(result.error)
+  }
+
+  function handleReplace(rowId: string) {
+    const row = sortedExercises.find((item) => item.id === rowId)
+    if (row) onReplaceExercise?.(row)
   }
 
   async function handleAssignSuperset(rowId: string, group: string | null) {
@@ -794,6 +837,7 @@ export function WorkoutArrangementPanel({
               allExercises={sortedExercises}
               onSelectRow={onSelectRow}
               onRemove={handleRemove}
+              onReplace={onReplaceExercise ? handleReplace : undefined}
               onAssignSuperset={handleAssignSuperset}
             />
           </div>
@@ -832,6 +876,7 @@ export function WorkoutArrangementPanel({
                 onToggle={() => toggleBlock(segment.blockKey)}
                 onSelectRow={onSelectRow}
                 onRemove={handleRemove}
+                onReplace={onReplaceExercise ? handleReplace : undefined}
                 onAssignSuperset={handleAssignSuperset}
               />
             ))}

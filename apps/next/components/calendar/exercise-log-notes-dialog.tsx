@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { updateScheduledExerciseCoachNotes } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { exerciseLogNotesSchema } from '@/lib/validations/workout-log'
 
 type ExerciseLogNotesDialogProps = {
   open: boolean
@@ -43,7 +43,6 @@ export function ExerciseLogNotesDialog({
   clientNotes,
   onSaved,
 }: ExerciseLogNotesDialogProps) {
-  const [pending, setPending] = React.useState(false)
   const [editableNotes, setEditableNotes] = React.useState('')
 
   React.useEffect(() => {
@@ -55,30 +54,49 @@ export function ExerciseLogNotesDialog({
     )
   }, [open, variant, coachNotes, clientNotes])
 
+  function getPreviousNotes() {
+    return variant === 'coach'
+      ? (coachNotes?.trim() ?? '')
+      : (clientNotes?.trim() ?? '')
+  }
+
   async function handleSave() {
-    setPending(true)
+    const parsed = exerciseLogNotesSchema.safeParse({ notes: editableNotes })
+    if (!parsed.success) {
+      toast.error('Notes must be 500 characters or fewer.')
+      return
+    }
+
+    const previousNotes = getPreviousNotes()
+    const nextNotes = parsed.data.notes
+
+    if (nextNotes === previousNotes) {
+      onOpenChange(false)
+      return
+    }
+
+    onSaved(nextNotes)
+    onOpenChange(false)
+
     const result =
       variant === 'coach'
         ? await updateScheduledExerciseCoachNotes(
             clientId,
             exerciseRowId,
-            editableNotes
+            nextNotes,
+            { revalidate: false }
           )
         : await updatePortalExerciseClientNotes(
             workoutId,
             exerciseRowId,
-            editableNotes
+            nextNotes,
+            { revalidate: false }
           )
-    setPending(false)
 
-    if (result.success) {
-      toast.success('Notes saved.')
-      onSaved(editableNotes)
-      onOpenChange(false)
-      return
+    if (!result.success) {
+      onSaved(previousNotes)
+      toast.error(result.error)
     }
-
-    toast.error(result.error)
   }
 
   const otherPartyNotes =
@@ -131,12 +149,10 @@ export function ExerciseLogNotesDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={pending}
           >
             Cancel
           </Button>
-          <Button type="button" onClick={() => void handleSave()} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}
+          <Button type="button" onClick={() => void handleSave()}>
             Save notes
           </Button>
         </DialogFooter>

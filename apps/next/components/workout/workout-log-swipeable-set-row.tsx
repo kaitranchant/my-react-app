@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const ACTION_WIDTH = 72
 const SWIPE_START_THRESHOLD = 10
 const DELETE_SWIPE_RATIO = 0.35
+const EXIT_DURATION_MS = 280
 
 type WorkoutLogSwipeableSetRowProps = {
   enabled: boolean
@@ -32,6 +33,8 @@ export function WorkoutLogSwipeableSetRow({
   const [containerWidth, setContainerWidth] = React.useState(0)
   const [dragOffset, setDragOffset] = React.useState(0)
   const [dragging, setDragging] = React.useState(false)
+  const [exiting, setExiting] = React.useState(false)
+  const exitTimeoutRef = React.useRef<number | null>(null)
   const dragRef = React.useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -39,6 +42,14 @@ export function WorkoutLogSwipeableSetRow({
     startOffset: 0,
     swiping: false,
   })
+
+  React.useEffect(() => {
+    return () => {
+      if (exitTimeoutRef.current != null) {
+        window.clearTimeout(exitTimeoutRef.current)
+      }
+    }
+  }, [])
 
   React.useEffect(() => {
     const node = containerRef.current
@@ -78,9 +89,25 @@ export function WorkoutLogSwipeableSetRow({
     setDragOffset(0)
   }, [])
 
+  const beginDelete = React.useCallback(
+    (swipeOffset = 0) => {
+      if (exiting) return
+
+      onOpenChange(false)
+      setDragging(false)
+      setDragOffset(swipeOffset)
+      setExiting(true)
+
+      exitTimeoutRef.current = window.setTimeout(() => {
+        onDelete()
+      }, EXIT_DURATION_MS)
+    },
+    [exiting, onDelete, onOpenChange]
+  )
+
   const handlePointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!enabled || event.button !== 0) return
+      if (!enabled || exiting || event.button !== 0) return
 
       onInteractionStart?.()
 
@@ -92,13 +119,13 @@ export function WorkoutLogSwipeableSetRow({
         swiping: false,
       }
     },
-    [enabled, onInteractionStart, open]
+    [enabled, exiting, onInteractionStart, open]
   )
 
   const handlePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current
-      if (drag.pointerId !== event.pointerId) return
+      if (drag.pointerId !== event.pointerId || exiting) return
 
       const dx = drag.startX - event.clientX
       const dy = Math.abs(event.clientY - drag.startY)
@@ -116,13 +143,13 @@ export function WorkoutLogSwipeableSetRow({
 
       setDragOffset(clampOffset(drag.startOffset + dx))
     },
-    [clampOffset]
+    [clampOffset, exiting]
   )
 
   const handlePointerUp = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current
-      if (drag.pointerId !== event.pointerId) return
+      if (drag.pointerId !== event.pointerId || exiting) return
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
@@ -138,8 +165,7 @@ export function WorkoutLogSwipeableSetRow({
       )
 
       if (finalOffset >= deleteThreshold) {
-        onOpenChange(false)
-        onDelete()
+        beginDelete(finalOffset)
         resetDrag()
         return
       }
@@ -147,54 +173,67 @@ export function WorkoutLogSwipeableSetRow({
       onOpenChange(finalOffset >= ACTION_WIDTH / 2)
       resetDrag()
     },
-    [clampOffset, deleteThreshold, onDelete, onOpenChange, resetDrag]
+    [beginDelete, clampOffset, deleteThreshold, exiting, onOpenChange, resetDrag]
   )
 
   if (!enabled) {
     return <div className={className}>{children}</div>
   }
 
+  const contentOffset = exiting ? maxOffset : offset
+
   return (
     <div
-      ref={containerRef}
-      className={cn('relative overflow-hidden', className)}
+      className={cn(
+        'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+        exiting && 'pointer-events-none opacity-0',
+        className
+      )}
+      style={{ gridTemplateRows: exiting ? '0fr' : '1fr' }}
     >
-      <div
-        className="bg-destructive absolute inset-y-0 right-0 flex items-center justify-end"
-        style={{ width: Math.max(offset, 0) }}
-        aria-hidden={!open && !dragging}
-      >
+      <div ref={containerRef} className="relative min-h-0 overflow-hidden">
         <div
-          className="flex h-full shrink-0 items-center justify-center"
-          style={{ width: ACTION_WIDTH }}
+          className="bg-destructive absolute inset-y-0 right-0 flex items-center justify-end"
+          style={{ width: Math.max(contentOffset, 0) }}
+          aria-hidden={!open && !dragging && !exiting}
         >
-          <button
-            type="button"
-            tabIndex={open ? 0 : -1}
-            onClick={() => {
-              onOpenChange(false)
-              onDelete()
-            }}
-            className="text-destructive-foreground flex size-full items-center justify-center transition-opacity"
-            aria-label="Delete set"
+          <div
+            className="flex h-full shrink-0 items-center justify-center"
+            style={{ width: ACTION_WIDTH }}
           >
-            <Trash2 className="size-4" />
-          </button>
+            <button
+              type="button"
+              tabIndex={open ? 0 : -1}
+              disabled={exiting}
+              onClick={() => beginDelete(open ? ACTION_WIDTH : 0)}
+              className="text-destructive-foreground flex size-full items-center justify-center transition-opacity"
+              aria-label="Delete set"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div
-        className={cn(
-          'bg-background relative z-10 w-full touch-pan-y select-none',
-          !dragging && 'transition-transform duration-200 ease-out'
-        )}
-        style={{ transform: `translateX(-${offset}px)` }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
-        {children}
+        <div
+          className={cn(
+            'bg-background relative z-10 w-full touch-pan-y select-none',
+            exiting || !dragging
+              ? 'transition-[transform,opacity] duration-300 ease-in'
+              : 'transition-transform duration-200 ease-out',
+            exiting && 'opacity-0'
+          )}
+          style={{
+            transform: exiting
+              ? `translateX(-${maxOffset}px)`
+              : `translateX(-${contentOffset}px)`,
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
+          {children}
+        </div>
       </div>
     </div>
   )

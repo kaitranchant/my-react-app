@@ -381,7 +381,8 @@ export async function skipWorkoutLog(
 export async function updateScheduledExerciseCoachNotes(
   clientId: string,
   exerciseRowId: string,
-  notes: string
+  notes: string,
+  options?: { revalidate?: boolean }
 ): Promise<ActionResult> {
   const parsed = exerciseLogNotesSchema.safeParse({ notes })
   if (!parsed.success) {
@@ -397,7 +398,7 @@ export async function updateScheduledExerciseCoachNotes(
 
   const { data: row, error: rowError } = await supabase
     .from('scheduled_workout_exercises')
-    .select('id, scheduled_workout_id')
+    .select('id, scheduled_workout:client_scheduled_workouts!inner(client_id)')
     .eq('id', exerciseRowId)
     .maybeSingle()
 
@@ -405,14 +406,8 @@ export async function updateScheduledExerciseCoachNotes(
     return { success: false, error: 'Exercise not found.' }
   }
 
-  const { data: workout } = await supabase
-    .from('client_scheduled_workouts')
-    .select('id')
-    .eq('id', row.scheduled_workout_id)
-    .eq('client_id', clientId)
-    .maybeSingle()
-
-  if (!workout) {
+  const workout = row.scheduled_workout as { client_id: string }
+  if (workout.client_id !== clientId) {
     return { success: false, error: 'Workout not found.' }
   }
 
@@ -426,7 +421,9 @@ export async function updateScheduledExerciseCoachNotes(
     return { success: false, error: error.message }
   }
 
-  revalidateClientCalendar(clientId)
+  if (options?.revalidate !== false) {
+    revalidateClientCalendar(clientId)
+  }
   return { success: true }
 }
 
