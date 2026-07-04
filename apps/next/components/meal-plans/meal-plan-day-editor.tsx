@@ -66,6 +66,56 @@ type MealPlanDayEditorProps = {
   days: MealPlanDayWithMeals[]
 }
 
+function patchDayInDays(
+  days: MealPlanDayWithMeals[],
+  dayId: string,
+  patch: Partial<Pick<MealPlanDayWithMeals, 'label' | 'notes'>>
+): MealPlanDayWithMeals[] {
+  return days.map((day) => (day.id === dayId ? { ...day, ...patch } : day))
+}
+
+function patchMealInDays(
+  days: MealPlanDayWithMeals[],
+  dayId: string,
+  mealId: string,
+  patch: Partial<Pick<MealPlanMealWithFoods, 'name' | 'meal_type' | 'description'>>
+): MealPlanDayWithMeals[] {
+  return days.map((day) => {
+    if (day.id !== dayId) return day
+    return {
+      ...day,
+      meals: day.meals.map((meal) =>
+        meal.id === mealId ? { ...meal, ...patch } : meal
+      ),
+    }
+  })
+}
+
+function removeMealFromDays(
+  days: MealPlanDayWithMeals[],
+  dayId: string,
+  mealId: string
+): MealPlanDayWithMeals[] {
+  return days.map((day) =>
+    day.id === dayId
+      ? { ...day, meals: day.meals.filter((meal) => meal.id !== mealId) }
+      : day
+  )
+}
+
+function removeDayFromDays(
+  days: MealPlanDayWithMeals[],
+  dayId: string
+): MealPlanDayWithMeals[] {
+  return days.filter((day) => day.id !== dayId)
+}
+
+function refreshMealPlanInBackground(router: ReturnType<typeof useRouter>) {
+  React.startTransition(() => {
+    router.refresh()
+  })
+}
+
 function snapshotToMealFoodValues(
   snapshot: FoodSelectionSnapshot,
   sortOrder: number
@@ -264,13 +314,11 @@ function MealPlanMealEditForm({
   disabled: boolean
   onSave: (values: {
     mealType: (typeof mealTypes)[number]
-    name: string
     description: string
   }) => Promise<void>
   onCancel: () => void
 }) {
   const [mealType, setMealType] = React.useState(meal.meal_type)
-  const [mealName, setMealName] = React.useState(meal.name)
   const [mealDescription, setMealDescription] = React.useState(meal.description ?? '')
   const [saving, setSaving] = React.useState(false)
 
@@ -279,7 +327,6 @@ function MealPlanMealEditForm({
     setSaving(true)
     await onSave({
       mealType,
-      name: mealName,
       description: mealDescription,
     })
     setSaving(false)
@@ -287,37 +334,25 @@ function MealPlanMealEditForm({
 
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="grid gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label>Meal type</Label>
-          <Select
-            value={mealType}
-            onValueChange={(value) =>
-              setMealType(value as (typeof mealTypes)[number])
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {mealTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {MEAL_TYPE_LABELS[type]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`edit-meal-name-${meal.id}`}>Name</Label>
-          <Input
-            id={`edit-meal-name-${meal.id}`}
-            value={mealName}
-            onChange={(event) => setMealName(event.target.value)}
-            placeholder="e.g. Greek yogurt bowl"
-            disabled={disabled || saving}
-          />
-        </div>
+      <div className="grid gap-2 sm:max-w-xs">
+        <Label>Meal type</Label>
+        <Select
+          value={mealType}
+          onValueChange={(value) =>
+            setMealType(value as (typeof mealTypes)[number])
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {mealTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {MEAL_TYPE_LABELS[type]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="grid gap-2">
         <Label htmlFor={`edit-meal-description-${meal.id}`}>Description</Label>
@@ -348,12 +383,17 @@ function MealPlanMealEditForm({
   )
 }
 
-export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) {
+export function MealPlanDayEditor({ mealPlanId, days: initialDays }: MealPlanDayEditorProps) {
   const router = useRouter()
+  const [days, setDays] = React.useState(initialDays)
   const [pending, setPending] = React.useState(false)
   const pendingDeleteDayId = React.useRef<string | null>(null)
   const nextDayOffset =
     days.length > 0 ? Math.max(...days.map((day) => day.day_offset)) + 1 : 0
+
+  React.useEffect(() => {
+    setDays(initialDays)
+  }, [initialDays])
 
   const deleteDayConfirm = useConfirmDialog({
     title: 'Delete this day?',
@@ -375,7 +415,10 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
 
       toast.success('Day deleted.')
       pendingDeleteDayId.current = null
-      router.refresh()
+      setDays((current) =>
+        dayId ? removeDayFromDays(current, dayId) : current
+      )
+      refreshMealPlanInBackground(router)
     },
   })
 
@@ -393,7 +436,7 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
     }
 
     toast.success('Day added.')
-    router.refresh()
+    refreshMealPlanInBackground(router)
   }
 
   function requestDeleteDay(dayId: string) {
@@ -431,6 +474,7 @@ export function MealPlanDayEditor({ mealPlanId, days }: MealPlanDayEditorProps) 
               mealPlanId={mealPlanId}
               day={day}
               disabled={false}
+              onDaysChange={setDays}
               onDeleteDay={() => requestDeleteDay(day.id)}
             />
           ))
@@ -445,21 +489,26 @@ function MealPlanDayCard({
   mealPlanId,
   day,
   disabled,
+  onDaysChange,
   onDeleteDay,
 }: {
   mealPlanId: string
   day: MealPlanDayWithMeals
   disabled: boolean
+  onDaysChange: React.Dispatch<React.SetStateAction<MealPlanDayWithMeals[]>>
   onDeleteDay: () => void
 }) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
+  const [savingMealNameId, setSavingMealNameId] = React.useState<string | null>(null)
+  const [savingDayLabel, setSavingDayLabel] = React.useState(false)
   const pendingDeleteMealId = React.useRef<string | null>(null)
   const pendingDeleteFood = React.useRef<{
     mealId: string
     foodId: string
   } | null>(null)
   const [label, setLabel] = React.useState(day.label ?? '')
+  const [mealNames, setMealNames] = React.useState<Record<string, string>>({})
   const [mealType, setMealType] = React.useState<(typeof mealTypes)[number]>('breakfast')
   const [mealName, setMealName] = React.useState('')
   const [mealDescription, setMealDescription] = React.useState('')
@@ -496,7 +545,10 @@ function MealPlanDayCard({
 
       toast.success('Meal deleted.')
       pendingDeleteMealId.current = null
-      router.refresh()
+      onDaysChange((current) =>
+        mealId ? removeMealFromDays(current, day.id, mealId) : current
+      )
+      refreshMealPlanInBackground(router)
     },
   })
 
@@ -524,7 +576,7 @@ function MealPlanDayCard({
 
       toast.success('Food removed.')
       pendingDeleteFood.current = null
-      router.refresh()
+      refreshMealPlanInBackground(router)
     },
   })
 
@@ -555,6 +607,22 @@ function MealPlanDayCard({
   }, [day.label])
 
   React.useEffect(() => {
+    setMealNames((current) => {
+      const next = { ...current }
+      for (const meal of day.meals) {
+        if (savingMealNameId === meal.id) continue
+        next[meal.id] = meal.name
+      }
+      for (const mealId of Object.keys(next)) {
+        if (!day.meals.some((meal) => meal.id === mealId)) {
+          delete next[mealId]
+        }
+      }
+      return next
+    })
+  }, [day.meals, savingMealNameId])
+
+  React.useEffect(() => {
     return () => {
       if (labelSaveTimeoutRef.current) {
         window.clearTimeout(labelSaveTimeoutRef.current)
@@ -578,11 +646,11 @@ function MealPlanDayCard({
     const current = day.label?.trim() ?? ''
     if (trimmed === current) return
 
-    setPending(true)
+    setSavingDayLabel(true)
     const result = await updateMealPlanDay(mealPlanId, day.id, {
       label: trimmed || null,
     })
-    setPending(false)
+    setSavingDayLabel(false)
 
     if (!result.success) {
       toast.error(result.error)
@@ -590,8 +658,48 @@ function MealPlanDayCard({
       return
     }
 
-    toast.success('Day name saved.')
-    router.refresh()
+    onDaysChange((current) =>
+      patchDayInDays(current, day.id, { label: trimmed || null })
+    )
+    refreshMealPlanInBackground(router)
+  }
+
+  async function handleMealNameSave(mealId: string) {
+    const meal = day.meals.find((row) => row.id === mealId)
+    if (!meal) return
+
+    const draft = mealNames[mealId] ?? meal.name
+    const trimmed = draft.trim()
+    const current = meal.name.trim()
+    if (trimmed === current) return
+
+    const fallbackName =
+      trimmed ||
+      `${meal.meal_type.charAt(0).toUpperCase()}${meal.meal_type.slice(1)}`
+
+    setSavingMealNameId(mealId)
+    const result = await updateMealPlanMeal(mealPlanId, mealId, {
+      name: trimmed || undefined,
+    })
+    setSavingMealNameId(null)
+
+    if (!result.success) {
+      toast.error(result.error)
+      setMealNames((current) => ({ ...current, [mealId]: meal.name }))
+      return
+    }
+
+    setMealNames((current) => ({ ...current, [mealId]: fallbackName }))
+    onDaysChange((current) =>
+      patchMealInDays(current, day.id, mealId, { name: fallbackName })
+    )
+    refreshMealPlanInBackground(router)
+  }
+
+  function scheduleMealNameSave(mealId: string) {
+    window.setTimeout(() => {
+      void handleMealNameSave(mealId)
+    }, 0)
   }
 
   function handleDraftFoodAdd(snapshot: FoodSelectionSnapshot) {
@@ -640,7 +748,7 @@ function MealPlanDayCard({
     setMealDescription('')
     setDraftFoods([])
     toast.success('Meal added.')
-    router.refresh()
+    refreshMealPlanInBackground(router)
   }
 
   async function handleDeleteMeal(mealId: string) {
@@ -667,7 +775,7 @@ function MealPlanDayCard({
     }
 
     toast.success('Food added to meal.')
-    router.refresh()
+    refreshMealPlanInBackground(router)
   }
 
   async function handleDeleteMealFood(mealId: string, foodId: string) {
@@ -679,14 +787,12 @@ function MealPlanDayCard({
     mealId: string,
     values: {
       mealType: (typeof mealTypes)[number]
-      name: string
       description: string
     }
   ) {
     setPending(true)
     const result = await updateMealPlanMeal(mealPlanId, mealId, {
       mealType: values.mealType,
-      name: values.name,
       description: values.description.trim() || null,
     })
     setPending(false)
@@ -696,9 +802,14 @@ function MealPlanDayCard({
       return
     }
 
+    onDaysChange((current) =>
+      patchMealInDays(current, day.id, mealId, {
+        meal_type: values.mealType,
+        description: values.description.trim() || null,
+      })
+    )
     setEditingMealId(null)
-    toast.success('Meal updated.')
-    router.refresh()
+    refreshMealPlanInBackground(router)
   }
 
   async function handleUpdateMealFood(
@@ -717,7 +828,7 @@ function MealPlanDayCard({
 
     setEditingFood(null)
     toast.success('Food updated.')
-    router.refresh()
+    refreshMealPlanInBackground(router)
   }
 
   return (
@@ -732,7 +843,7 @@ function MealPlanDayCard({
               id={`day-label-${day.id}`}
               value={label}
               placeholder={defaultDayName}
-              disabled={disabled || pending}
+              disabled={disabled || savingDayLabel}
               onChange={(event) => setLabel(event.target.value)}
               onBlur={scheduleLabelSave}
               onKeyDown={(event) => {
@@ -786,9 +897,35 @@ function MealPlanDayCard({
                   ) : (
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">
-                          {MEAL_TYPE_LABELS[meal.meal_type]} — {meal.name}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-muted-foreground shrink-0 text-sm">
+                            {MEAL_TYPE_LABELS[meal.meal_type]}
+                          </span>
+                          <Input
+                            id={`meal-name-${meal.id}`}
+                            value={mealNames[meal.id] ?? meal.name}
+                            placeholder="Meal name"
+                            disabled={
+                              disabled ||
+                              pending ||
+                              savingMealNameId === meal.id
+                            }
+                            onChange={(event) =>
+                              setMealNames((current) => ({
+                                ...current,
+                                [meal.id]: event.target.value,
+                              }))
+                            }
+                            onBlur={() => scheduleMealNameSave(meal.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault()
+                                event.currentTarget.blur()
+                              }
+                            }}
+                            className="h-8 max-w-md min-w-[10rem] flex-1 font-medium"
+                          />
+                        </div>
                         {mealTotals ? (
                           <MacroTotalsBadges
                             totals={mealTotals}
@@ -812,7 +949,7 @@ function MealPlanDayCard({
                             setEditingFood(null)
                             setEditingMealId(meal.id)
                           }}
-                          aria-label={`Edit ${meal.name}`}
+                          aria-label={`Edit ${meal.name} details`}
                         >
                           <Pencil className="size-4" />
                         </Button>

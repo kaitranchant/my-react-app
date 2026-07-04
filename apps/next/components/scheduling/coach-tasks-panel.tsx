@@ -260,12 +260,14 @@ function CoachTaskFormDialog({
 function CoachTaskRow({
   task,
   todayKey,
+  toggling,
   onEdit,
   onToggle,
   onDelete,
 }: {
   task: CoachTask
   todayKey: string
+  toggling: boolean
   onEdit: () => void
   onToggle: () => void
   onDelete: () => void
@@ -285,7 +287,8 @@ function CoachTaskRow({
       <button
         type="button"
         onClick={onToggle}
-        className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
+        disabled={toggling}
+        className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0 disabled:opacity-60"
         aria-label={completed ? 'Mark task incomplete' : 'Mark task complete'}
       >
         {completed ? (
@@ -371,14 +374,22 @@ export function CoachTasksPanel({
   const [filter, setFilter] = React.useState<CoachTaskFilter>('active')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editingTask, setEditingTask] = React.useState<CoachTask | null>(null)
-
-  const visibleTasks = React.useMemo(
-    () => sortCoachTasks(filterCoachTasks(tasks, filter), todayKey),
-    [filter, tasks, todayKey]
+  const [localTasks, setLocalTasks] = React.useState(tasks)
+  const [togglingTaskIds, setTogglingTaskIds] = React.useState<Set<string>>(
+    () => new Set()
   )
 
-  const pendingCount = tasks.filter((task) => task.status === 'pending').length
-  const overdueCount = tasks.filter((task) =>
+  React.useEffect(() => {
+    setLocalTasks(tasks)
+  }, [tasks])
+
+  const visibleTasks = React.useMemo(
+    () => sortCoachTasks(filterCoachTasks(localTasks, filter), todayKey),
+    [filter, localTasks, todayKey]
+  )
+
+  const pendingCount = localTasks.filter((task) => task.status === 'pending').length
+  const overdueCount = localTasks.filter((task) =>
     isCoachTaskOverdue(task, todayKey)
   ).length
 
@@ -387,22 +398,52 @@ export function CoachTasksPanel({
   }
 
   async function handleToggle(task: CoachTask) {
-    const nextStatus = task.status === 'completed' ? 'pending' : 'completed'
-    const result = await updateCoachTaskStatus(task.id, nextStatus)
-    if (result.success) {
-      refresh()
+    if (togglingTaskIds.has(task.id)) {
       return
     }
+
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed'
+    const optimisticTask: CoachTask = {
+      ...task,
+      status: nextStatus,
+      completed_at:
+        nextStatus === 'completed' ? new Date().toISOString() : null,
+    }
+
+    setTogglingTaskIds((current) => new Set(current).add(task.id))
+    setLocalTasks((current) =>
+      current.map((entry) => (entry.id === task.id ? optimisticTask : entry))
+    )
+
+    const result = await updateCoachTaskStatus(task.id, nextStatus)
+
+    setTogglingTaskIds((current) => {
+      const next = new Set(current)
+      next.delete(task.id)
+      return next
+    })
+
+    if (result.success) {
+      return
+    }
+
+    setLocalTasks((current) =>
+      current.map((entry) => (entry.id === task.id ? task : entry))
+    )
     toast.error(result.error)
   }
 
   async function handleDelete(task: CoachTask) {
+    const previousTasks = localTasks
+    setLocalTasks((current) => current.filter((entry) => entry.id !== task.id))
+
     const result = await deleteCoachTask(task.id)
     if (result.success) {
       toast.success('Task deleted.')
-      refresh()
       return
     }
+
+    setLocalTasks(previousTasks)
     toast.error(result.error)
   }
 
@@ -466,6 +507,7 @@ export function CoachTasksPanel({
               key={task.id}
               task={task}
               todayKey={todayKey}
+              toggling={togglingTaskIds.has(task.id)}
               onEdit={() => setEditingTask(task)}
               onToggle={() => void handleToggle(task)}
               onDelete={() => void handleDelete(task)}

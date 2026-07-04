@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server'
 
 function revalidateSchedulingTasks() {
   revalidatePath('/scheduling')
+  revalidatePath('/dashboard')
 }
 
 async function requireCoach() {
