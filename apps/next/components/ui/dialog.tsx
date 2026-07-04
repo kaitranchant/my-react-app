@@ -10,6 +10,23 @@ import { cn } from '@/lib/utils'
 
 function ViewportDialogBehavior() {
   useMainContentScrollLock(true)
+
+  React.useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const previousPosition = document.body.style.position
+    const previousWidth = document.body.style.width
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.width = '100%'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.position = previousPosition
+      document.body.style.width = previousWidth
+    }
+  }, [])
+
   return null
 }
 

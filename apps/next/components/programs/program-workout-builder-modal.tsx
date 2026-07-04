@@ -17,6 +17,7 @@ import {
 } from '@/app/(dashboard)/library/programs/[programId]/calendar/actions'
 import { WorkoutBuilder } from '@/components/calendar/workout-builder'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
+import { MobileKeyboardProvider } from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,6 +36,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatProgramDayLabel } from '@/lib/program-calendar'
+import { scrollInputOnFocus } from '@/lib/visual-viewport/scroll-input-on-focus'
+import { WORKOUT_BUILDER_USE_NATIVE_KEYBOARD } from '@/lib/workout-builder-keyboard'
 import type { WorkoutBuilderExerciseActions } from '@/lib/workout-builder-types'
 import {
   scheduledWorkoutFormSchema,
@@ -140,6 +143,7 @@ export function ProgramWorkoutBuilderModal({
         onInteractOutside={(event) => event.preventDefault()}
         className="gap-0 p-0"
       >
+        <MobileKeyboardProvider enabled={!WORKOUT_BUILDER_USE_NATIVE_KEYBOARD}>
         <div className="shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
           <DialogTitle className="sr-only">{workout.name}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -165,6 +169,7 @@ export function ProgramWorkoutBuilderModal({
                           <Input
                             {...field}
                             autoFocus={false}
+                            onFocus={scrollInputOnFocus}
                             className="h-auto border-0 bg-transparent p-0 text-xl font-bold shadow-none focus-visible:ring-0"
                             placeholder="Workout name"
                           />
@@ -224,6 +229,7 @@ export function ProgramWorkoutBuilderModal({
                         placeholder="Optional session notes for this day"
                         className="min-h-[52px] resize-none text-sm"
                         {...field}
+                        onFocus={scrollInputOnFocus}
                       />
                     </FormControl>
                     <FormMessage />
@@ -253,6 +259,7 @@ export function ProgramWorkoutBuilderModal({
             </div>
           )}
         </div>
+        </MobileKeyboardProvider>
       </DialogContent>
     </Dialog>
   )

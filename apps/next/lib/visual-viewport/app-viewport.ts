@@ -171,7 +171,7 @@ export function scheduleFocusedInputScroll(
   timeoutId = window.setTimeout(() => {
     scrollOnce()
     cleanup()
-  }, 400)
+  }, 300)
 }
 
 export function syncAppViewportCssVars() {
@@ -182,7 +182,7 @@ export function syncAppViewportCssVars() {
     root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
-    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
+    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100dvh')
     return
   }
 
@@ -193,7 +193,7 @@ export function syncAppViewportCssVars() {
     root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
     root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
-    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
+    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100dvh')
     return
   }
 

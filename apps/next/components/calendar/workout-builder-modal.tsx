@@ -16,6 +16,7 @@ import {
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { WorkoutBuilder } from '@/components/calendar/workout-builder'
 import { TabletFullscreenOverlay } from '@/components/layout/tablet-fullscreen-overlay'
+import { MobileKeyboardProvider } from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,6 +36,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDayHeader } from '@/lib/calendar'
 import { useTabletTouchLayout } from '@/lib/hooks/use-tablet-touch-layout'
+import { scrollInputOnFocus } from '@/lib/visual-viewport/scroll-input-on-focus'
+import { WORKOUT_BUILDER_USE_NATIVE_KEYBOARD } from '@/lib/workout-builder-keyboard'
 import type { WorkoutBuilderExerciseActions } from '@/lib/workout-builder-types'
 import {
   scheduledWorkoutFormSchema,
@@ -119,6 +122,7 @@ function WorkoutBuilderBody({
                         <Input
                           {...field}
                           autoFocus={false}
+                          onFocus={scrollInputOnFocus}
                           className="h-auto border-0 bg-transparent p-0 text-xl font-bold shadow-none focus-visible:ring-0"
                           placeholder="Workout name"
                         />
@@ -176,6 +180,7 @@ function WorkoutBuilderBody({
                       placeholder="Optional session notes for this day"
                       className="min-h-[52px] resize-none text-sm"
                       {...field}
+                      onFocus={scrollInputOnFocus}
                     />
                   </FormControl>
                   <FormMessage />
@@ -265,6 +270,24 @@ export function WorkoutBuilderModal({
     />
   )
 
+  const modalBody = (
+    <MobileKeyboardProvider enabled={!WORKOUT_BUILDER_USE_NATIVE_KEYBOARD}>
+      <WorkoutBuilderBody
+        selectedDate={selectedDate}
+        workout={workout}
+        form={form}
+        pending={pending}
+        onCopy={onCopy}
+        onSave={(values) => void handleSave(values, false)}
+        onSaveAndClose={(values) => void handleSave(values, true)}
+        showCloseButton={tabletTouch}
+        onClose={tabletTouch ? () => onOpenChange(false) : undefined}
+      >
+        {builder}
+      </WorkoutBuilderBody>
+    </MobileKeyboardProvider>
+  )
+
   if (tabletTouch) {
     return (
       <TabletFullscreenOverlay
@@ -272,19 +295,7 @@ export function WorkoutBuilderModal({
         onOpenChange={onOpenChange}
         label={`Workout builder for ${formatDayHeader(selectedDate)}`}
       >
-        <WorkoutBuilderBody
-          selectedDate={selectedDate}
-          workout={workout}
-          form={form}
-          pending={pending}
-          onCopy={onCopy}
-          onSave={(values) => void handleSave(values, false)}
-          onSaveAndClose={(values) => void handleSave(values, true)}
-          showCloseButton
-          onClose={() => onOpenChange(false)}
-        >
-          {builder}
-        </WorkoutBuilderBody>
+        {modalBody}
       </TabletFullscreenOverlay>
     )
   }
@@ -304,17 +315,7 @@ export function WorkoutBuilderModal({
           Workout builder for {formatDayHeader(selectedDate)}
         </DialogDescription>
 
-        <WorkoutBuilderBody
-          selectedDate={selectedDate}
-          workout={workout}
-          form={form}
-          pending={pending}
-          onCopy={onCopy}
-          onSave={(values) => void handleSave(values, false)}
-          onSaveAndClose={(values) => void handleSave(values, true)}
-        >
-          {builder}
-        </WorkoutBuilderBody>
+        {modalBody}
       </DialogContent>
     </Dialog>
   )

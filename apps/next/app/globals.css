@@ -303,7 +303,7 @@
     top: var(--app-vv-top, 0px);
     left: var(--app-vv-left, 0px);
     width: var(--app-vv-width, 100%);
-    height: var(--app-vv-height, 100svh);
+    height: var(--app-vv-height, 100dvh);
     right: auto;
     bottom: auto;
   }
@@ -321,7 +321,7 @@
     top: var(--app-vv-top, 0px) !important;
     left: var(--app-vv-left, 0px) !important;
     width: var(--app-vv-width, 100%) !important;
-    height: var(--app-vv-height, 100svh) !important;
+    height: var(--app-vv-height, 100dvh) !important;
   }
 
   .dialog-vv-surface-inset {
@@ -336,7 +336,7 @@
         max(0.5rem, env(safe-area-inset-right))
     ) !important;
     height: calc(
-      var(--app-vv-height, 100svh) - max(0.5rem, env(safe-area-inset-top)) -
+      var(--app-vv-height, 100dvh) - max(0.5rem, env(safe-area-inset-top)) -
         max(0.5rem, env(safe-area-inset-bottom))
     ) !important;
   }
@@ -358,7 +358,7 @@
     max-width: 28rem !important;
     transform: none !important;
     max-height: calc(
-      var(--app-vv-height, 100svh) - max(0.75rem, env(safe-area-inset-top)) -
+      var(--app-vv-height, 100dvh) - max(0.75rem, env(safe-area-inset-top)) -
         max(0.75rem, env(safe-area-inset-bottom)) - 1.5rem
     ) !important;
     overflow-y: auto !important;
@@ -371,7 +371,7 @@
       left: 50% !important;
       width: min(28rem, calc(100% - 2rem)) !important;
       transform: translate(-50%, -50%) !important;
-      max-height: calc(100svh - 2rem) !important;
+      max-height: calc(100dvh - 2rem) !important;
     }
   }
 

@@ -10,6 +10,7 @@ import {
 import { LibraryExerciseList } from '@/components/exercises/library-exercise-list'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { NestedKeyboardScroll } from '@/components/layout/nested-keyboard-scroll'
 import type { Exercise } from 'app/types/database'
 
 export type ExerciseSource = 'library' | 'custom'
@@ -82,7 +83,7 @@ export function ExerciseLibraryPanel({
           value="custom"
           className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
         >
-          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain">
+          <NestedKeyboardScroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain">
             <CustomExerciseTab form={customForm} />
             {customName?.trim() && (
               <button
@@ -99,7 +100,7 @@ export function ExerciseLibraryPanel({
                 Use <span className="font-semibold">{customName.trim()}</span>
               </button>
             )}
-          </div>
+          </NestedKeyboardScroll>
         </TabsContent>
       </Tabs>
     </div>
