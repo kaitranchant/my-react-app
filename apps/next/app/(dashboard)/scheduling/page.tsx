@@ -1,18 +1,8 @@
-import Link from 'next/link'
-
 import { PageHeader } from '@/components/dashboard/page-header'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
-import { ensureCoachAppointmentSeriesHorizon } from '@/app/(dashboard)/scheduling/actions'
-import { AvailabilityExceptionsPanel } from '@/components/scheduling/availability-exceptions-panel'
-import { AvailabilityGridEditor } from '@/components/scheduling/availability-grid-editor'
 import { BookAppointmentDialog } from '@/components/scheduling/book-appointment-dialog'
-import { BookingLinkCard } from '@/components/scheduling/booking-link-card'
-import { SchedulingWeekPanel } from '@/components/scheduling/scheduling-week-panel'
-import { GoogleCalendarConnectCard } from '@/components/scheduling/google-calendar-connect-card'
-import { SessionBookingSettingsForm } from '@/components/scheduling/session-booking-settings-form'
-import { SessionPacksPanel } from '@/components/scheduling/session-packs-panel'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SchedulingPageTabs } from '@/components/scheduling/scheduling-page-tabs'
+import { ensureCoachAppointmentSeriesHorizon } from '@/app/(dashboard)/scheduling/actions'
 import { getAppBaseUrl } from '@/lib/email/config'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import { isGoogleCalendarConfigured } from '@/lib/google-calendar/config'
@@ -30,6 +20,7 @@ import {
 } from '@/lib/session-booking-queries'
 import { addDaysToDateKey } from '@/lib/calendar'
 import { getCoachDateKeyFromReference } from '@/lib/session-booking-slots'
+import { fetchCoachTasks } from '@/lib/coach-tasks-queries'
 import { sessionBookingSettingsToFormValues } from '@/lib/session-booking-types'
 import { createClient } from '@/lib/supabase/server'
 import { getSubscriptionGate } from '@/lib/subscription-server'
@@ -50,7 +41,7 @@ export default async function SchedulingPage({
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <PageHeader
           title="Scheduling"
-          description="Manage coach availability, book 1:1 sessions, and track session packs."
+          description="Manage sessions, availability, session packs, and your coach to-do list."
         />
         <UpgradePrompt gate={gate} />
       </div>
@@ -81,21 +72,27 @@ export default async function SchedulingPage({
     weekReferenceDate
   )
 
-  await ensureCoachAppointmentSeriesHorizon(user.id)
+  void ensureCoachAppointmentSeriesHorizon(user.id)
+
+  const todayKey = getCoachDateKeyFromReference(coachPreferences.timezone)
+  const exceptionHorizonKey = addDaysToDateKey(todayKey, 90)
 
   const [
     settings,
     rules,
     appointments,
     sessionPacks,
+    coachTasks,
     { data: clients },
     { data: profile },
     googleCalendarConnection,
+    availabilityExceptions,
   ] = await Promise.all([
     fetchCoachSessionBookingSettings(supabase, user.id),
     fetchCoachAvailabilityRules(supabase, user.id),
     fetchCoachingAppointments(supabase, user.id, startIso, endIso),
     fetchCoachSessionPacks(supabase, user.id),
+    fetchCoachTasks(supabase, user.id),
     supabase
       .from('clients')
       .select('id, full_name')
@@ -108,16 +105,13 @@ export default async function SchedulingPage({
       .eq('id', user.id)
       .maybeSingle(),
     fetchCoachGoogleCalendarConnection(supabase, user.id),
+    fetchCoachAvailabilityExceptions(
+      supabase,
+      user.id,
+      todayKey,
+      exceptionHorizonKey
+    ),
   ])
-
-  const todayKey = getCoachDateKeyFromReference(coachPreferences.timezone)
-  const exceptionHorizonKey = addDaysToDateKey(todayKey, 90)
-  const availabilityExceptions = await fetchCoachAvailabilityExceptions(
-    supabase,
-    user.id,
-    todayKey,
-    exceptionHorizonKey
-  )
 
   const bookingDateKeys = getPortalBookingDateKeys(
     settings,
@@ -141,7 +135,7 @@ export default async function SchedulingPage({
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <PageHeader
         title="Scheduling"
-        description="Manage coach availability, book 1:1 sessions, and track session packs."
+        description="Manage sessions, availability, session packs, and your coach to-do list."
       >
         <BookAppointmentDialog
           clients={clients ?? []}
@@ -153,96 +147,27 @@ export default async function SchedulingPage({
         />
       </PageHeader>
 
-      <Tabs value={view} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="week" asChild>
-            <Link href="/scheduling?view=week">This week</Link>
-          </TabsTrigger>
-          <TabsTrigger value="availability" asChild>
-            <Link href="/scheduling?view=availability">Availability</Link>
-          </TabsTrigger>
-          <TabsTrigger value="packs" asChild>
-            <Link href="/scheduling?view=packs">Session packs</Link>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="week" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sessions this week</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SchedulingWeekPanel
-                appointments={appointments}
-                coachPreferences={coachPreferences}
-                sessionPacks={sessionPacks}
-                weekKeys={weekKeys}
-                clients={clients ?? []}
-                dateOptions={bookingDateKeys}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="availability" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <BookingLinkCard
-                bookingEnabled={settings.session_booking_enabled}
-                coachName={coachDisplayName}
-                appBaseUrl={getAppBaseUrl()}
-              />
-              <SessionBookingSettingsForm
-                defaultValues={sessionBookingSettingsToFormValues(settings)}
-              />
-              <GoogleCalendarConnectCard
-                configured={isGoogleCalendarConfigured()}
-                connection={googleCalendarConnection}
-                connectError={connectError ?? null}
-                connectSuccess={connected === 'google_calendar'}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly availability</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AvailabilityGridEditor initialRules={rules} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Exceptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AvailabilityExceptionsPanel
-                initialExceptions={availabilityExceptions}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="packs">
-          <Card>
-            <CardHeader>
-              <CardTitle>Session packs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SessionPacksPanel
-                clients={clients ?? []}
-                packs={sessionPacks}
-                coachTimezone={coachPreferences.timezone}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <SchedulingPageTabs
+        initialView={view}
+        appointments={appointments}
+        coachPreferences={coachPreferences}
+        sessionPacks={sessionPacks}
+        weekKeys={weekKeys}
+        clients={clients ?? []}
+        bookingDateKeys={bookingDateKeys}
+        settings={settings}
+        settingsFormValues={sessionBookingSettingsToFormValues(settings)}
+        rules={rules}
+        availabilityExceptions={availabilityExceptions}
+        coachTasks={coachTasks}
+        todayKey={todayKey}
+        coachDisplayName={coachDisplayName}
+        appBaseUrl={getAppBaseUrl()}
+        googleCalendarConfigured={isGoogleCalendarConfigured()}
+        googleCalendarConnection={googleCalendarConnection}
+        connectError={connectError ?? null}
+        connectSuccess={connected === 'google_calendar'}
+      />
     </div>
   )
 }

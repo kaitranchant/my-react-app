@@ -44,6 +44,20 @@ test('buildActionItems surfaces monitoring and inbox alerts', () => {
   assert.equal(items[3]?.href, '/messages')
 })
 
+test('buildActionItems includes tasks due today', () => {
+  const items = buildActionItems({
+    clients: baseClients,
+    pendingInvites: 0,
+    clientsWithoutWorkoutThisWeek: 0,
+    skippedThisWeek: 0,
+    tasksDueToday: 2,
+  })
+
+  assert.deepEqual(items.map((item) => item.id), ['tasks-due-today'])
+  assert.equal(items[0]?.message, '2 tasks due today')
+  assert.equal(items[0]?.href, '/scheduling?view=tasks')
+})
+
 test('mergeActivityFeed combines and sorts activity by timestamp', () => {
   const merged = mergeActivityFeed(
     [

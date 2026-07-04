@@ -169,7 +169,7 @@ export type UpdateAppointmentStatusValues = z.infer<
   typeof updateAppointmentStatusSchema
 >
 
-export const schedulingViewModes = ['week', 'availability', 'packs'] as const
+export const schedulingViewModes = ['week', 'tasks', 'availability', 'packs'] as const
 export type SchedulingViewMode = (typeof schedulingViewModes)[number]
 
 export function parseSchedulingViewMode(

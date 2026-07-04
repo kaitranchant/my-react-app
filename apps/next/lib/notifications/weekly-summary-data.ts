@@ -4,6 +4,7 @@ import {
 } from '@/lib/check-in-cadence'
 import {
   parseCoachPreferences,
+  getCoachDateKey,
   type CoachPreferences,
 } from '@/lib/coach-preferences'
 import {
@@ -19,6 +20,7 @@ import {
   type ActivityItem,
 } from '@/lib/dashboard'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
+import { countCoachTasksDueToday } from '@/lib/coach-tasks-queries'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import {
   filterActionItemsForNotifications,
@@ -107,6 +109,7 @@ export async function buildWeeklySummaryForCoach(
     { data: recentFormReviews },
     { data: recentNutritionSetups },
     navBadges,
+    tasksDueToday,
   ] = await Promise.all([
     admin
       .from('clients')
@@ -166,6 +169,11 @@ export async function buildWeeklySummaryForCoach(
       .order('setup_form_completed_at', { ascending: false })
       .limit(8),
     fetchCoachNavBadges(admin, coachId),
+    countCoachTasksDueToday(
+      admin,
+      coachId,
+      getCoachDateKey(coachPreferences.timezone)
+    ),
   ])
 
   const allClients = (clients ?? []) as Pick<
@@ -226,6 +234,7 @@ export async function buildWeeklySummaryForCoach(
       elevatedLoadClients: loadAlerts.elevatedLoadCount,
       injuryFlagClients: loadAlerts.injuryFlagCount,
       unreadMessages: navBadges.inboxUnread,
+      tasksDueToday,
     }),
     notificationPreferences
   )

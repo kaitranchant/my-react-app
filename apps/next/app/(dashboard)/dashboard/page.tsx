@@ -20,6 +20,7 @@ import {
   type TodaySession,
 } from '@/lib/dashboard'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
+import { countCoachTasksDueToday } from '@/lib/coach-tasks-queries'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
@@ -98,6 +99,7 @@ export default async function DashboardPage() {
     { data: recentFormReviews },
     { data: recentNutritionSetups },
     navBadges,
+    tasksDueToday,
   ] = await Promise.all([
       supabase
         .from('profiles')
@@ -171,6 +173,9 @@ export default async function DashboardPage() {
             pendingFormReviews: 0,
             pendingProgressiveOverload: 0,
           }),
+      user
+        ? countCoachTasksDueToday(supabase, user.id, today)
+        : Promise.resolve(0),
     ])
 
   const coachName =
@@ -254,6 +259,7 @@ export default async function DashboardPage() {
       elevatedLoadClients: loadAlerts.elevatedLoadCount,
       injuryFlagClients: loadAlerts.injuryFlagCount,
       unreadMessages: navBadges.inboxUnread,
+      tasksDueToday,
     }),
     notificationPreferences ?? defaultNotificationPreferences
   )

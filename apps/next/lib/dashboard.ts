@@ -66,6 +66,7 @@ export function buildActionItems({
   elevatedLoadClients = 0,
   injuryFlagClients = 0,
   unreadMessages = 0,
+  tasksDueToday = 0,
 }: {
   clients: Client[]
   pendingInvites: number
@@ -78,6 +79,7 @@ export function buildActionItems({
   elevatedLoadClients?: number
   injuryFlagClients?: number
   unreadMessages?: number
+  tasksDueToday?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
 
@@ -122,6 +124,15 @@ export function buildActionItems({
       id: 'unread-messages',
       message: `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}`,
       href: '/messages',
+      priority: 'medium',
+    })
+  }
+
+  if (tasksDueToday > 0) {
+    items.push({
+      id: 'tasks-due-today',
+      message: `${tasksDueToday} task${tasksDueToday === 1 ? '' : 's'} due today`,
+      href: '/scheduling?view=tasks',
       priority: 'medium',
     })
   }

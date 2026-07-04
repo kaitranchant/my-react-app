@@ -141,6 +141,8 @@ export type CoachingSessionType =
   | 'consultation'
   | 'other'
 export type CoachAvailabilityExceptionType = 'blocked' | 'extra_hours'
+export type CoachTaskPriority = 'low' | 'normal' | 'high'
+export type CoachTaskStatus = 'pending' | 'completed'
 
 export type ClientGoalMetadata = {
   squatExerciseId?: string
@@ -3290,6 +3292,48 @@ export type Database = {
           day_of_week?: number
           start_time?: string
           end_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_tasks: {
+        Row: {
+          id: string
+          coach_id: string
+          client_id: string | null
+          title: string
+          details: string | null
+          due_date: string | null
+          priority: CoachTaskPriority
+          status: CoachTaskStatus
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          client_id?: string | null
+          title: string
+          details?: string | null
+          due_date?: string | null
+          priority?: CoachTaskPriority
+          status?: CoachTaskStatus
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          client_id?: string | null
+          title?: string
+          details?: string | null
+          due_date?: string | null
+          priority?: CoachTaskPriority
+          status?: CoachTaskStatus
+          completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
