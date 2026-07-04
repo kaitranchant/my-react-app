@@ -89,6 +89,11 @@ export const bookAppointmentSchema = z
     repeatWeekly: z.boolean().optional(),
     repeatWeeks: z.coerce.number().int().min(2).max(52).optional(),
     repeatIndefinitely: z.boolean().optional(),
+    repeatDaysOfWeek: z
+      .array(z.coerce.number().int().min(0).max(6))
+      .min(1)
+      .max(7)
+      .optional(),
     clientTimeZone: z.string().min(1).optional(),
   })
   .superRefine((data, ctx) => {

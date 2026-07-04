@@ -16,7 +16,13 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
 import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
-import { formatAppointmentRange, getDateKeyFromInstant } from '@/lib/session-booking-slots'
+import {
+  computeWeeklyAnchorStartsAtForDay,
+  formatAppointmentRange,
+  getDateKeyFromInstant,
+  resolveRepeatDaysOfWeek,
+  validateCoachBookableInstant,
+} from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import {
   queueCoachingAppointmentGoogleRemoval,
@@ -223,6 +229,7 @@ async function validateBookableSlot(options: {
   startsAt: string
   sessionPackId?: string | null
   ignoreMinNotice?: boolean
+  coachBooking?: boolean
   settings?: Awaited<ReturnType<typeof fetchCoachSessionBookingSettings>>
   clientTimeZone?: string | null
   excludeAppointmentId?: string
@@ -263,6 +270,64 @@ async function validateBookableSlot(options: {
 
   const matchingSlot = slots.find((slot) => slot.startsAt === options.startsAt)
   if (!matchingSlot) {
+    if (options.coachBooking) {
+      const timeMin = new Date(
+        new Date(options.startsAt).getTime() - 24 * 60 * 60 * 1000
+      ).toISOString()
+      const timeMax = new Date(
+        new Date(options.startsAt).getTime() + 24 * 60 * 60 * 1000
+      ).toISOString()
+      const appointments = await fetchCoachingAppointments(
+        supabase,
+        options.coachId,
+        timeMin,
+        timeMax
+      )
+      const filteredAppointments = options.excludeAppointmentId
+        ? appointments.filter(
+            (appointment) => appointment.id !== options.excludeAppointmentId
+          )
+        : appointments
+      const coachValidation = validateCoachBookableInstant({
+        startsAt: options.startsAt,
+        settings,
+        appointments: filteredAppointments,
+      })
+
+      if (!coachValidation.ok) {
+        return { ok: false, error: coachValidation.error }
+      }
+
+      if (settings.booking_requires_session_pack) {
+        if (!options.sessionPackId) {
+          return { ok: false, error: 'A session pack is required to book.' }
+        }
+
+        const { data: pack } = await supabase
+          .from('client_session_packs')
+          .select('id, client_id, total_sessions, sessions_used, expires_at')
+          .eq('id', options.sessionPackId)
+          .eq('client_id', options.clientId)
+          .maybeSingle()
+
+        if (!pack || pack.sessions_used >= pack.total_sessions) {
+          return { ok: false, error: 'No sessions remaining in that pack.' }
+        }
+
+        if (pack.expires_at && pack.expires_at < dateKey) {
+          return { ok: false, error: 'That session pack has expired.' }
+        }
+      }
+
+      return {
+        ok: true,
+        supabase,
+        settings,
+        endsAt: coachValidation.endsAt,
+        sessionPackId: options.sessionPackId ?? null,
+      }
+    }
+
     return { ok: false, error: 'That time slot is no longer available.' }
   }
 
@@ -441,6 +506,7 @@ async function bookWeeklyAppointmentOccurrences(options: {
       startsAt: startsAtIso,
       sessionPackId: options.template.sessionPackId,
       ignoreMinNotice: true,
+      coachBooking: true,
       clientTimeZone: options.template.clientTimeZone,
     })
 
@@ -688,6 +754,7 @@ export async function bookCoachingAppointmentAsCoach(
     return { success: false, error: 'Client not found.' }
   }
 
+  const coachPreferences = await getCoachPreferencesForUser(access.user.id)
   const repeatIndefinitely = Boolean(
     parsed.data.repeatWeekly && parsed.data.repeatIndefinitely
   )
@@ -698,14 +765,72 @@ export async function bookCoachingAppointmentAsCoach(
         ? null
         : 1
 
+  if (!parsed.data.repeatWeekly) {
+    const result = await bookCoachAppointmentOccurrences({
+      coachId: access.user.id,
+      parsed: parsed.data,
+      anchorStartsAt: parsed.data.startsAt,
+      repeatIndefinitely: false,
+      repeatCount: 1,
+    })
+
+    if (result.success) {
+      revalidateScheduling()
+    }
+
+    return result
+  }
+
+  const repeatDays = resolveRepeatDaysOfWeek(
+    parsed.data.startsAt,
+    parsed.data.repeatDaysOfWeek,
+    coachPreferences.timezone,
+    parsed.data.clientTimeZone
+  )
+
+  for (const dayOfWeek of repeatDays) {
+    const anchorStartsAt = computeWeeklyAnchorStartsAtForDay(
+      parsed.data.startsAt,
+      dayOfWeek,
+      coachPreferences.timezone,
+      parsed.data.clientTimeZone
+    )
+
+    const result = await bookCoachAppointmentOccurrences({
+      coachId: access.user.id,
+      parsed: parsed.data,
+      anchorStartsAt,
+      repeatIndefinitely,
+      repeatCount,
+    })
+
+    if (!result.success) {
+      return result
+    }
+  }
+
+  revalidateScheduling()
+  return { success: true }
+}
+
+async function bookCoachAppointmentOccurrences(options: {
+  coachId: string
+  parsed: import('@/lib/validations/session-booking').BookAppointmentValues
+  anchorStartsAt: string
+  repeatIndefinitely: boolean
+  repeatCount: number | null
+}): Promise<ActionResult> {
+  const { parsed, anchorStartsAt, repeatIndefinitely, repeatCount } = options
+
   if (repeatIndefinitely) {
     const firstValidation = await validateBookableSlot({
-      coachId: access.user.id,
-      clientId: parsed.data.clientId,
-      startsAt: parsed.data.startsAt,
-      sessionPackId: parsed.data.sessionPackId,
+      coachId: options.coachId,
+      clientId: parsed.clientId,
+      startsAt: anchorStartsAt,
+      sessionPackId: parsed.sessionPackId,
       ignoreMinNotice: true,
-      clientTimeZone: parsed.data.clientTimeZone,
+      coachBooking: true,
+      clientTimeZone: parsed.clientTimeZone,
     })
 
     if (!firstValidation.ok) {
@@ -714,23 +839,23 @@ export async function bookCoachingAppointmentAsCoach(
 
     const durationMinutes = Math.round(
       (new Date(firstValidation.endsAt).getTime() -
-        new Date(parsed.data.startsAt).getTime()) /
+        new Date(anchorStartsAt).getTime()) /
         60_000
     )
     const location =
-      parsed.data.location?.trim() ||
+      parsed.location?.trim() ||
       firstValidation.settings.default_session_location
 
     const { data: series, error: seriesError } =
       await createCoachingAppointmentSeries(firstValidation.supabase, {
-        coachId: access.user.id,
-        clientId: parsed.data.clientId,
-        anchorStartsAt: parsed.data.startsAt,
+        coachId: options.coachId,
+        clientId: parsed.clientId,
+        anchorStartsAt,
         durationMinutes,
         location,
-        preSessionNotes: parsed.data.notes ?? null,
-        coachingType: parsed.data.coachingType ?? null,
-        sessionType: parsed.data.sessionType,
+        preSessionNotes: parsed.notes ?? null,
+        coachingType: parsed.coachingType ?? null,
+        sessionType: parsed.sessionType,
         sessionPackId: firstValidation.sessionPackId,
       })
 
@@ -745,28 +870,28 @@ export async function bookCoachingAppointmentAsCoach(
       firstValidation.settings.booking_max_days_ahead
     )
     const weekIndexes = countWeekIndexesThroughHorizon(
-      parsed.data.startsAt,
+      anchorStartsAt,
       getSeriesHorizonEnd(new Date(), horizonDays)
     )
 
-    const result = await bookWeeklyAppointmentOccurrences({
-      anchorStartsAtIso: parsed.data.startsAt,
-      weekIndexes,
+    const weekZeroResult = await bookWeeklyAppointmentOccurrences({
+      anchorStartsAtIso: anchorStartsAt,
+      weekIndexes: [0],
       template: {
-        coachId: access.user.id,
-        clientId: parsed.data.clientId,
+        coachId: options.coachId,
+        clientId: parsed.clientId,
         location,
-        preSessionNotes: parsed.data.notes ?? null,
-        coachingType: parsed.data.coachingType ?? null,
-        sessionType: parsed.data.sessionType,
+        preSessionNotes: parsed.notes ?? null,
+        coachingType: parsed.coachingType ?? null,
+        sessionType: parsed.sessionType,
         sessionPackId: firstValidation.sessionPackId,
-        clientTimeZone: parsed.data.clientTimeZone,
+        clientTimeZone: parsed.clientTimeZone,
         seriesId: series.id,
       },
       abortOnFailure: true,
     })
 
-    if (!result.success) {
+    if (!weekZeroResult.success) {
       await firstValidation.supabase
         .from('coaching_appointments')
         .delete()
@@ -775,10 +900,29 @@ export async function bookCoachingAppointmentAsCoach(
         .from('coaching_appointment_series')
         .delete()
         .eq('id', series.id)
-      return result
+      return weekZeroResult
     }
 
-    revalidateScheduling()
+    const remainingWeekIndexes = weekIndexes.filter((weekIndex) => weekIndex > 0)
+    if (remainingWeekIndexes.length > 0) {
+      await bookWeeklyAppointmentOccurrences({
+        anchorStartsAtIso: anchorStartsAt,
+        weekIndexes: remainingWeekIndexes,
+        template: {
+          coachId: options.coachId,
+          clientId: parsed.clientId,
+          location,
+          preSessionNotes: parsed.notes ?? null,
+          coachingType: parsed.coachingType ?? null,
+          sessionType: parsed.sessionType,
+          sessionPackId: firstValidation.sessionPackId,
+          clientTimeZone: parsed.clientTimeZone,
+          seriesId: series.id,
+        },
+        abortOnFailure: false,
+      })
+    }
+
     return { success: true }
   }
 
@@ -787,17 +931,16 @@ export async function bookCoachingAppointmentAsCoach(
     | null = null
 
   for (let weekIndex = 0; weekIndex < (repeatCount ?? 1); weekIndex++) {
-    const startsAt = new Date(parsed.data.startsAt)
-    startsAt.setDate(startsAt.getDate() + weekIndex * 7)
-    const startsAtIso = startsAt.toISOString()
+    const startsAtIso = offsetStartsAtByWeeks(anchorStartsAt, weekIndex)
 
     const validation = await validateBookableSlot({
-      coachId: access.user.id,
-      clientId: parsed.data.clientId,
+      coachId: options.coachId,
+      clientId: parsed.clientId,
       startsAt: startsAtIso,
-      sessionPackId: parsed.data.sessionPackId,
+      sessionPackId: parsed.sessionPackId,
       ignoreMinNotice: true,
-      clientTimeZone: parsed.data.clientTimeZone,
+      coachBooking: true,
+      clientTimeZone: parsed.clientTimeZone,
     })
 
     if (!validation.ok) {
@@ -815,16 +958,16 @@ export async function bookCoachingAppointmentAsCoach(
     }
 
     const { data: inserted, error } = await insertCoachingAppointment(validation.supabase, {
-      coachId: access.user.id,
-      clientId: parsed.data.clientId,
+      coachId: options.coachId,
+      clientId: parsed.clientId,
       startsAt: startsAtIso,
       endsAt: validation.endsAt,
       location:
-        parsed.data.location?.trim() ||
+        parsed.location?.trim() ||
         validation.settings.default_session_location,
-      preSessionNotes: parsed.data.notes ?? null,
-      coachingType: parsed.data.coachingType ?? null,
-      sessionType: parsed.data.sessionType,
+      preSessionNotes: parsed.notes ?? null,
+      coachingType: parsed.coachingType ?? null,
+      sessionType: parsed.sessionType,
       sessionPackId: validation.sessionPackId,
       bookedBy: 'coach',
     })
@@ -842,7 +985,6 @@ export async function bookCoachingAppointmentAsCoach(
     return { success: false, error: 'Unable to book session.' }
   }
 
-  revalidateScheduling()
   return { success: true }
 }
 

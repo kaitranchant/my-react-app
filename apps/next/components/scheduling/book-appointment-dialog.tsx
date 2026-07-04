@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDayHeader, getWeekStartDateKey, toDateKey } from '@/lib/calendar'
+import { formatDayHeader, getWeekStartDateKey, parseDateKey, toDateKey, WEEKDAY_OPTIONS } from '@/lib/calendar'
 import { getBrowserTimeZone } from '@/lib/browser-timezone'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { AvailableSlot } from '@/lib/session-booking-slots'
@@ -77,6 +77,7 @@ export function BookAppointmentDialog({
   const [repeatWeekly, setRepeatWeekly] = React.useState(false)
   const [repeatMode, setRepeatMode] = React.useState<'fixed' | 'ongoing'>('fixed')
   const [repeatWeeks, setRepeatWeeks] = React.useState('4')
+  const [repeatDaysOfWeek, setRepeatDaysOfWeek] = React.useState<number[]>([])
 
   const clientPacks = sessionPacks.filter(
     (pack) =>
@@ -109,7 +110,25 @@ export function BookAppointmentDialog({
     setRepeatWeekly(false)
     setRepeatMode('fixed')
     setRepeatWeeks('4')
+    setRepeatDaysOfWeek([])
   }, [open, clients, dateOptions, defaultLocation])
+
+  React.useEffect(() => {
+    if (!dateKey) return
+    setRepeatDaysOfWeek([parseDateKey(dateKey).getDay()])
+  }, [dateKey])
+
+  function toggleRepeatDay(dayOfWeek: number) {
+    setRepeatDaysOfWeek((current) => {
+      if (current.includes(dayOfWeek)) {
+        if (current.length === 1) {
+          return current
+        }
+        return current.filter((day) => day !== dayOfWeek)
+      }
+      return [...current, dayOfWeek].sort((left, right) => left - right)
+    })
+  }
 
   React.useEffect(() => {
     if (!open || !dateKey) {
@@ -160,16 +179,21 @@ export function BookAppointmentDialog({
       repeatIndefinitely: repeatWeekly && repeatMode === 'ongoing',
       repeatWeeks:
         repeatWeekly && repeatMode === 'fixed' ? Number(repeatWeeks) : undefined,
+      repeatDaysOfWeek: repeatWeekly ? repeatDaysOfWeek : undefined,
       clientTimeZone: getBrowserTimeZone(),
     })
     setPending(false)
 
     if (result.success) {
+      const dayLabel =
+        repeatWeekly && repeatDaysOfWeek.length > 1
+          ? `${repeatDaysOfWeek.length} days per week`
+          : 'weekly'
       toast.success(
         repeatWeekly
           ? repeatMode === 'ongoing'
-            ? 'Weekly sessions booked on an ongoing schedule'
-            : `${repeatWeeks} weekly sessions booked`
+            ? `Recurring sessions booked (${dayLabel})`
+            : `${repeatWeeks} weeks booked (${dayLabel})`
           : 'Session booked'
       )
       setOpen(false)
@@ -328,6 +352,32 @@ export function BookAppointmentDialog({
             {repeatWeekly ? (
               <div className="space-y-3">
                 <div className="space-y-2">
+                  <Label>Repeat on</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAY_OPTIONS.map((day) => {
+                      const selected = repeatDaysOfWeek.includes(day.value)
+                      return (
+                        <button
+                          key={day.value}
+                          type="button"
+                          onClick={() => toggleRepeatDay(day.value)}
+                          className={
+                            selected
+                              ? 'bg-primary text-primary-foreground rounded-md px-2.5 py-1 text-xs font-medium'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80 rounded-md px-2.5 py-1 text-xs font-medium'
+                          }
+                        >
+                          {day.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Select one or more days. Each day repeats at the same time
+                    every week.
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <Label>Repeat schedule</Label>
                   <div className="grid gap-2">
                     <label className="flex items-start gap-2 text-sm">
@@ -370,8 +420,9 @@ export function BookAppointmentDialog({
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Sessions repeat weekly on the same day and time. Stop the
-                    series anytime from a session&apos;s manage dialog.
+                    Sessions repeat on the selected days at the same time.
+                    Conflicts are skipped for future weeks; stop a series anytime
+                    from a session&apos;s manage dialog.
                   </p>
                 )}
               </div>

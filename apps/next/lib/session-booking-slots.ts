@@ -241,7 +241,7 @@ function sessionFitsInCells(
   return true
 }
 
-function overlapsExisting(
+export function overlapsExisting(
   slotStart: Date,
   slotEnd: Date,
   appointments: CoachingAppointment[],
@@ -391,6 +391,116 @@ export function getDateKeyFromInstant(
   const date = typeof instant === 'string' ? new Date(instant) : instant
   const iana = resolveSchedulingIana(timezone, clientTimeZone)
   return getDateKeyInTimezone(date, iana)
+}
+
+export function getDayOfWeekForDateKey(
+  dateKey: string,
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
+): number {
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
+  return getDayOfWeekInTimezone(dateKey, iana)
+}
+
+export function getTimeFromInstant(
+  instant: string,
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
+): string {
+  const iana = resolveSchedulingIana(timezone, clientTimeZone)
+  const date = new Date(instant)
+
+  if (!iana) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: iana,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '00'
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '00'
+  return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+}
+
+export function computeWeeklyAnchorStartsAtForDay(
+  baseStartsAtIso: string,
+  targetDayOfWeek: number,
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
+): string {
+  const baseDateKey = getDateKeyFromInstant(
+    baseStartsAtIso,
+    timezone,
+    clientTimeZone
+  )
+  const baseDayOfWeek = getDayOfWeekForDateKey(
+    baseDateKey,
+    timezone,
+    clientTimeZone
+  )
+  const dayOffset = (targetDayOfWeek - baseDayOfWeek + 7) % 7
+  const targetDateKey = addDaysToDateKey(baseDateKey, dayOffset)
+  const time = getTimeFromInstant(baseStartsAtIso, timezone, clientTimeZone)
+
+  return combineDateAndTimeToUtc(
+    targetDateKey,
+    time,
+    timezone,
+    clientTimeZone
+  ).toISOString()
+}
+
+export function resolveRepeatDaysOfWeek(
+  baseStartsAtIso: string,
+  repeatDaysOfWeek: number[] | undefined,
+  timezone: CoachPreferences['timezone'],
+  clientTimeZone?: string | null
+): number[] {
+  if (repeatDaysOfWeek?.length) {
+    return Array.from(new Set(repeatDaysOfWeek)).sort(
+      (left, right) => left - right
+    )
+  }
+
+  const baseDateKey = getDateKeyFromInstant(
+    baseStartsAtIso,
+    timezone,
+    clientTimeZone
+  )
+
+  return [
+    getDayOfWeekForDateKey(baseDateKey, timezone, clientTimeZone),
+  ]
+}
+
+export function validateCoachBookableInstant(options: {
+  startsAt: string
+  settings: SessionBookingSettings
+  appointments: CoachingAppointment[]
+}): { ok: true; endsAt: string } | { ok: false; error: string } {
+  const duration = options.settings.default_session_duration_minutes
+  const slotStart = new Date(options.startsAt)
+  const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
+
+  if (
+    overlapsExisting(
+      slotStart,
+      slotEnd,
+      options.appointments,
+      options.settings.booking_buffer_minutes
+    )
+  ) {
+    return {
+      ok: false,
+      error: 'That time conflicts with another session.',
+    }
+  }
+
+  return { ok: true, endsAt: slotEnd.toISOString() }
 }
 
 export function sessionsRemaining(pack: {

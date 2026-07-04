@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { computeAvailableSlots } from '@/lib/session-booking-slots'
+import {
+  computeAvailableSlots,
+  computeWeeklyAnchorStartsAtForDay,
+  getDateKeyFromInstant,
+  resolveRepeatDaysOfWeek,
+} from '@/lib/session-booking-slots'
 import { defaultSessionBookingSettings } from '@/lib/session-booking-types'
 
 const settings = {
@@ -185,5 +190,33 @@ test('computeAvailableSlots uses browser timezone when coach timezone is auto', 
     withBrowserTz.some((slot) => slot.startTimeLabel === '4:30 PM'),
     true,
     'browser timezone should expose 4:30 PM for Eastern coaches'
+  )
+})
+
+test('computeWeeklyAnchorStartsAtForDay shifts to another weekday in the same week', () => {
+  const baseStartsAt = '2026-07-07T21:00:00.000Z'
+
+  const tuesdayStartsAt = computeWeeklyAnchorStartsAtForDay(
+    baseStartsAt,
+    2,
+    'America/New_York'
+  )
+  const thursdayStartsAt = computeWeeklyAnchorStartsAtForDay(
+    baseStartsAt,
+    4,
+    'America/New_York'
+  )
+
+  assert.equal(
+    getDateKeyFromInstant(tuesdayStartsAt, 'America/New_York'),
+    '2026-07-07'
+  )
+  assert.equal(
+    getDateKeyFromInstant(thursdayStartsAt, 'America/New_York'),
+    '2026-07-09'
+  )
+  assert.deepEqual(
+    resolveRepeatDaysOfWeek(baseStartsAt, [2, 4], 'America/New_York'),
+    [2, 4]
   )
 })
