@@ -120,6 +120,7 @@ export type CancelAppointmentValues = z.infer<typeof cancelAppointmentSchema>
 
 export const deleteAppointmentSchema = z.object({
   appointmentId: z.string().uuid(),
+  deleteScope: z.enum(['single', 'this_and_future']).optional(),
 })
 
 export type DeleteAppointmentValues = z.infer<typeof deleteAppointmentSchema>

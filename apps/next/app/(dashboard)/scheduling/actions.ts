@@ -658,6 +658,34 @@ export async function ensureCoachAppointmentSeriesHorizon(coachId: string) {
   }
 }
 
+async function deleteScheduledSeriesAppointments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coachId: string,
+  seriesId: string,
+  fromStartsAtIso: string
+) {
+  const { data: toDelete } = await supabase
+    .from('coaching_appointments')
+    .select('id, google_calendar_event_id')
+    .eq('series_id', seriesId)
+    .eq('status', 'scheduled')
+    .gte('starts_at', fromStartsAtIso)
+
+  for (const scheduledAppointment of toDelete ?? []) {
+    queueCoachingAppointmentGoogleRemoval({
+      coachId,
+      googleCalendarEventId: scheduledAppointment.google_calendar_event_id,
+    })
+  }
+
+  return supabase
+    .from('coaching_appointments')
+    .delete()
+    .eq('series_id', seriesId)
+    .eq('status', 'scheduled')
+    .gte('starts_at', fromStartsAtIso)
+}
+
 async function cancelScheduledSeriesAppointments(
   supabase: Awaited<ReturnType<typeof createClient>>,
   coachId: string,
@@ -1192,13 +1220,63 @@ export async function deleteCoachingAppointment(
 
   const { data: appointment } = await ctx.supabase
     .from('coaching_appointments')
-    .select('id, coach_id, google_calendar_event_id')
+    .select('id, coach_id, starts_at, google_calendar_event_id, series_id')
     .eq('id', parsed.data.appointmentId)
     .eq('coach_id', ctx.user.id)
     .maybeSingle()
 
   if (!appointment) {
     return { success: false, error: 'Appointment not found.' }
+  }
+
+  const deleteScope = parsed.data.deleteScope ?? 'single'
+
+  if (deleteScope === 'this_and_future' && appointment.series_id) {
+    const { data: series } = await ctx.supabase
+      .from('coaching_appointment_series')
+      .select('id, status')
+      .eq('id', appointment.series_id)
+      .eq('coach_id', ctx.user.id)
+      .maybeSingle()
+
+    if (series?.status === 'active') {
+      const { error: deleteError } = await deleteScheduledSeriesAppointments(
+        ctx.supabase,
+        ctx.user.id,
+        appointment.series_id,
+        appointment.starts_at
+      )
+
+      if (deleteError) {
+        return { success: false, error: deleteError.message }
+      }
+
+      const { error: seriesError } = await ctx.supabase
+        .from('coaching_appointment_series')
+        .update({ status: 'cancelled' })
+        .eq('id', appointment.series_id)
+
+      if (seriesError) {
+        return { success: false, error: seriesError.message }
+      }
+
+      revalidateScheduling()
+      return { success: true }
+    }
+
+    const { error: deleteError } = await deleteScheduledSeriesAppointments(
+      ctx.supabase,
+      ctx.user.id,
+      appointment.series_id,
+      appointment.starts_at
+    )
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message }
+    }
+
+    revalidateScheduling()
+    return { success: true }
   }
 
   queueCoachingAppointmentGoogleRemoval({

@@ -91,6 +91,10 @@ export function AppointmentManageDialog({
   const [cancelScope, setCancelScope] = React.useState<'single' | 'this_and_future'>(
     'single'
   )
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+  const [deleteScope, setDeleteScope] = React.useState<'single' | 'this_and_future'>(
+    'single'
+  )
 
   const deleteConfirm = useConfirmDialog({
     title: 'Delete session?',
@@ -163,6 +167,8 @@ export function AppointmentManageDialog({
     setNoShowPackId(appointment.session_pack_id ?? undefined)
     setShowCancelDialog(false)
     setCancelScope('single')
+    setShowDeleteDialog(false)
+    setDeleteScope('single')
     const appointmentDateKey = getDateKeyFromInstant(
       appointment.starts_at,
       coachPreferences.timezone
@@ -293,6 +299,46 @@ export function AppointmentManageDialog({
     if (succeeded) {
       setShowCancelDialog(false)
     }
+  }
+
+  async function handleDelete(
+    scope: 'single' | 'this_and_future' = 'single'
+  ): Promise<boolean> {
+    setPending(true)
+    const result = await deleteCoachingAppointment({
+      appointmentId: appointment!.id,
+      deleteScope: scope,
+    })
+    setPending(false)
+
+    if (result.success) {
+      await refreshAfterSuccess(
+        scope === 'this_and_future'
+          ? 'This and future sessions deleted'
+          : 'Session deleted'
+      )
+      return true
+    }
+
+    toast.error(result.error)
+    return false
+  }
+
+  async function handleConfirmDelete() {
+    const succeeded = await handleDelete(deleteScope)
+    if (succeeded) {
+      setShowDeleteDialog(false)
+    }
+  }
+
+  function openDeleteDialog() {
+    if (hasActiveSeries) {
+      setDeleteScope('single')
+      setShowDeleteDialog(true)
+      return
+    }
+
+    deleteConfirm.open()
   }
 
   async function handleSaveDetails() {
@@ -717,7 +763,7 @@ export function AppointmentManageDialog({
                 variant="outline"
                 className="text-destructive hover:text-destructive"
                 disabled={pending}
-                onClick={deleteConfirm.open}
+                onClick={openDeleteDialog}
               >
                 Delete session
               </Button>
@@ -800,6 +846,69 @@ export function AppointmentManageDialog({
                 onClick={() => void handleConfirmCancel()}
               >
                 {pending ? 'Cancelling…' : 'Cancel session'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete recurring session</DialogTitle>
+              <DialogDescription>
+                Choose whether to delete just this session or this one and all
+                later sessions in the series. Deleted sessions are removed
+                entirely and the client is not notified.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="delete-scope"
+                  checked={deleteScope === 'single'}
+                  onChange={() => setDeleteScope('single')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This session only</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Later weekly sessions stay scheduled.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="delete-scope"
+                  checked={deleteScope === 'this_and_future'}
+                  onChange={() => setDeleteScope('this_and_future')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This and all future sessions</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Permanently removes this session onward and stops the weekly
+                    series.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Keep session
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={pending}
+                onClick={() => void handleConfirmDelete()}
+              >
+                {pending ? 'Deleting…' : 'Delete session'}
               </Button>
             </DialogFooter>
           </DialogContent>
