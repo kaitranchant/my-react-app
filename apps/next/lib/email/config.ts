@@ -1,12 +1,29 @@
+function normalizeConfiguredUrl(raw: string): string {
+  let value = raw.trim()
+
+  // Common env typo: value pasted as "APP_URL=https://example.com"
+  value = value.replace(/^APP_URL\s*=\s*/i, '')
+
+  // Strip optional surrounding quotes from .env / Vercel UI
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim()
+  }
+
+  return value.replace(/\/$/, '')
+}
+
 export function getAppBaseUrl(): string {
   const configured = process.env.APP_URL?.trim()
   if (configured) {
-    return configured.replace(/\/$/, '')
+    return normalizeConfiguredUrl(configured)
   }
 
   const vercelUrl = process.env.VERCEL_URL?.trim()
   if (vercelUrl) {
-    return `https://${vercelUrl.replace(/\/$/, '')}`
+    return normalizeConfiguredUrl(`https://${vercelUrl}`)
   }
 
   return 'http://localhost:3000'
