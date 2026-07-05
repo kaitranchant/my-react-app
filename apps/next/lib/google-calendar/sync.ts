@@ -111,37 +111,70 @@ async function persistGoogleEventMetadata(
     .eq('id', appointmentId)
 }
 
+function isGoogleCalendarAuthError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /\((401|403)\)/.test(error.message)
+  )
+}
+
+async function withGoogleCalendarAccessToken<T>(
+  connectionId: string,
+  callback: (accessToken: string) => Promise<T>
+): Promise<T> {
+  try {
+    return await callback(await getValidGoogleCalendarAccessToken(connectionId))
+  } catch (error) {
+    if (!isGoogleCalendarAuthError(error)) {
+      throw error
+    }
+
+    return await callback(
+      await getValidGoogleCalendarAccessToken(connectionId, {
+        forceRefresh: true,
+      })
+    )
+  }
+}
+
 export async function syncCoachingAppointmentToGoogle(
   appointmentId: string
-): Promise<void> {
+): Promise<boolean> {
   try {
     const appointment = await fetchAppointmentForSync(appointmentId)
-    if (!appointment || appointment.status !== 'scheduled') return
+    if (!appointment || appointment.status !== 'scheduled') return true
 
     const connection = await getExportConnection(appointment.coach_id)
-    if (!connection) return
+    if (!connection) return true
 
-    const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
     const payload = buildEventPayload(appointment)
 
     if (appointment.google_calendar_event_id) {
-      const existingEvent = await getGoogleCalendarEvent(
-        accessToken,
-        connection.calendar_id,
-        appointment.google_calendar_event_id
+      const existingEvent = await withGoogleCalendarAccessToken(
+        connection.id,
+        (accessToken) =>
+          getGoogleCalendarEvent(
+            accessToken,
+            connection.calendar_id,
+            appointment.google_calendar_event_id!
+          )
       )
 
-      if (existingEvent) {
-        const result = await updateGoogleCalendarEvent(
-          accessToken,
-          connection.calendar_id,
-          appointment.google_calendar_event_id,
-          payload
+      if (existingEvent && existingEvent.status !== 'cancelled') {
+        const result = await withGoogleCalendarAccessToken(
+          connection.id,
+          (accessToken) =>
+            updateGoogleCalendarEvent(
+              accessToken,
+              connection.calendar_id,
+              appointment.google_calendar_event_id!,
+              payload
+            )
         )
         await persistGoogleEventMetadata(appointment.id, {
           google_calendar_updated_at: result.updated,
         })
-        return
+        return true
       }
 
       await persistGoogleEventMetadata(appointment.id, {
@@ -150,18 +183,18 @@ export async function syncCoachingAppointmentToGoogle(
       })
     }
 
-    const result = await createGoogleCalendarEvent(
-      accessToken,
-      connection.calendar_id,
-      payload
+    const result = await withGoogleCalendarAccessToken(connection.id, (accessToken) =>
+      createGoogleCalendarEvent(accessToken, connection.calendar_id, payload)
     )
 
     await persistGoogleEventMetadata(appointment.id, {
       google_calendar_event_id: result.id,
       google_calendar_updated_at: result.updated,
     })
+    return true
   } catch (error) {
     console.error('[google-calendar] sync appointment failed', error)
+    return false
   }
 }
 

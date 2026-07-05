@@ -9,6 +9,7 @@ import {
   isOrphanSeriesOccurrenceAtOrAfterWeek,
   isSeriesOccurrenceAtOrAfterWeek,
   offsetStartsAtByWeeks,
+  subtractStartsAtByWeeks,
 } from './appointment-series'
 
 const easternSchedule = {
@@ -16,8 +17,8 @@ const easternSchedule = {
 }
 
 test('computeSeriesHorizonDays uses at least the minimum rolling window', () => {
-  assert.equal(computeSeriesHorizonDays(30), 84)
-  assert.equal(computeSeriesHorizonDays(120), 120)
+  assert.equal(computeSeriesHorizonDays(30), 365)
+  assert.equal(computeSeriesHorizonDays(400), 400)
 })
 
 test('offsetStartsAtByWeeks advances in seven-day steps', () => {
@@ -33,6 +34,13 @@ test('offsetStartsAtByWeeks keeps weekly cadence from anchor instant', () => {
   assert.equal(
     offsetStartsAtByWeeks(anchor, 1),
     '2026-03-15T22:30:00.000Z'
+  )
+})
+
+test('subtractStartsAtByWeeks moves backward in seven-day steps', () => {
+  assert.equal(
+    subtractStartsAtByWeeks('2026-06-15T15:00:00.000Z', 2),
+    '2026-06-01T15:00:00.000Z'
   )
 })
 

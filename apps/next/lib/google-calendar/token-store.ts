@@ -97,14 +97,15 @@ function isTokenExpired(expiresAt: string): boolean {
 }
 
 export async function getValidGoogleCalendarAccessToken(
-  connectionId: string
+  connectionId: string,
+  options?: { forceRefresh?: boolean }
 ): Promise<string> {
   const stored = await getGoogleCalendarTokens(connectionId)
   if (!stored) {
     throw new Error('Google Calendar tokens not found.')
   }
 
-  if (!isTokenExpired(stored.expiresAt)) {
+  if (!options?.forceRefresh && !isTokenExpired(stored.expiresAt)) {
     return stored.accessToken
   }
 

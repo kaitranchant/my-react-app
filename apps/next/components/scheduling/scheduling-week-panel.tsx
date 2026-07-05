@@ -22,11 +22,13 @@ import {
   formatSchedulingWeekRange,
 } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
+import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import type { ClientSessionPack, CoachingAppointment } from '@/lib/session-booking-types'
 import { cn } from '@/lib/utils'
 
 type SchedulingWeekPanelProps = {
   appointments: CoachingAppointment[]
+  googleBlockedTimes?: GoogleCalendarBlockedTime[]
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
   weekKeys: string[]
@@ -38,6 +40,7 @@ type WeekViewMode = 'calendar' | 'list'
 
 export function SchedulingWeekPanel({
   appointments,
+  googleBlockedTimes = [],
   coachPreferences,
   sessionPacks,
   weekKeys,
@@ -167,7 +170,7 @@ export function SchedulingWeekPanel({
         )}
       >
         {viewMode === 'calendar' ? (
-          appointments.length === 0 ? (
+          appointments.length === 0 && googleBlockedTimes.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
               title="No sessions this week"
@@ -180,6 +183,7 @@ export function SchedulingWeekPanel({
           ) : (
             <SchedulingWeekCalendar
               appointments={appointments}
+              googleBlockedTimes={googleBlockedTimes}
               coachPreferences={coachPreferences}
               weekKeys={weekKeys}
               onSelectAppointment={openManage}

@@ -9,6 +9,10 @@ import {
   type RepairRecurringSeriesSyncResult,
   repairCoachRecurringSeriesGoogleSync,
 } from '@/lib/google-calendar/repair-series-sync'
+import {
+  type ResetRebookResult,
+  resetAndRebookCoachRecurringSeries,
+} from '@/lib/scheduling/coach-series-reset'
 import { stopGoogleCalendarWatch } from '@/lib/google-calendar/watch'
 import { createClient } from '@/lib/supabase/server'
 
@@ -91,6 +95,31 @@ export async function repairRecurringSeriesCalendarSync(): Promise<RepairRecurri
         error instanceof Error
           ? error.message
           : 'Could not repair recurring session calendar sync.',
+    }
+  }
+}
+
+export type ResetRebookRecurringSeriesCalendarResult =
+  | { success: true; summary: ResetRebookResult }
+  | { success: false; error: string }
+
+export async function resetAndRebookRecurringSeriesCalendar(): Promise<ResetRebookRecurringSeriesCalendarResult> {
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  try {
+    const summary = await resetAndRebookCoachRecurringSeries(ctx.user.id)
+    revalidateScheduling()
+    return { success: true, summary }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Could not reset and rebook recurring sessions.',
     }
   }
 }

@@ -97,6 +97,10 @@ export function AppointmentManageDialog({
   const [deleteScope, setDeleteScope] = React.useState<'single' | 'this_and_future'>(
     'single'
   )
+  const [showEditScopeDialog, setShowEditScopeDialog] = React.useState(false)
+  const [editScope, setEditScope] = React.useState<'single' | 'this_and_future'>(
+    'single'
+  )
 
   const deleteConfirm = useConfirmDialog({
     title: 'Delete session?',
@@ -171,6 +175,8 @@ export function AppointmentManageDialog({
     setCancelScope('single')
     setShowDeleteDialog(false)
     setDeleteScope('single')
+    setShowEditScopeDialog(false)
+    setEditScope('single')
     const appointmentDateKey = getDateKeyFromInstant(
       appointment.starts_at,
       coachPreferences.timezone
@@ -344,10 +350,12 @@ export function AppointmentManageDialog({
     deleteConfirm.open()
   }
 
-  async function handleSaveDetails() {
+  async function handleSaveDetails(
+    scope: 'single' | 'this_and_future' = 'single'
+  ): Promise<boolean> {
     if (!editStartsAt) {
       toast.error('Select a time slot.')
-      return
+      return false
     }
 
     setPending(true)
@@ -360,14 +368,43 @@ export function AppointmentManageDialog({
       sessionPackId: editSessionPackId ?? null,
       notifyClient: true,
       clientTimeZone: getBrowserTimeZone(),
+      editScope: scope,
     })
     setPending(false)
 
     if (result.success) {
-      await refreshAfterSuccess('Session updated and client notified')
-    } else {
-      toast.error(result.error)
+      await refreshAfterSuccess(
+        scope === 'this_and_future'
+          ? 'This and future sessions updated'
+          : 'Session updated and client notified'
+      )
+      return true
     }
+
+    toast.error(result.error)
+    return false
+  }
+
+  async function handleConfirmEdit() {
+    const succeeded = await handleSaveDetails(editScope)
+    if (succeeded) {
+      setShowEditScopeDialog(false)
+    }
+  }
+
+  function requestSaveDetails() {
+    if (!editStartsAt) {
+      toast.error('Select a time slot.')
+      return
+    }
+
+    if (hasActiveSeries) {
+      setEditScope('single')
+      setShowEditScopeDialog(true)
+      return
+    }
+
+    void handleSaveDetails('single')
   }
 
   async function handleDuplicate() {
@@ -665,7 +702,7 @@ export function AppointmentManageDialog({
                     type="button"
                     size="sm"
                     disabled={pending || !editStartsAt}
-                    onClick={() => void handleSaveDetails()}
+                    onClick={requestSaveDetails}
                   >
                     Save changes
                   </Button>
@@ -792,6 +829,67 @@ export function AppointmentManageDialog({
         </div>
         {deleteConfirm.dialog}
         {endSeriesConfirm.dialog}
+        <Dialog open={showEditScopeDialog} onOpenChange={setShowEditScopeDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit recurring session</DialogTitle>
+              <DialogDescription>
+                Choose whether to update just this session or this one and all
+                later sessions in the series.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="edit-scope"
+                  checked={editScope === 'single'}
+                  onChange={() => setEditScope('single')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This session only</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Later weekly sessions keep their current schedule.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="edit-scope"
+                  checked={editScope === 'this_and_future'}
+                  onChange={() => setEditScope('this_and_future')}
+                  className="mt-1 size-4 rounded-full border"
+                />
+                <span>
+                  <span className="font-medium">This and all future sessions</span>
+                  <span className="text-muted-foreground block text-xs leading-relaxed">
+                    Updates this session onward with the new time, client, and
+                    details.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setShowEditScopeDialog(false)}
+              >
+                Keep editing
+              </Button>
+              <Button
+                type="button"
+                disabled={pending || !editStartsAt}
+                onClick={() => void handleConfirmEdit()}
+              >
+                {pending ? 'Saving…' : 'Save changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <DialogContent className="max-w-md">
             <DialogHeader>

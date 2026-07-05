@@ -7,7 +7,8 @@ export type SeriesScheduleContext = {
   clientTimeZone?: string | null
 }
 
-export const ONGOING_SERIES_MIN_HORIZON_DAYS = 84
+/** Rolling booking window for indefinite weekly series (shown in app + Google Calendar). */
+export const ONGOING_SERIES_MIN_HORIZON_DAYS = 365
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MS_PER_WEEK = 7 * MS_PER_DAY
 
@@ -26,6 +27,14 @@ export function offsetStartsAtByWeeks(anchorStartsAtIso: string, weekIndex: numb
 
   const startsAt = new Date(anchorStartsAtIso)
   startsAt.setUTCDate(startsAt.getUTCDate() + weekIndex * 7)
+  return startsAt.toISOString()
+}
+
+export function subtractStartsAtByWeeks(startsAtIso: string, weekIndex: number) {
+  if (weekIndex === 0) return startsAtIso
+
+  const startsAt = new Date(startsAtIso)
+  startsAt.setUTCDate(startsAt.getUTCDate() - weekIndex * 7)
   return startsAt.toISOString()
 }
 

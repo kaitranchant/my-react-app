@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getWeekDayLabels, parseDateKey } from '@/lib/calendar'
 import { resolveCoachTimezone, type CoachPreferences } from '@/lib/coach-preferences'
+import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import {
@@ -28,6 +29,9 @@ const statusColors: Record<CoachingAppointment['status'], string> = {
   rescheduled: 'bg-muted border-border text-muted-foreground',
 }
 
+const blockedTimeClassName =
+  'bg-zinc-500/20 border-zinc-400/40 text-zinc-200 pointer-events-none z-0 bg-[repeating-linear-gradient(-45deg,transparent,transparent_5px,rgba(161,161,170,0.18)_5px,rgba(161,161,170,0.18)_10px)]'
+
 type WeekDay = {
   label: string
   dateKey: string
@@ -36,6 +40,7 @@ type WeekDay = {
 
 type SchedulingWeekCalendarProps = {
   appointments: CoachingAppointment[]
+  googleBlockedTimes?: GoogleCalendarBlockedTime[]
   coachPreferences: CoachPreferences
   weekKeys: string[]
   onSelectAppointment?: (appointment: CoachingAppointment) => void
@@ -68,12 +73,14 @@ function getMinutesInTimezone(
 function CalendarGrid({
   visibleDays,
   appointmentsByDay,
+  blockedTimesByDay,
   coachPreferences,
   onSelectAppointment,
   columnMinWidth,
 }: {
   visibleDays: WeekDay[]
   appointmentsByDay: Map<string, CoachingAppointment[]>
+  blockedTimesByDay: Map<string, GoogleCalendarBlockedTime[]>
   coachPreferences: CoachPreferences
   onSelectAppointment?: (appointment: CoachingAppointment) => void
   columnMinWidth?: string
@@ -147,6 +154,42 @@ function CalendarGrid({
               />
             ))}
 
+            {(blockedTimesByDay.get(day.dateKey) ?? []).map((blockedTime) => {
+              const startMinutes = getMinutesInTimezone(
+                blockedTime.startsAt,
+                coachPreferences.timezone
+              )
+              const endMinutes = getMinutesInTimezone(
+                blockedTime.endsAt,
+                coachPreferences.timezone
+              )
+              const gridStart = GRID_START_HOUR * 60
+              const top = ((startMinutes - gridStart) / 60) * HOUR_HEIGHT
+              const height = Math.max(
+                24,
+                ((endMinutes - startMinutes) / 60) * HOUR_HEIGHT
+              )
+
+              if (startMinutes < gridStart || startMinutes >= GRID_END_HOUR * 60) {
+                return null
+              }
+
+              return (
+                <div
+                  key={blockedTime.id}
+                  title={blockedTime.title}
+                  className={cn(
+                    'absolute inset-x-1 overflow-hidden rounded-md border px-2 py-1 text-left text-xs',
+                    blockedTimeClassName
+                  )}
+                  style={{ top, height }}
+                >
+                  <p className="truncate font-medium">{blockedTime.title}</p>
+                  <p className="truncate opacity-80">Google Calendar</p>
+                </div>
+              )
+            })}
+
             {(appointmentsByDay.get(day.dateKey) ?? []).map((appointment) => {
               const startMinutes = getMinutesInTimezone(
                 appointment.starts_at,
@@ -173,7 +216,7 @@ function CalendarGrid({
                   type="button"
                   onClick={() => onSelectAppointment?.(appointment)}
                   className={cn(
-                    'absolute inset-x-1 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:brightness-95',
+                    'absolute inset-x-1 z-10 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:brightness-95',
                     statusColors[appointment.status]
                   )}
                   style={{ top, height }}
@@ -201,6 +244,7 @@ function CalendarGrid({
 
 export function SchedulingWeekCalendar({
   appointments,
+  googleBlockedTimes = [],
   coachPreferences,
   weekKeys,
   onSelectAppointment,
@@ -255,6 +299,32 @@ export function SchedulingWeekCalendar({
     return map
   }, [appointments, coachPreferences.timezone, weekDays])
 
+  const blockedTimesByDay = React.useMemo(() => {
+    const map = new Map<string, GoogleCalendarBlockedTime[]>()
+    for (const day of weekDays) {
+      map.set(day.dateKey, [])
+    }
+
+    for (const blockedTime of googleBlockedTimes) {
+      const dateKey = getDateKeyFromInstant(
+        blockedTime.startsAt,
+        coachPreferences.timezone
+      )
+      if (map.has(dateKey)) {
+        map.get(dateKey)!.push(blockedTime)
+      }
+    }
+
+    for (const list of Array.from(map.values())) {
+      list.sort(
+        (left, right) =>
+          new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime()
+      )
+    }
+
+    return map
+  }, [googleBlockedTimes, coachPreferences.timezone, weekDays])
+
   const visibleDays = isMobile
     ? weekDays.slice(dayWindowStart, dayWindowStart + MOBILE_DAYS_VISIBLE)
     : weekDays
@@ -303,6 +373,7 @@ export function SchedulingWeekCalendar({
         <CalendarGrid
           visibleDays={visibleDays}
           appointmentsByDay={appointmentsByDay}
+          blockedTimesByDay={blockedTimesByDay}
           coachPreferences={coachPreferences}
           onSelectAppointment={onSelectAppointment}
           columnMinWidth={isMobile ? undefined : '96px'}
@@ -310,6 +381,11 @@ export function SchedulingWeekCalendar({
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1">
+        {googleBlockedTimes.length > 0 ? (
+          <Badge variant="outline" className={cn('font-normal', blockedTimeClassName)}>
+            Google Calendar busy
+          </Badge>
+        ) : null}
         {(
           Object.keys(appointmentStatusLabels) as CoachingAppointment['status'][]
         ).map((status) => (

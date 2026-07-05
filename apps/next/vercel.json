@@ -16,6 +16,10 @@
       "schedule": "0 13 * * *"
     },
     {
+      "path": "/api/cron/recurring-series-horizon",
+      "schedule": "0 11 * * 1"
+    },
+    {
       "path": "/api/cron/google-calendar-watch-renewal",
       "schedule": "0 12 * * *"
     }

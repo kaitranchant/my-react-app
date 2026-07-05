@@ -86,7 +86,7 @@ export function GoogleCalendarConnectCard({
 
       const { summary } = result
       toast.success(
-        `Recurring sessions repaired: ${summary.resyncedAppointments} synced, ${summary.orphanEventsRemoved} duplicate calendar events removed${
+        `Calendar sync repaired: ${summary.resyncedAppointments} sessions synced, ${summary.orphanEventsRemoved} duplicate calendar events removed${
           summary.restoredAppointments > 0
             ? `, ${summary.restoredAppointments} sessions restored`
             : ''
@@ -190,8 +190,8 @@ export function GoogleCalendarConnectCard({
               <div className="space-y-0.5">
                 <Label htmlFor="google-sync-busy">Block busy times</Label>
                 <p className="text-muted-foreground text-xs">
-                  Existing Google Calendar events prevent clients from booking
-                  those slots.
+                  Existing Google Calendar events prevent client booking and
+                  appear as blocked time on your schedule.
                 </p>
               </div>
               <Select
@@ -213,11 +213,11 @@ export function GoogleCalendarConnectCard({
           </div>
 
           <div className="space-y-2 rounded-md border border-dashed px-3 py-3">
-            <p className="text-sm font-medium">Fix recurring session sync</p>
+            <p className="text-sm font-medium">Fix calendar sync</p>
             <p className="text-muted-foreground text-xs">
               Cleans duplicate Google Calendar events, restores sessions removed
               by sync mistakes, refills the rolling schedule, and re-exports
-              every recurring session.
+              any sessions missing from Google Calendar.
             </p>
             <Button
               type="button"
@@ -230,7 +230,7 @@ export function GoogleCalendarConnectCard({
               ) : (
                 <Calendar className="size-4" />
               )}
-              Repair recurring sessions
+              Repair calendar sync
             </Button>
           </div>
 

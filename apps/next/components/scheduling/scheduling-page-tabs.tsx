@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { CoachTask } from '@/lib/coach-tasks'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { CoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import type {
   ClientSessionPack,
   CoachAvailabilityException,
@@ -50,6 +51,7 @@ type SchedulingPageTabsProps = {
   googleCalendarConnection: CoachGoogleCalendarConnection | null
   connectError: string | null
   connectSuccess: boolean
+  googleBlockedTimes: GoogleCalendarBlockedTime[]
 }
 
 function readViewFromLocation(): SchedulingViewMode {
@@ -81,6 +83,7 @@ export function SchedulingPageTabs({
   googleCalendarConnection,
   connectError,
   connectSuccess,
+  googleBlockedTimes,
 }: SchedulingPageTabsProps) {
   const pathname = usePathname()
   const [view, setView] = React.useState(initialView)
@@ -148,6 +151,7 @@ export function SchedulingPageTabs({
           <CardContent>
             <SchedulingWeekPanel
               appointments={appointments}
+              googleBlockedTimes={googleBlockedTimes}
               coachPreferences={coachPreferences}
               sessionPacks={sessionPacks}
               weekKeys={weekKeys}

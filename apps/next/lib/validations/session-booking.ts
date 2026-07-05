@@ -167,6 +167,7 @@ export const updateAppointmentSchema = z.object({
   sessionPackId: z.string().uuid().optional().nullable(),
   notifyClient: z.boolean().optional(),
   clientTimeZone: z.string().min(1).optional(),
+  editScope: z.enum(['single', 'this_and_future']).optional(),
 })
 
 export type UpdateAppointmentValues = z.infer<typeof updateAppointmentSchema>
