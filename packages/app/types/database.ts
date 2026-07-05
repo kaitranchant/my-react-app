@@ -3854,6 +3854,14 @@ export type Database = {
         }
         Returns: string
       }
+      copy_meal_plan_meal_to_library: {
+        Args: {
+          p_meal_plan_id: string
+          p_meal_id: string
+          p_name: string
+        }
+        Returns: string
+      }
       count_coach_unread_messages: {
         Args: { p_coach_id: string }
         Returns: number

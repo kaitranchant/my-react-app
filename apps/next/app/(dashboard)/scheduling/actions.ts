@@ -8,11 +8,13 @@ import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
 import {
   computeSeriesHorizonDays,
   countWeekIndexesThroughHorizon,
+  getLatestSeriesWeekIndex,
   getSeriesHorizonEnd,
   getWeekIndexFromAnchor,
   isOrphanSeriesOccurrenceAtOrAfterWeek,
   isSeriesOccurrenceAtOrAfterWeek,
   offsetStartsAtByWeeks,
+  type SeriesScheduleContext,
 } from '@/lib/appointment-series'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
@@ -468,16 +470,36 @@ type CoachSeriesBookingContext = {
 async function seriesOccurrenceExists(
   supabase: Awaited<ReturnType<typeof createClient>>,
   seriesId: string,
-  startsAtIso: string
+  startsAtIso: string,
+  coachId: string,
+  clientId: string
 ) {
-  const { data } = await supabase
+  const { data: bySeries } = await supabase
     .from('coaching_appointments')
     .select('id')
     .eq('series_id', seriesId)
     .eq('starts_at', startsAtIso)
+    .eq('status', 'scheduled')
     .maybeSingle()
 
-  return Boolean(data)
+  if (bySeries) {
+    return true
+  }
+
+  const { data: bySlot } = await supabase
+    .from('coaching_appointments')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('client_id', clientId)
+    .eq('starts_at', startsAtIso)
+    .eq('status', 'scheduled')
+    .maybeSingle()
+
+  return Boolean(bySlot)
+}
+
+function isDuplicateSeriesOccurrenceError(error: { code?: string; message?: string } | null) {
+  return error?.code === '23505'
 }
 
 async function bookWeeklyAppointmentOccurrences(options: {
@@ -530,7 +552,9 @@ async function bookWeeklyAppointmentOccurrences(options: {
       (await seriesOccurrenceExists(
         supabase,
         options.template.seriesId,
-        startsAtIso
+        startsAtIso,
+        options.template.coachId,
+        options.template.clientId
       ))
     ) {
       continue
@@ -611,6 +635,10 @@ async function bookWeeklyAppointmentOccurrences(options: {
     )
 
     if (error) {
+      if (isDuplicateSeriesOccurrenceError(error)) {
+        continue
+      }
+
       if (options.abortOnFailure) {
         const label = options.weekLabelPrefix ?? 'Week'
         return {
@@ -717,11 +745,12 @@ async function fetchCoachingAppointmentSeriesScope(
 async function listScheduledSeriesOccurrencesFromWeek(
   supabase: Awaited<ReturnType<typeof createClient>>,
   series: CoachingAppointmentSeriesScope,
-  fromStartsAtIso: string
+  fromStartsAtIso: string,
+  schedule?: SeriesScheduleContext
 ) {
   const fromWeekIndex = Math.max(
     0,
-    getWeekIndexFromAnchor(series.anchor_starts_at, fromStartsAtIso)
+    getWeekIndexFromAnchor(series.anchor_starts_at, fromStartsAtIso, schedule)
   )
   const fromSlotStartsAt = offsetStartsAtByWeeks(
     series.anchor_starts_at,
@@ -759,13 +788,15 @@ async function listScheduledSeriesOccurrencesFromWeek(
             series.anchor_starts_at,
             appointment.starts_at,
             fromWeekIndex,
-            series.max_week_index
+            series.max_week_index,
+            schedule
           )
         : isOrphanSeriesOccurrenceAtOrAfterWeek(
             series.anchor_starts_at,
             appointment.starts_at,
             fromWeekIndex,
-            series.max_week_index
+            series.max_week_index,
+            schedule
           )
 
     if (!include) continue
@@ -779,7 +810,13 @@ async function listScheduledSeriesOccurrencesFromWeek(
 
 async function extendCoachAppointmentSeriesHorizon(coachId: string) {
   const supabase = await createClient()
-  const settings = await fetchCoachSessionBookingSettings(supabase, coachId)
+  const [settings, coachPreferences] = await Promise.all([
+    fetchCoachSessionBookingSettings(supabase, coachId),
+    getCoachPreferencesForUser(coachId),
+  ])
+  const schedule: SeriesScheduleContext = {
+    timezone: coachPreferences.timezone,
+  }
   const horizonDays = computeSeriesHorizonDays(settings.booking_max_days_ahead)
   const horizonEnd = getSeriesHorizonEnd(new Date(), horizonDays)
 
@@ -799,17 +836,17 @@ async function extendCoachAppointmentSeriesHorizon(coachId: string) {
       continue
     }
 
-    const { data: latestAppointment } = await supabase
+    const { data: existingOccurrences } = await supabase
       .from('coaching_appointments')
       .select('starts_at')
       .eq('series_id', series.id)
-      .order('starts_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .eq('status', 'scheduled')
 
-    const lastWeekIndex = latestAppointment
-      ? getWeekIndexFromAnchor(series.anchor_starts_at, latestAppointment.starts_at)
-      : -1
+    const lastWeekIndex = getLatestSeriesWeekIndex(
+      series.anchor_starts_at,
+      (existingOccurrences ?? []).map((appointment) => appointment.starts_at),
+      schedule
+    )
 
     const weekIndexes = countWeekIndexesThroughHorizon(
       series.anchor_starts_at,
@@ -855,10 +892,15 @@ async function deleteScheduledSeriesAppointments(
   series: CoachingAppointmentSeriesScope,
   fromStartsAtIso: string
 ) {
+  const coachPreferences = await getCoachPreferencesForUser(coachId)
+  const schedule: SeriesScheduleContext = {
+    timezone: coachPreferences.timezone,
+  }
   const toDelete = await listScheduledSeriesOccurrencesFromWeek(
     supabase,
     series,
-    fromStartsAtIso
+    fromStartsAtIso,
+    schedule
   )
 
   for (const scheduledAppointment of toDelete) {
@@ -888,10 +930,15 @@ async function cancelScheduledSeriesAppointments(
   fromStartsAtIso: string,
   cancellationReason: string
 ) {
+  const coachPreferences = await getCoachPreferencesForUser(coachId)
+  const schedule: SeriesScheduleContext = {
+    timezone: coachPreferences.timezone,
+  }
   const toCancel = await listScheduledSeriesOccurrencesFromWeek(
     supabase,
     series,
-    fromStartsAtIso
+    fromStartsAtIso,
+    schedule
   )
 
   for (const scheduledAppointment of toCancel) {
@@ -1129,6 +1176,39 @@ async function bookCoachAppointmentOccurrences(options: {
         .delete()
         .eq('id', series.id)
       return weekZeroResult
+    }
+
+    const horizonDays = computeSeriesHorizonDays(
+      firstValidation.settings.booking_max_days_ahead
+    )
+    const horizonEnd = getSeriesHorizonEnd(new Date(), horizonDays)
+    const remainingWeekIndexes = countWeekIndexesThroughHorizon(
+      anchorStartsAt,
+      horizonEnd
+    ).filter((weekIndex) => weekIndex > 0)
+
+    if (remainingWeekIndexes.length > 0) {
+      await bookWeeklyAppointmentOccurrences({
+        anchorStartsAtIso: anchorStartsAt,
+        weekIndexes: remainingWeekIndexes,
+        template: {
+          coachId: options.coachId,
+          clientId: parsed.clientId,
+          location,
+          preSessionNotes: parsed.notes ?? null,
+          coachingType: parsed.coachingType ?? null,
+          sessionType: parsed.sessionType,
+          sessionPackId: firstValidation.sessionPackId,
+          clientTimeZone: parsed.clientTimeZone,
+          seriesId: series.id,
+        },
+        abortOnFailure: false,
+        coachSeriesContext: {
+          supabase: firstValidation.supabase,
+          settings: firstValidation.settings,
+          durationMinutes,
+        },
+      })
     }
 
     return { success: true }
@@ -2041,8 +2121,6 @@ export async function fetchSchedulingWeekData(
   if (!ctx) {
     return { success: false, error: 'You must be signed in.' }
   }
-
-  await ensureCoachAppointmentSeriesHorizon(ctx.user.id)
 
   const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
   const weekReferenceDate = getSchedulingWeekReferenceDate(

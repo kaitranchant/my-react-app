@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { BookmarkPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,7 +32,6 @@ export function SaveMealToLibraryDialog({
   defaultName,
   disabled = false,
 }: SaveMealToLibraryDialogProps) {
-  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [name, setName] = React.useState(defaultName)
@@ -57,7 +55,6 @@ export function SaveMealToLibraryDialog({
 
     setSavedMealId(result.libraryMealId)
     toast.success('Meal saved to library.')
-    router.refresh()
   }
 
   return (

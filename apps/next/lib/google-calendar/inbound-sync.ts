@@ -220,7 +220,6 @@ async function revertGoogleEventToAppointment(
       location: appointment.location,
       startsAt: appointment.starts_at,
       endsAt: appointment.ends_at,
-      attendeeEmail: appointment.client?.email,
     }
   )
 }

@@ -2,10 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import {
-  copyLibraryMealToPlanDay,
-  copyPlanMealToLibrary,
-} from '@/lib/meal-library-copy'
+import { copyLibraryMealToPlanDay, copyPlanMealToLibrary } from '@/lib/meal-library-copy'
 import { fetchLibraryMealWithFoods } from '@/lib/meal-library-data.server'
 import { sumMealPlanMealFoodMacros } from '@/lib/meal-plan-meal-foods'
 import { createClient } from '@/lib/supabase/server'
@@ -629,36 +626,87 @@ export async function savePlanMealToLibrary(
     return { success: false, error: 'Please enter a name for the library meal.' }
   }
 
-  const ctx = await requireOwnedMeal(mealPlanId, mealId)
-  if (!ctx) {
-    return { success: false, error: 'Meal not found.' }
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in.' }
   }
 
-  const { data: meal, error: mealError } = await ctx.supabase
+  const { data: libraryMealId, error: rpcError } = await supabase.rpc(
+    'copy_meal_plan_meal_to_library',
+    {
+      p_meal_plan_id: mealPlanId,
+      p_meal_id: mealId,
+      p_name: parsed.data.name,
+    }
+  )
+
+  if (!rpcError && libraryMealId) {
+    revalidatePath('/library/meals')
+    return { success: true, libraryMealId }
+  }
+
+  const rpcUnavailable =
+    rpcError?.code === 'PGRST202' ||
+    rpcError?.message?.includes('copy_meal_plan_meal_to_library')
+
+  if (!rpcUnavailable) {
+    const message = rpcError?.message ?? 'Could not save meal to library.'
+    if (message.includes('Meal not found')) {
+      return { success: false, error: 'Meal not found.' }
+    }
+    if (message.includes('Name is required')) {
+      return { success: false, error: 'Please enter a name for the library meal.' }
+    }
+    return { success: false, error: message }
+  }
+
+  const { data: meal, error: mealError } = await supabase
     .from('meal_plan_meals')
     .select(
-      'name, description, meal_type, calories_kcal, protein_g, carbs_g, fat_g'
+      `
+      description,
+      meal_type,
+      calories_kcal,
+      protein_g,
+      carbs_g,
+      fat_g,
+      meal_plan_days!inner (
+        meal_plan_id,
+        meal_plans!inner ( coach_id )
+      ),
+      meal_plan_meal_foods (
+        sort_order,
+        food_name,
+        source,
+        external_id,
+        quantity_g,
+        calories_kcal,
+        protein_g,
+        carbs_g,
+        fat_g
+      )
+    `
     )
     .eq('id', mealId)
+    .eq('meal_plan_days.meal_plan_id', mealPlanId)
+    .eq('meal_plan_days.meal_plans.coach_id', user.id)
+    .order('sort_order', {
+      referencedTable: 'meal_plan_meal_foods',
+      ascending: true,
+    })
     .maybeSingle()
 
   if (mealError || !meal) {
     return { success: false, error: 'Meal not found.' }
   }
 
-  const { data: foods, error: foodsError } = await ctx.supabase
-    .from('meal_plan_meal_foods')
-    .select('*')
-    .eq('meal_plan_meal_id', mealId)
-    .order('sort_order', { ascending: true })
-
-  if (foodsError) {
-    return { success: false, error: foodsError.message }
-  }
-
   const result = await copyPlanMealToLibrary(
-    ctx.supabase,
-    ctx.user.id,
+    supabase,
+    user.id,
     {
       name: parsed.data.name,
       description: meal.description,
@@ -668,7 +716,7 @@ export async function savePlanMealToLibrary(
       carbs_g: meal.carbs_g,
       fat_g: meal.fat_g,
     },
-    foods ?? []
+    meal.meal_plan_meal_foods ?? []
   )
 
   if (!result.success) {
@@ -676,6 +724,5 @@ export async function savePlanMealToLibrary(
   }
 
   revalidatePath('/library/meals')
-  revalidatePath(`/library/meals/${result.libraryMealId}`)
   return result
 }

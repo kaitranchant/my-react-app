@@ -6,7 +6,6 @@ type GoogleCalendarEventInput = {
   location?: string | null
   startsAt: string
   endsAt: string
-  attendeeEmail?: string | null
 }
 
 export type GoogleCalendarEvent = {
@@ -88,7 +87,7 @@ export async function createGoogleCalendarEvent(
 ): Promise<GoogleCalendarEventMutationResult> {
   const response = await googleCalendarFetch(
     accessToken,
-    `/calendars/${encodeURIComponent(calendarId)}/events`,
+    `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -97,9 +96,6 @@ export async function createGoogleCalendarEvent(
         location: event.location ?? undefined,
         start: { dateTime: event.startsAt },
         end: { dateTime: event.endsAt },
-        attendees: event.attendeeEmail
-          ? [{ email: event.attendeeEmail }]
-          : undefined,
       }),
     }
   )
@@ -121,7 +117,7 @@ export async function updateGoogleCalendarEvent(
 ): Promise<GoogleCalendarEventMutationResult> {
   const response = await googleCalendarFetch(
     accessToken,
-    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
     {
       method: 'PATCH',
       body: JSON.stringify({
@@ -130,9 +126,7 @@ export async function updateGoogleCalendarEvent(
         location: event.location ?? undefined,
         start: { dateTime: event.startsAt },
         end: { dateTime: event.endsAt },
-        attendees: event.attendeeEmail
-          ? [{ email: event.attendeeEmail }]
-          : undefined,
+        attendees: [],
       }),
     }
   )

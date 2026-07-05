@@ -4,11 +4,16 @@ import test from 'node:test'
 import {
   computeSeriesHorizonDays,
   countWeekIndexesThroughHorizon,
+  getLatestSeriesWeekIndex,
   getWeekIndexFromAnchor,
   isOrphanSeriesOccurrenceAtOrAfterWeek,
   isSeriesOccurrenceAtOrAfterWeek,
   offsetStartsAtByWeeks,
 } from './appointment-series'
+
+const easternSchedule = {
+  timezone: 'America/New_York' as const,
+}
 
 test('computeSeriesHorizonDays uses at least the minimum rolling window', () => {
   assert.equal(computeSeriesHorizonDays(30), 84)
@@ -22,12 +27,41 @@ test('offsetStartsAtByWeeks advances in seven-day steps', () => {
   )
 })
 
+test('offsetStartsAtByWeeks keeps weekly cadence from anchor instant', () => {
+  const anchor = '2026-03-08T22:30:00.000Z'
+
+  assert.equal(
+    offsetStartsAtByWeeks(anchor, 1),
+    '2026-03-15T22:30:00.000Z'
+  )
+})
+
 test('getWeekIndexFromAnchor returns zero-based week offset', () => {
   assert.equal(
     getWeekIndexFromAnchor(
       '2026-06-01T15:00:00.000Z',
       '2026-06-15T15:00:00.000Z'
     ),
+    2
+  )
+})
+
+test('getWeekIndexFromAnchor uses coach timezone calendar weeks', () => {
+  const anchor = '2026-03-08T22:30:00.000Z'
+  const weekTwo = '2026-03-22T22:30:00.000Z'
+
+  assert.equal(getWeekIndexFromAnchor(anchor, weekTwo, easternSchedule), 2)
+})
+
+test('getLatestSeriesWeekIndex returns the highest booked week', () => {
+  const anchor = '2026-06-01T15:00:00.000Z'
+
+  assert.equal(
+    getLatestSeriesWeekIndex(anchor, [
+      '2026-06-01T15:00:00.000Z',
+      '2026-06-15T15:00:00.000Z',
+      '2026-06-08T15:00:00.000Z',
+    ]),
     2
   )
 })
