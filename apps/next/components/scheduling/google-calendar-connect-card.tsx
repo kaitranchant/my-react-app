@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import {
   disconnectGoogleCalendar,
+  repairRecurringSeriesCalendarSync,
   updateGoogleCalendarSyncSettings,
 } from '@/app/(dashboard)/scheduling/calendar-actions'
 import { Button } from '@/components/ui/button'
@@ -73,6 +74,28 @@ export function GoogleCalendarConnectCard({
     setSyncExportEnabled(connection?.sync_export_enabled ?? true)
     setSyncBusyEnabled(connection?.sync_busy_enabled ?? true)
   }, [connection])
+
+  async function handleRepairRecurringSync() {
+    setPending(true)
+    try {
+      const result = await repairRecurringSeriesCalendarSync()
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+
+      const { summary } = result
+      toast.success(
+        `Recurring sessions repaired: ${summary.resyncedAppointments} synced, ${summary.orphanEventsRemoved} duplicate calendar events removed${
+          summary.restoredAppointments > 0
+            ? `, ${summary.restoredAppointments} sessions restored`
+            : ''
+        }.`
+      )
+    } finally {
+      setPending(false)
+    }
+  }
 
   async function handleDisconnect() {
     setPending(true)
@@ -187,6 +210,28 @@ export function GoogleCalendarConnectCard({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border border-dashed px-3 py-3">
+            <p className="text-sm font-medium">Fix recurring session sync</p>
+            <p className="text-muted-foreground text-xs">
+              Cleans duplicate Google Calendar events, restores sessions removed
+              by sync mistakes, refills the rolling schedule, and re-exports
+              every recurring session.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending || !syncExportEnabled}
+              onClick={() => void handleRepairRecurringSync()}
+            >
+              {pending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Calendar className="size-4" />
+              )}
+              Repair recurring sessions
+            </Button>
           </div>
 
           <Button

@@ -5,6 +5,10 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
 import { deleteCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import { deleteGoogleCalendarTokens } from '@/lib/google-calendar/token-store'
+import {
+  type RepairRecurringSeriesSyncResult,
+  repairCoachRecurringSeriesGoogleSync,
+} from '@/lib/google-calendar/repair-series-sync'
 import { stopGoogleCalendarWatch } from '@/lib/google-calendar/watch'
 import { createClient } from '@/lib/supabase/server'
 
@@ -62,13 +66,31 @@ export async function updateGoogleCalendarSyncSettings(values: {
     })
     .eq('coach_id', ctx.user.id)
 
-  if (error) {
-    if (error.message.includes('coach_google_calendar_connections')) {
-      return { success: false, error: 'Google Calendar is not set up yet.' }
-    }
-    return { success: false, error: error.message }
-  }
-
   revalidateScheduling()
   return { success: true }
+}
+
+export type RepairRecurringSeriesCalendarSyncResult =
+  | { success: true; summary: RepairRecurringSeriesSyncResult }
+  | { success: false; error: string }
+
+export async function repairRecurringSeriesCalendarSync(): Promise<RepairRecurringSeriesCalendarSyncResult> {
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  try {
+    const summary = await repairCoachRecurringSeriesGoogleSync(ctx.user.id)
+    revalidateScheduling()
+    return { success: true, summary }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Could not repair recurring session calendar sync.',
+    }
+  }
 }

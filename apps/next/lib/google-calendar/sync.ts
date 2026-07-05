@@ -2,6 +2,7 @@ import {
   createGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
   fetchGoogleCalendarBusyIntervals,
+  getGoogleCalendarEvent,
   updateGoogleCalendarEvent,
 } from '@/lib/google-calendar/api'
 import {
@@ -96,7 +97,10 @@ async function getExportConnection(
 
 async function persistGoogleEventMetadata(
   appointmentId: string,
-  values: { google_calendar_event_id?: string; google_calendar_updated_at: string }
+  values: {
+    google_calendar_event_id?: string | null
+    google_calendar_updated_at: string
+  }
 ) {
   const admin = createAdminClient()
   if (!admin) return
@@ -121,16 +125,29 @@ export async function syncCoachingAppointmentToGoogle(
     const payload = buildEventPayload(appointment)
 
     if (appointment.google_calendar_event_id) {
-      const result = await updateGoogleCalendarEvent(
+      const existingEvent = await getGoogleCalendarEvent(
         accessToken,
         connection.calendar_id,
-        appointment.google_calendar_event_id,
-        payload
+        appointment.google_calendar_event_id
       )
+
+      if (existingEvent) {
+        const result = await updateGoogleCalendarEvent(
+          accessToken,
+          connection.calendar_id,
+          appointment.google_calendar_event_id,
+          payload
+        )
+        await persistGoogleEventMetadata(appointment.id, {
+          google_calendar_updated_at: result.updated,
+        })
+        return
+      }
+
       await persistGoogleEventMetadata(appointment.id, {
-        google_calendar_updated_at: result.updated,
+        google_calendar_event_id: null,
+        google_calendar_updated_at: new Date().toISOString(),
       })
-      return
     }
 
     const result = await createGoogleCalendarEvent(

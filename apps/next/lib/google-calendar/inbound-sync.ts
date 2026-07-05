@@ -32,6 +32,7 @@ type LinkedAppointment = {
   google_calendar_event_id: string | null
   google_calendar_updated_at: string | null
   updated_at: string
+  series_id: string | null
   client: { full_name: string | null; email: string | null } | null
 }
 
@@ -107,6 +108,7 @@ async function fetchLinkedAppointmentByEventId(
       google_calendar_event_id,
       google_calendar_updated_at,
       updated_at,
+      series_id,
       client:clients(full_name, email)
     `
     )
@@ -199,6 +201,40 @@ export async function validateInboundGoogleReschedule(input: {
   return { ok: true }
 }
 
+async function isActiveSeriesAppointment(appointment: LinkedAppointment) {
+  if (!appointment.series_id) return false
+
+  const admin = createAdminClient()
+  if (!admin) return false
+
+  const { data: series } = await admin
+    .from('coaching_appointment_series')
+    .select('status')
+    .eq('id', appointment.series_id)
+    .maybeSingle()
+
+  return series?.status === 'active'
+}
+
+async function clearGoogleLinkForSeriesAppointment(
+  appointment: LinkedAppointment,
+  googleUpdatedAt?: string
+): Promise<'applied' | 'skipped'> {
+  const admin = createAdminClient()
+  if (!admin) return 'skipped'
+
+  await admin
+    .from('coaching_appointments')
+    .update({
+      google_calendar_event_id: null,
+      google_calendar_updated_at:
+        googleUpdatedAt ?? new Date().toISOString(),
+    })
+    .eq('id', appointment.id)
+
+  return 'applied'
+}
+
 async function revertGoogleEventToAppointment(
   connectionId: string,
   calendarId: string,
@@ -235,6 +271,10 @@ async function applyGoogleEventUpdate(
   }
 
   if (event.status === 'cancelled') {
+    if (await isActiveSeriesAppointment(appointment)) {
+      return clearGoogleLinkForSeriesAppointment(appointment, event.updated)
+    }
+
     const admin = createAdminClient()
     if (!admin) return 'skipped'
 
@@ -300,6 +340,13 @@ async function applyGoogleEventDeletion(
 ): Promise<'applied' | 'skipped'> {
   if (!shouldApplyGoogleChange(appointment, deletedEventUpdatedAt)) {
     return 'skipped'
+  }
+
+  if (await isActiveSeriesAppointment(appointment)) {
+    return clearGoogleLinkForSeriesAppointment(
+      appointment,
+      deletedEventUpdatedAt
+    )
   }
 
   const admin = createAdminClient()
