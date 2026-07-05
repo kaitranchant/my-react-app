@@ -2,8 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 
+import {
+  copyLibraryMealToPlanDay,
+  copyPlanMealToLibrary,
+} from '@/lib/meal-library-copy'
+import { fetchLibraryMealWithFoods } from '@/lib/meal-library-data.server'
 import { sumMealPlanMealFoodMacros } from '@/lib/meal-plan-meal-foods'
 import { createClient } from '@/lib/supabase/server'
+import { savePlanMealToLibrarySchema } from '@/lib/validations/meal-library'
 import {
   mealPlanDayFormSchema,
   mealPlanDayUpdateSchema,
@@ -544,4 +550,132 @@ export async function deleteMealPlanMeal(
 
   revalidateMealPlanEditor(mealPlanId)
   return { success: true }
+}
+
+export type AddLibraryMealToPlanDayResult =
+  | { success: true }
+  | { success: false; error: string }
+
+export async function addLibraryMealToPlanDay(
+  mealPlanId: string,
+  dayId: string,
+  libraryMealId: string
+): Promise<AddLibraryMealToPlanDayResult> {
+  const ctx = await requireMealPlanOwner(mealPlanId)
+  if (!ctx) {
+    return { success: false, error: 'Meal plan not found.' }
+  }
+
+  const { data: day, error: dayError } = await ctx.supabase
+    .from('meal_plan_days')
+    .select('id')
+    .eq('id', dayId)
+    .eq('meal_plan_id', mealPlanId)
+    .maybeSingle()
+
+  if (dayError || !day) {
+    return { success: false, error: 'Meal plan day not found.' }
+  }
+
+  const libraryMeal = await fetchLibraryMealWithFoods(
+    ctx.supabase,
+    ctx.user.id,
+    libraryMealId
+  )
+
+  if (!libraryMeal) {
+    return { success: false, error: 'Library meal not found.' }
+  }
+
+  if (libraryMeal.status !== 'active') {
+    return { success: false, error: 'That library meal is not active.' }
+  }
+
+  const { count, error: countError } = await ctx.supabase
+    .from('meal_plan_meals')
+    .select('id', { count: 'exact', head: true })
+    .eq('meal_plan_day_id', dayId)
+
+  if (countError) {
+    return { success: false, error: countError.message }
+  }
+
+  const result = await copyLibraryMealToPlanDay(
+    ctx.supabase,
+    libraryMeal,
+    dayId,
+    count ?? 0
+  )
+
+  if (!result.success) {
+    return result
+  }
+
+  revalidateMealPlanEditor(mealPlanId)
+  return { success: true }
+}
+
+export type SavePlanMealToLibraryResult =
+  | { success: true; libraryMealId: string }
+  | { success: false; error: string }
+
+export async function savePlanMealToLibrary(
+  mealPlanId: string,
+  mealId: string,
+  name: string
+): Promise<SavePlanMealToLibraryResult> {
+  const parsed = savePlanMealToLibrarySchema.safeParse({ name })
+  if (!parsed.success) {
+    return { success: false, error: 'Please enter a name for the library meal.' }
+  }
+
+  const ctx = await requireOwnedMeal(mealPlanId, mealId)
+  if (!ctx) {
+    return { success: false, error: 'Meal not found.' }
+  }
+
+  const { data: meal, error: mealError } = await ctx.supabase
+    .from('meal_plan_meals')
+    .select(
+      'name, description, meal_type, calories_kcal, protein_g, carbs_g, fat_g'
+    )
+    .eq('id', mealId)
+    .maybeSingle()
+
+  if (mealError || !meal) {
+    return { success: false, error: 'Meal not found.' }
+  }
+
+  const { data: foods, error: foodsError } = await ctx.supabase
+    .from('meal_plan_meal_foods')
+    .select('*')
+    .eq('meal_plan_meal_id', mealId)
+    .order('sort_order', { ascending: true })
+
+  if (foodsError) {
+    return { success: false, error: foodsError.message }
+  }
+
+  const result = await copyPlanMealToLibrary(
+    ctx.supabase,
+    ctx.user.id,
+    {
+      name: parsed.data.name,
+      description: meal.description,
+      meal_type: meal.meal_type,
+      calories_kcal: meal.calories_kcal,
+      protein_g: meal.protein_g,
+      carbs_g: meal.carbs_g,
+      fat_g: meal.fat_g,
+    },
+    foods ?? []
+  )
+
+  if (!result.success) {
+    return result
+  }
+
+  revalidatePath('/library/meals')
+  revalidatePath(`/library/meals/${result.libraryMealId}`)
+  return result
 }

@@ -294,8 +294,8 @@ export function BookAppointmentDialog({
 
           {!loadingSlots && slots.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              No open times on this date. Add weekly hours under Availability, or
-              pick another date.
+              No open times on this date — all slots are already booked. Pick
+              another date or time.
             </p>
           ) : null}
 

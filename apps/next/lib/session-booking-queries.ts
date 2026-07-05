@@ -7,6 +7,7 @@ import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import {
   combineDateAndTimeToUtc,
   computeAvailableSlots,
+  computeCoachBookableSlots,
   getCoachDateKeyFromReference,
   getSchedulingDateKeys,
 } from '@/lib/session-booking-slots'
@@ -440,6 +441,60 @@ export async function fetchAvailableSlotsForCoach(
     timezone: coachPreferences.timezone,
     referenceDate,
     ignoreMinNotice: options?.ignoreMinNotice,
+    clientTimeZone: options?.clientTimeZone,
+  })
+}
+
+export async function fetchCoachBookableSlotsForCoach(
+  supabase: SupabaseClient,
+  coachId: string,
+  dateKeys: string[],
+  coachPreferences: CoachPreferences,
+  options?: {
+    settings?: SessionBookingSettings
+    clientTimeZone?: string | null
+    excludeAppointmentId?: string
+  }
+) {
+  const settings =
+    options?.settings ??
+    (await fetchCoachSessionBookingSettings(supabase, coachId))
+
+  const firstDateKey = dateKeys[0]!
+  const lastDateKey = dateKeys[dateKeys.length - 1]!
+  const timeMin = new Date(
+    combineDateAndTimeToUtc(
+      firstDateKey,
+      '00:00',
+      coachPreferences.timezone,
+      options?.clientTimeZone
+    ).getTime() - 24 * 60 * 60 * 1000
+  ).toISOString()
+  const timeMax = new Date(
+    combineDateAndTimeToUtc(
+      lastDateKey,
+      '23:59',
+      coachPreferences.timezone,
+      options?.clientTimeZone
+    ).getTime() + 24 * 60 * 60 * 1000
+  ).toISOString()
+
+  const [appointments, googleBusy] = await Promise.all([
+    fetchCoachingAppointments(supabase, coachId, timeMin, timeMax),
+    fetchGoogleBusyAppointments(coachId, timeMin, timeMax),
+  ])
+
+  const bookedAppointments = options?.excludeAppointmentId
+    ? appointments.filter(
+        (appointment) => appointment.id !== options.excludeAppointmentId
+      )
+    : appointments
+
+  return computeCoachBookableSlots({
+    dateKeys,
+    appointments: [...bookedAppointments, ...googleBusy],
+    settings,
+    timezone: coachPreferences.timezone,
     clientTimeZone: options?.clientTimeZone,
   })
 }

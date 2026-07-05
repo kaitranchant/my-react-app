@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   computeAvailableSlots,
+  computeCoachBookableSlots,
   computeWeeklyAnchorStartsAtForDay,
   getDateKeyFromInstant,
   resolveRepeatDaysOfWeek,
@@ -218,5 +219,72 @@ test('computeWeeklyAnchorStartsAtForDay shifts to another weekday in the same we
   assert.deepEqual(
     resolveRepeatDaysOfWeek(baseStartsAt, [2, 4], 'America/New_York'),
     [2, 4]
+  )
+})
+
+test('computeCoachBookableSlots ignores availability windows', () => {
+  const dateKey = '2026-07-01'
+
+  const slots = computeCoachBookableSlots({
+    dateKeys: [dateKey],
+    appointments: [],
+    settings,
+    timezone: 'UTC',
+  })
+
+  assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T06:00:00.000Z'),
+    true,
+    'expected an early-morning slot outside typical availability'
+  )
+  assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T22:00:00.000Z'),
+    true,
+    'expected a late-evening slot outside typical availability'
+  )
+})
+
+test('computeCoachBookableSlots excludes occupied sessions', () => {
+  const dateKey = '2026-07-01'
+
+  const slots = computeCoachBookableSlots({
+    dateKeys: [dateKey],
+    appointments: [
+      {
+        id: 'appt-1',
+        coach_id: 'coach-1',
+        client_id: 'client-1',
+        starts_at: '2026-07-01T10:00:00.000Z',
+        ends_at: '2026-07-01T11:00:00.000Z',
+        status: 'scheduled',
+        location: null,
+        pre_session_notes: null,
+        notes: null,
+        coaching_type: null,
+        session_type: 'coaching',
+        session_pack_id: null,
+        booked_by: 'coach',
+        series_id: null,
+        rescheduled_to_id: null,
+        google_calendar_event_id: null,
+        created_at: '2026-07-01T00:00:00.000Z',
+        updated_at: '2026-07-01T00:00:00.000Z',
+        client: null,
+        series: null,
+      },
+    ],
+    settings,
+    timezone: 'UTC',
+  })
+
+  assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T10:00:00.000Z'),
+    false,
+    'expected the occupied slot to be removed'
+  )
+  assert.equal(
+    slots.some((slot) => slot.startsAt === '2026-07-01T08:00:00.000Z'),
+    true,
+    'expected adjacent open slots to remain'
   )
 })

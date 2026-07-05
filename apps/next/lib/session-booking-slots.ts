@@ -338,6 +338,59 @@ export function computeAvailableSlots(options: {
   return slots
 }
 
+/** Full-day bookable slots for coach self-scheduling (ignores availability windows). */
+export function computeCoachBookableSlots(options: {
+  dateKeys: string[]
+  appointments: CoachingAppointment[]
+  settings: SessionBookingSettings
+  timezone: CoachPreferences['timezone']
+  clientTimeZone?: string | null
+}): AvailableSlot[] {
+  const {
+    dateKeys,
+    appointments,
+    settings,
+    timezone,
+    clientTimeZone,
+  } = options
+  const duration = settings.default_session_duration_minutes
+  const buffer = settings.booking_buffer_minutes
+  const dayEndMinutes = 24 * 60
+  const slots: AvailableSlot[] = []
+
+  for (const dateKey of dateKeys) {
+    for (
+      let start = 0;
+      start + duration <= dayEndMinutes;
+      start += BOOKING_SLOT_STEP_MINUTES
+    ) {
+      const hours = Math.floor(start / 60)
+      const mins = start % 60
+      const time = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+      const slotStart = combineDateAndTimeToUtc(
+        dateKey,
+        time,
+        timezone,
+        clientTimeZone
+      )
+      const slotEnd = new Date(slotStart.getTime() + duration * 60_000)
+
+      if (overlapsExisting(slotStart, slotEnd, appointments, buffer)) {
+        continue
+      }
+
+      slots.push({
+        startsAt: slotStart.toISOString(),
+        endsAt: slotEnd.toISOString(),
+        dateKey,
+        startTimeLabel: minutesToTimeLabel(start),
+      })
+    }
+  }
+
+  return slots
+}
+
 export function getSchedulingDateKeys(
   startDateKey: string,
   count: number

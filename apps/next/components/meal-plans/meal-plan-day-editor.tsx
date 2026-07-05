@@ -16,7 +16,9 @@ import {
   updateMealPlanMeal,
   updateMealPlanMealFood,
 } from '@/app/(dashboard)/library/meal-plans/[planId]/actions'
-import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
+import { MealLibraryPickerDialog } from '@/components/meal-library/meal-library-picker-dialog'
+import { SaveMealToLibraryDialog } from '@/components/meal-library/save-meal-to-library-dialog'
+import { MealFoodPicker } from '@/components/nutrition/meal-food-picker'
 import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
 import { MacroTotalsBadges } from '@/components/nutrition/macro-totals-badges'
 import { Button } from '@/components/ui/button'
@@ -39,7 +41,6 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  buildCustomFoodSnapshot,
   formatFoodMacrosShort,
   formatFoodQuantityLabel,
   rescaleFoodMacrosByQuantity,
@@ -158,41 +159,11 @@ function MealPlanFoodPicker({
   addLabel?: string
   onAdd: (snapshot: FoodSelectionSnapshot) => void
 }) {
-  const [manualMode, setManualMode] = React.useState(false)
-
-  if (manualMode) {
-    return (
-      <ManualFoodEntryForm
-        showQuantity
-        idPrefix={`${idPrefix}-manual`}
-        disabled={disabled}
-        submitLabel={addLabel}
-        onBack={() => setManualMode(false)}
-        onSubmit={(values) => {
-          if (!values.quantityG) return
-          onAdd(
-            buildCustomFoodSnapshot({
-              foodName: values.foodName,
-              quantityG: values.quantityG,
-              caloriesKcal: values.caloriesKcal,
-              proteinG: values.proteinG,
-              carbsG: values.carbsG,
-              fatG: values.fatG,
-            })
-          )
-          setManualMode(false)
-        }}
-      />
-    )
-  }
-
   return (
-    <FoodSearchPicker
+    <MealFoodPicker
       idPrefix={idPrefix}
       disabled={disabled}
       addLabel={addLabel}
-      showManualEntry
-      onManualEntry={() => setManualMode(true)}
       onAdd={onAdd}
     />
   )
@@ -965,6 +936,12 @@ function MealPlanDayCard({
                         >
                           {isExpanded ? 'Close' : 'Add food'}
                         </Button>
+                        <SaveMealToLibraryDialog
+                          mealPlanId={mealPlanId}
+                          mealId={meal.id}
+                          defaultName={meal.name}
+                          disabled={disabled || pending}
+                        />
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1110,7 +1087,15 @@ function MealPlanDayCard({
         )}
 
         <form onSubmit={handleAddMeal} className="border-border grid gap-4 rounded-lg border p-4">
-          <p className="text-sm font-medium">Add meal</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Add meal</p>
+            <MealLibraryPickerDialog
+              mealPlanId={mealPlanId}
+              dayId={day.id}
+              defaultMealType={mealType}
+              disabled={disabled || pending}
+            />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Meal type</Label>

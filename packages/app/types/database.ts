@@ -2531,6 +2531,115 @@ export type Database = {
           },
         ]
       }
+      library_meals: {
+        Row: {
+          id: string
+          coach_id: string
+          name: string
+          description: string | null
+          meal_type: MealType
+          status: ExerciseStatus
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          name: string
+          description?: string | null
+          meal_type?: MealType
+          status?: ExerciseStatus
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          name?: string
+          description?: string | null
+          meal_type?: MealType
+          status?: ExerciseStatus
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'library_meals_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      library_meal_foods: {
+        Row: {
+          id: string
+          library_meal_id: string
+          sort_order: number
+          food_name: string
+          source: FoodSource
+          external_id: string | null
+          quantity_g: number
+          calories_kcal: number | null
+          protein_g: number | null
+          carbs_g: number | null
+          fat_g: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          library_meal_id: string
+          sort_order?: number
+          food_name: string
+          source?: FoodSource
+          external_id?: string | null
+          quantity_g: number
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          library_meal_id?: string
+          sort_order?: number
+          food_name?: string
+          source?: FoodSource
+          external_id?: string | null
+          quantity_g?: number
+          calories_kcal?: number | null
+          protein_g?: number | null
+          carbs_g?: number | null
+          fat_g?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'library_meal_foods_library_meal_id_fkey'
+            columns: ['library_meal_id']
+            isOneToOne: false
+            referencedRelation: 'library_meals'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       meal_plan_assignments: {
         Row: {
           id: string
@@ -3860,8 +3969,24 @@ export type MealPlanMealFoodInsert =
 export type MealPlanMealFoodUpdate =
   Database['public']['Tables']['meal_plan_meal_foods']['Update']
 
+export type LibraryMeal = Database['public']['Tables']['library_meals']['Row']
+export type LibraryMealInsert =
+  Database['public']['Tables']['library_meals']['Insert']
+export type LibraryMealUpdate =
+  Database['public']['Tables']['library_meals']['Update']
+export type LibraryMealFood =
+  Database['public']['Tables']['library_meal_foods']['Row']
+export type LibraryMealFoodInsert =
+  Database['public']['Tables']['library_meal_foods']['Insert']
+export type LibraryMealFoodUpdate =
+  Database['public']['Tables']['library_meal_foods']['Update']
+
 export type MealPlanMealWithFoods = MealPlanMeal & {
   foods: MealPlanMealFood[]
+}
+
+export type LibraryMealWithFoods = LibraryMeal & {
+  foods: LibraryMealFood[]
 }
 
 export type MealPlanAssignment =

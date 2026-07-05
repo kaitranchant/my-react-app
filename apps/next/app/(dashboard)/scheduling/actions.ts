@@ -15,9 +15,10 @@ import {
   offsetStartsAtByWeeks,
 } from '@/lib/appointment-series'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
-import { fetchAvailableSlotsForCoach, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
+import { fetchAvailableSlotsForCoach, fetchCoachBookableSlotsForCoach, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
 import {
   computeWeeklyAnchorStartsAtForDay,
   formatAppointmentRange,
@@ -256,6 +257,62 @@ async function validateBookableSlot(options: {
     options.clientTimeZone
   )
 
+  if (options.coachBooking) {
+    const timeMin = new Date(
+      new Date(options.startsAt).getTime() - 24 * 60 * 60 * 1000
+    ).toISOString()
+    const timeMax = new Date(
+      new Date(options.startsAt).getTime() + 24 * 60 * 60 * 1000
+    ).toISOString()
+    const [appointments, googleBusy] = await Promise.all([
+      fetchCoachingAppointments(supabase, options.coachId, timeMin, timeMax),
+      fetchGoogleBusyAppointments(options.coachId, timeMin, timeMax),
+    ])
+    const filteredAppointments = options.excludeAppointmentId
+      ? appointments.filter(
+          (appointment) => appointment.id !== options.excludeAppointmentId
+        )
+      : appointments
+    const coachValidation = validateCoachBookableInstant({
+      startsAt: options.startsAt,
+      settings,
+      appointments: [...filteredAppointments, ...googleBusy],
+    })
+
+    if (!coachValidation.ok) {
+      return { ok: false, error: coachValidation.error }
+    }
+
+    if (settings.booking_requires_session_pack) {
+      if (!options.sessionPackId) {
+        return { ok: false, error: 'A session pack is required to book.' }
+      }
+
+      const { data: pack } = await supabase
+        .from('client_session_packs')
+        .select('id, client_id, total_sessions, sessions_used, expires_at')
+        .eq('id', options.sessionPackId)
+        .eq('client_id', options.clientId)
+        .maybeSingle()
+
+      if (!pack || pack.sessions_used >= pack.total_sessions) {
+        return { ok: false, error: 'No sessions remaining in that pack.' }
+      }
+
+      if (pack.expires_at && pack.expires_at < dateKey) {
+        return { ok: false, error: 'That session pack has expired.' }
+      }
+    }
+
+    return {
+      ok: true,
+      supabase,
+      settings,
+      endsAt: coachValidation.endsAt,
+      sessionPackId: options.sessionPackId ?? null,
+    }
+  }
+
   const slots = await fetchAvailableSlotsForCoach(
     supabase,
     options.coachId,
@@ -272,64 +329,6 @@ async function validateBookableSlot(options: {
 
   const matchingSlot = slots.find((slot) => slot.startsAt === options.startsAt)
   if (!matchingSlot) {
-    if (options.coachBooking) {
-      const timeMin = new Date(
-        new Date(options.startsAt).getTime() - 24 * 60 * 60 * 1000
-      ).toISOString()
-      const timeMax = new Date(
-        new Date(options.startsAt).getTime() + 24 * 60 * 60 * 1000
-      ).toISOString()
-      const appointments = await fetchCoachingAppointments(
-        supabase,
-        options.coachId,
-        timeMin,
-        timeMax
-      )
-      const filteredAppointments = options.excludeAppointmentId
-        ? appointments.filter(
-            (appointment) => appointment.id !== options.excludeAppointmentId
-          )
-        : appointments
-      const coachValidation = validateCoachBookableInstant({
-        startsAt: options.startsAt,
-        settings,
-        appointments: filteredAppointments,
-      })
-
-      if (!coachValidation.ok) {
-        return { ok: false, error: coachValidation.error }
-      }
-
-      if (settings.booking_requires_session_pack) {
-        if (!options.sessionPackId) {
-          return { ok: false, error: 'A session pack is required to book.' }
-        }
-
-        const { data: pack } = await supabase
-          .from('client_session_packs')
-          .select('id, client_id, total_sessions, sessions_used, expires_at')
-          .eq('id', options.sessionPackId)
-          .eq('client_id', options.clientId)
-          .maybeSingle()
-
-        if (!pack || pack.sessions_used >= pack.total_sessions) {
-          return { ok: false, error: 'No sessions remaining in that pack.' }
-        }
-
-        if (pack.expires_at && pack.expires_at < dateKey) {
-          return { ok: false, error: 'That session pack has expired.' }
-        }
-      }
-
-      return {
-        ok: true,
-        supabase,
-        settings,
-        endsAt: coachValidation.endsAt,
-        sessionPackId: options.sessionPackId ?? null,
-      }
-    }
-
     return { ok: false, error: 'That time slot is no longer available.' }
   }
 
@@ -1747,6 +1746,7 @@ export async function rescheduleCoachingAppointment(
     startsAt: parsed.data.startsAt,
     sessionPackId: appointment.session_pack_id,
     ignoreMinNotice: true,
+    coachBooking: true,
     clientTimeZone: parsed.data.clientTimeZone,
   })
 
@@ -1864,6 +1864,7 @@ export async function updateCoachingAppointment(
     startsAt: parsed.data.startsAt,
     sessionPackId,
     ignoreMinNotice: true,
+    coachBooking: true,
     clientTimeZone: parsed.data.clientTimeZone,
     excludeAppointmentId: appointment.id,
   })
@@ -1978,14 +1979,12 @@ export async function getCoachAvailableSlots(
   }
 
   const coachPreferences = await getCoachPreferencesForUser(ctx.user.id)
-  const slots = await fetchAvailableSlotsForCoach(
+  const slots = await fetchCoachBookableSlotsForCoach(
     ctx.supabase,
     ctx.user.id,
     [dateKey],
     coachPreferences,
-    new Date(),
     {
-      ignoreMinNotice: true,
       clientTimeZone,
       excludeAppointmentId,
     }
