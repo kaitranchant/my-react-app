@@ -1037,7 +1037,8 @@ async function updateScheduledSeriesAppointmentsFromWeek(
     }
   }
 
-  for (const [index, occurrence] of sortedOccurrences.entries()) {
+  for (let index = 0; index < sortedOccurrences.length; index += 1) {
+    const occurrence = sortedOccurrences[index]!
     const newStartsAt =
       fromWeekIndex > 0
         ? offsetStartsAtByWeeks(template.startsAt, index)
