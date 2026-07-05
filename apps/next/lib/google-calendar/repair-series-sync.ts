@@ -288,7 +288,9 @@ export async function repairCoachRecurringSeriesGoogleSync(
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('coach_timezone')
+    .select(
+      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+    )
     .eq('id', coachId)
     .maybeSingle()
   const coachPreferences = parseCoachPreferences(profile)
@@ -336,7 +338,9 @@ export async function finalizeCoachRecurringSeriesGoogleSync(
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('coach_timezone')
+    .select(
+      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+    )
     .eq('id', coachId)
     .maybeSingle()
 
