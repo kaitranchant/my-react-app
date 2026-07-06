@@ -387,7 +387,6 @@ export async function resetAndRebookCoachRecurringSeries(
       repair: {
         restoredAppointments: 0,
         dedupedAppointments: 0,
-        orphanEventsRemoved: 0,
         resyncedAppointments: 0,
         horizonBooked: 0,
         horizonExtended: false,

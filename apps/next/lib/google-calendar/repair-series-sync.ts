@@ -1,27 +1,11 @@
-import {
-  computeSeriesHorizonDays,
-  getSeriesHorizonEnd,
-} from '@/lib/appointment-series'
 import { parseCoachPreferences } from '@/lib/coach-preferences'
 import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-series-horizon'
-import {
-  deleteGoogleCalendarEvent,
-  getGoogleCalendarEvent,
-  getGoogleCalendarEventTimes,
-  listGoogleCalendarEventsInRange,
-} from '@/lib/google-calendar/api'
-import { isExportedCoachingCalendarSummary } from '@/lib/google-calendar/coaching-event-summary'
-import {
-  intervalsOverlap,
-  isLinkedCoachingGoogleEvent,
-} from '@/lib/google-calendar/event-linking'
+import { getGoogleCalendarEvent } from '@/lib/google-calendar/api'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import {
-  removeCoachingAppointmentFromGoogle,
   syncCoachingAppointmentToGoogle,
 } from '@/lib/google-calendar/sync'
 import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
-import { fetchCoachSessionBookingSettings } from '@/lib/session-booking-queries'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const GOOGLE_SYNC_CANCELLATION_REASONS = [
@@ -32,7 +16,6 @@ const GOOGLE_SYNC_CANCELLATION_REASONS = [
 export type RepairRecurringSeriesSyncResult = {
   restoredAppointments: number
   dedupedAppointments: number
-  orphanEventsRemoved: number
   resyncedAppointments: number
   horizonExtended: boolean
 }
@@ -106,13 +89,6 @@ async function dedupeScheduledSeriesAppointments(coachId: string) {
     for (const duplicate of group) {
       if (duplicate.id === keeper.id) continue
 
-      if (duplicate.google_calendar_event_id) {
-        await removeCoachingAppointmentFromGoogle({
-          coachId,
-          googleCalendarEventId: duplicate.google_calendar_event_id,
-        })
-      }
-
       const { error: deleteError } = await admin
         .from('coaching_appointments')
         .delete()
@@ -127,75 +103,6 @@ async function dedupeScheduledSeriesAppointments(coachId: string) {
   }
 
   return deduped
-}
-
-async function removeOrphanCoachingGoogleEvents(
-  coachId: string,
-  timeMin: string,
-  timeMax: string
-) {
-  const admin = createAdminClient()
-  if (!admin) return 0
-
-  const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
-  if (!connection?.sync_export_enabled) return 0
-
-  const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
-  const events = await listGoogleCalendarEventsInRange(
-    accessToken,
-    connection.calendar_id,
-    timeMin,
-    timeMax
-  )
-
-  const { data: linkedAppointments } = await admin
-    .from('coaching_appointments')
-    .select('starts_at, ends_at, google_calendar_event_id')
-    .eq('coach_id', coachId)
-    .eq('status', 'scheduled')
-    .not('google_calendar_event_id', 'is', null)
-
-  const linkedEventIds = new Set(
-    (linkedAppointments ?? [])
-      .map((appointment) => appointment.google_calendar_event_id)
-      .filter((eventId): eventId is string => Boolean(eventId))
-  )
-
-  let removed = 0
-
-  for (const event of events) {
-    if (!event.id || !isExportedCoachingCalendarSummary(event.summary)) continue
-
-    const times = getGoogleCalendarEventTimes(event)
-    if (!times) continue
-
-    if (isLinkedCoachingGoogleEvent(event.id, linkedEventIds)) {
-      continue
-    }
-
-    const overlapsScheduledSession = (linkedAppointments ?? []).some(
-      (appointment) =>
-        intervalsOverlap(
-          times.startsAt,
-          times.endsAt,
-          appointment.starts_at,
-          appointment.ends_at
-        )
-    )
-
-    if (overlapsScheduledSession) {
-      continue
-    }
-
-    await deleteGoogleCalendarEvent(
-      accessToken,
-      connection.calendar_id,
-      event.id
-    )
-    removed += 1
-  }
-
-  return removed
 }
 
 async function resyncScheduledAppointmentsToGoogle(
@@ -235,6 +142,12 @@ async function resyncScheduledAppointmentsToGoogle(
   }
 
   return resynced
+}
+
+export async function resyncAllScheduledAppointmentsToGoogle(
+  coachId: string
+): Promise<number> {
+  return resyncScheduledAppointmentsToGoogle(coachId)
 }
 
 async function resyncStaleGoogleCalendarLinks(coachId: string) {
@@ -290,14 +203,6 @@ export async function repairCoachRecurringSeriesGoogleSync(
     throw new Error('Calendar repair is unavailable.')
   }
 
-  const settings = await fetchCoachSessionBookingSettings(admin, coachId)
-  const horizonDays = computeSeriesHorizonDays(settings.booking_max_days_ahead)
-  const horizonEnd = getSeriesHorizonEnd(new Date(), horizonDays)
-  const timeMin = new Date().toISOString()
-  const timeMax = new Date(
-    horizonEnd.getTime() + 7 * 24 * 60 * 60 * 1000
-  ).toISOString()
-
   const restoredAppointments =
     await restoreAppointmentsCancelledByGoogleSync(coachId)
   const dedupedAppointments = await dedupeScheduledSeriesAppointments(coachId)
@@ -322,21 +227,10 @@ export async function repairCoachRecurringSeriesGoogleSync(
     (await resyncScheduledAppointmentsToGoogle(coachId, {
       onlyMissing: true,
     }))
-  let orphanEventsRemoved = 0
-  try {
-    orphanEventsRemoved = await removeOrphanCoachingGoogleEvents(
-      coachId,
-      timeMin,
-      timeMax
-    )
-  } catch (error) {
-    console.error('[google-calendar] orphan cleanup failed', error)
-  }
 
   return {
     restoredAppointments,
     dedupedAppointments,
-    orphanEventsRemoved,
     resyncedAppointments,
     horizonExtended: true,
   }
@@ -380,59 +274,15 @@ export async function finalizeCoachRecurringSeriesGoogleSync(
 ): Promise<
   Pick<
     RepairRecurringSeriesSyncResult,
-    'dedupedAppointments' | 'orphanEventsRemoved' | 'resyncedAppointments'
+    'dedupedAppointments' | 'resyncedAppointments'
   > & { horizonBooked: number }
 > {
-  const admin = createAdminClient()
-  if (!admin) {
-    throw new Error('Calendar repair is unavailable.')
-  }
-
-  const { data: profile } = await admin
-    .from('profiles')
-    .select(
-      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
-    )
-    .eq('id', coachId)
-    .maybeSingle()
-
-  const coachPreferences = parseCoachPreferences(profile)
-  const { bookedCount: horizonBooked } = await extendCoachRecurringSeriesHorizon(
-    admin,
-    coachId,
-    { timezone: coachPreferences.timezone },
-    { awaitGoogleSync: true }
-  )
-
-  const settings = await fetchCoachSessionBookingSettings(admin, coachId)
-  const horizonDays = computeSeriesHorizonDays(settings.booking_max_days_ahead)
-  const horizonEnd = getSeriesHorizonEnd(new Date(), horizonDays)
-  const timeMin = new Date().toISOString()
-  const timeMax = new Date(
-    horizonEnd.getTime() + 7 * 24 * 60 * 60 * 1000
-  ).toISOString()
-
+  const maintained = await maintainCoachRecurringSeriesHorizon(coachId)
   const dedupedAppointments = await dedupeScheduledSeriesAppointments(coachId)
-  const resyncedAppointments =
-    (await resyncStaleGoogleCalendarLinks(coachId)) +
-    (await resyncScheduledAppointmentsToGoogle(coachId, {
-      onlyMissing: true,
-    }))
-  let orphanEventsRemoved = 0
-  try {
-    orphanEventsRemoved = await removeOrphanCoachingGoogleEvents(
-      coachId,
-      timeMin,
-      timeMax
-    )
-  } catch (error) {
-    console.error('[google-calendar] orphan cleanup failed', error)
-  }
 
   return {
     dedupedAppointments,
-    orphanEventsRemoved,
-    resyncedAppointments,
-    horizonBooked,
+    resyncedAppointments: maintained.resyncedAppointments,
+    horizonBooked: maintained.horizonBooked,
   }
 }

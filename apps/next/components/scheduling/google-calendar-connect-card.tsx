@@ -86,9 +86,13 @@ export function GoogleCalendarConnectCard({
 
       const { summary } = result
       toast.success(
-        `Calendar sync repaired: ${summary.resyncedAppointments} sessions synced, ${summary.orphanEventsRemoved} duplicate calendar events removed${
+        `Calendar sync repaired: ${summary.resyncedAppointments} sessions synced${
           summary.restoredAppointments > 0
             ? `, ${summary.restoredAppointments} sessions restored`
+            : ''
+        }${
+          summary.dedupedAppointments > 0
+            ? `, ${summary.dedupedAppointments} duplicate sessions removed`
             : ''
         }.`
       )
