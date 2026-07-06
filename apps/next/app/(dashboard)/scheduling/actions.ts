@@ -18,6 +18,9 @@ import {
 } from '@/lib/appointment-series'
 import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-series-horizon'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import { fetchGoogleCalendarBlockedTimes } from '@/lib/google-calendar/blocked-times'
+import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
+import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
@@ -2330,7 +2333,12 @@ export async function getClientAvailableSlots(
 }
 
 export type SchedulingWeekDataResult =
-  | { success: true; appointments: CoachingAppointment[]; weekKeys: string[] }
+  | {
+      success: true
+      appointments: CoachingAppointment[]
+      weekKeys: string[]
+      googleBlockedTimes: GoogleCalendarBlockedTime[]
+    }
   | { success: false; error: string }
 
 export async function fetchSchedulingWeekData(
@@ -2355,12 +2363,18 @@ export async function fetchSchedulingWeekData(
     coachPreferences.timezone,
     weekReferenceDate
   )
-  const appointments = await fetchCoachingAppointments(
+
+  const connection = await fetchCoachGoogleCalendarConnection(
     ctx.supabase,
-    ctx.user.id,
-    startIso,
-    endIso
+    ctx.user.id
   )
 
-  return { success: true, appointments, weekKeys }
+  const [appointments, googleBlockedTimes] = await Promise.all([
+    fetchCoachingAppointments(ctx.supabase, ctx.user.id, startIso, endIso),
+    connection
+      ? fetchGoogleCalendarBlockedTimes(ctx.user.id, startIso, endIso)
+      : Promise.resolve([] as GoogleCalendarBlockedTime[]),
+  ])
+
+  return { success: true, appointments, weekKeys, googleBlockedTimes }
 }
