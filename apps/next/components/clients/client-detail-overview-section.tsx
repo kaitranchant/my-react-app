@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { ClientNotesEditor } from '@/components/clients/client-notes-editor'
 import { ClientOnboardingChecklist } from '@/components/clients/client-onboarding-checklist'
+import { ClientOnboardingDocumentsCard } from '@/components/clients/client-onboarding-documents-card'
 import { ClientOverview } from '@/components/clients/client-overview'
 import type { RecentPrHighlight } from '@/lib/pr-records'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
@@ -19,6 +20,7 @@ import type {
   ClientCheckIn,
   ClientProgramAssignment,
 } from 'app/types/database'
+import type { ClientOnboardingDocumentsSummary } from '@/lib/onboarding-data'
 
 type ClientDetailOverviewSectionProps = {
   client: Client
@@ -43,6 +45,7 @@ type ClientDetailOverviewSectionProps = {
     avgAdherence7d: number | null
     loggedToday: boolean
   } | null
+  onboardingDocuments?: ClientOnboardingDocumentsSummary | null
 }
 
 export function ClientDetailOverviewSection({
@@ -57,6 +60,7 @@ export function ClientDetailOverviewSection({
   trainingConsistency = null,
   coachPreferences = undefined,
   nutritionSnapshot = null,
+  onboardingDocuments = null,
 }: ClientDetailOverviewSectionProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -102,6 +106,13 @@ export function ClientDetailOverviewSection({
           onOpenPrograms={() => openTraining('programs')}
           onOpenCheckIns={openCheckIns}
           onOpenCalendar={() => openTraining('calendar')}
+        />
+      ) : null}
+      {onboardingDocuments ? (
+        <ClientOnboardingDocumentsCard
+          clientId={client.id}
+          clientName={client.full_name}
+          summary={onboardingDocuments}
         />
       ) : null}
       <ClientOverview

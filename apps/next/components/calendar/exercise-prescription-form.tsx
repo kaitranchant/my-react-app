@@ -90,12 +90,6 @@ const TRACKING_TOGGLES: {
     label: 'Track volume load',
     description: 'Include in volume load totals.',
   },
-  {
-    key: 'autoProgressLoad',
-    label: 'Auto progress load',
-    description:
-      'Flag for coach review when the client hits all targets — suggested bumps appear in Progressive overload.',
-  },
 ] as const
 
 type ExercisePrescriptionFormProps = {

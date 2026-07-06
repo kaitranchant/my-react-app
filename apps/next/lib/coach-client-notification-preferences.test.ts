@@ -27,6 +27,7 @@ test('parseCoachClientNotificationPreferences reads stored coach toggles', () =>
     coach_send_client_check_in_reminders: false,
     coach_send_client_unread_digest: true,
     coach_send_client_appointment_reminders: false,
+    coach_send_client_onboarding_documents: true,
   })
 
   assert.equal(preferences.sendClientMessages, false)

@@ -18,10 +18,11 @@ export const defaultCoachClientNotificationPreferences: CoachClientNotificationP
     sendClientCheckInReminders: true,
     sendClientUnreadDigest: true,
     sendClientAppointmentReminders: true,
+    sendClientOnboardingDocuments: true,
   }
 
 export const coachClientNotificationSelect =
-  'coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders'
+  'coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders, coach_send_client_onboarding_documents'
 
 type ProfileCoachClientNotificationRow = Pick<
   Profile,
@@ -35,6 +36,7 @@ type ProfileCoachClientNotificationRow = Pick<
   | 'coach_send_client_check_in_reminders'
   | 'coach_send_client_unread_digest'
   | 'coach_send_client_appointment_reminders'
+  | 'coach_send_client_onboarding_documents'
 >
 
 const preferenceColumnByKey = {
@@ -48,6 +50,7 @@ const preferenceColumnByKey = {
   sendClientCheckInReminders: 'coach_send_client_check_in_reminders',
   sendClientUnreadDigest: 'coach_send_client_unread_digest',
   sendClientAppointmentReminders: 'coach_send_client_appointment_reminders',
+  sendClientOnboardingDocuments: 'coach_send_client_onboarding_documents',
 } as const satisfies Record<
   CoachClientNotificationPreferenceKey,
   keyof ProfileCoachClientNotificationRow
@@ -87,6 +90,9 @@ export function parseCoachClientNotificationPreferences(
     sendClientAppointmentReminders:
       row?.coach_send_client_appointment_reminders ??
       defaultCoachClientNotificationPreferences.sendClientAppointmentReminders,
+    sendClientOnboardingDocuments:
+      row?.coach_send_client_onboarding_documents ??
+      defaultCoachClientNotificationPreferences.sendClientOnboardingDocuments,
   }
 }
 
@@ -104,6 +110,7 @@ export function coachClientNotificationPreferencesToRow(
     coach_send_client_check_in_reminders: values.sendClientCheckInReminders,
     coach_send_client_unread_digest: values.sendClientUnreadDigest,
     coach_send_client_appointment_reminders: values.sendClientAppointmentReminders,
+    coach_send_client_onboarding_documents: values.sendClientOnboardingDocuments,
   }
 }
 

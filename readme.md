@@ -30,7 +30,7 @@ A coaching and athlete management platform for personal trainers and coaches. Ne
 - Leaderboards: coach `/leaderboards` roster rankings (strength PRs, Wilks/DOTS, consistency, volume, improvement, streaks) with gym/team scope and weight-class filters; client portal `/portal/leaderboards` for team rankings; biological sex and bodyweight for relative-strength scoring; per-client opt-out
 - Form review: client portal `/portal/form-review` for photo/video submissions; submit from workout log with exercise context linked; coach `/form-review` pending inbox, timestamped video annotations, and written feedback
 - Workout builder supersets: letter-grouped exercises (A, B, C…) in client and program calendars; clustered display in workout log and print view
-- Progressive overload: coach `/progressive-overload` inbox to approve or dismiss suggested load bumps from auto-progress exercises
+- Progressive overload: coach `/progressive-overload` inbox to approve or dismiss suggested load bumps for clients with progressive overload enabled
 - Team challenges: time-boxed team competitions on the team **Challenges** tab; published challenges and standings on the client portal team page
 - Weekly summary email: Sunday morning digest for coaches (requires `RESEND_API_KEY` and cron)
 - PR email notifications: optional coach email when a client hits a new PR (Settings → Notifications)
@@ -137,6 +137,7 @@ Recent feature patches (0024–0028; teams 0020–0022 require `db:push`):
 | `apply-portal-program-progress.sql` | Portal program week progress RLS (0060) |
 | `apply-portal-notification-preferences.sql` | Client portal email notification prefs (0061) |
 | `apply-progressive-overload-decisions-delete.sql` | Undo dismissed progressive overload suggestions (0062) |
+| `apply-client-progressive-overload.sql` | Per-client progressive overload toggle (0106) |
 | `apply-client-email-nudges.sql` | Client email nudge prefs and dedupe log (0063) |
 | `apply-coach-message-templates.sql` | Saved coach message templates (0064) |
 | `apply-exercise-demo-videos.sql` | Exercise demo video uploads (0070) |

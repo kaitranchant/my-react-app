@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import {
   addClientFoodDiaryEntry,
+  addClientFoodDiaryEntries,
   deleteClientFoodDiaryEntry,
 } from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { CoachAdherenceLogCard } from '@/components/nutrition/coach-adherence-log-card'
@@ -100,9 +101,20 @@ export function ClientNutritionTrackingPanel({
         nutritionLog={viewedLog}
         waterMl={adherenceDraft?.waterMl ?? viewedLog?.water_ml ?? null}
         fiberG={adherenceDraft?.fiberG ?? viewedLog?.fiber_g ?? null}
+        assignment={assignment}
+        planDays={planDays}
         onLogDateChange={setViewedDate}
         onAdd={async (entryValues) => {
           const result = await addClientFoodDiaryEntry(client.id, entryValues)
+          if (result.success) {
+            router.refresh()
+          } else {
+            toast.error(result.error)
+          }
+          return result
+        }}
+        onAddMany={async (entryValues) => {
+          const result = await addClientFoodDiaryEntries(client.id, entryValues)
           if (result.success) {
             router.refresh()
           } else {

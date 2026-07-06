@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { bulkSetClientStatus } from '@/app/(dashboard)/clients/actions'
 import { ClientUserTypeBadge } from '@/components/clients/client-user-type-badge'
 import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
+import { ClientOnboardingDocsBadge } from '@/components/clients/client-onboarding-docs-badge'
 import { ClientRowActions } from '@/components/clients/client-row-actions'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { ClientGymBadge } from '@/components/gym/client-gym-badge'
@@ -34,6 +35,7 @@ type ClientsListProps = {
   teamsByClientId: Record<string, ClientTeamMembership[]>
   gymNamesById: Record<string, string>
   coachNamesById: Record<string, string>
+  pendingOnboardingDocsByClientId?: Record<string, number>
   currentCoachId?: string
 }
 
@@ -42,6 +44,7 @@ export function ClientsList({
   teamsByClientId,
   gymNamesById,
   coachNamesById,
+  pendingOnboardingDocsByClientId = {},
   currentCoachId,
 }: ClientsListProps) {
   const router = useRouter()
@@ -153,6 +156,9 @@ export function ClientsList({
                   {!client.is_coach_self ? (
                     <ClientInviteStatusBadge status={client.invite_status} />
                   ) : null}
+                  <ClientOnboardingDocsBadge
+                    pendingCount={pendingOnboardingDocsByClientId[client.id] ?? 0}
+                  />
                   <ClientUserTypeBadge client={client} />
                 </div>
 
@@ -251,11 +257,16 @@ export function ClientsList({
                   <StatusBadge status={client.status} />
                 </TableCell>
                 <TableCell>
-                  {!client.is_coach_self ? (
-                    <ClientInviteStatusBadge status={client.invite_status} />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!client.is_coach_self ? (
+                      <ClientInviteStatusBadge status={client.invite_status} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                    <ClientOnboardingDocsBadge
+                      pendingCount={pendingOnboardingDocsByClientId[client.id] ?? 0}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell>
                   {client.is_coach_self || client.coaching_type ? (

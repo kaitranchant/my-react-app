@@ -61,6 +61,7 @@ export type WeightUnit = 'lbs' | 'kg'
 export type BiologicalSex = 'male' | 'female'
 export type WeekStartsOn = 'sunday' | 'monday'
 export type CheckInFrequency = 'daily' | 'weekly' | 'biweekly'
+export type WorkoutLogViewMode = 'guided' | 'list'
 export type ClientEmailNudgeType =
   | 'workout_reminder'
   | 'check_in_due'
@@ -143,6 +144,9 @@ export type CoachingSessionType =
 export type CoachAvailabilityExceptionType = 'blocked' | 'extra_hours'
 export type CoachTaskPriority = 'low' | 'normal' | 'high'
 export type CoachTaskStatus = 'pending' | 'completed'
+export type OnboardingDocumentType = 'par_q' | 'liability' | 'other'
+export type OnboardingDeliveryMethod = 'email' | 'in_person'
+export type DocumentSigningStatus = 'pending' | 'signed'
 
 export type ClientGoalMetadata = {
   squatExerciseId?: string
@@ -207,6 +211,7 @@ export type Database = {
           week_starts_on: WeekStartsOn
           coach_timezone: string | null
           default_check_in_frequency: CheckInFrequency
+          default_workout_log_view: WorkoutLogViewMode
           default_onboarding_program_id: string | null
           onboarding_welcome_template_id: string | null
           notify_check_ins: boolean
@@ -236,6 +241,7 @@ export type Database = {
           coach_send_client_check_in_reminders: boolean
           coach_send_client_unread_digest: boolean
           coach_send_client_appointment_reminders: boolean
+          coach_send_client_onboarding_documents: boolean
           session_booking_enabled: boolean
           default_session_duration_minutes: number
           booking_buffer_minutes: number
@@ -266,6 +272,7 @@ export type Database = {
           week_starts_on?: WeekStartsOn
           coach_timezone?: string | null
           default_check_in_frequency?: CheckInFrequency
+          default_workout_log_view?: WorkoutLogViewMode
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
           notify_check_ins?: boolean
@@ -295,6 +302,7 @@ export type Database = {
           coach_send_client_check_in_reminders?: boolean
           coach_send_client_unread_digest?: boolean
           coach_send_client_appointment_reminders?: boolean
+          coach_send_client_onboarding_documents?: boolean
           session_booking_enabled?: boolean
           default_session_duration_minutes?: number
           booking_buffer_minutes?: number
@@ -325,6 +333,7 @@ export type Database = {
           week_starts_on?: WeekStartsOn
           coach_timezone?: string | null
           default_check_in_frequency?: CheckInFrequency
+          default_workout_log_view?: WorkoutLogViewMode
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
           notify_check_ins?: boolean
@@ -354,6 +363,7 @@ export type Database = {
           coach_send_client_check_in_reminders?: boolean
           coach_send_client_unread_digest?: boolean
           coach_send_client_appointment_reminders?: boolean
+          coach_send_client_onboarding_documents?: boolean
           session_booking_enabled?: boolean
           default_session_duration_minutes?: number
           booking_buffer_minutes?: number
@@ -597,6 +607,7 @@ export type Database = {
           onboarding_automation_at: string | null
           stripe_customer_id: string | null
           weekly_session_target: number | null
+          progressive_overload_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -623,6 +634,7 @@ export type Database = {
           onboarding_automation_at?: string | null
           stripe_customer_id?: string | null
           weekly_session_target?: number | null
+          progressive_overload_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -649,6 +661,7 @@ export type Database = {
           onboarding_automation_at?: string | null
           stripe_customer_id?: string | null
           weekly_session_target?: number | null
+          progressive_overload_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1857,6 +1870,7 @@ export type Database = {
           weight_percent: string | null
           target_weight: string | null
           rpe_target: string | null
+          perceived_rpe: string | null
           tracking_options: ScheduledExerciseTrackingOptions
           created_at: string
           updated_at: string
@@ -1880,6 +1894,7 @@ export type Database = {
           weight_percent?: string | null
           target_weight?: string | null
           rpe_target?: string | null
+          perceived_rpe?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -1903,6 +1918,7 @@ export type Database = {
           weight_percent?: string | null
           target_weight?: string | null
           rpe_target?: string | null
+          perceived_rpe?: string | null
           tracking_options?: ScheduledExerciseTrackingOptions
           created_at?: string
           updated_at?: string
@@ -2137,6 +2153,57 @@ export type Database = {
             columns: ['check_in_id']
             isOneToOne: false
             referencedRelation: 'client_check_ins'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_document_signing_requests: {
+        Row: {
+          id: string
+          packet_id: string
+          document_id: string
+          status: DocumentSigningStatus
+          sort_order: number
+          signer_name: string | null
+          signed_at: string | null
+          signed_pdf_storage_path: string | null
+          signature_image_path: string | null
+        }
+        Insert: {
+          id?: string
+          packet_id: string
+          document_id: string
+          status?: DocumentSigningStatus
+          sort_order?: number
+          signer_name?: string | null
+          signed_at?: string | null
+          signed_pdf_storage_path?: string | null
+          signature_image_path?: string | null
+        }
+        Update: {
+          id?: string
+          packet_id?: string
+          document_id?: string
+          status?: DocumentSigningStatus
+          sort_order?: number
+          signer_name?: string | null
+          signed_at?: string | null
+          signed_pdf_storage_path?: string | null
+          signature_image_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_document_signing_requests_packet_id_fkey'
+            columns: ['packet_id']
+            isOneToOne: false
+            referencedRelation: 'client_onboarding_packets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_document_signing_requests_document_id_fkey'
+            columns: ['document_id']
+            isOneToOne: false
+            referencedRelation: 'coach_onboarding_documents'
             referencedColumns: ['id']
           },
         ]
@@ -2590,6 +2657,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'coach_message_templates_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      coach_onboarding_documents: {
+        Row: {
+          id: string
+          coach_id: string
+          name: string
+          document_type: OnboardingDocumentType
+          storage_path: string
+          is_default: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          name: string
+          document_type?: OnboardingDocumentType
+          storage_path: string
+          is_default?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          name?: string
+          document_type?: OnboardingDocumentType
+          storage_path?: string
+          is_default?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'coach_onboarding_documents_coach_id_fkey'
             columns: ['coach_id']
             isOneToOne: false
             referencedRelation: 'profiles'
@@ -3166,6 +3271,57 @@ export type Database = {
           },
           {
             foreignKeyName: 'client_food_diary_entries_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_onboarding_packets: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          sign_token: string | null
+          sign_expires_at: string | null
+          delivery_method: OnboardingDeliveryMethod
+          signer_email: string | null
+          requested_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          sign_token?: string | null
+          sign_expires_at?: string | null
+          delivery_method: OnboardingDeliveryMethod
+          signer_email?: string | null
+          requested_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          sign_token?: string | null
+          sign_expires_at?: string | null
+          delivery_method?: OnboardingDeliveryMethod
+          signer_email?: string | null
+          requested_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_onboarding_packets_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_onboarding_packets_coach_id_fkey'
             columns: ['coach_id']
             isOneToOne: false
             referencedRelation: 'profiles'
@@ -3899,6 +4055,28 @@ export type Database = {
           email: string
         }[]
       }
+      get_onboarding_sign_preview: {
+        Args: { p_token: string }
+        Returns: {
+          packet_id: string
+          client_id: string
+          client_name: string
+          coach_name: string
+          signer_email: string | null
+          delivery_method: OnboardingDeliveryMethod
+          expires_at: string | null
+        }[]
+      }
+      get_onboarding_sign_documents: {
+        Args: { p_token: string }
+        Returns: {
+          request_id: string
+          document_name: string
+          document_type: OnboardingDocumentType
+          sort_order: number
+          status: DocumentSigningStatus
+        }[]
+      }
       link_client_invite: {
         Args: { p_token: string; p_user_id: string; p_email: string }
         Returns: string
@@ -4335,6 +4513,7 @@ export type WorkoutLogData = ClientScheduledWorkoutWithExercises & {
   previousSetsByExerciseId: Record<string, ExercisePreviousSets>
   previousSessionDateByExerciseId: Record<string, string | null>
   personalBestsByExerciseId: Record<string, ExercisePersonalBest>
+  progressiveOverloadEnabled: boolean
 }
 
 export type ExerciseHistorySet = {
@@ -4459,6 +4638,27 @@ export type CoachMessageTemplateInsert =
   Database['public']['Tables']['coach_message_templates']['Insert']
 export type CoachMessageTemplateUpdate =
   Database['public']['Tables']['coach_message_templates']['Update']
+
+export type CoachOnboardingDocument =
+  Database['public']['Tables']['coach_onboarding_documents']['Row']
+export type CoachOnboardingDocumentInsert =
+  Database['public']['Tables']['coach_onboarding_documents']['Insert']
+export type CoachOnboardingDocumentUpdate =
+  Database['public']['Tables']['coach_onboarding_documents']['Update']
+
+export type ClientOnboardingPacket =
+  Database['public']['Tables']['client_onboarding_packets']['Row']
+export type ClientOnboardingPacketInsert =
+  Database['public']['Tables']['client_onboarding_packets']['Insert']
+export type ClientOnboardingPacketUpdate =
+  Database['public']['Tables']['client_onboarding_packets']['Update']
+
+export type ClientDocumentSigningRequest =
+  Database['public']['Tables']['client_document_signing_requests']['Row']
+export type ClientDocumentSigningRequestInsert =
+  Database['public']['Tables']['client_document_signing_requests']['Insert']
+export type ClientDocumentSigningRequestUpdate =
+  Database['public']['Tables']['client_document_signing_requests']['Update']
 
 export type ClientInbodyScan =
   Database['public']['Tables']['client_inbody_scans']['Row']

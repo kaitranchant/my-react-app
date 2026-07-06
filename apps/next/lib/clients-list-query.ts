@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
 import { sortByLastName } from '@/lib/person-name'
+import { fetchPendingOnboardingCountsByClientId } from '@/lib/onboarding-data'
 import { clientStatuses } from '@/lib/validations/client'
 import type {
   Client,
@@ -43,6 +44,7 @@ export type ClientsListPageData = {
   teamsByClientId: Record<string, ClientTeamMembership[]>
   gymNamesById: Record<string, string>
   coachNamesById: Record<string, string>
+  pendingOnboardingDocsByClientId: Record<string, number>
   page: number
   totalPages: number
   totalCount: number
@@ -112,6 +114,7 @@ export async function fetchClientsForListPage(
         coachGyms.map((gym) => [gym.id, gym.name])
       ),
       coachNamesById: {},
+      pendingOnboardingDocsByClientId: {},
       page,
       totalPages,
       totalCount,
@@ -132,6 +135,7 @@ export async function fetchClientsForListPage(
         coachGyms.map((gym) => [gym.id, gym.name])
       ),
       coachNamesById: {},
+      pendingOnboardingDocsByClientId: {},
       page,
       totalPages,
       totalCount,
@@ -171,7 +175,8 @@ export async function fetchClientsForListPage(
     )
   )
 
-  const [coachResult, gymResult, memberResult] = await Promise.all([
+  const [coachResult, gymResult, memberResult, pendingOnboardingDocsByClientId] =
+    await Promise.all([
     otherCoachIds.length > 0
       ? supabase
           .from('profiles')
@@ -185,6 +190,9 @@ export async function fetchClientsForListPage(
       .from('team_members')
       .select('client_id, team:teams(id, name)')
       .in('client_id', sortedIds),
+    userId
+      ? fetchPendingOnboardingCountsByClientId(supabase, sortedIds, userId)
+      : Promise.resolve({} as Record<string, number>),
   ])
 
   for (const coach of coachResult.data ?? []) {
@@ -212,6 +220,7 @@ export async function fetchClientsForListPage(
     teamsByClientId: Object.fromEntries(teamsByClientId),
     gymNamesById: Object.fromEntries(gymNamesById),
     coachNamesById: Object.fromEntries(coachNamesById),
+    pendingOnboardingDocsByClientId,
     page,
     totalPages,
     totalCount,

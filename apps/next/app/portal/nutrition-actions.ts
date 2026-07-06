@@ -12,10 +12,12 @@ import { requirePortalClientContext } from '@/lib/portal-client'
 import {
   clientNutritionNotesSchema,
   foodDiaryEntryFormSchema,
+  foodDiaryEntriesBatchSchema,
   nutritionLogFormSchema,
   nutritionSetupFormSchema,
   type ClientNutritionNotesFormValues,
   type FoodDiaryEntryFormValues,
+  type FoodDiaryEntriesBatchValues,
   type NutritionLogFormValues,
   type NutritionSetupFormValues,
 } from '@/lib/validations/nutrition'
@@ -94,21 +96,68 @@ export async function addFoodDiaryEntry(
     return { success: false, error: 'Client profile not found.' }
   }
 
-  const { error } = await ctx.supabase.from('client_food_diary_entries').insert({
-    client_id: ctx.client.id,
-    coach_id: coachClient.coach_id,
-    log_date: parsed.data.logDate,
-    meal_type: parsed.data.mealType,
-    food_name: parsed.data.foodName,
-    source: parsed.data.source ?? null,
-    external_id: parsed.data.externalId ?? null,
-    quantity_g: parsed.data.quantityG ?? null,
-    calories_kcal: parsed.data.caloriesKcal,
-    protein_g: parsed.data.proteinG,
-    carbs_g: parsed.data.carbsG,
-    fat_g: parsed.data.fatG,
-    fiber_g: parsed.data.fiberG,
-  })
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert(
+    foodDiaryEntryToRow(parsed.data, ctx.client.id, coachClient.coach_id)
+  )
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+function foodDiaryEntryToRow(
+  values: FoodDiaryEntryFormValues,
+  clientId: string,
+  coachId: string
+) {
+  return {
+    client_id: clientId,
+    coach_id: coachId,
+    log_date: values.logDate,
+    meal_type: values.mealType,
+    food_name: values.foodName,
+    source: values.source ?? null,
+    external_id: values.externalId ?? null,
+    quantity_g: values.quantityG ?? null,
+    calories_kcal: values.caloriesKcal,
+    protein_g: values.proteinG,
+    carbs_g: values.carbsG,
+    fat_g: values.fatG,
+    fiber_g: values.fiberG,
+  }
+}
+
+export async function addFoodDiaryEntries(
+  values: FoodDiaryEntriesBatchValues
+): Promise<ActionResult> {
+  const parsed = foodDiaryEntriesBatchSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: coachClient, error: clientError } = await ctx.supabase
+    .from('clients')
+    .select('coach_id')
+    .eq('id', ctx.client.id)
+    .maybeSingle()
+
+  if (clientError || !coachClient?.coach_id) {
+    return { success: false, error: 'Client profile not found.' }
+  }
+
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert(
+    parsed.data.map((entry) =>
+      foodDiaryEntryToRow(entry, ctx.client.id, coachClient.coach_id)
+    )
+  )
 
   if (error) {
     return { success: false, error: error.message }

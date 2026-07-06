@@ -13,7 +13,7 @@ export async function getCoachPreferencesForUser(
   const { data } = await supabase
     .from('profiles')
     .select(
-      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view'
     )
     .eq('id', userId)
     .maybeSingle()
@@ -28,7 +28,7 @@ export async function getCoachPreferencesForCoachId(
   const { data } = await supabase
     .from('profiles')
     .select(
-      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view'
     )
     .eq('id', coachId)
     .maybeSingle()

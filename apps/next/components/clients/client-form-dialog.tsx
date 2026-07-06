@@ -19,6 +19,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -46,6 +47,7 @@ import { ClientAvatarUpload } from '@/components/clients/client-avatar'
 import { ClientCoachingTypeField } from '@/components/clients/client-coaching-type-field'
 import { ClientLeaderboardProfileFields } from '@/components/clients/client-leaderboard-profile-fields'
 import { ClientAccountEmailActions } from '@/components/clients/client-account-email-actions'
+import { SettingsToggle } from '@/components/settings/settings-toggle'
 import type { Client } from 'app/types/database'
 
 function FormSection({
@@ -86,6 +88,7 @@ function clientToFormValues(client: Client): ClientFormValues {
     biologicalSex: client.biological_sex ?? 'none',
     leaderboardOptOut: client.leaderboard_opt_out ?? false,
     weeklySessionTarget: client.weekly_session_target ?? null,
+    progressiveOverloadEnabled: client.progressive_overload_enabled ?? false,
   }
 }
 
@@ -312,6 +315,33 @@ export function ClientFormDialog({
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="progressiveOverloadEnabled"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                      <div className="space-y-1">
+                        <FormLabel>Progressive overload</FormLabel>
+                        <FormDescription>
+                          When enabled, load-increase suggestions appear in your
+                          Progressive overload inbox after this client hits all rep
+                          targets.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <SettingsToggle
+                          checked={Boolean(field.value)}
+                          onCheckedChange={field.onChange}
+                          label="Progressive overload"
+                        />
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

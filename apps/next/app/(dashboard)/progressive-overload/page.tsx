@@ -17,7 +17,7 @@ export default async function ProgressiveOverloadPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <PageHeader
           title="Progressive overload"
-          description="Review suggested load increases from last week's sessions. Approve to set target weights on upcoming auto-progress exercises."
+          description="Review suggested load increases from last week's sessions. Approve to set target weights on upcoming weighted exercises for clients with progressive overload enabled."
         />
         <UpgradePrompt gate={gate} />
       </div>
@@ -45,7 +45,7 @@ export default async function ProgressiveOverloadPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <PageHeader
         title="Progressive overload"
-        description="Review suggested load increases from last week's sessions. Approve to set target weights on upcoming auto-progress exercises."
+        description="Review suggested load increases from last week's sessions. Approve to set target weights on upcoming weighted exercises for clients with progressive overload enabled."
       />
 
       <ProgressiveOverloadInbox

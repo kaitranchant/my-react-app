@@ -45,7 +45,7 @@ describe('buildSuggestionFromSession', () => {
         reps: '5',
         prescription: null,
         weight_percent: null,
-        tracking_options: { autoProgressLoad: true },
+        tracking_options: {},
         exercise: { id: 'exercise-1', name: 'Back Squat' },
       },
       {
@@ -53,7 +53,12 @@ describe('buildSuggestionFromSession', () => {
         2: { weight: 185, reps: 5 },
         3: { weight: 185, reps: 5 },
       },
-      { id: 'client-1', full_name: 'Alex', avatar_url: null },
+      {
+        id: 'client-1',
+        full_name: 'Alex',
+        avatar_url: null,
+        progressive_overload_enabled: true,
+      },
       2
     )
 
@@ -79,7 +84,7 @@ describe('buildSuggestionFromSession', () => {
         reps: '5',
         prescription: null,
         weight_percent: '75',
-        tracking_options: { autoProgressLoad: true },
+        tracking_options: {},
         exercise: { id: 'exercise-1', name: 'Back Squat' },
       },
       {
@@ -87,7 +92,48 @@ describe('buildSuggestionFromSession', () => {
         2: { weight: 185, reps: 5 },
         3: { weight: 185, reps: 5 },
       },
-      { id: 'client-1', full_name: 'Alex', avatar_url: null },
+      {
+        id: 'client-1',
+        full_name: 'Alex',
+        avatar_url: null,
+        progressive_overload_enabled: true,
+      },
+      1
+    )
+
+    assert.equal(suggestion, null)
+  })
+
+  it('skips clients with progressive overload disabled', () => {
+    const suggestion = buildSuggestionFromSession(
+      {
+        id: 'workout-1',
+        name: 'Lower A',
+        scheduled_date: '2026-06-12',
+        client_id: 'client-1',
+        exercises: null,
+      },
+      {
+        id: 'row-1',
+        exercise_id: 'exercise-1',
+        sets: '3',
+        reps: '5',
+        prescription: null,
+        weight_percent: null,
+        tracking_options: {},
+        exercise: { id: 'exercise-1', name: 'Back Squat' },
+      },
+      {
+        1: { weight: 185, reps: 5 },
+        2: { weight: 185, reps: 5 },
+        3: { weight: 185, reps: 5 },
+      },
+      {
+        id: 'client-1',
+        full_name: 'Alex',
+        avatar_url: null,
+        progressive_overload_enabled: false,
+      },
       1
     )
 

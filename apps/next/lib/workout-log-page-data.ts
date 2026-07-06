@@ -60,6 +60,7 @@ export async function getCoachWorkoutLogPageProps({
     >[],
     variant: 'coach' as const,
     weightUnit: coachPreferences.weightUnit,
+    defaultSessionViewMode: coachPreferences.defaultWorkoutLogView,
     returnHref: getWorkoutLogReturnHref(selectedDate, {
       variant: 'coach',
       clientId,

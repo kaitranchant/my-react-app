@@ -11,6 +11,7 @@ export const coachClientNotificationPreferenceKeys = [
   'sendClientCheckInReminders',
   'sendClientUnreadDigest',
   'sendClientAppointmentReminders',
+  'sendClientOnboardingDocuments',
 ] as const
 
 export type CoachClientNotificationPreferenceKey =
@@ -27,6 +28,7 @@ export const coachClientNotificationPreferencesSchema = z.object({
   sendClientCheckInReminders: z.boolean(),
   sendClientUnreadDigest: z.boolean(),
   sendClientAppointmentReminders: z.boolean(),
+  sendClientOnboardingDocuments: z.boolean(),
 })
 
 export type CoachClientNotificationPreferencesValues = z.infer<

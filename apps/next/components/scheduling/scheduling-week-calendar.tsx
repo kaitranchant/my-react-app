@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { getWeekDayLabels, parseDateKey } from '@/lib/calendar'
 import { resolveCoachTimezone, type CoachPreferences } from '@/lib/coach-preferences'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
+import { hideBlockedTimesOverlappingAppointments } from '@/lib/google-calendar/blocked-times-filter'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import {
@@ -343,13 +344,18 @@ export function SchedulingWeekCalendar({
     return map
   }, [appointments, coachPreferences.timezone, weekDays])
 
+  const visibleBlockedTimes = React.useMemo(
+    () => hideBlockedTimesOverlappingAppointments(googleBlockedTimes, appointments),
+    [appointments, googleBlockedTimes]
+  )
+
   const blockedTimesByDay = React.useMemo(() => {
     const map = new Map<string, GoogleCalendarBlockedTime[]>()
     for (const day of weekDays) {
       map.set(day.dateKey, [])
     }
 
-    for (const blockedTime of googleBlockedTimes) {
+    for (const blockedTime of visibleBlockedTimes) {
       const dateKey = getDateKeyFromInstant(
         blockedTime.startsAt,
         coachPreferences.timezone
@@ -367,7 +373,7 @@ export function SchedulingWeekCalendar({
     }
 
     return map
-  }, [googleBlockedTimes, coachPreferences.timezone, weekDays])
+  }, [coachPreferences.timezone, visibleBlockedTimes, weekDays])
 
   const visibleDays = isMobile
     ? weekDays.slice(dayWindowStart, dayWindowStart + MOBILE_DAYS_VISIBLE)
@@ -426,7 +432,7 @@ export function SchedulingWeekCalendar({
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1">
-        {googleBlockedTimes.length > 0 ? (
+        {visibleBlockedTimes.length > 0 ? (
           <Badge variant="outline" className={cn('font-normal', blockedTimeClassName)}>
             Google Calendar busy
           </Badge>

@@ -7,6 +7,7 @@ import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import { hasNutritionTargets } from '@/lib/nutrition'
 import { averageAdherenceScore } from '@/lib/nutrition-trends'
+import { fetchClientOnboardingDocumentsSummary } from '@/lib/onboarding-data'
 import { ClientDetailOverviewSection } from '@/components/clients/client-detail-overview-section'
 import type {
   CalendarDaySummary,
@@ -53,6 +54,7 @@ export async function ClientDetailOverviewPanel({
     activeMealPlanResult,
     recentNutritionLogsResult,
     todayNutritionLogResult,
+    onboardingDocuments,
   ] = await Promise.all([
     supabase
       .from('program_assignments')
@@ -113,6 +115,9 @@ export async function ClientDetailOverviewPanel({
       .eq('client_id', clientId)
       .eq('log_date', coachTodayKey)
       .maybeSingle(),
+    coachUserId
+      ? fetchClientOnboardingDocumentsSummary(supabase, clientId, coachUserId)
+      : Promise.resolve({ packets: [], requests: [], signedPdfUrls: {} }),
   ])
 
   const activeAssignment = assignmentData
@@ -161,6 +166,7 @@ export async function ClientDetailOverviewPanel({
       trainingConsistency={trainingConsistency}
       coachPreferences={coachPreferences}
       nutritionSnapshot={nutritionSnapshot}
+      onboardingDocuments={onboardingDocuments}
     />
   )
 }

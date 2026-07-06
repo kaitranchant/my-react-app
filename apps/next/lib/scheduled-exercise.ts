@@ -148,7 +148,6 @@ export function getExerciseOptionBadges(
   if (options.coachCompletes) badges.push('Coach logs')
   if (options.trackBarSpeed) badges.push('Bar speed')
   if (options.trackPeakPower) badges.push('Peak power')
-  if (options.autoProgressLoad) badges.push('Auto progress')
   if (options.forcePrUpdate) badges.push('Force PR')
   if (options.disablePrTracking) badges.push('No PR track')
 

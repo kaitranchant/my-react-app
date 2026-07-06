@@ -106,11 +106,6 @@ describe('auto-fill from previous session', () => {
   it('prefers progressive overload over previous-session weight when enabled', () => {
     const exercise = baseExercise({
       reps: '5',
-      weight_percent: '75',
-      tracking_options: {
-        ...baseExercise().tracking_options,
-        autoProgressLoad: true,
-      },
     })
 
     const previousSets = {
@@ -123,7 +118,10 @@ describe('auto-fill from previous session', () => {
       exercise,
       1,
       previousSets,
-      { personalBest: { e1rm: 300, topSetWeight: 225, topSetReps: 3 } }
+      {
+        personalBest: { e1rm: 300, topSetWeight: 225, topSetReps: 3 },
+        progressiveOverloadEnabled: true,
+      }
     )
 
     assert.equal(suggested.weight, '187.5')

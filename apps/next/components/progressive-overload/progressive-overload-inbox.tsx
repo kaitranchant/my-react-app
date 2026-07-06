@@ -141,7 +141,7 @@ export function ProgressiveOverloadInbox({
       <EmptyState
         icon={TrendingUp}
         title="No load increases to review"
-        description={`When clients hit all rep targets last week on auto-progress exercises, suggested bumps will appear here for your approval.`}
+        description={`When clients with progressive overload enabled hit all rep targets last week, suggested bumps will appear here for your approval.`}
       />
     )
   }
@@ -232,7 +232,7 @@ export function ProgressiveOverloadInbox({
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     Client hit all prescribed reps at{' '}
                     {formatTargetWeight(suggestion.previousWeight, weightUnit)}. Approving
-                    sets that target on upcoming auto-progress sessions this week.
+                    sets that target on upcoming sessions this week.
                   </p>
 
                   <div className="flex flex-wrap gap-2">

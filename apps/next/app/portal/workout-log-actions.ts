@@ -18,6 +18,7 @@ import {
 import {
   exerciseLogNotesSchema,
   saveWorkoutLogSetsSchema,
+  type WorkoutLogExerciseMetaValues,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
 import type { WorkoutLogData } from 'app/types/database'
@@ -100,6 +101,7 @@ export async function getPortalWorkoutLogData(
       previousSetsByExerciseId,
       previousSessionDateByExerciseId,
       personalBestsByExerciseId,
+      progressiveOverloadEnabled: client.progressive_overload_enabled ?? false,
     },
   }
 }
@@ -182,9 +184,16 @@ export async function stopPortalWorkoutLog(
 export async function savePortalWorkoutLogSets(
   workoutId: string,
   sets: WorkoutLogSetValues[],
-  options?: { revalidate?: boolean }
+  options?: {
+    revalidate?: boolean
+    exerciseMeta?: WorkoutLogExerciseMetaValues[]
+  }
 ): Promise<ActionResult> {
-  const parsed = saveWorkoutLogSetsSchema.safeParse({ workoutId, sets })
+  const parsed = saveWorkoutLogSetsSchema.safeParse({
+    workoutId,
+    sets,
+    exerciseMeta: options?.exerciseMeta,
+  })
   if (!parsed.success) {
     return { success: false, error: 'Invalid workout log data.' }
   }
@@ -224,6 +233,23 @@ export async function savePortalWorkoutLogSets(
 
     if (error) {
       return { success: false, error: error.message }
+    }
+  }
+
+  if (parsed.data.exerciseMeta?.length) {
+    for (const entry of parsed.data.exerciseMeta) {
+      if (!exerciseIds.has(entry.scheduledExerciseId)) {
+        return { success: false, error: 'Exercise not found in this workout.' }
+      }
+
+      const { error } = await supabase
+        .from('scheduled_workout_exercises')
+        .update({ perceived_rpe: entry.perceivedRpe })
+        .eq('id', entry.scheduledExerciseId)
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
     }
   }
 

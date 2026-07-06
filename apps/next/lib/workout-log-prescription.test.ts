@@ -97,31 +97,26 @@ describe('progressive overload suggestions', () => {
     )
   })
 
-  it('suggests a 2.5 lb increase when auto progress is enabled', () => {
-    const exercise = baseExercise({
-      tracking_options: {
-        ...baseExercise().tracking_options,
-        autoProgressLoad: true,
-      },
-    })
+  it('suggests a 2.5 lb increase when progressive overload is enabled', () => {
+    const exercise = baseExercise()
 
     assert.equal(
-      suggestProgressiveLoadWeight(exercise, {
-        1: { weight: 185, reps: 5 },
-        2: { weight: 185, reps: 5 },
-        3: { weight: 185, reps: 5 },
-      }),
+      suggestProgressiveLoadWeight(
+        exercise,
+        {
+          1: { weight: 185, reps: 5 },
+          2: { weight: 185, reps: 5 },
+          3: { weight: 185, reps: 5 },
+        },
+        true
+      ),
       187.5
     )
   })
 
-  it('prefers progressive overload over percent-of-1RM when history exists', () => {
+  it('skips progressive load for percent-based prescriptions', () => {
     const exercise = baseExercise({
       weight_percent: '75',
-      tracking_options: {
-        ...baseExercise().tracking_options,
-        autoProgressLoad: true,
-      },
     })
 
     const suggested = getSuggestedLogValuesForSet(
@@ -132,10 +127,13 @@ describe('progressive overload suggestions', () => {
         2: { weight: 185, reps: 5 },
         3: { weight: 185, reps: 5 },
       },
-      { personalBest: { e1rm: 247, topSetWeight: 225, topSetReps: 3 } }
+      {
+        personalBest: { e1rm: 247, topSetWeight: 225, topSetReps: 3 },
+        progressiveOverloadEnabled: true,
+      }
     )
 
-    assert.equal(suggested.weight, '187.5')
+    assert.equal(suggested.weight, '185')
     assert.equal(suggested.reps, '5')
   })
 })

@@ -566,6 +566,7 @@ async function fetchProgramWorkoutWithExercises(
       ...row,
       scheduled_workout_id: row.program_scheduled_workout_id,
       client_notes: null,
+      perceived_rpe: null,
     }))
   } else if (
     exercisesError &&
@@ -596,6 +597,7 @@ async function fetchProgramWorkoutWithExercises(
             ...row,
             scheduled_workout_id: row.program_scheduled_workout_id,
             client_notes: null,
+            perceived_rpe: null,
             exercise,
           }
         })

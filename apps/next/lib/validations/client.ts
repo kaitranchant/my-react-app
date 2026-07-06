@@ -30,6 +30,7 @@ export const clientFormSchema = z.object({
     .optional(),
   leaderboardOptOut: z.boolean().optional(),
   weeklySessionTarget: z.number().int().min(1).max(14).nullable().optional(),
+  progressiveOverloadEnabled: z.boolean().optional(),
 })
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>
@@ -51,6 +52,7 @@ export const clientFormDefaults: ClientFormValues = {
   biologicalSex: 'none',
   leaderboardOptOut: false,
   weeklySessionTarget: null,
+  progressiveOverloadEnabled: false,
 }
 
 export const inviteClientSchema = z.object({

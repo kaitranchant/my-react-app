@@ -49,6 +49,14 @@ const checkInFrequencyLabels: Record<
   biweekly: 'Bi-weekly',
 }
 
+const workoutLogViewLabels: Record<
+  CoachingPreferencesValues['defaultWorkoutLogView'],
+  string
+> = {
+  guided: 'Guided (one exercise at a time)',
+  list: 'List (all exercises)',
+}
+
 export function CoachingPreferencesForm({
   defaultValues,
 }: {
@@ -172,6 +180,35 @@ export function CoachingPreferencesForm({
                     {checkInFrequencies.map((frequency) => (
                       <SelectItem key={frequency} value={frequency}>
                         {checkInFrequencyLabels[frequency]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Default workout log view"
+          description="How workouts open on mobile when you log sessions for clients."
+        >
+          <FormField
+            control={form.control}
+            name="defaultWorkoutLogView"
+            render={({ field }) => (
+              <FormItem>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.entries(workoutLogViewLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectContent>

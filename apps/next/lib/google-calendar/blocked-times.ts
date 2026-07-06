@@ -3,6 +3,7 @@ import {
 } from '@/lib/google-calendar/api'
 import {
   filterGoogleCalendarBlockedTimes,
+  CALENDAR_OCCUPYING_APPOINTMENT_STATUSES,
   type GoogleCalendarBlockedTime,
 } from '@/lib/google-calendar/blocked-times-filter'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
@@ -35,7 +36,7 @@ export async function fetchGoogleCalendarBlockedTimes(
         .from('coaching_appointments')
         .select('starts_at, ends_at, google_calendar_event_id')
         .eq('coach_id', coachId)
-        .eq('status', 'scheduled')
+        .in('status', [...CALENDAR_OCCUPYING_APPOINTMENT_STATUSES])
         .lt('starts_at', timeMax)
         .gt('ends_at', timeMin),
     ])

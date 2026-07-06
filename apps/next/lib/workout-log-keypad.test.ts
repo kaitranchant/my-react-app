@@ -10,6 +10,7 @@ import {
   calculatePlatesPerSide,
   canNavigateSet,
   getCopyValuesForSet,
+  getPreviousSessionCopyValuesForSet,
   getAdjacentSetKeypadTarget,
   getNextKeypadTarget,
   getVisibleKeypadFields,
@@ -246,6 +247,22 @@ describe('workout-log-keypad', () => {
     assert.deepEqual(
       getCopyValuesForSet(1, sets, { 1: { weight: 30, reps: 20 } }, weightRepsFields),
       { weight: '30', reps: '20' }
+    )
+  })
+
+  it('copies previous session values for a set', () => {
+    assert.deepEqual(
+      getPreviousSessionCopyValuesForSet(
+        2,
+        { 1: { weight: 135, reps: 5 }, 2: { weight: 140, reps: 5 } },
+        weightRepsFields
+      ),
+      { weight: '140', reps: '5' }
+    )
+
+    assert.deepEqual(
+      getPreviousSessionCopyValuesForSet(3, { 1: { weight: 135, reps: 5 } }, weightRepsFields),
+      { weight: '135', reps: '5' }
     )
   })
 

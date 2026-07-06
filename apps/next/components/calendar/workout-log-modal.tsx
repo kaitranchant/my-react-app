@@ -13,6 +13,7 @@ import {
   LayoutList,
   Loader2,
   MoreVertical,
+  PanelLeft,
   PlayCircle,
   Plus,
   StickyNote,
@@ -63,6 +64,7 @@ import {
 import { WorkoutLogSetField } from '@/components/workout/workout-log-set-field'
 import { WorkoutLogSwipeableSetRow } from '@/components/workout/workout-log-swipeable-set-row'
 import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
+import { GuidedWorkoutExerciseNavSheet } from '@/components/workout/guided-workout-exercise-nav-sheet'
 import {
   RestTimerChip,
   RestTimerProvider,
@@ -75,11 +77,15 @@ import {
 } from '@/components/calendar/workout-elapsed-timer'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import {
+  burstStabilizeViewportScroll,
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
 import { usePreferWorkoutLogKeypad } from '@/lib/hooks/use-prefer-workout-log-keypad'
+import { getPreviousSessionCopyValuesForSet } from '@/lib/workout-log-keypad'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -120,6 +126,7 @@ import {
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
+  exerciseHasRpeTarget,
   findResumeExerciseIndex,
   formatPreviousPerformance,
   getPreviousDistanceMeters,
@@ -137,6 +144,7 @@ import {
   getSupersetColor,
   getWorkoutDisplayStatus,
   groupExercisesBySection,
+  isGuidedWorkoutSessionEligible,
   parseWeightPercent,
   parseTargetWeight,
   previousSessionMetTargets,
@@ -182,6 +190,7 @@ type WorkoutLogBaseProps = {
   variant?: 'coach' | 'client'
   weightUnit?: WeightUnit
   athleteName?: string
+  defaultSessionViewMode?: 'guided' | 'list'
 }
 
 export type WorkoutLogScreenProps = WorkoutLogBaseProps & {
@@ -197,12 +206,14 @@ type WorkoutLogModalProps = WorkoutLogBaseProps & {
 }
 
 type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
+type ExerciseMetaState = Record<string, string>
 
 function buildExerciseState(
   exercises: ScheduledWorkoutExerciseWithDetails[],
   logSets: WorkoutLogSet[],
   previousSetsByExerciseId: Record<string, ExercisePreviousSets> = {},
-  personalBestsByExerciseId: Record<string, ExercisePersonalBest> = {}
+  personalBestsByExerciseId: Record<string, ExercisePersonalBest> = {},
+  progressiveOverloadEnabled = false
 ): ExerciseLogState {
   const setsByExercise = new Map<string, WorkoutLogSet[]>()
 
@@ -218,7 +229,8 @@ function buildExerciseState(
       exercise,
       setsByExercise.get(exercise.id) ?? [],
       previousSetsByExerciseId[exercise.exercise_id] ?? {},
-      personalBestsByExerciseId[exercise.exercise_id] ?? null
+      personalBestsByExerciseId[exercise.exercise_id] ?? null,
+      progressiveOverloadEnabled
     )
   }
   return state
@@ -245,9 +257,38 @@ function resolveExerciseMediaFields(
   }
 }
 
-function serializeExerciseStateForSave(state: ExerciseLogState): string {
-  return JSON.stringify(
-    Object.entries(state)
+function buildExerciseMetaState(
+  exercises: ScheduledWorkoutExerciseWithDetails[]
+): ExerciseMetaState {
+  const meta: ExerciseMetaState = {}
+
+  for (const exercise of exercises) {
+    if (exerciseHasRpeTarget(exercise)) {
+      meta[exercise.id] = exercise.perceived_rpe ?? ''
+    }
+  }
+
+  return meta
+}
+
+function buildExerciseMetaPayload(
+  meta: ExerciseMetaState,
+  exercises: ScheduledWorkoutExerciseWithDetails[]
+) {
+  return exercises
+    .filter((exercise) => exerciseHasRpeTarget(exercise))
+    .map((exercise) => ({
+      scheduledExerciseId: exercise.id,
+      perceivedRpe: meta[exercise.id]?.trim() ? meta[exercise.id]!.trim() : null,
+    }))
+}
+
+function serializeWorkoutLogForSave(
+  state: ExerciseLogState,
+  meta: ExerciseMetaState
+): string {
+  return JSON.stringify({
+    sets: Object.entries(state)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([exerciseId, sets]) => [
         exerciseId,
@@ -262,17 +303,39 @@ function serializeExerciseStateForSave(state: ExerciseLogState): string {
           completed: set.completed,
           notes: set.notes,
         })),
-      ])
-  )
+      ]),
+    meta: Object.entries(meta)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([exerciseId, perceivedRpe]) => [exerciseId, perceivedRpe]),
+  })
 }
 
-function parseSerializedExerciseState(serialized: string): ExerciseLogState {
-  if (!serialized) return {}
+function parseSerializedWorkoutLog(serialized: string): {
+  sets: ExerciseLogState
+  meta: ExerciseMetaState
+} {
+  if (!serialized) {
+    return { sets: {}, meta: {} }
+  }
+
   try {
-    const entries = JSON.parse(serialized) as [string, WorkoutLogSetDraft[]][]
-    return Object.fromEntries(entries)
+    const parsed = JSON.parse(serialized) as
+      | {
+          sets: [string, WorkoutLogSetDraft[]][]
+          meta?: [string, string][]
+        }
+      | [string, WorkoutLogSetDraft[]][]
+
+    if (Array.isArray(parsed)) {
+      return { sets: Object.fromEntries(parsed), meta: {} }
+    }
+
+    return {
+      sets: Object.fromEntries(parsed.sets ?? []),
+      meta: Object.fromEntries(parsed.meta ?? []),
+    }
   } catch {
-    return {}
+    return { sets: {}, meta: {} }
   }
 }
 
@@ -281,6 +344,14 @@ function stateWithoutExercise(
   exerciseId: string
 ): ExerciseLogState {
   const { [exerciseId]: _, ...rest } = state
+  return rest
+}
+
+function metaWithoutExercise(
+  meta: ExerciseMetaState,
+  exerciseId: string
+): ExerciseMetaState {
+  const { [exerciseId]: _, ...rest } = meta
   return rest
 }
 
@@ -334,10 +405,13 @@ type WorkoutLogExerciseProps = {
   onReplace: () => void
   onDelete: () => void
   onNotesChanged: (notes: string) => void
+  perceivedRpe?: string
+  onPerceivedRpeChange?: (value: string) => void
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
   className?: string
   guidedLayout?: boolean
+  progressiveOverloadEnabled?: boolean
 }
 
 function WorkoutLogExercise({
@@ -359,10 +433,13 @@ function WorkoutLogExercise({
   onReplace,
   onDelete,
   onNotesChanged,
+  perceivedRpe = '',
+  onPerceivedRpeChange,
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
   className,
   guidedLayout = false,
+  progressiveOverloadEnabled = false,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -384,6 +461,7 @@ function WorkoutLogExercise({
   const keypad = useWorkoutLogKeypad()
 
   const summary = formatExercisePrescriptionSummary(exercise)
+  const showRpeInput = exerciseHasRpeTarget(exercise)
   const currentE1rm =
     prTrackingEnabled && fields.showWeight && fields.showReps
       ? getBestE1rmFromDrafts(sets)
@@ -403,9 +481,13 @@ function WorkoutLogExercise({
       : null
   const progressiveLoadWeight =
     approvedTargetWeight == null &&
-    trackingOptions.autoProgressLoad &&
+    progressiveOverloadEnabled &&
     previousSessionMetTargets(exercise, previousSets)
-      ? suggestProgressiveLoadWeight(exercise, previousSets)
+      ? suggestProgressiveLoadWeight(
+          exercise,
+          previousSets,
+          progressiveOverloadEnabled
+        )
       : null
   const isLivePr =
     currentE1rm != null &&
@@ -516,6 +598,16 @@ function WorkoutLogExercise({
 
   function handleConfirmAll() {
     handleMarkAll()
+  }
+
+  function handleCopyPreviousSession(setNumber: number) {
+    const patch = getPreviousSessionCopyValuesForSet(
+      setNumber,
+      previousSets,
+      fields
+    )
+    if (Object.keys(patch).length === 0) return
+    handleLocalSetChange(setNumber, { ...patch, predicted: false })
   }
 
   function canConfirmSet(set: WorkoutLogSetDraft): boolean {
@@ -812,6 +904,36 @@ function WorkoutLogExercise({
           </div>
         </div>
 
+        {showRpeInput ? (
+          <div className="mt-3 grid gap-1.5 sm:max-w-xs">
+            <Label htmlFor={`${exercise.id}-perceived-rpe`}>
+              Perceived RPE
+              {exercise.rpe_target?.trim() ? (
+                <span className="text-muted-foreground font-normal">
+                  {' '}
+                  (target {exercise.rpe_target.trim()})
+                </span>
+              ) : null}
+            </Label>
+            {readOnly ? (
+              <p className="text-sm font-medium tabular-nums">
+                {perceivedRpe.trim() || '—'}
+              </p>
+            ) : (
+              <Input
+                id={`${exercise.id}-perceived-rpe`}
+                value={perceivedRpe}
+                onChange={(event) => onPerceivedRpeChange?.(event.target.value)}
+                placeholder="e.g. 8"
+                maxLength={20}
+                className="h-9"
+                inputMode="decimal"
+                aria-label={`Perceived RPE for ${exercise.exercise.name}`}
+              />
+            )}
+          </div>
+        ) : null}
+
         <div className="mt-3 space-y-3">
             {showSetTable ? (
               <div className="bg-muted/25 overflow-hidden rounded-xl border">
@@ -893,7 +1015,32 @@ function WorkoutLogExercise({
                               {set.targetLabel ?? '—'}
                             </span>
                           ) : (
-                            <span className="bg-background/80 text-muted-foreground min-w-0 truncate rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-xs">
+                            <button
+                              type="button"
+                              disabled={readOnly || !previous}
+                              onClick={() => handleCopyPreviousSession(set.setNumber)}
+                              className={cn(
+                                'bg-background/80 text-muted-foreground min-w-0 truncate rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-xs',
+                                !readOnly &&
+                                  previous &&
+                                  'hover:bg-muted hover:text-foreground cursor-pointer transition-colors',
+                                (readOnly || !previous) && 'cursor-default'
+                              )}
+                              aria-label={
+                                previous
+                                  ? `Use previous performance: ${formatPreviousPerformance(
+                                      previous.weight,
+                                      fields.showReps ? previous.reps : null,
+                                      fields.showDuration
+                                        ? getPreviousDurationSeconds(previous)
+                                        : undefined,
+                                      fields.showDistance
+                                        ? getPreviousDistanceMeters(previous)
+                                        : undefined
+                                    )}`
+                                  : 'No previous performance'
+                              }
+                            >
                               {previous
                                 ? formatPreviousPerformance(
                                     previous.weight,
@@ -906,7 +1053,7 @@ function WorkoutLogExercise({
                                       : undefined
                                   )
                                 : '—'}
-                            </span>
+                            </button>
                           )}
 
                           {fields.showWeight && (
@@ -1194,6 +1341,7 @@ export function WorkoutLogScreen({
   variant = 'coach',
   weightUnit = 'lbs',
   athleteName,
+  defaultSessionViewMode = 'guided',
 }: WorkoutLogScreenProps) {
   const router = useRouter()
   const preferWorkoutLogKeypad = usePreferWorkoutLogKeypad()
@@ -1205,10 +1353,13 @@ export function WorkoutLogScreen({
   const [schemaError, setSchemaError] = React.useState<string | null>(null)
   const [data, setData] = React.useState<WorkoutLogData | null>(null)
   const [exerciseState, setExerciseState] = React.useState<ExerciseLogState>({})
+  const [exerciseMetaState, setExerciseMetaState] =
+    React.useState<ExerciseMetaState>({})
   const [activeSectionIndex, setActiveSectionIndex] = React.useState(0)
   const [activeExerciseIndex, setActiveExerciseIndex] = React.useState(0)
   const [sessionViewMode, setSessionViewMode] =
-    React.useState<'guided' | 'list'>('guided')
+    React.useState<'guided' | 'list'>(defaultSessionViewMode)
+  const [exerciseNavOpen, setExerciseNavOpen] = React.useState(false)
   const guidedAutoAdvanceRef = React.useRef(false)
   const guidedWorkoutInitRef = React.useRef<string | null>(null)
   const [editingExercise, setEditingExercise] =
@@ -1243,13 +1394,17 @@ export function WorkoutLogScreen({
         exerciseStateRef.current,
         exercise.id
       )
-      const persistedWithoutRemoved = stateWithoutExercise(
-        parseSerializedExerciseState(lastPersistedStateRef.current),
+      const metaToSave = metaWithoutExercise(
+        exerciseMetaStateRef.current,
         exercise.id
       )
+      const persisted = parseSerializedWorkoutLog(lastPersistedStateRef.current)
       const needsSaveOtherExercises =
-        serializeExerciseStateForSave(stateToSave) !==
-        serializeExerciseStateForSave(persistedWithoutRemoved)
+        serializeWorkoutLogForSave(stateToSave, metaToSave) !==
+        serializeWorkoutLogForSave(
+          stateWithoutExercise(persisted.sets, exercise.id),
+          metaWithoutExercise(persisted.meta, exercise.id)
+        )
 
       if (needsSaveOtherExercises) {
         const saved = await persistSets(stateToSave, {
@@ -1274,6 +1429,7 @@ export function WorkoutLogScreen({
 
       skipAutoSaveRef.current = true
       setExerciseState(stateToSave)
+      setExerciseMetaState(metaToSave)
       setData((current) => {
         if (!current) return current
         return {
@@ -1318,6 +1474,8 @@ export function WorkoutLogScreen({
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
+  const exerciseMetaStateRef = React.useRef(exerciseMetaState)
+  exerciseMetaStateRef.current = exerciseMetaState
 
   const skipAutoSaveRef = React.useRef(true)
   const prevSetLengthsRef = React.useRef('')
@@ -1411,9 +1569,11 @@ export function WorkoutLogScreen({
         result.data.exercises,
         result.data.logSets,
         result.data.previousSetsByExerciseId,
-        result.data.personalBestsByExerciseId
+        result.data.personalBestsByExerciseId,
+        result.data.progressiveOverloadEnabled
       )
     )
+    setExerciseMetaState(buildExerciseMetaState(result.data.exercises))
   }, [clientId, isClientPortal, workoutId])
 
   const buildSetsPayload = React.useCallback(
@@ -1454,19 +1614,34 @@ export function WorkoutLogScreen({
         ? await savePortalWorkoutLogSets(
             workoutId,
             buildSetsPayload(state, data.exercises),
-            { revalidate: options?.revalidate ?? true }
+            {
+              revalidate: options?.revalidate ?? true,
+              exerciseMeta: buildExerciseMetaPayload(
+                exerciseMetaStateRef.current,
+                data.exercises
+              ),
+            }
           )
         : await saveWorkoutLogSets(
             clientId,
             workoutId,
             buildSetsPayload(state, data.exercises),
-            { revalidate: options?.revalidate ?? true }
+            {
+              revalidate: options?.revalidate ?? true,
+              exerciseMeta: buildExerciseMetaPayload(
+                exerciseMetaStateRef.current,
+                data.exercises
+              ),
+            }
           )
 
       if (options?.blockUi) setPending(false)
 
       if (result.success) {
-        lastPersistedStateRef.current = serializeExerciseStateForSave(state)
+        lastPersistedStateRef.current = serializeWorkoutLogForSave(
+          state,
+          exerciseMetaStateRef.current
+        )
         if (options?.reload) {
           skipAutoSaveRef.current = true
           await loadData()
@@ -1560,7 +1735,10 @@ export function WorkoutLogScreen({
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
 
-      const payloadKey = serializeExerciseStateForSave(currentState)
+      const payloadKey = serializeWorkoutLogForSave(
+        currentState,
+        exerciseMetaStateRef.current
+      )
       const needsSave = payloadKey !== lastPersistedStateRef.current
 
       if (needsSave) {
@@ -1642,7 +1820,10 @@ export function WorkoutLogScreen({
     }
 
     const state = exerciseStateRef.current
-    const payloadKey = serializeExerciseStateForSave(state)
+    const payloadKey = serializeWorkoutLogForSave(
+      state,
+      exerciseMetaStateRef.current
+    )
     if (payloadKey === lastPersistedStateRef.current) {
       return
     }
@@ -1739,12 +1920,14 @@ export function WorkoutLogScreen({
   )
 
   const activeSection = sections[activeSectionIndex] ?? sections[0]
-  const guidedSessionEligible =
-    isClientPortal &&
-    isPage &&
-    !readOnly &&
-    !isCompleted &&
-    Boolean(data && data.exercises.length > 0)
+  const guidedSessionEligible = isGuidedWorkoutSessionEligible({
+    isPage,
+    readOnly,
+    isCompleted,
+    exerciseCount: data?.exercises.length ?? 0,
+    isClientPortal,
+    preferMobileKeypad: preferWorkoutLogKeypad,
+  })
   const showGuidedSession =
     guidedSessionEligible && sessionViewMode === 'guided'
   const orderedExercises = data?.exercises ?? []
@@ -1823,11 +2006,14 @@ export function WorkoutLogScreen({
           Object.entries(exerciseState).map(([id, sets]) => [id, sets.length])
         )
       )
-      lastPersistedStateRef.current = serializeExerciseStateForSave(exerciseState)
+      lastPersistedStateRef.current = serializeWorkoutLogForSave(
+        exerciseState,
+        exerciseMetaState
+      )
       return
     }
 
-    const payloadKey = serializeExerciseStateForSave(exerciseState)
+    const payloadKey = serializeWorkoutLogForSave(exerciseState, exerciseMetaState)
     if (payloadKey === lastPersistedStateRef.current) {
       return
     }
@@ -1853,7 +2039,7 @@ export function WorkoutLogScreen({
         clearTimeout(autoSaveTimerRef.current)
       }
     }
-  }, [exerciseState, active, readOnly, data])
+  }, [exerciseState, exerciseMetaState, active, readOnly, data])
 
   async function flushOnClose(options?: {
     notifyParent?: boolean
@@ -1880,7 +2066,8 @@ export function WorkoutLogScreen({
     if (active && !readOnly && data) {
       const state = exerciseStateRef.current
       if (
-        serializeExerciseStateForSave(state) !== lastPersistedStateRef.current
+        serializeWorkoutLogForSave(state, exerciseMetaStateRef.current) !==
+        lastPersistedStateRef.current
       ) {
         tasks.push(
           persistSetsRef.current(state, {
@@ -1923,7 +2110,7 @@ export function WorkoutLogScreen({
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur()
     }
-    stabilizeViewportScroll()
+    burstStabilizeViewportScroll(400)
 
     const isFinished =
       dataRef.current?.status === 'completed' ||
@@ -2062,6 +2249,27 @@ export function WorkoutLogScreen({
     [variant]
   )
 
+  const handleExercisePerceivedRpeChanged = React.useCallback(
+    (exerciseRowId: string, value: string) => {
+      setExerciseMetaState((current) => ({
+        ...current,
+        [exerciseRowId]: value,
+      }))
+      setData((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          exercises: current.exercises.map((exercise) =>
+            exercise.id === exerciseRowId
+              ? { ...exercise, perceived_rpe: value.trim() ? value.trim() : null }
+              : exercise
+          ),
+        }
+      })
+    },
+    []
+  )
+
   const status = data?.status ?? initialStatus
   const hasProgress = data
     ? workoutHasProgress(data, data.logSets)
@@ -2105,10 +2313,15 @@ export function WorkoutLogScreen({
         onNotesChanged={(notes) =>
           handleExerciseNotesChanged(exercise.id, notes)
         }
+        perceivedRpe={exerciseMetaState[exercise.id] ?? ''}
+        onPerceivedRpeChange={(value) =>
+          handleExercisePerceivedRpeChanged(exercise.id, value)
+        }
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
         className={options?.className}
         guidedLayout={showGuidedSession}
+        progressiveOverloadEnabled={data.progressiveOverloadEnabled}
       />
     )
   }
@@ -2388,6 +2601,16 @@ export function WorkoutLogScreen({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="size-8 shrink-0 px-0"
+                aria-label="Browse exercises"
+                onClick={() => setExerciseNavOpen(true)}
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 className="shrink-0"
                 disabled={activeExerciseIndex === 0}
                 onClick={() =>
@@ -2397,7 +2620,11 @@ export function WorkoutLogScreen({
                 <ChevronLeft className="size-4" />
                 <span className="hidden sm:inline">Prev</span>
               </Button>
-              <div className="min-w-0 flex-1 text-center">
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-center"
+                onClick={() => setExerciseNavOpen(true)}
+              >
                 <p className="text-muted-foreground text-xs font-medium">
                   {activeExerciseSectionLabel
                     ? `${activeExerciseSectionLabel} · `
@@ -2410,7 +2637,7 @@ export function WorkoutLogScreen({
                 <p className="truncate text-sm font-semibold">
                   {activeExercise.exercise.name}
                 </p>
-              </div>
+              </button>
               <Button
                 type="button"
                 size="sm"
@@ -2427,6 +2654,21 @@ export function WorkoutLogScreen({
               </Button>
             </div>
           </div>
+        ) : null}
+
+        {showGuidedSession ? (
+          <GuidedWorkoutExerciseNavSheet
+            open={exerciseNavOpen}
+            onOpenChange={setExerciseNavOpen}
+            sections={sections}
+            orderedExercises={orderedExercises}
+            exerciseState={exerciseState}
+            activeExerciseIndex={activeExerciseIndex}
+            onSelectExercise={(index) => {
+              setActiveExerciseIndex(index)
+              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
         ) : null}
 
         {canEditPrescription && editingExercise && (

@@ -217,28 +217,14 @@ export function canNavigateSet(
   return getAdjacentSetKeypadTarget(current, sets, direction) !== null
 }
 
-export function getCopyValuesForSet(
+export function getPreviousSessionCopyValuesForSet(
   setNumber: number,
-  sets: WorkoutLogSetDraft[],
   previousSets: Record<number, PreviousSetLog>,
   fields: WorkoutLogFieldFlags
 ): Partial<WorkoutLogSetDraft> {
   const patch: Partial<WorkoutLogSetDraft> = {}
-
-  if (setNumber > 1) {
-    const prior = sets.find((set) => set.setNumber === setNumber - 1)
-    if (prior) {
-      if (fields.showWeight) patch.weight = prior.weight
-      if (fields.showReps) patch.reps = prior.reps
-      if (fields.showDuration) patch.durationSeconds = prior.durationSeconds
-      if (fields.showDistance) patch.distanceMeters = prior.distanceMeters
-      if (fields.showBarSpeed) patch.barSpeed = prior.barSpeed
-      if (fields.showPeakPower) patch.peakPower = prior.peakPower
-      return patch
-    }
-  }
-
   const previous = resolvePreviousSetLog(previousSets, setNumber)
+
   if (previous) {
     if (fields.showWeight && previous.weight != null) {
       patch.weight = String(previous.weight)
@@ -261,6 +247,29 @@ export function getCopyValuesForSet(
   }
 
   return patch
+}
+
+export function getCopyValuesForSet(
+  setNumber: number,
+  sets: WorkoutLogSetDraft[],
+  previousSets: Record<number, PreviousSetLog>,
+  fields: WorkoutLogFieldFlags
+): Partial<WorkoutLogSetDraft> {
+  if (setNumber > 1) {
+    const prior = sets.find((set) => set.setNumber === setNumber - 1)
+    if (prior) {
+      const patch: Partial<WorkoutLogSetDraft> = {}
+      if (fields.showWeight) patch.weight = prior.weight
+      if (fields.showReps) patch.reps = prior.reps
+      if (fields.showDuration) patch.durationSeconds = prior.durationSeconds
+      if (fields.showDistance) patch.distanceMeters = prior.distanceMeters
+      if (fields.showBarSpeed) patch.barSpeed = prior.barSpeed
+      if (fields.showPeakPower) patch.peakPower = prior.peakPower
+      return patch
+    }
+  }
+
+  return getPreviousSessionCopyValuesForSet(setNumber, previousSets, fields)
 }
 
 export type PlateCount = {

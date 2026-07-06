@@ -22,8 +22,10 @@ import {
   nutritionProfileFormSchema,
   type ClientMealPlanFormValues,
   type FoodDiaryEntryFormValues,
+  type FoodDiaryEntriesBatchValues,
   type NutritionProfileFormValues,
   foodDiaryEntryFormSchema,
+  foodDiaryEntriesBatchSchema,
   nutritionLogFormSchema,
   type NutritionLogFormValues,
 } from '@/lib/validations/nutrition'
@@ -165,6 +167,28 @@ export async function createClientMealPlan(
   return { success: true, mealPlanId: mealPlan.id }
 }
 
+function foodDiaryEntryToRow(
+  values: FoodDiaryEntryFormValues,
+  clientId: string,
+  coachId: string
+) {
+  return {
+    client_id: clientId,
+    coach_id: coachId,
+    log_date: values.logDate,
+    meal_type: values.mealType,
+    food_name: values.foodName,
+    source: values.source ?? null,
+    external_id: values.externalId ?? null,
+    quantity_g: values.quantityG ?? null,
+    calories_kcal: values.caloriesKcal,
+    protein_g: values.proteinG,
+    carbs_g: values.carbsG,
+    fat_g: values.fatG,
+    fiber_g: values.fiberG,
+  }
+}
+
 export async function addClientFoodDiaryEntry(
   clientId: string,
   values: FoodDiaryEntryFormValues
@@ -179,21 +203,35 @@ export async function addClientFoodDiaryEntry(
     return { success: false, error: 'Client not found.' }
   }
 
-  const { error } = await ctx.supabase.from('client_food_diary_entries').insert({
-    client_id: clientId,
-    coach_id: ctx.user.id,
-    log_date: parsed.data.logDate,
-    meal_type: parsed.data.mealType,
-    food_name: parsed.data.foodName,
-    source: parsed.data.source ?? null,
-    external_id: parsed.data.externalId ?? null,
-    quantity_g: parsed.data.quantityG ?? null,
-    calories_kcal: parsed.data.caloriesKcal,
-    protein_g: parsed.data.proteinG,
-    carbs_g: parsed.data.carbsG,
-    fat_g: parsed.data.fatG,
-    fiber_g: parsed.data.fiberG,
-  })
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert(
+    foodDiaryEntryToRow(parsed.data, clientId, ctx.user.id)
+  )
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateNutritionPaths(clientId)
+  return { success: true }
+}
+
+export async function addClientFoodDiaryEntries(
+  clientId: string,
+  values: FoodDiaryEntriesBatchValues
+): Promise<ActionResult> {
+  const parsed = foodDiaryEntriesBatchSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await ctx.supabase.from('client_food_diary_entries').insert(
+    parsed.data.map((entry) => foodDiaryEntryToRow(entry, clientId, ctx.user.id))
+  )
 
   if (error) {
     return { success: false, error: error.message }

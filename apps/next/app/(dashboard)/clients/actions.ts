@@ -72,6 +72,7 @@ function toRow(values: ClientFormValues) {
         : null,
     leaderboard_opt_out: values.leaderboardOptOut ?? false,
     weekly_session_target: values.weeklySessionTarget ?? null,
+    progressive_overload_enabled: values.progressiveOverloadEnabled ?? false,
   }
 }
 

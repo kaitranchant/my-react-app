@@ -19,6 +19,7 @@ type WorkoutLogPageProps = {
   weightUnit?: WeightUnit
   returnHref: string
   athleteName?: string
+  defaultSessionViewMode?: 'guided' | 'list'
 }
 
 export function WorkoutLogPage({
@@ -31,6 +32,7 @@ export function WorkoutLogPage({
   weightUnit = 'lbs',
   returnHref,
   athleteName,
+  defaultSessionViewMode = 'guided',
 }: WorkoutLogPageProps) {
   const router = useRouter()
 
@@ -47,6 +49,7 @@ export function WorkoutLogPage({
       weightUnit={weightUnit}
       returnHref={returnHref}
       athleteName={athleteName}
+      defaultSessionViewMode={defaultSessionViewMode}
       onChanged={() => router.refresh()}
     />
   )

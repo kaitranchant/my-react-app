@@ -65,6 +65,13 @@ const notificationOptions: NotificationOption[] = [
     email: true,
   },
   {
+    key: 'sendClientOnboardingDocuments',
+    label: 'Onboarding documents',
+    description:
+      'Email when you send PAR-Q, liability, or other onboarding documents to sign.',
+    email: true,
+  },
+  {
     key: 'sendClientWorkoutReminders',
     label: 'Workout reminders',
     description:

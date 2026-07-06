@@ -1,5 +1,6 @@
 import { EXERCISE_BLOCK_OPTIONS } from '@/lib/exercise-groups'
 import { parseTrackingOptions } from '@/lib/scheduled-exercise'
+import { isExerciseEligibleForProgressiveLoad } from '@/lib/progressive-overload-eligibility'
 import type {
   ExercisePersonalBest,
   ScheduledExerciseBlock,
@@ -44,6 +45,7 @@ const DEFAULT_WEIGHT_INCREMENT = 2.5
 
 export type SuggestLogValuesOptions = {
   personalBest?: ExercisePersonalBest | null
+  progressiveOverloadEnabled?: boolean
 }
 
 /** Parse rest duration from prescription text like "90", "90s", or "1:30". */
@@ -395,10 +397,11 @@ export function previousSessionMetTargets(
 
 export function suggestProgressiveLoadWeight(
   exercise: ScheduledWorkoutExerciseWithDetails,
-  previousSets: Record<number, PreviousSetLog>
+  previousSets: Record<number, PreviousSetLog>,
+  progressiveOverloadEnabled = false
 ): number | null {
-  const options = parseTrackingOptions(exercise.tracking_options)
-  if (!options.autoProgressLoad) return null
+  if (!progressiveOverloadEnabled) return null
+  if (!isExerciseEligibleForProgressiveLoad(exercise)) return null
   if (!previousSessionMetTargets(exercise, previousSets)) return null
 
   const weights = Object.values(previousSets)
@@ -496,7 +499,8 @@ export function getSuggestedLogValuesForSet(
     const percent = parseWeightPercent(exercise.weight_percent)
     const progressiveWeight = suggestProgressiveLoadWeight(
       exercise,
-      previousSets
+      previousSets,
+      options.progressiveOverloadEnabled ?? false
     )
 
     if (targetWeight != null) {
@@ -618,14 +622,15 @@ function buildSetDraft(
   setNumber: number,
   existing: WorkoutLogSet | undefined,
   previousSets: Record<number, PreviousSetLog>,
-  personalBest: ExercisePersonalBest | null = null
+  personalBest: ExercisePersonalBest | null = null,
+  progressiveOverloadEnabled = false
 ): WorkoutLogSetDraft {
   const targetLabel = getTargetLabelForSet(exercise, setNumber)
   const suggested = getSuggestedLogValuesForSet(
     exercise,
     setNumber,
     previousSets,
-    { personalBest }
+    { personalBest, progressiveOverloadEnabled }
   )
 
   if (!existing) {
@@ -680,7 +685,8 @@ export function buildSetDrafts(
   exercise: ScheduledWorkoutExerciseWithDetails,
   existingSets: WorkoutLogSet[],
   previousSets: Record<number, PreviousSetLog> = {},
-  personalBest: ExercisePersonalBest | null = null
+  personalBest: ExercisePersonalBest | null = null,
+  progressiveOverloadEnabled = false
 ): WorkoutLogSetDraft[] {
   const fields = getLogFieldsForExercise(exercise)
   const setCount = getEffectiveSetCount(exercise, existingSets)
@@ -695,7 +701,8 @@ export function buildSetDrafts(
       setNumber,
       bySetNumber.get(setNumber),
       previousSets,
-      personalBest
+      personalBest,
+      progressiveOverloadEnabled
     )
   })
 
@@ -720,6 +727,12 @@ export function getLogFieldsForExercise(
 }
 
 export type WorkoutLogFieldFlags = ReturnType<typeof getLogFieldsForExercise>
+
+export function exerciseHasRpeTarget(
+  exercise: Pick<ScheduledWorkoutExerciseWithDetails, 'rpe_target'>
+): boolean {
+  return Boolean(exercise.rpe_target?.trim())
+}
 
 export function getWorkoutLogSetGridTemplate(
   fields: WorkoutLogFieldFlags,
@@ -768,6 +781,23 @@ export function countCompletedSets(logSets: WorkoutLogSet[]): number {
 
 export function isExerciseFullyLogged(sets: WorkoutLogSetDraft[]): boolean {
   return sets.length > 0 && sets.every((set) => set.completed)
+}
+
+export function isGuidedWorkoutSessionEligible(input: {
+  isPage: boolean
+  readOnly: boolean
+  isCompleted: boolean
+  exerciseCount: number
+  isClientPortal: boolean
+  preferMobileKeypad: boolean
+}): boolean {
+  return (
+    input.isPage &&
+    !input.readOnly &&
+    !input.isCompleted &&
+    input.exerciseCount > 0 &&
+    (input.isClientPortal || input.preferMobileKeypad)
+  )
 }
 
 export function findResumeExerciseIndex(

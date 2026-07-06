@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 export function AddClientButtonSkeleton() {
-  return <Skeleton className="h-10 w-32 rounded-lg" />
+  return <Skeleton className="h-9 w-32 rounded-lg" />
 }
 
 export function ScopeTabsSkeleton() {

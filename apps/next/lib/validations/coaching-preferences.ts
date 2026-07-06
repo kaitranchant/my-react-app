@@ -11,12 +11,14 @@ export const coachTimezoneOptions = [
   'europe_london',
 ] as const
 export const checkInFrequencies = ['daily', 'weekly', 'biweekly'] as const
+export const workoutLogViewModes = ['guided', 'list'] as const
 
 export const coachingPreferencesSchema = z.object({
   weightUnit: z.enum(weightUnits),
   weekStartsOn: z.enum(weekStartsOnOptions),
   timezone: z.enum(coachTimezoneOptions),
   defaultCheckInFrequency: z.enum(checkInFrequencies),
+  defaultWorkoutLogView: z.enum(workoutLogViewModes),
 })
 
 export type CoachingPreferencesValues = z.infer<typeof coachingPreferencesSchema>

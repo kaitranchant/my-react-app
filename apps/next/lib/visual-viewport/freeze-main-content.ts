@@ -1,5 +1,7 @@
 'use client'
 
+import { burstStabilizeViewportScroll } from '@/lib/visual-viewport/app-viewport'
+
 const MAIN_CONTENT_ID = 'main-content'
 
 type FrozenMainContent = {
@@ -55,24 +57,43 @@ function restoreMainStyles(main: HTMLElement, snapshot: FrozenMainContent) {
   main.scrollTop = snapshot.scrollTop
 }
 
+let freezeDepth = 0
+let releaseRoot: (() => void) | null = null
+
 export function installMainContentFreeze() {
   const main = document.getElementById(MAIN_CONTENT_ID)
   if (!main) return () => {}
 
-  const snapshot = readMainStyles(main)
-  const pinnedScrollTop = snapshot.scrollTop
-  applyMainFreeze(main, pinnedScrollTop)
+  if (freezeDepth === 0) {
+    const snapshot = readMainStyles(main)
+    const pinnedScrollTop = snapshot.scrollTop
+    applyMainFreeze(main, pinnedScrollTop)
 
-  const preventScroll = () => {
-    if (main.scrollTop !== pinnedScrollTop) {
-      main.scrollTop = pinnedScrollTop
+    const preventScroll = () => {
+      if (main.scrollTop !== pinnedScrollTop) {
+        main.scrollTop = pinnedScrollTop
+      }
+    }
+
+    main.addEventListener('scroll', preventScroll, { passive: true })
+
+    releaseRoot = () => {
+      main.removeEventListener('scroll', preventScroll)
+      restoreMainStyles(main, snapshot)
+      burstStabilizeViewportScroll(400)
     }
   }
 
-  main.addEventListener('scroll', preventScroll, { passive: true })
+  freezeDepth += 1
 
   return () => {
-    main.removeEventListener('scroll', preventScroll)
-    restoreMainStyles(main, snapshot)
+    if (freezeDepth <= 0) return
+
+    freezeDepth -= 1
+    if (freezeDepth === 0 && releaseRoot) {
+      const release = releaseRoot
+      releaseRoot = null
+      release()
+    }
   }
 }

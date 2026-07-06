@@ -1,9 +1,10 @@
 import { Suspense } from 'react'
-import { Plus } from 'lucide-react'
+import { ClipboardCheck, Plus } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { AddClientDialog } from '@/components/clients/add-client-dialog'
+import { OnboardClientDialog } from '@/components/clients/onboard-client-dialog'
 import {
   ClientsListCard,
   clientsListSuspenseKey,
@@ -46,6 +47,15 @@ export default async function ClientsPage({
         description="Manage your clients, their programs, and progress in one place."
       >
         <Suspense fallback={<AddClientButtonSkeleton />}>
+          <OnboardClientDialog
+            gyms={gymTabs}
+            trigger={
+              <Button variant="secondary">
+                <ClipboardCheck className="size-4" />
+                Onboard client
+              </Button>
+            }
+          />
           <AddClientDialog
             gyms={gymTabs}
             trigger={

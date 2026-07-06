@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   findResumeExerciseIndex,
   isExerciseFullyLogged,
+  isGuidedWorkoutSessionEligible,
 } from './workout-log'
 import type { WorkoutLogSetDraft } from './workout-log'
 
@@ -56,4 +57,46 @@ test('findResumeExerciseIndex returns last exercise when all are complete', () =
   })
 
   assert.equal(index, 2)
+})
+
+test('isGuidedWorkoutSessionEligible enables client page logging', () => {
+  assert.equal(
+    isGuidedWorkoutSessionEligible({
+      isPage: true,
+      readOnly: false,
+      isCompleted: false,
+      exerciseCount: 3,
+      isClientPortal: true,
+      preferMobileKeypad: false,
+    }),
+    true
+  )
+})
+
+test('isGuidedWorkoutSessionEligible enables coach mobile page logging', () => {
+  assert.equal(
+    isGuidedWorkoutSessionEligible({
+      isPage: true,
+      readOnly: false,
+      isCompleted: false,
+      exerciseCount: 3,
+      isClientPortal: false,
+      preferMobileKeypad: true,
+    }),
+    true
+  )
+})
+
+test('isGuidedWorkoutSessionEligible disables coach desktop modal logging', () => {
+  assert.equal(
+    isGuidedWorkoutSessionEligible({
+      isPage: false,
+      readOnly: false,
+      isCompleted: false,
+      exerciseCount: 3,
+      isClientPortal: false,
+      preferMobileKeypad: false,
+    }),
+    false
+  )
 })

@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
 import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
+import { MealPlanMealPicker } from '@/components/nutrition/meal-plan-meal-picker'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { addDaysToDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
@@ -31,6 +32,7 @@ import {
   buildMacroAdherenceItems,
   formatFoodDiaryEntryMacros,
   groupFoodDiaryByMeal,
+  mealPlanMealToDiaryEntries,
   sumFoodDiaryMacros,
 } from '@/lib/food-diary'
 import { formatFoodQuantityLabel, type FoodSelectionSnapshot } from '@/lib/food-catalog'
@@ -41,7 +43,11 @@ import type {
   ClientFoodDiaryEntry,
   ClientNutritionLog,
   ClientNutritionProfile,
+  MealPlanAssignment,
+  MealPlanDayWithMeals,
 } from 'app/types/database'
+
+type FoodDiaryFormMode = 'search' | 'manual' | 'mealPlan'
 
 type FoodDiaryPanelProps = {
   entries: ClientFoodDiaryEntry[]
@@ -52,7 +58,12 @@ type FoodDiaryPanelProps = {
   nutritionLog?: ClientNutritionLog | null
   waterMl?: number | null
   fiberG?: number | null
+  assignment?: MealPlanAssignment | null
+  planDays?: MealPlanDayWithMeals[]
   onAdd?: (values: FoodDiaryEntryFormValues) => Promise<{ success: boolean; error?: string }>
+  onAddMany?: (
+    values: FoodDiaryEntryFormValues[]
+  ) => Promise<{ success: boolean; error?: string }>
   onDelete?: (entryId: string) => Promise<{ success: boolean; error?: string }>
   onLogDateChange?: (logDate: string) => void
 }
@@ -82,14 +93,17 @@ export function FoodDiaryPanel({
   nutritionLog = null,
   waterMl,
   fiberG,
+  assignment = null,
+  planDays = [],
   onAdd,
+  onAddMany,
   onDelete,
   onLogDateChange,
 }: FoodDiaryPanelProps) {
   const todayKey = toDateKey(new Date())
   const [selectedDate, setSelectedDate] = React.useState(initialLogDate)
   const [showForm, setShowForm] = React.useState(false)
-  const [manualMode, setManualMode] = React.useState(false)
+  const [formMode, setFormMode] = React.useState<FoodDiaryFormMode>('search')
   const [pending, setPending] = React.useState(false)
   const [deletePending, setDeletePending] = React.useState<string | null>(null)
   const [formValues, setFormValues] = React.useState(() =>
@@ -137,8 +151,10 @@ export function FoodDiaryPanel({
 
   React.useEffect(() => {
     setFormValues(createEmptyEntry(logDate))
-    setManualMode(false)
+    setFormMode('search')
   }, [logDate])
+
+  const canAddFromMealPlan = Boolean(assignment && planDays.length > 0 && (onAddMany || onAdd))
 
   const dayEntries = entries.filter((entry) => entry.log_date === logDate)
   const groups = groupFoodDiaryByMeal(dayEntries)
@@ -172,8 +188,50 @@ export function FoodDiaryPanel({
 
     toast.success('Food logged.')
     setFormValues(createEmptyEntry(logDate))
-    setManualMode(false)
+    setFormMode('search')
     setShowForm(false)
+  }
+
+  async function submitEntries(values: FoodDiaryEntryFormValues[]) {
+    if (values.length === 0) return
+
+    if (values.length === 1) {
+      await submitEntry(values[0]!)
+      return
+    }
+
+    if (!onAddMany) {
+      for (const entry of values) {
+        const result = await onAdd?.(entry)
+        if (!result?.success) {
+          toast.error(result?.error ?? 'Could not add food entries.')
+          return
+        }
+      }
+      toast.success(`${values.length} items logged.`)
+      setFormValues(createEmptyEntry(logDate))
+      setFormMode('search')
+      setShowForm(false)
+      return
+    }
+
+    setPending(true)
+    const result = await onAddMany(values)
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not add food entries.')
+      return
+    }
+
+    toast.success(`${values.length} items logged.`)
+    setFormValues(createEmptyEntry(logDate))
+    setFormMode('search')
+    setShowForm(false)
+  }
+
+  async function handleMealPlanAdd(meal: Parameters<typeof mealPlanMealToDiaryEntries>[1]) {
+    await submitEntries(mealPlanMealToDiaryEntries(logDate, meal))
   }
 
   async function handleCatalogAdd(snapshot: FoodSelectionSnapshot) {
@@ -204,10 +262,12 @@ export function FoodDiaryPanel({
           <CardTitle>Food diary</CardTitle>
           <CardDescription>
             {onAdd && readOnly
-              ? 'Log food on behalf of the client, or remove incorrect entries.'
+              ? 'Log food on behalf of the client, search the catalog, or add from their meal plan.'
               : readOnly
                 ? 'Review what the client logged. Remove incorrect entries if needed.'
-                : 'Search USDA foods or enter a custom item with optional macros.'}
+                : canAddFromMealPlan
+                  ? 'Search foods, log from your meal plan, or enter a custom item.'
+                  : 'Search USDA foods or enter a custom item with optional macros.'}
           </CardDescription>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -279,36 +339,59 @@ export function FoodDiaryPanel({
       <CardContent className="grid gap-4">
         {showForm && onAdd ? (
           <div className="border-border bg-muted/20 grid gap-4 rounded-lg border p-4">
-            <div className="grid gap-1.5 sm:max-w-xs">
-              <Label htmlFor="food-diary-meal-type">Meal</Label>
-              <Select
-                value={formValues.mealType}
-                onValueChange={(value) =>
-                  setFormValues((current) => ({
-                    ...current,
-                    mealType: value as FoodDiaryEntryFormValues['mealType'],
-                  }))
-                }
-              >
-                <SelectTrigger id="food-diary-meal-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {mealTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {MEAL_TYPE_LABELS[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {formMode !== 'mealPlan' ? (
+              <div className="grid gap-1.5 sm:max-w-xs">
+                <Label htmlFor="food-diary-meal-type">Meal</Label>
+                <Select
+                  value={formValues.mealType}
+                  onValueChange={(value) =>
+                    setFormValues((current) => ({
+                      ...current,
+                      mealType: value as FoodDiaryEntryFormValues['mealType'],
+                    }))
+                  }
+                >
+                  <SelectTrigger id="food-diary-meal-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mealTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {MEAL_TYPE_LABELS[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
-            {manualMode ? (
+            {canAddFromMealPlan ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={formMode === 'search' ? 'default' : 'outline'}
+                  onClick={() => setFormMode('search')}
+                >
+                  Search foods
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={formMode === 'mealPlan' ? 'default' : 'outline'}
+                  onClick={() => setFormMode('mealPlan')}
+                >
+                  From meal plan
+                </Button>
+              </div>
+            ) : null}
+
+            {formMode === 'manual' ? (
               <ManualFoodEntryForm
                 showFiber
                 submitLabel={pending ? 'Saving…' : 'Log food'}
                 disabled={pending}
-                onBack={() => setManualMode(false)}
+                onBack={() => setFormMode('search')}
                 onSubmit={(values) =>
                   void submitEntry({
                     logDate,
@@ -325,6 +408,14 @@ export function FoodDiaryPanel({
                   })
                 }
               />
+            ) : formMode === 'mealPlan' ? (
+              <MealPlanMealPicker
+                assignment={assignment}
+                days={planDays}
+                logDate={logDate}
+                disabled={pending}
+                onAddMeal={handleMealPlanAdd}
+              />
             ) : (
               <FoodSearchPicker
                 idPrefix="food-diary"
@@ -332,7 +423,7 @@ export function FoodDiaryPanel({
                 addLabel="Log food"
                 onAdd={handleCatalogAdd}
                 showManualEntry
-                onManualEntry={() => setManualMode(true)}
+                onManualEntry={() => setFormMode('manual')}
               />
             )}
 
@@ -343,7 +434,7 @@ export function FoodDiaryPanel({
                 size="sm"
                 onClick={() => {
                   setShowForm(false)
-                  setManualMode(false)
+                  setFormMode('search')
                 }}
               >
                 Cancel

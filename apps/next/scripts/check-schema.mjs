@@ -376,7 +376,7 @@ await check('get_gym_invite_preview RPC', async () => {
 
 await checkRestTable(
   'profiles coaching preference columns',
-  '/rest/v1/profiles?select=weight_unit,week_starts_on,coach_timezone,default_check_in_frequency&limit=1'
+  '/rest/v1/profiles?select=weight_unit,week_starts_on,coach_timezone,default_check_in_frequency,default_workout_log_view&limit=1'
 )
 
 await checkRestTable(
@@ -501,6 +501,10 @@ await checkRestTable(
 await checkRestTable(
   'progressive_overload_decisions table',
   '/rest/v1/progressive_overload_decisions?select=id,coach_id,client_id,exercise_id,status&limit=1'
+)
+await checkRestTable(
+  'clients.progressive_overload_enabled column',
+  '/rest/v1/clients?select=progressive_overload_enabled&limit=1'
 )
 
 // Migration 0058 — team challenges
@@ -897,6 +901,7 @@ if (failed) {
   console.error('       supabase/apply-portal-program-progress.sql     (0060 portal program progress)')
   console.error('       supabase/apply-portal-notification-preferences.sql (0061 portal notification prefs)')
   console.error('       supabase/apply-progressive-overload-decisions-delete.sql (0062 overload undo)')
+  console.error('       supabase/apply-client-progressive-overload.sql     (0106 client progressive overload)')
   console.error('       supabase/apply-client-email-nudges.sql       (0063 client email nudges)')
   console.error('       supabase/apply-coach-message-templates.sql   (0064 message templates)')
   console.error('       supabase/apply-onboarding-automation.sql     (0069 onboarding automation)')

@@ -18,6 +18,19 @@ type ScheduledAppointmentInterval = {
   google_calendar_event_id: string | null
 }
 
+/** Appointments that still occupy a calendar slot and should hide overlapping Google busy blocks. */
+export const CALENDAR_OCCUPYING_APPOINTMENT_STATUSES = [
+  'scheduled',
+  'completed',
+  'no_show',
+] as const
+
+export function appointmentOccupiesCalendarSlot(status: string): boolean {
+  return (CALENDAR_OCCUPYING_APPOINTMENT_STATUSES as readonly string[]).includes(
+    status
+  )
+}
+
 export function filterGoogleCalendarBlockedTimes(
   events: GoogleCalendarEvent[],
   scheduledAppointments: ScheduledAppointmentInterval[]
@@ -59,5 +72,32 @@ export function filterGoogleCalendarBlockedTimes(
   return blocked.sort(
     (left, right) =>
       new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime()
+  )
+}
+
+export function hideBlockedTimesOverlappingAppointments<
+  T extends { starts_at: string; ends_at: string; status: string },
+>(
+  blockedTimes: GoogleCalendarBlockedTime[],
+  appointments: T[]
+): GoogleCalendarBlockedTime[] {
+  const occupyingAppointments = appointments.filter((appointment) =>
+    appointmentOccupiesCalendarSlot(appointment.status)
+  )
+
+  if (occupyingAppointments.length === 0) {
+    return blockedTimes
+  }
+
+  return blockedTimes.filter(
+    (blockedTime) =>
+      !occupyingAppointments.some((appointment) =>
+        intervalsOverlap(
+          blockedTime.startsAt,
+          blockedTime.endsAt,
+          appointment.starts_at,
+          appointment.ends_at
+        )
+      )
   )
 }

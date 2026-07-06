@@ -5,7 +5,7 @@ import {
 } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import { getCoachDateKey } from '@/lib/coach-preferences'
-import { parseTrackingOptions } from '@/lib/scheduled-exercise'
+import { isExerciseEligibleForProgressiveLoad } from '@/lib/progressive-overload-eligibility'
 import type { createClient } from '@/lib/supabase/server'
 import {
   previousSessionMetTargets,
@@ -125,13 +125,11 @@ function isEligibleForProgression(
   row: Pick<
     ScheduledWorkoutExerciseWithDetails,
     'tracking_options' | 'weight_percent'
-  >
+  >,
+  clientProgressiveOverloadEnabled: boolean
 ): boolean {
-  const options = parseTrackingOptions(row.tracking_options)
-  if (!options.autoProgressLoad) return false
-  if (options.bodyweight || options.completionLift) return false
-  if (row.weight_percent?.trim()) return false
-  return true
+  if (!clientProgressiveOverloadEnabled) return false
+  return isExerciseEligibleForProgressiveLoad(row)
 }
 
 function buildPreviousSets(
@@ -190,10 +188,17 @@ export function buildSuggestionFromSession(
   workout: CompletedWorkoutRow,
   exerciseRow: ExerciseRow,
   previousSets: Record<number, PreviousSetLog>,
-  client: { id: string; full_name: string; avatar_url: string | null },
+  client: {
+    id: string
+    full_name: string
+    avatar_url: string | null
+    progressive_overload_enabled: boolean
+  },
   upcomingSessionCount: number
 ): ProgressiveOverloadSuggestion | null {
-  if (!isEligibleForProgression(exerciseRow)) return null
+  if (!isEligibleForProgression(exerciseRow, client.progressive_overload_enabled)) {
+    return null
+  }
 
   const exercise = normalizeExercise(exerciseRow.exercise)
   if (!exercise) return null
@@ -205,7 +210,8 @@ export function buildSuggestionFromSession(
 
   const suggestedWeight = suggestProgressiveLoadWeight(
     exerciseWithDetails,
-    previousSets
+    previousSets,
+    client.progressive_overload_enabled
   )
   if (suggestedWeight == null) return null
 
@@ -248,7 +254,7 @@ export async function fetchProgressiveOverloadSuggestions(
 
   const { data: clientsData, error: clientsError } = await supabase
     .from('clients')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, progressive_overload_enabled')
     .eq('coach_id', coachId)
     .eq('status', 'active')
     .eq('is_coach_self', false)
@@ -363,8 +369,13 @@ export async function fetchProgressiveOverloadSuggestions(
     client_id: string
     exercises: UpcomingExerciseRow[] | null
   }>) {
+    const client = clientsById.get(workout.client_id)
+    if (!client?.progressive_overload_enabled) continue
+
     for (const row of workout.exercises ?? []) {
-      if (!isEligibleForProgression(row)) continue
+      if (!isEligibleForProgression(row, client.progressive_overload_enabled)) {
+        continue
+      }
       const key = `${workout.client_id}:${row.exercise_id}`
       upcomingCountByClientExercise.set(
         key,
@@ -377,7 +388,7 @@ export async function fetchProgressiveOverloadSuggestions(
 
   for (const workout of workouts) {
     const client = clientsById.get(workout.client_id)
-    if (!client) continue
+    if (!client?.progressive_overload_enabled) continue
 
     for (const exerciseRow of workout.exercises ?? []) {
       if (decidedIds.has(exerciseRow.id)) continue

@@ -56,6 +56,7 @@ type CoachProfileRow = Pick<
   | 'coach_send_client_check_in_reminders'
   | 'coach_send_client_unread_digest'
   | 'coach_send_client_appointment_reminders'
+  | 'coach_send_client_onboarding_documents'
 >
 
 async function fetchSentReminderRecipients(

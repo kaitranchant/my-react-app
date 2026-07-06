@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import {
   addFoodDiaryEntry,
+  addFoodDiaryEntries,
   deleteFoodDiaryEntry,
   submitNutritionLog,
 } from '@/app/portal/nutrition-actions'
@@ -295,9 +296,20 @@ export function PortalNutritionPanel({
           nutritionLog={viewedLog}
           waterMl={values.waterMl}
           fiberG={values.fiberG}
+          assignment={assignment}
+          planDays={planDays}
           onLogDateChange={setViewedDate}
           onAdd={async (entryValues) => {
             const result = await addFoodDiaryEntry(entryValues)
+            if (result.success) {
+              router.refresh()
+            } else {
+              toast.error(result.error)
+            }
+            return result
+          }}
+          onAddMany={async (entryValues) => {
+            const result = await addFoodDiaryEntries(entryValues)
             if (result.success) {
               router.refresh()
             } else {

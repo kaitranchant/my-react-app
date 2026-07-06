@@ -60,7 +60,13 @@ export async function ClientsListCard({
     redirect(query ? `/clients?${query}` : '/clients')
   }
 
-  const { clients, teamsByClientId, gymNamesById, coachNamesById } = data
+  const {
+    clients,
+    teamsByClientId,
+    gymNamesById,
+    coachNamesById,
+    pendingOnboardingDocsByClientId,
+  } = data
 
   return (
     <Card className="overflow-hidden py-0">
@@ -92,6 +98,7 @@ export async function ClientsListCard({
             teamsByClientId={teamsByClientId}
             gymNamesById={gymNamesById}
             coachNamesById={coachNamesById}
+            pendingOnboardingDocsByClientId={pendingOnboardingDocsByClientId}
             currentCoachId={userId}
           />
         )}

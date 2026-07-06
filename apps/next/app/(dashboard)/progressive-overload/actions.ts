@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
-import { parseTrackingOptions } from '@/lib/scheduled-exercise'
+import { isExerciseEligibleForProgressiveLoad } from '@/lib/progressive-overload-eligibility'
 
 export type ActionResult =
   | { success: true; updatedCount?: number }
@@ -65,6 +65,20 @@ async function applyApprovedTargetWeight(
   targetWeight: string,
   fromDate: string
 ) {
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('progressive_overload_enabled')
+    .eq('id', clientId)
+    .maybeSingle()
+
+  if (clientError) {
+    return { success: false as const, error: clientError.message }
+  }
+
+  if (!client?.progressive_overload_enabled) {
+    return { success: true as const, updatedCount: 0 }
+  }
+
   const { data: upcomingWorkouts, error: workoutsError } = await supabase
     .from('client_scheduled_workouts')
     .select(
@@ -91,11 +105,8 @@ async function applyApprovedTargetWeight(
 
   for (const workout of upcomingWorkouts ?? []) {
     for (const row of workout.exercises ?? []) {
-      const options = parseTrackingOptions(row.tracking_options)
       if (row.exercise_id !== exerciseId) continue
-      if (!options.autoProgressLoad) continue
-      if (row.weight_percent?.trim()) continue
-      if (options.bodyweight || options.completionLift) continue
+      if (!isExerciseEligibleForProgressiveLoad(row)) continue
       rowIds.push(row.id)
     }
   }

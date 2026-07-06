@@ -5,7 +5,7 @@
  * Add to apps/next/.env.local:
  *   SUPABASE_DB_PASSWORD=your_database_password
  *
- * Then: yarn db:push
+ * Then: yarn db:push:password
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -39,6 +39,8 @@ if (!process.env.SUPABASE_DB_PASSWORD) {
   console.error('')
   console.error('If you saved it elsewhere (password manager, Vercel env, etc.), add:')
   console.error('  SUPABASE_DB_PASSWORD=...')
+  console.error('')
+  console.error('Then run: yarn db:push:password')
   process.exit(1)
 }
 

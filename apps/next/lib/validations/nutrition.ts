@@ -152,6 +152,10 @@ export const foodDiaryEntryFormSchema = z.object({
   fiberG: optionalNonNegativeNumber,
 })
 
+export const foodDiaryEntriesBatchSchema = z
+  .array(foodDiaryEntryFormSchema)
+  .min(1, 'Add at least one food entry')
+
 export const mealPlanFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120, 'Name is too long'),
   description: z.string().trim().max(2000, 'Description is too long').optional(),
@@ -240,6 +244,7 @@ export type NutritionSetupFormInputValues = z.input<typeof nutritionSetupFormSch
 export type NutritionSetupFormValues = z.output<typeof nutritionSetupFormSchema>
 export type NutritionLogFormValues = z.infer<typeof nutritionLogFormSchema>
 export type FoodDiaryEntryFormValues = z.infer<typeof foodDiaryEntryFormSchema>
+export type FoodDiaryEntriesBatchValues = z.infer<typeof foodDiaryEntriesBatchSchema>
 export type MealPlanFormValues = z.infer<typeof mealPlanFormSchema>
 export type MealPlanDayFormValues = z.infer<typeof mealPlanDayFormSchema>
 export type MealPlanDayUpdateValues = z.infer<typeof mealPlanDayUpdateSchema>

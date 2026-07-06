@@ -27,7 +27,9 @@ export function PageHeader({
           )}
         </div>
         {children && (
-          <div className="flex shrink-0 items-center gap-2">{children}</div>
+          <div className="flex h-9 shrink-0 items-stretch gap-2 [&>button]:h-full [&>button]:shrink-0">
+            {children}
+          </div>
         )}
       </div>
     </section>

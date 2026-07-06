@@ -1,6 +1,9 @@
+import type { FoodDiaryEntryFormValues } from '@/lib/validations/nutrition'
 import type {
   ClientFoodDiaryEntry,
   ClientNutritionProfile,
+  MealPlanMealFood,
+  MealPlanMealWithFoods,
   MealType,
 } from 'app/types/database'
 import { MEAL_TYPE_LABELS } from '@/lib/nutrition'
@@ -153,6 +156,51 @@ export function buildMacroAdherenceItems(
       status: getMacroAdherenceStatus(waterMl ?? null, profile.water_ml),
     },
   ].filter((item) => item.target != null)
+}
+
+export function mealPlanFoodToDiaryEntry(
+  logDate: string,
+  mealType: MealType,
+  food: MealPlanMealFood
+): FoodDiaryEntryFormValues {
+  return {
+    logDate,
+    mealType,
+    foodName: food.food_name,
+    source: food.source,
+    externalId: food.external_id,
+    quantityG: food.quantity_g,
+    caloriesKcal: food.calories_kcal,
+    proteinG: food.protein_g,
+    carbsG: food.carbs_g,
+    fatG: food.fat_g,
+    fiberG: null,
+  }
+}
+
+export function mealPlanMealToDiaryEntries(
+  logDate: string,
+  meal: MealPlanMealWithFoods
+): FoodDiaryEntryFormValues[] {
+  if (meal.foods.length > 0) {
+    return meal.foods.map((food) => mealPlanFoodToDiaryEntry(logDate, meal.meal_type, food))
+  }
+
+  return [
+    {
+      logDate,
+      mealType: meal.meal_type,
+      foodName: meal.name,
+      source: 'custom',
+      externalId: null,
+      quantityG: null,
+      caloriesKcal: meal.calories_kcal,
+      proteinG: meal.protein_g,
+      carbsG: meal.carbs_g,
+      fatG: meal.fat_g,
+      fiberG: null,
+    },
+  ]
 }
 
 export function formatFoodDiaryEntryMacros(entry: ClientFoodDiaryEntry): string | null {

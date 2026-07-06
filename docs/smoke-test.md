@@ -206,8 +206,8 @@ Repeatable manual verification for the coach → client loop and recent features
 
 ## 15. Progressive overload
 
-- [ ] On a client calendar exercise, enable **Auto progress load** in the prescription editor
-- [ ] Assign the workout and have the client log all rep targets for that exercise, then complete the session
+- [ ] Edit a client → enable **Progressive overload** in the Coaching section
+- [ ] Assign a weighted workout and have the client log all rep targets for an exercise, then complete the session
 - [ ] Sign in as coach → **Programming → Progressive overload** (`/progressive-overload`)
 - [ ] Confirm a suggestion appears for the client/exercise with previous and suggested weight
 - [ ] Click **Approve** — toast confirms target weight applied to upcoming sessions

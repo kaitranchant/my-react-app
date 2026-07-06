@@ -16,6 +16,7 @@ export const defaultCoachPreferences: CoachPreferences = {
   weekStartsOn: 'monday',
   timezone: 'auto',
   defaultCheckInFrequency: 'weekly',
+  defaultWorkoutLogView: 'guided',
 }
 
 const LBS_TO_KG = 0.45359237
@@ -37,6 +38,7 @@ type ProfilePreferenceRow = Pick<
   | 'week_starts_on'
   | 'coach_timezone'
   | 'default_check_in_frequency'
+  | 'default_workout_log_view'
 >
 
 export function resolveCoachTimezone(
@@ -102,6 +104,8 @@ export function parseCoachPreferences(
     defaultCheckInFrequency:
       row?.default_check_in_frequency ??
       defaultCoachPreferences.defaultCheckInFrequency,
+    defaultWorkoutLogView:
+      row?.default_workout_log_view === 'list' ? 'list' : 'guided',
   }
 }
 
@@ -111,6 +115,7 @@ export function coachPreferencesToRow(values: CoachPreferences) {
     week_starts_on: values.weekStartsOn,
     coach_timezone: values.timezone === 'auto' ? null : values.timezone,
     default_check_in_frequency: values.defaultCheckInFrequency,
+    default_workout_log_view: values.defaultWorkoutLogView,
   }
 }
 
