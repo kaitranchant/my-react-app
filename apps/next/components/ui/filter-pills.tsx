@@ -31,14 +31,13 @@ export function FilterPillLinks({
           {label}
         </p>
       ) : null}
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="inline-flex w-max flex-wrap gap-1.5">
-          {options.map((option) => (
-            <Link
-              key={option.href}
-              href={option.href}
-              className={cn(
-                'filter-pill shrink-0',
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => (
+          <Link
+            key={option.href}
+            href={option.href}
+            className={cn(
+              'filter-pill shrink-0',
                 size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
                 option.active
                   ? 'filter-pill-active'
@@ -48,7 +47,6 @@ export function FilterPillLinks({
               {option.label}
             </Link>
           ))}
-        </div>
       </div>
     </div>
   )
@@ -87,7 +85,26 @@ type FilterPillsProps = {
   options: FilterPillOption[]
   label?: string
   size?: 'sm' | 'md'
+  layout?: 'wrap' | 'scroll'
   className?: string
+}
+
+function FilterPillRow({
+  layout,
+  children,
+}: {
+  layout: 'wrap' | 'scroll'
+  children: React.ReactNode
+}) {
+  if (layout === 'scroll') {
+    return (
+      <div className="-mx-1 overflow-x-auto pb-1">
+        <div className="inline-flex w-max gap-1.5">{children}</div>
+      </div>
+    )
+  }
+
+  return <div className="flex flex-wrap gap-1.5">{children}</div>
 }
 
 export function FilterPills({
@@ -96,6 +113,7 @@ export function FilterPills({
   options,
   label,
   size = 'md',
+  layout = 'wrap',
   className,
 }: FilterPillsProps) {
   return (
@@ -105,29 +123,27 @@ export function FilterPills({
           {label}
         </p>
       ) : null}
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="inline-flex w-max flex-wrap gap-1.5">
-          {options.map((option) => {
-            const active = value === option.value
+      <FilterPillRow layout={layout}>
+        {options.map((option) => {
+          const active = value === option.value
 
-            return (
-              <button
-                key={option.value}
-                type="button"
-                title={option.title ?? option.label}
-                onClick={() => onChange(option.value)}
-                className={cn(
-                  'filter-pill shrink-0',
-                  size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
-                  active ? 'filter-pill-active' : 'filter-pill-inactive'
-                )}
-              >
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+          return (
+            <button
+              key={option.value}
+              type="button"
+              title={option.title ?? option.label}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                'filter-pill shrink-0',
+                size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
+                active ? 'filter-pill-active' : 'filter-pill-inactive'
+              )}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </FilterPillRow>
     </div>
   )
 }

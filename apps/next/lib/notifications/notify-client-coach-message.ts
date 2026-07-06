@@ -6,12 +6,21 @@ import {
   getPortalClientNotificationTarget,
   isPortalClientNotificationEnabled,
 } from '@/lib/notifications/portal-client-notification-target'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 
 export async function notifyClientOfCoachMessage(params: {
   clientId: string
   coachId: string
   messageBody: string
 }): Promise<void> {
+  const coachEnabled = await isCoachClientNotificationEnabled(
+    params.coachId,
+    'sendClientMessages'
+  )
+  if (!coachEnabled) {
+    return
+  }
+
   const target = await getPortalClientNotificationTarget(params.clientId)
   if (!target) {
     return

@@ -143,7 +143,45 @@ export default async function LibraryProgramsPage({
               )}
             </div>
           ) : (
-            <Table>
+            <>
+              <div className="space-y-3 p-4 md:hidden">
+                {programs.map((program) => (
+                  <Card key={program.id} className="py-0">
+                    <CardContent className="space-y-2 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <Link
+                            href={`/library/programs/${program.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {program.name}
+                          </Link>
+                          {program.description ? (
+                            <p className="text-muted-foreground text-xs">
+                              {program.description}
+                            </p>
+                          ) : null}
+                        </div>
+                        <ProgramRowActions program={program} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ProgramStatusBadge status={program.status} />
+                        <span className="text-muted-foreground text-xs">
+                          {assignmentCounts.get(program.id) ?? 0} client
+                          {(assignmentCounts.get(program.id) ?? 0) === 1
+                            ? ''
+                            : 's'}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Updated {formatDate(program.updated_at)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <Table className="hidden md:table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-5">Name</TableHead>
@@ -188,6 +226,7 @@ export default async function LibraryProgramsPage({
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>

@@ -226,6 +226,16 @@ export type Database = {
           portal_notify_appointment_reminders: boolean
           notify_appointment_reminders: boolean
           appointment_reminder_hours: number
+          coach_send_client_messages: boolean
+          coach_send_client_check_in_reviews: boolean
+          coach_send_client_form_review_replies: boolean
+          coach_send_client_nutrition_setup: boolean
+          coach_send_client_team_updates: boolean
+          coach_send_client_invites: boolean
+          coach_send_client_workout_reminders: boolean
+          coach_send_client_check_in_reminders: boolean
+          coach_send_client_unread_digest: boolean
+          coach_send_client_appointment_reminders: boolean
           session_booking_enabled: boolean
           default_session_duration_minutes: number
           booking_buffer_minutes: number
@@ -233,6 +243,7 @@ export type Database = {
           booking_max_days_ahead: number
           default_session_location: string | null
           booking_requires_session_pack: boolean
+          weekly_session_targets_enabled: boolean
           subscription_plan: SubscriptionPlan
           subscription_status: SubscriptionStatus | null
           stripe_customer_id: string | null
@@ -274,6 +285,16 @@ export type Database = {
           portal_notify_appointment_reminders?: boolean
           notify_appointment_reminders?: boolean
           appointment_reminder_hours?: number
+          coach_send_client_messages?: boolean
+          coach_send_client_check_in_reviews?: boolean
+          coach_send_client_form_review_replies?: boolean
+          coach_send_client_nutrition_setup?: boolean
+          coach_send_client_team_updates?: boolean
+          coach_send_client_invites?: boolean
+          coach_send_client_workout_reminders?: boolean
+          coach_send_client_check_in_reminders?: boolean
+          coach_send_client_unread_digest?: boolean
+          coach_send_client_appointment_reminders?: boolean
           session_booking_enabled?: boolean
           default_session_duration_minutes?: number
           booking_buffer_minutes?: number
@@ -281,6 +302,7 @@ export type Database = {
           booking_max_days_ahead?: number
           default_session_location?: string | null
           booking_requires_session_pack?: boolean
+          weekly_session_targets_enabled?: boolean
           subscription_plan?: SubscriptionPlan
           subscription_status?: SubscriptionStatus | null
           stripe_customer_id?: string | null
@@ -322,6 +344,16 @@ export type Database = {
           portal_notify_appointment_reminders?: boolean
           notify_appointment_reminders?: boolean
           appointment_reminder_hours?: number
+          coach_send_client_messages?: boolean
+          coach_send_client_check_in_reviews?: boolean
+          coach_send_client_form_review_replies?: boolean
+          coach_send_client_nutrition_setup?: boolean
+          coach_send_client_team_updates?: boolean
+          coach_send_client_invites?: boolean
+          coach_send_client_workout_reminders?: boolean
+          coach_send_client_check_in_reminders?: boolean
+          coach_send_client_unread_digest?: boolean
+          coach_send_client_appointment_reminders?: boolean
           session_booking_enabled?: boolean
           default_session_duration_minutes?: number
           booking_buffer_minutes?: number
@@ -329,6 +361,7 @@ export type Database = {
           booking_max_days_ahead?: number
           default_session_location?: string | null
           booking_requires_session_pack?: boolean
+          weekly_session_targets_enabled?: boolean
           subscription_plan?: SubscriptionPlan
           subscription_status?: SubscriptionStatus | null
           stripe_customer_id?: string | null
@@ -563,6 +596,7 @@ export type Database = {
           invite_accepted_at: string | null
           onboarding_automation_at: string | null
           stripe_customer_id: string | null
+          weekly_session_target: number | null
           created_at: string
           updated_at: string
         }
@@ -588,6 +622,7 @@ export type Database = {
           invite_accepted_at?: string | null
           onboarding_automation_at?: string | null
           stripe_customer_id?: string | null
+          weekly_session_target?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -613,6 +648,7 @@ export type Database = {
           invite_accepted_at?: string | null
           onboarding_automation_at?: string | null
           stripe_customer_id?: string | null
+          weekly_session_target?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -1661,6 +1697,36 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      client_weekly_session_targets: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          week_start_date: string
+          target_sessions: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          week_start_date: string
+          target_sessions: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          week_start_date?: string
+          target_sessions?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       client_session_packs: {
         Row: {

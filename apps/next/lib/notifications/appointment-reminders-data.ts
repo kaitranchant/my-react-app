@@ -1,4 +1,8 @@
 import { parseCoachPreferences } from '@/lib/coach-preferences'
+import {
+  coachClientNotificationSelect,
+  parseCoachClientNotificationPreferences,
+} from '@/lib/coach-client-notification-preferences'
 import { sendCoachAppointmentReminderEmail } from '@/lib/email/coach-appointment-reminder'
 import { getAppBaseUrl } from '@/lib/email/config'
 import { sendPortalAppointmentReminderEmail } from '@/lib/email/portal-appointment-reminder'
@@ -42,6 +46,16 @@ type CoachProfileRow = Pick<
   | 'default_check_in_frequency'
   | 'notify_appointment_reminders'
   | 'appointment_reminder_hours'
+  | 'coach_send_client_messages'
+  | 'coach_send_client_check_in_reviews'
+  | 'coach_send_client_form_review_replies'
+  | 'coach_send_client_nutrition_setup'
+  | 'coach_send_client_team_updates'
+  | 'coach_send_client_invites'
+  | 'coach_send_client_workout_reminders'
+  | 'coach_send_client_check_in_reminders'
+  | 'coach_send_client_unread_digest'
+  | 'coach_send_client_appointment_reminders'
 >
 
 async function fetchSentReminderRecipients(
@@ -117,7 +131,7 @@ export async function sendAppointmentReminders(
   const { data: coaches, error: coachesError } = await admin
     .from('profiles')
     .select(
-      'id, full_name, business_name, coach_timezone, week_starts_on, weight_unit, default_check_in_frequency, notify_appointment_reminders, appointment_reminder_hours'
+      `id, full_name, business_name, coach_timezone, week_starts_on, weight_unit, default_check_in_frequency, notify_appointment_reminders, appointment_reminder_hours, ${coachClientNotificationSelect}`
     )
     .eq('role', 'coach')
 
@@ -181,6 +195,8 @@ export async function sendAppointmentReminders(
     const coachNotificationPrefs = {
       notifyAppointmentReminders: coachProfile.notify_appointment_reminders ?? true,
     }
+    const coachClientNotificationPrefs =
+      parseCoachClientNotificationPreferences(coachProfile)
     const coachName = getCoachDisplayName(coachProfile)
 
     let coachEmail: string | null = null
@@ -217,7 +233,13 @@ export async function sendAppointmentReminders(
 
           const clientPrefs = parsePortalNotificationPreferences(clientProfile)
 
-          if (!clientPrefs.notifyAppointmentReminders) {
+          if (!coachClientNotificationPrefs.sendClientAppointmentReminders) {
+            results.push({
+              appointmentId: appointment.id,
+              recipient: 'client',
+              status: 'skipped',
+            })
+          } else if (!clientPrefs.notifyAppointmentReminders) {
             results.push({
               appointmentId: appointment.id,
               recipient: 'client',

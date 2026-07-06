@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarPlus, ClipboardCheck, UtensilsCrossed } from 'lucide-react'
+import { CalendarPlus, ClipboardCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
@@ -24,12 +24,6 @@ export function ClientQuickActions({ clientId }: ClientQuickActionsProps) {
         <Link href={`${base}?tab=training&action=schedule`}>
           <CalendarPlus className="size-4" />
           <span className="hidden sm:inline">Schedule workout</span>
-        </Link>
-      </Button>
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`${base}?tab=nutrition&section=setup`}>
-          <UtensilsCrossed className="size-4" />
-          <span className="hidden sm:inline">Nutrition setup</span>
         </Link>
       </Button>
     </div>

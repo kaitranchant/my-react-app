@@ -6,6 +6,7 @@ import {
   getPortalClientNotificationTarget,
   isPortalClientNotificationEnabled,
 } from '@/lib/notifications/portal-client-notification-target'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 
 export async function notifyClientOfCheckInReview(params: {
   clientId: string
@@ -13,6 +14,14 @@ export async function notifyClientOfCheckInReview(params: {
   checkInDate: string
   coachNotes?: string | null
 }): Promise<void> {
+  const coachEnabled = await isCoachClientNotificationEnabled(
+    params.coachId,
+    'sendClientCheckInReviews'
+  )
+  if (!coachEnabled) {
+    return
+  }
+
   const target = await getPortalClientNotificationTarget(params.clientId)
   if (!target) {
     return

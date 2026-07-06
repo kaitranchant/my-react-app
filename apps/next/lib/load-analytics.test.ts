@@ -69,6 +69,27 @@ test('calcAcwr returns unknown when chronic load is zero', () => {
   assert.equal(result.label, 'unknown')
 })
 
+test('calcAcwr returns unknown with only one prior week of volume', () => {
+  const result = calcAcwr(
+    [{ dateKey: '2026-06-26', volume: 15000 }],
+    new Date('2026-07-06')
+  )
+  assert.equal(result.ratio, null)
+  assert.equal(result.riskLevel, 'unknown')
+})
+
+test('calcAcwr computes ratio once two prior weeks have volume', () => {
+  const result = calcAcwr(
+    [
+      { dateKey: '2026-06-16', volume: 12000 },
+      { dateKey: '2026-06-26', volume: 15000 },
+    ],
+    new Date('2026-07-06')
+  )
+  assert.ok(result.ratio != null)
+  assert.notEqual(result.riskLevel, 'unknown')
+})
+
 test('calcAcwr flags elevated load', () => {
   const rows = [
     { dateKey: '2026-06-12', volume: 1000 },

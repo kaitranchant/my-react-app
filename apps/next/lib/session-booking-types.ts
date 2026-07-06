@@ -15,6 +15,7 @@ export type SessionBookingSettings = {
   default_session_location: string | null
   booking_requires_session_pack: boolean
   appointment_reminder_hours: number
+  weekly_session_targets_enabled: boolean
 }
 
 export type CoachAvailabilityRule = {
@@ -81,7 +82,7 @@ export type CoachingAppointment = {
 }
 
 export const SESSION_BOOKING_SETTINGS_SELECT =
-  'session_booking_enabled, default_session_duration_minutes, booking_buffer_minutes, booking_min_notice_hours, booking_max_days_ahead, default_session_location, booking_requires_session_pack, appointment_reminder_hours'
+  'session_booking_enabled, default_session_duration_minutes, booking_buffer_minutes, booking_min_notice_hours, booking_max_days_ahead, default_session_location, booking_requires_session_pack, appointment_reminder_hours, weekly_session_targets_enabled'
 
 export const defaultSessionBookingSettings: SessionBookingSettings = {
   session_booking_enabled: false,
@@ -92,6 +93,7 @@ export const defaultSessionBookingSettings: SessionBookingSettings = {
   default_session_location: null,
   booking_requires_session_pack: false,
   appointment_reminder_hours: 24,
+  weekly_session_targets_enabled: false,
 }
 
 export function parseSessionBookingSettings(
@@ -122,6 +124,9 @@ export function parseSessionBookingSettings(
     appointment_reminder_hours:
       row?.appointment_reminder_hours ??
       defaultSessionBookingSettings.appointment_reminder_hours,
+    weekly_session_targets_enabled:
+      row?.weekly_session_targets_enabled ??
+      defaultSessionBookingSettings.weekly_session_targets_enabled,
   }
 }
 
@@ -137,6 +142,7 @@ export function sessionBookingSettingsToRow(
     default_session_location: values.defaultSessionLocation?.trim() || null,
     booking_requires_session_pack: values.bookingRequiresSessionPack,
     appointment_reminder_hours: values.appointmentReminderHours,
+    weekly_session_targets_enabled: values.weeklySessionTargetsEnabled,
   }
 }
 
@@ -152,6 +158,7 @@ export function sessionBookingSettingsToFormValues(
     defaultSessionLocation: settings.default_session_location ?? '',
     bookingRequiresSessionPack: settings.booking_requires_session_pack,
     appointmentReminderHours: settings.appointment_reminder_hours,
+    weeklySessionTargetsEnabled: settings.weekly_session_targets_enabled,
   }
 }
 

@@ -76,7 +76,7 @@ export function PortalTodayWorkoutHero({
           : 'border-brand/20 from-brand/10 bg-gradient-to-br to-brand/5'
       )}
     >
-      <div className="relative flex flex-col gap-3 p-4 sm:gap-4 sm:p-6">
+      <div className="relative flex flex-col gap-3 p-3 sm:gap-4 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">

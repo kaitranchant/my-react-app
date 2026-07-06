@@ -17,7 +17,7 @@ export function PortalBookSessionCard({
 }: PortalBookSessionCardProps) {
   return (
     <Link href="/portal/sessions" className="group block">
-      <Card className="transition-colors group-hover:border-brand/40">
+      <Card className="h-full transition-colors group-hover:border-brand/40">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between gap-2 text-base">
             <span className="flex items-center gap-2">

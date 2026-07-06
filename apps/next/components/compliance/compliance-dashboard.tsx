@@ -10,7 +10,7 @@ import {
   MessageSquare,
   Users,
 } from 'lucide-react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import { Badge } from '@/components/ui/badge'
@@ -224,22 +224,19 @@ export function ComplianceDashboard({
   initialClientId = null,
 }: ComplianceDashboardProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
 
-  const filterFromUrl = parseComplianceFilter(searchParams.get('filter') ?? undefined)
-  const sortFromUrl = parseComplianceSort(searchParams.get('sort') ?? undefined)
+  const filter = parseComplianceFilter(searchParams.get('filter') ?? undefined)
+  const sort = parseComplianceSort(searchParams.get('sort') ?? undefined)
   const gymIds = React.useMemo(() => new Set(gyms.map((gym) => gym.id)), [gyms])
-  const scopeFromUrl = parseAttendanceScope(
+  const scope = parseAttendanceScope(
     searchParams.get('scope') ?? undefined,
     searchParams.get('team') ?? undefined,
     gymIds,
     gyms,
     teams
   )
-
-  const [filter, setFilter] = React.useState<ComplianceFilter>(filterFromUrl)
-  const [sort, setSort] = React.useState<ComplianceSort>(sortFromUrl)
-  const [scope, setScope] = React.useState<AttendanceScope>(scopeFromUrl)
 
   const scopedRows = filterComplianceRowsByScope(rows, scope, teams)
   const filteredRows = filterComplianceRows(scopedRows, filter)
@@ -249,12 +246,6 @@ export function ComplianceDashboard({
   const [expandedClientId, setExpandedClientId] = React.useState<string | null>(
     initialClientId
   )
-
-  React.useEffect(() => {
-    setFilter(filterFromUrl)
-    setSort(sortFromUrl)
-    setScope(scopeFromUrl)
-  }, [filterFromUrl, sortFromUrl, scopeFromUrl])
 
   React.useEffect(() => {
     if (initialClientId) {
@@ -270,27 +261,30 @@ export function ComplianceDashboard({
     row?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [initialClientId, visibleRows.length])
 
-  function syncUrlParams(next: {
-    filter: ComplianceFilter
-    sort: ComplianceSort
-    scope: AttendanceScope
+  function buildComplianceHref(next: {
+    filter?: ComplianceFilter
+    sort?: ComplianceSort
+    scope?: AttendanceScope
   }) {
     const params = new URLSearchParams(searchParams.toString())
+    const nextFilter = next.filter ?? filter
+    const nextSort = next.sort ?? sort
+    const nextScope = next.scope ?? scope
 
-    if (next.filter === 'all') {
+    if (nextFilter === 'all') {
       params.delete('filter')
     } else {
-      params.set('filter', next.filter)
+      params.set('filter', nextFilter)
     }
 
-    if (next.sort === 'issues') {
+    if (nextSort === 'issues') {
       params.delete('sort')
     } else {
-      params.set('sort', next.sort)
+      params.set('sort', nextSort)
     }
 
     const { scope: scopeParam, team: teamParam } = attendanceScopeToParams(
-      next.scope
+      nextScope
     )
     if (scopeParam) {
       params.set('scope', scopeParam)
@@ -304,23 +298,16 @@ export function ComplianceDashboard({
     }
 
     const query = params.toString()
-    window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname)
+    return query ? `${pathname}?${query}` : pathname
   }
 
   function handleFilterChange(value: string) {
     const nextFilter = value === 'needs_attention' ? 'needs_attention' : 'all'
-    setFilter(nextFilter)
-    syncUrlParams({ filter: nextFilter, sort, scope })
+    router.replace(buildComplianceHref({ filter: nextFilter }), { scroll: false })
   }
 
   function handleSortChange(value: ComplianceSort) {
-    setSort(value)
-    syncUrlParams({ filter, sort: value, scope })
-  }
-
-  function handleScopeChange(nextScope: AttendanceScope) {
-    setScope(nextScope)
-    syncUrlParams({ filter, sort, scope: nextScope })
+    router.replace(buildComplianceHref({ sort: value }), { scroll: false })
   }
 
   if (rows.length === 0) {
@@ -341,7 +328,7 @@ export function ComplianceDashboard({
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-4 py-4 sm:gap-6 sm:py-5 lg:grid-cols-4 xl:grid-cols-6">
+        <CardContent className="grid grid-cols-3 gap-x-3 gap-y-3 py-4 sm:gap-6 sm:py-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5">
           <SummaryStat
             label="Need attention"
             value={summary.clientsNeedingAttention}
@@ -391,17 +378,11 @@ export function ComplianceDashboard({
             label="On track"
             value={summary.totalClients - summary.clientsNeedingAttention}
             tone="success"
-            className="col-span-2 sm:col-span-1"
           />
         </CardContent>
       </Card>
 
-      <AttendanceScopeTabs
-        gyms={gyms}
-        teams={teams}
-        scope={scope}
-        onScopeChange={handleScopeChange}
-      />
+      <AttendanceScopeTabs gyms={gyms} teams={teams} />
 
       <Card>
         <CardHeader className="gap-3 border-b px-4 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">

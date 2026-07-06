@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { sendClientInviteEmail } from '@/lib/email/client-invite'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 import { getAppBaseUrl } from '@/lib/email/config'
 import { getGymMembershipForCoach, getGymIdsForCoach } from '@/lib/gym-access'
 import { buildClientInviteUrl } from '@/lib/invite'
@@ -70,6 +71,7 @@ function toRow(values: ClientFormValues) {
         ? values.biologicalSex
         : null,
     leaderboard_opt_out: values.leaderboardOptOut ?? false,
+    weekly_session_target: values.weeklySessionTarget ?? null,
   }
 }
 
@@ -171,6 +173,7 @@ export async function createClientRecord(
     .update({
       biological_sex: row.biological_sex,
       leaderboard_opt_out: row.leaderboard_opt_out,
+      weekly_session_target: row.weekly_session_target,
     })
     .eq('id', clientId)
     .eq('coach_id', user.id)
@@ -663,6 +666,20 @@ export async function resendClientActivationEmail(
     'Your coach'
 
   const inviteUrl = buildClientInviteUrl(token, getAppBaseUrl())
+
+  const invitesEnabled = await isCoachClientNotificationEnabled(
+    user.id,
+    'sendClientInvites'
+  )
+  if (!invitesEnabled) {
+    return {
+      success: false,
+      error:
+        'Portal invite emails are turned off in Settings → Notifications → Notifications to clients.',
+      inviteUrl,
+    }
+  }
+
   const emailResult = await sendClientInviteEmail({
     clientName: client.full_name,
     clientEmail: email,

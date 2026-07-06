@@ -4,14 +4,48 @@ import { revalidatePath } from 'next/cache'
 
 import { requireClientAccess } from '@/lib/gym-access'
 import {
+  fetchAttendanceDateData,
+  type AttendanceDateData,
+  type AttendanceScopeData,
+} from '@/lib/attendance-page-data'
+import { createClient } from '@/lib/supabase/server'
+import {
   markAllClientsPresentSchema,
   updateClientDailyAttendanceSchema,
 } from '@/lib/validations/attendance'
+import type { AttendanceViewMode } from '@/lib/validations/attendance'
+import type { WeekStartsOn } from 'app/types/database'
 
 export type ActionResult = { success: true } | { success: false; error: string }
 
 function revalidateAttendance() {
   revalidatePath('/attendance')
+}
+
+export async function loadAttendanceDateData(input: {
+  date: string
+  view: AttendanceViewMode
+  weekStartsOn: WeekStartsOn
+  scopeData: AttendanceScopeData
+  userId: string
+}): Promise<AttendanceDateData> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user || user.id !== input.userId) {
+    throw new Error('Unauthorized')
+  }
+
+  return fetchAttendanceDateData({
+    supabase,
+    userId: user.id,
+    date: input.date,
+    view: input.view,
+    weekStartsOn: input.weekStartsOn,
+    scopeData: input.scopeData,
+  })
 }
 
 export async function updateClientDailyAttendance(

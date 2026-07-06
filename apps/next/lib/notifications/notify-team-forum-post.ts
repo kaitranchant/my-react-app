@@ -4,6 +4,7 @@ import {
   getPortalClientNotificationTarget,
   isPortalClientNotificationEnabled,
 } from '@/lib/notifications/portal-client-notification-target'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 
 export async function notifyTeamClientsOfForumPost(params: {
   teamId: string
@@ -11,6 +12,14 @@ export async function notifyTeamClientsOfForumPost(params: {
   coachId: string
   preview: string
 }): Promise<void> {
+  const coachEnabled = await isCoachClientNotificationEnabled(
+    params.coachId,
+    'sendClientTeamUpdates'
+  )
+  if (!coachEnabled) {
+    return
+  }
+
   const admin = createAdminClient()
   if (!admin) {
     return

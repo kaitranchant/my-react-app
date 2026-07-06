@@ -333,6 +333,35 @@ export function SessionBookingSettingsForm({
           />
         </BookingToggleRow>
 
+        <BookingToggleRow
+          label="Track weekly session targets"
+          description="Show scheduled vs. target on the calendar."
+        >
+          <FormField
+            control={form.control}
+            name="weeklySessionTargetsEnabled"
+            render={({ field }) => (
+              <FormItem>
+                <Select
+                  value={field.value ? 'yes' : 'no'}
+                  onValueChange={(value) => field.onChange(value === 'yes')}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-[7.5rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="yes">Enabled</SelectItem>
+                    <SelectItem value="no">Disabled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </BookingToggleRow>
+
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             Save settings

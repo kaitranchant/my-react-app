@@ -37,7 +37,11 @@ type SchedulingPageTabsProps = {
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
   weekKeys: string[]
-  clients: Array<{ id: string; full_name: string | null }>
+  clients: Array<{
+    id: string
+    full_name: string | null
+    weekly_session_target?: number | null
+  }>
   bookingDateKeys: string[]
   settings: SessionBookingSettings
   settingsFormValues: SessionBookingSettingsValues
@@ -52,6 +56,7 @@ type SchedulingPageTabsProps = {
   connectError: string | null
   connectSuccess: boolean
   googleBlockedTimes: GoogleCalendarBlockedTime[]
+  weekOverrides: Array<{ client_id: string; target_sessions: number }>
 }
 
 function readViewFromLocation(): SchedulingViewMode {
@@ -84,6 +89,7 @@ export function SchedulingPageTabs({
   connectError,
   connectSuccess,
   googleBlockedTimes,
+  weekOverrides,
 }: SchedulingPageTabsProps) {
   const pathname = usePathname()
   const [view, setView] = React.useState(initialView)
@@ -157,6 +163,9 @@ export function SchedulingPageTabs({
               weekKeys={weekKeys}
               clients={clients}
               dateOptions={bookingDateKeys}
+              weeklyTargetsEnabled={settings.weekly_session_targets_enabled}
+              clientDefaults={clients}
+              weekOverrides={weekOverrides}
             />
           </CardContent>
         </Card>

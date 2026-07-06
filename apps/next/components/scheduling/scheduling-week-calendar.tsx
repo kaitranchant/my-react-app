@@ -14,6 +14,10 @@ import {
   appointmentStatusLabels,
   type CoachingAppointment,
 } from '@/lib/session-booking-types'
+import {
+  clientDisplayName,
+  type ClientSessionProgress,
+} from '@/lib/weekly-session-targets'
 import { cn } from '@/lib/utils'
 
 const GRID_START_HOUR = 5
@@ -43,6 +47,7 @@ type SchedulingWeekCalendarProps = {
   googleBlockedTimes?: GoogleCalendarBlockedTime[]
   coachPreferences: CoachPreferences
   weekKeys: string[]
+  clientSessionProgress?: Map<string, ClientSessionProgress>
   onSelectAppointment?: (appointment: CoachingAppointment) => void
 }
 
@@ -70,11 +75,40 @@ function getMinutesInTimezone(
   return hour * 60 + minute
 }
 
+function formatAppointmentStartTime(
+  startsAt: string,
+  timezone: CoachPreferences['timezone']
+) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: resolveCoachTimezone(timezone) ?? undefined,
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(startsAt))
+}
+
+function getAppointmentBlockClassName(
+  appointment: CoachingAppointment,
+  clientSessionProgress?: Map<string, ClientSessionProgress>
+) {
+  const progress = clientSessionProgress?.get(appointment.client_id)
+  const underTarget =
+    progress != null &&
+    progress.scheduled < progress.target &&
+    appointment.status === 'scheduled'
+
+  if (underTarget) {
+    return 'bg-amber-500/15 border-amber-600/50 text-amber-900 dark:text-amber-100'
+  }
+
+  return statusColors[appointment.status]
+}
+
 function CalendarGrid({
   visibleDays,
   appointmentsByDay,
   blockedTimesByDay,
   coachPreferences,
+  clientSessionProgress,
   onSelectAppointment,
   columnMinWidth,
 }: {
@@ -82,6 +116,7 @@ function CalendarGrid({
   appointmentsByDay: Map<string, CoachingAppointment[]>
   blockedTimesByDay: Map<string, GoogleCalendarBlockedTime[]>
   coachPreferences: CoachPreferences
+  clientSessionProgress?: Map<string, ClientSessionProgress>
   onSelectAppointment?: (appointment: CoachingAppointment) => void
   columnMinWidth?: string
 }) {
@@ -210,6 +245,12 @@ function CalendarGrid({
                 return null
               }
 
+              const progress = clientSessionProgress?.get(appointment.client_id)
+              const timeLabel = formatAppointmentStartTime(
+                appointment.starts_at,
+                coachPreferences.timezone
+              )
+
               return (
                 <button
                   key={appointment.id}
@@ -217,21 +258,23 @@ function CalendarGrid({
                   onClick={() => onSelectAppointment?.(appointment)}
                   className={cn(
                     'absolute inset-x-1 z-10 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:brightness-95',
-                    statusColors[appointment.status]
+                    getAppointmentBlockClassName(appointment, clientSessionProgress)
                   )}
                   style={{ top, height }}
                 >
                   <p className="truncate font-medium">
-                    {appointment.client?.full_name ?? 'Client'}
+                    {clientDisplayName(appointment.client?.full_name)}
                   </p>
-                  <p className="truncate opacity-80">
-                    {new Intl.DateTimeFormat('en-US', {
-                      timeZone:
-                        resolveCoachTimezone(coachPreferences.timezone) ?? undefined,
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    }).format(new Date(appointment.starts_at))}
-                  </p>
+                  {progress ? (
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate opacity-80">{timeLabel}</span>
+                      <span className="ml-auto shrink-0 font-medium tabular-nums">
+                        {progress.scheduled}/{progress.target}
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="truncate opacity-80">{timeLabel}</p>
+                  )}
                 </button>
               )
             })}
@@ -247,6 +290,7 @@ export function SchedulingWeekCalendar({
   googleBlockedTimes = [],
   coachPreferences,
   weekKeys,
+  clientSessionProgress,
   onSelectAppointment,
 }: SchedulingWeekCalendarProps) {
   const isMobile = useIsMobile()
@@ -375,6 +419,7 @@ export function SchedulingWeekCalendar({
           appointmentsByDay={appointmentsByDay}
           blockedTimesByDay={blockedTimesByDay}
           coachPreferences={coachPreferences}
+          clientSessionProgress={clientSessionProgress}
           onSelectAppointment={onSelectAppointment}
           columnMinWidth={isMobile ? undefined : '96px'}
         />

@@ -48,6 +48,32 @@ import { ClientLeaderboardProfileFields } from '@/components/clients/client-lead
 import { ClientAccountEmailActions } from '@/components/clients/client-account-email-actions'
 import type { Client } from 'app/types/database'
 
+function FormSection({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section className={className}>
+      <div className="mb-3 space-y-0.5">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {description ? (
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  )
+}
+
 function clientToFormValues(client: Client): ClientFormValues {
   return {
     fullName: client.full_name,
@@ -59,6 +85,7 @@ function clientToFormValues(client: Client): ClientFormValues {
     notes: client.notes ?? '',
     biologicalSex: client.biological_sex ?? 'none',
     leaderboardOptOut: client.leaderboard_opt_out ?? false,
+    weeklySessionTarget: client.weekly_session_target ?? null,
   }
 }
 
@@ -115,7 +142,7 @@ export function ClientFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit client' : 'Add client'}</DialogTitle>
           <DialogDescription>
@@ -126,40 +153,162 @@ export function ClientFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-            {isEdit && client && (
-              <ClientAvatarUpload
-                clientId={client.id}
-                name={form.watch('fullName') || client.full_name}
-                avatarUrl={client.avatar_url}
-                size="sm"
-              />
-            )}
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Jordan Smith" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormSection title="Profile">
+              {isEdit && client && (
+                <ClientAvatarUpload
+                  clientId={client.id}
+                  name={form.watch('fullName') || client.full_name}
+                  avatarUrl={client.avatar_url}
+                  size="sm"
+                />
               )}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="email"
+                name="fullName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Full name</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="jordan@example.com"
+                      <Input placeholder="Jordan Smith" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </FormSection>
+
+            <FormSection title="Contact">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="jordan@example.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          placeholder="(555) 123-4567"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection
+              title="Coaching"
+              description="Schedule targets appear on the calendar when tracking is enabled in Scheduling settings."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="paused">Paused</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <ClientCoachingTypeField
+                  control={form.control}
+                  name="coachingType"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+                <FormField
+                  control={form.control}
+                  name="weeklySessionTarget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sessions/week</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={14}
+                          placeholder="2"
+                          className="tabular-nums"
+                          value={field.value ?? ''}
+                          onChange={(event) => {
+                            const next = event.target.value
+                            field.onChange(next === '' ? null : Number(next))
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="goal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Goal</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g. Run a sub-2hr half marathon"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={2}
+                        placeholder="Injuries, preferences, context…"
                         {...field}
                       />
                     </FormControl>
@@ -167,89 +316,7 @@ export function ClientFormDialog({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        placeholder="(555) 123-4567"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="paused">Paused</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <ClientCoachingTypeField control={form.control} name="coachingType" />
-
-            <FormField
-              control={form.control}
-              name="goal"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Goal</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g. Run a sub-2hr half marathon"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      rows={3}
-                      placeholder="Injuries, preferences, context…"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            </FormSection>
 
             <ClientLeaderboardProfileFields
               control={form.control}
@@ -259,7 +326,7 @@ export function ClientFormDialog({
 
             {isEdit && client && <ClientAccountEmailActions client={client} />}
 
-            <DialogFooter className="mt-2">
+            <DialogFooter className="gap-2 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"

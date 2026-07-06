@@ -1,14 +1,10 @@
 'use client'
 
+import { useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { buildLeaderboardExerciseHref } from '@/lib/leaderboard-page-data'
+import { LeaderboardExerciseSelect } from '@/components/leaderboards/leaderboard-exercise-select'
 import type { LeaderboardExerciseOption } from '@/lib/leaderboard-queries'
 import {
   metricSupportsExercise,
@@ -40,23 +36,38 @@ export function LeaderboardToolbar({
       ? exerciseParam === POWERLIFTING_TOTAL_VALUE || !exerciseParam
         ? POWERLIFTING_TOTAL_VALUE
         : (parseLeaderboardExerciseId(exerciseParam) ?? POWERLIFTING_TOTAL_VALUE)
-      : (parseLeaderboardExerciseId(exerciseParam ?? undefined) ?? resolvedExerciseId)
+      : (parseLeaderboardExerciseId(exerciseParam ?? undefined) ??
+        resolvedExerciseId ??
+        '')
+
+  const selectOptions = useMemo(() => {
+    const items = exercises.map((exercise) => ({
+      id: exercise.id,
+      name: exercise.name,
+    }))
+
+    if (metric === 'relative_strength') {
+      return [
+        { id: POWERLIFTING_TOTAL_VALUE, name: 'Powerlifting total (SBD)' },
+        ...items,
+      ]
+    }
+
+    return items
+  }, [exercises, metric])
 
   if (!metricSupportsExercise(metric)) {
     return null
   }
 
   function handleExerciseChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-
-    if (metric === 'relative_strength' && value === POWERLIFTING_TOTAL_VALUE) {
-      params.delete('exercise')
-    } else {
-      params.set('exercise', value)
-    }
-
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
+    const href = buildLeaderboardExerciseHref(
+      pathname,
+      searchParams,
+      value,
+      metric
+    )
+    router.replace(href, { scroll: false })
   }
 
   const rankingLabel =
@@ -71,26 +82,11 @@ export function LeaderboardToolbar({
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-muted-foreground text-sm">{rankingLabel}</p>
-      <Select
-        value={selectedExerciseId ?? undefined}
+      <LeaderboardExerciseSelect
+        options={selectOptions}
+        value={selectedExerciseId || selectOptions[0]?.id || ''}
         onValueChange={handleExerciseChange}
-      >
-        <SelectTrigger className="w-full sm:w-[280px]" aria-label="Exercise">
-          <SelectValue placeholder="Select exercise" />
-        </SelectTrigger>
-        <SelectContent>
-          {metric === 'relative_strength' ? (
-            <SelectItem value={POWERLIFTING_TOTAL_VALUE}>
-              Powerlifting total (SBD)
-            </SelectItem>
-          ) : null}
-          {exercises.map((exercise) => (
-            <SelectItem key={exercise.id} value={exercise.id}>
-              {exercise.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      />
     </div>
   )
 }

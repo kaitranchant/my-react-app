@@ -24,7 +24,7 @@ import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connec
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
-import { fetchAvailableSlotsForCoach, fetchCoachBookableSlotsForCoach, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
+import { fetchAvailableSlotsForCoach, fetchCoachBookableSlotsForCoach, fetchClientWeeklySessionTargets, fetchCoachSessionBookingSettings, fetchCoachingAppointments, fetchPortalSessionBookingSettings, getSchedulingWeekReferenceDate, getWeekAppointmentRange } from '@/lib/session-booking-queries'
 import {
   computeWeeklyAnchorStartsAtForDay,
   formatAppointmentRange,
@@ -2338,8 +2338,103 @@ export type SchedulingWeekDataResult =
       appointments: CoachingAppointment[]
       weekKeys: string[]
       googleBlockedTimes: GoogleCalendarBlockedTime[]
+      weeklyTargetsEnabled: boolean
+      clientDefaults: Array<{
+        id: string
+        full_name: string | null
+        weekly_session_target: number | null
+      }>
+      weekOverrides: Array<{ client_id: string; target_sessions: number }>
     }
   | { success: false; error: string }
+
+export async function upsertClientWeeklySessionTarget(
+  values: import('@/lib/validations/session-booking').ClientWeeklySessionTargetValues
+): Promise<ActionResult> {
+  const parsed = (
+    await import('@/lib/validations/session-booking')
+  ).clientWeeklySessionTargetSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid weekly session target.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const access = await requireClientAccess(parsed.data.clientId)
+  if (!access) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const targetSessions = parsed.data.targetSessions
+  if (targetSessions === null) {
+    const { error } = await ctx.supabase
+      .from('client_weekly_session_targets')
+      .delete()
+      .eq('coach_id', ctx.user.id)
+      .eq('client_id', parsed.data.clientId)
+      .eq('week_start_date', parsed.data.weekStartKey)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  } else {
+    const { error } = await ctx.supabase.from('client_weekly_session_targets').upsert(
+      {
+        coach_id: ctx.user.id,
+        client_id: parsed.data.clientId,
+        week_start_date: parsed.data.weekStartKey,
+        target_sessions: targetSessions,
+      },
+      { onConflict: 'client_id,week_start_date' }
+    )
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  revalidateScheduling()
+  return { success: true }
+}
+
+export async function updateClientWeeklySessionDefault(
+  values: import('@/lib/validations/session-booking').ClientWeeklySessionDefaultValues
+): Promise<ActionResult> {
+  const parsed = (
+    await import('@/lib/validations/session-booking')
+  ).clientWeeklySessionDefaultSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid weekly session default.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const access = await requireClientAccess(parsed.data.clientId)
+  if (!access) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('clients')
+    .update({ weekly_session_target: parsed.data.weeklySessionTarget })
+    .eq('id', parsed.data.clientId)
+    .eq('coach_id', ctx.user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateScheduling()
+  revalidatePath('/clients')
+  revalidatePath(`/clients/${parsed.data.clientId}`)
+  return { success: true }
+}
 
 export async function fetchSchedulingWeekData(
   weekStartKey: string
@@ -2369,12 +2464,37 @@ export async function fetchSchedulingWeekData(
     ctx.user.id
   )
 
-  const [appointments, googleBlockedTimes] = await Promise.all([
-    fetchCoachingAppointments(ctx.supabase, ctx.user.id, startIso, endIso),
-    connection
-      ? fetchGoogleCalendarBlockedTimes(ctx.user.id, startIso, endIso)
-      : Promise.resolve([] as GoogleCalendarBlockedTime[]),
-  ])
+  const [appointments, googleBlockedTimes, settings, { data: clients }] =
+    await Promise.all([
+      fetchCoachingAppointments(ctx.supabase, ctx.user.id, startIso, endIso),
+      connection
+        ? fetchGoogleCalendarBlockedTimes(ctx.user.id, startIso, endIso)
+        : Promise.resolve([] as GoogleCalendarBlockedTime[]),
+      fetchCoachSessionBookingSettings(ctx.supabase, ctx.user.id),
+      ctx.supabase
+        .from('clients')
+        .select('id, full_name, weekly_session_target')
+        .eq('coach_id', ctx.user.id)
+        .eq('status', 'active')
+        .order('full_name'),
+    ])
 
-  return { success: true, appointments, weekKeys, googleBlockedTimes }
+  const resolvedWeekStartKey = weekKeys[0]!
+  const weekOverrides = settings.weekly_session_targets_enabled
+    ? await fetchClientWeeklySessionTargets(
+        ctx.supabase,
+        ctx.user.id,
+        resolvedWeekStartKey
+      )
+    : []
+
+  return {
+    success: true,
+    appointments,
+    weekKeys,
+    googleBlockedTimes,
+    weeklyTargetsEnabled: settings.weekly_session_targets_enabled,
+    clientDefaults: clients ?? [],
+    weekOverrides,
+  }
 }

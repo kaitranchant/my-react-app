@@ -1,6 +1,9 @@
 'use client'
 
-import { FilterNavPills } from '@/components/ui/filter-pills'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/library/exercises', label: 'Exercises' },
@@ -12,5 +15,29 @@ const tabs = [
 ] as const
 
 export function LibraryTabs() {
-  return <FilterNavPills tabs={tabs} />
+  const pathname = usePathname()
+
+  return (
+    <div className="-mx-1 overflow-x-auto pb-1">
+      <div className="inline-flex w-max gap-2">
+        {tabs.map((tab) => {
+          const active =
+            pathname === tab.href || pathname.startsWith(`${tab.href}/`)
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                'filter-pill shrink-0',
+                active ? 'filter-pill-active' : 'filter-pill-inactive'
+              )}
+            >
+              {tab.label}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

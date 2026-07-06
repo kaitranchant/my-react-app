@@ -1,58 +1,48 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useMemo } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
-import { FilterPills } from '@/components/ui/filter-pills'
+import { resolveClientsScope } from '@/lib/clients-list-query'
+import { FilterPillLinks } from '@/components/ui/filter-pills'
 
 type GymTab = {
   id: string
   name: string
 }
 
-function resolveScope(rawScope: string, gymIds: string[]) {
-  if (rawScope === 'all' || rawScope === 'personal') {
-    return rawScope
-  }
-  if (gymIds.includes(rawScope)) {
-    return rawScope
-  }
-  if (rawScope === 'gym' && gymIds.length === 1) {
-    return gymIds[0]
-  }
-  return 'all'
-}
-
 export function ClientsScopeTabs({ gyms }: { gyms: GymTab[] }) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const gymIds = gyms.map((gym) => gym.id)
-  const scope = resolveScope(searchParams.get('scope') ?? 'all', gymIds)
+  const scope = resolveClientsScope(searchParams.get('scope') ?? undefined, gyms)
 
-  function handleScopeChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value === 'all') {
-      params.delete('scope')
-    } else {
-      params.set('scope', value)
+  const options = useMemo(() => {
+    function buildHref(value: string) {
+      const params = new URLSearchParams(searchParams.toString())
+      if (value === 'all') {
+        params.delete('scope')
+      } else {
+        params.set('scope', value)
+      }
+      params.delete('page')
+      const query = params.toString()
+      return query ? `${pathname}?${query}` : pathname
     }
-    params.delete('page')
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
-  }
 
-  const options = [
-    { value: 'all', label: 'All' },
-    { value: 'personal', label: 'Personal' },
-    ...gyms.map((gym) => ({
-      value: gym.id,
-      label: gym.name,
-      title: gym.name,
-    })),
-  ]
+    return [
+      { value: 'all', label: 'All' },
+      { value: 'personal', label: 'Personal' },
+      ...gyms.map((gym) => ({
+        value: gym.id,
+        label: gym.name,
+      })),
+    ].map((option) => ({
+      href: buildHref(option.value),
+      label: option.label,
+      active: scope === option.value,
+    }))
+  }, [gyms, pathname, scope, searchParams])
 
-  return (
-    <FilterPills value={scope} onChange={handleScopeChange} options={options} />
-  )
+  return <FilterPillLinks options={options} />
 }

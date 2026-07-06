@@ -38,19 +38,24 @@ function noProgressHint(goal: PortalGoalHighlight) {
 
 type PortalActiveGoalsCardProps = {
   goals: PortalGoalHighlight[]
+  compact?: boolean
 }
 
-export function PortalActiveGoalsCard({ goals }: PortalActiveGoalsCardProps) {
+export function PortalActiveGoalsCard({
+  goals,
+  compact = false,
+}: PortalActiveGoalsCardProps) {
+  const visibleGoals = compact ? goals.slice(0, 2) : goals
   if (goals.length === 0) {
     return (
-      <Card className="h-full">
-        <CardHeader className="pb-2">
+      <Card className={cn('h-full', compact && 'py-0')}>
+        <CardHeader className={cn('pb-2', compact && 'px-4 pt-4')}>
           <CardTitle className="flex items-center gap-2 text-base">
             <Target className="text-brand size-4" />
             Active goals
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className={compact ? 'px-4 pb-4' : undefined}>
           <EmptyState
             icon={Target}
             title="No active goals yet"
@@ -64,9 +69,14 @@ export function PortalActiveGoalsCard({ goals }: PortalActiveGoalsCardProps) {
   }
 
   return (
-    <Link href="/portal/goals" className="group block">
-      <Card className="h-full transition-colors group-hover:border-brand/40">
-        <CardHeader className="pb-2">
+    <Link href="/portal/goals" className="group block h-full">
+      <Card
+        className={cn(
+          'h-full transition-colors group-hover:border-brand/40',
+          compact && 'py-0'
+        )}
+      >
+        <CardHeader className={cn('pb-2', compact && 'px-4 pt-4')}>
           <CardTitle className="flex items-center justify-between gap-2 text-base">
             <span className="flex items-center gap-2">
               <Target className="text-brand size-4" />
@@ -78,9 +88,9 @@ export function PortalActiveGoalsCard({ goals }: PortalActiveGoalsCardProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className={cn('space-y-3', compact && 'px-4 pb-4')}>
           <ul className="space-y-3">
-            {goals.map((goal) => {
+            {visibleGoals.map((goal) => {
               const hasNoProgress = goalHasNoProgress(goal)
               const wrongDirection = isGoalWrongDirection(goal.status)
 

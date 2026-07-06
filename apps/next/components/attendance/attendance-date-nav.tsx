@@ -1,10 +1,12 @@
 'use client'
 
+import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+import { buildAttendanceHref } from '@/lib/attendance-page-data'
 import { Button } from '@/components/ui/button'
-import { FilterPills } from '@/components/ui/filter-pills'
+import { FilterPillLinks } from '@/components/ui/filter-pills'
 import { addDaysToDateKey, getWeekStartDateKey, parseDateKey } from '@/lib/calendar'
 import type { AttendanceViewMode } from '@/lib/validations/attendance'
 import type { WeekStartsOn } from 'app/types/database'
@@ -68,85 +70,92 @@ export function AttendanceDateNav({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [displayDate, setDisplayDate] = React.useState(date)
+  const [isPending, startTransition] = React.useTransition()
 
-  function pushWithParams(next: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString())
-    for (const [key, value] of Object.entries(next)) {
-      if (value === null) {
-        params.delete(key)
-      } else {
-        params.set(key, value)
-      }
-    }
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
-  }
+  React.useEffect(() => {
+    setDisplayDate(date)
+  }, [date])
 
-  function navigateToDate(nextDate: string) {
-    pushWithParams({
+  const stepDays = view === 'weekly' ? 7 : 1
+
+  function dateHref(nextDate: string) {
+    return buildAttendanceHref(pathname, searchParams, {
       date: nextDate === today ? null : nextDate,
     })
   }
 
-  function navigateWeek(direction: -1 | 1) {
-    const weekStart = getWeekStartDateKey(date, weekStartsOn)
-    navigateToDate(addDaysToDateKey(weekStart, direction * 7))
-  }
-
-  function handleViewChange(nextView: AttendanceViewMode) {
-    pushWithParams({
-      view: nextView === 'daily' ? null : nextView,
+  function navigateToDate(nextDate: string) {
+    setDisplayDate(nextDate)
+    startTransition(() => {
+      router.replace(dateHref(nextDate), { scroll: false })
     })
   }
 
-  const stepDays = view === 'weekly' ? 7 : 1
+  function navigateWeek(direction: -1 | 1) {
+    const weekStart = getWeekStartDateKey(displayDate, weekStartsOn)
+    navigateToDate(addDaysToDateKey(weekStart, direction * 7))
+  }
+
+  React.useEffect(() => {
+    const previousDate = addDaysToDateKey(displayDate, -stepDays)
+    const nextDate = addDaysToDateKey(displayDate, stepDays)
+    router.prefetch(dateHref(previousDate))
+    router.prefetch(dateHref(nextDate))
+  }, [displayDate, router, searchParams, stepDays, today, pathname])
+
+  const viewOptions = [
+    {
+      href: buildAttendanceHref(pathname, searchParams, { view: null }),
+      label: 'Daily',
+      active: view === 'daily',
+    },
+    {
+      href: buildAttendanceHref(pathname, searchParams, { view: 'weekly' }),
+      label: 'Weekly',
+      active: view === 'weekly',
+    },
+  ]
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={view === 'weekly' ? 'Previous week' : 'Previous day'}
-            onClick={() =>
-              view === 'weekly'
-                ? navigateWeek(-1)
-                : navigateToDate(addDaysToDateKey(date, -stepDays))
-            }
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={view === 'weekly' ? 'Next week' : 'Next day'}
-            onClick={() =>
-              view === 'weekly'
-                ? navigateWeek(1)
-                : navigateToDate(addDaysToDateKey(date, stepDays))
-            }
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-        <FilterPills
-          value={view}
-          onChange={(value) => handleViewChange(value as AttendanceViewMode)}
-          size="sm"
-          options={[
-            { value: 'daily', label: 'Daily' },
-            { value: 'weekly', label: 'Weekly' },
-          ]}
-        />
+      <FilterPillLinks size="sm" options={viewOptions} />
+
+      <div
+        className={`flex items-center gap-1 transition-opacity ${isPending ? 'opacity-70' : ''}`}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={view === 'weekly' ? 'Previous week' : 'Previous day'}
+          onClick={() =>
+            view === 'weekly'
+              ? navigateWeek(-1)
+              : navigateToDate(addDaysToDateKey(displayDate, -stepDays))
+          }
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <p className="px-2 text-sm font-medium">
+          {view === 'weekly'
+            ? formatWeekLabel(displayDate, weekStartsOn, today)
+            : formatDateLabel(displayDate, today)}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={view === 'weekly' ? 'Next week' : 'Next day'}
+          onClick={() =>
+            view === 'weekly'
+              ? navigateWeek(1)
+              : navigateToDate(addDaysToDateKey(displayDate, stepDays))
+          }
+        >
+          <ChevronRight className="size-4" />
+        </Button>
       </div>
-      <p className="text-sm font-medium">
-        {view === 'weekly'
-          ? formatWeekLabel(date, weekStartsOn, today)
-          : formatDateLabel(date, today)}
-      </p>
     </div>
   )
 }

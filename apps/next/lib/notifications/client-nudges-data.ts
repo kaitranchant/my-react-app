@@ -1,4 +1,8 @@
 import {
+  coachClientNotificationSelect,
+  parseCoachClientNotificationPreferences,
+} from '@/lib/coach-client-notification-preferences'
+import {
   getCheckInPeriodBounds,
   getPortalCheckInDueLabel,
 } from '@/lib/check-in-cadence'
@@ -47,6 +51,16 @@ type CoachProfileRow = Pick<
   | 'week_starts_on'
   | 'coach_timezone'
   | 'default_check_in_frequency'
+  | 'coach_send_client_messages'
+  | 'coach_send_client_check_in_reviews'
+  | 'coach_send_client_form_review_replies'
+  | 'coach_send_client_nutrition_setup'
+  | 'coach_send_client_team_updates'
+  | 'coach_send_client_invites'
+  | 'coach_send_client_workout_reminders'
+  | 'coach_send_client_check_in_reminders'
+  | 'coach_send_client_unread_digest'
+  | 'coach_send_client_appointment_reminders'
 >
 
 type WorkoutRow = {
@@ -216,7 +230,7 @@ export async function sendClientEmailNudges(
   const { data: coachProfiles, error: coachError } = await admin
     .from('profiles')
     .select(
-      'id, full_name, business_name, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+      `id, full_name, business_name, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, ${coachClientNotificationSelect}`
     )
     .in('id', coachIds)
 
@@ -244,6 +258,8 @@ export async function sendClientEmailNudges(
     }
 
     const coachPreferences = parseCoachPreferences(coachProfile)
+    const coachClientNotificationPrefs =
+      parseCoachClientNotificationPreferences(coachProfile)
     const coachName = getCoachDisplayName(coachProfile)
     const todayKey = getCoachDateKey(coachPreferences.timezone)
     const { start: periodStart, end: periodEnd } = getCheckInPeriodBounds(
@@ -343,7 +359,7 @@ export async function sendClientEmailNudges(
       }
 
       const workouts = workoutsByClientId.get(client.id) ?? []
-      if (prefs?.notifyWorkoutReminders) {
+      if (prefs?.notifyWorkoutReminders && coachClientNotificationPrefs.sendClientWorkoutReminders) {
         for (const workout of workouts) {
           const dedupeKey = `${client.id}:${workout.id}`
           if (sentWorkoutKeys.has(dedupeKey)) {
@@ -405,7 +421,7 @@ export async function sendClientEmailNudges(
         }
       }
 
-      if (prefs?.notifyCheckInReminders) {
+      if (prefs?.notifyCheckInReminders && coachClientNotificationPrefs.sendClientCheckInReminders) {
         const hasCheckIn = clientsWithCheckIn.has(client.id)
         const shouldSend = shouldSendCheckInDueNudge(
           coachPreferences.defaultCheckInFrequency,
@@ -480,7 +496,7 @@ export async function sendClientEmailNudges(
         }
       }
 
-      if (prefs?.notifyUnreadDigest) {
+      if (prefs?.notifyUnreadDigest && coachClientNotificationPrefs.sendClientUnreadDigest) {
         if (sentDigestKeys.has(`${client.id}:${todayKey}`)) {
           results.push({
             clientId: client.id,

@@ -17,6 +17,7 @@ export const sessionBookingSettingsSchema = z.object({
   defaultSessionLocation: z.string().max(500).optional(),
   bookingRequiresSessionPack: z.boolean(),
   appointmentReminderHours: z.number().int().min(1).max(168),
+  weeklySessionTargetsEnabled: z.boolean(),
 })
 
 export type SessionBookingSettingsValues = z.infer<
@@ -187,3 +188,22 @@ export function parseSchedulingViewMode(
   }
   return 'week'
 }
+
+export const clientWeeklySessionTargetSchema = z.object({
+  clientId: z.string().uuid(),
+  weekStartKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  targetSessions: z.union([z.number().int().min(1).max(14), z.null()]),
+})
+
+export type ClientWeeklySessionTargetValues = z.infer<
+  typeof clientWeeklySessionTargetSchema
+>
+
+export const clientWeeklySessionDefaultSchema = z.object({
+  clientId: z.string().uuid(),
+  weeklySessionTarget: z.union([z.number().int().min(1).max(14), z.null()]),
+})
+
+export type ClientWeeklySessionDefaultValues = z.infer<
+  typeof clientWeeklySessionDefaultSchema
+>

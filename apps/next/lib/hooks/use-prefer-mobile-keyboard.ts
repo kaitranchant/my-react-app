@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { useCoarsePointer } from '@/lib/hooks/use-coarse-pointer'
+import { useHasPhysicalKeyboard } from '@/lib/hooks/use-has-physical-keyboard'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { useTabletTouchLayout } from '@/lib/hooks/use-tablet-touch-layout'
 
@@ -25,13 +26,14 @@ function isAndroidTouchTablet() {
 
 /**
  * Prefer the in-app mobile keyboard over native inputs on phones,
- * iPads, and other touch-first layouts. Desktop browsers with a mouse keep
- * native inputs so a physical keyboard can be used.
+ * iPads, and other touch-first layouts. Desktop browsers with a mouse, and
+ * touch devices with an external keyboard or trackpad, keep native inputs.
  */
 export function usePreferMobileKeyboard() {
   const isMobile = useIsMobile()
   const tabletTouch = useTabletTouchLayout()
   const coarsePointer = useCoarsePointer()
+  const hasPhysicalKeyboard = useHasPhysicalKeyboard()
   const [touchTablet, setTouchTablet] = React.useState(false)
 
   React.useEffect(() => {
@@ -43,5 +45,8 @@ export function usePreferMobileKeyboard() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  return isMobile || tabletTouch || coarsePointer || touchTablet
+  const touchFirstLayout =
+    isMobile || tabletTouch || coarsePointer || touchTablet
+
+  return touchFirstLayout && !hasPhysicalKeyboard
 }

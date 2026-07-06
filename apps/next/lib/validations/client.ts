@@ -29,6 +29,7 @@ export const clientFormSchema = z.object({
     .union([z.enum(clientBiologicalSexOptions), z.literal('none')])
     .optional(),
   leaderboardOptOut: z.boolean().optional(),
+  weeklySessionTarget: z.number().int().min(1).max(14).nullable().optional(),
 })
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>
@@ -49,6 +50,7 @@ export const clientFormDefaults: ClientFormValues = {
   notes: '',
   biologicalSex: 'none',
   leaderboardOptOut: false,
+  weeklySessionTarget: null,
 }
 
 export const inviteClientSchema = z.object({

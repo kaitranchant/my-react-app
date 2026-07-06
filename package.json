@@ -15,7 +15,7 @@
     "native": "cd apps/expo && yarn start",
     "web": "yarn workspace next-app dev",
     "db:link": "npx supabase link",
-    "db:push": "npx supabase db push",
+    "db:push": "node scripts/db-push-env.mjs",
     "db:check": "yarn workspace next-app check:schema",
     "check:query-perf": "yarn workspace next-app check:query-perf"
   },

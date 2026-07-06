@@ -6,11 +6,20 @@ import {
   getPortalClientNotificationTarget,
   isPortalClientNotificationEnabled,
 } from '@/lib/notifications/portal-client-notification-target'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 
 export async function notifyClientOfNutritionSetupRequest(params: {
   clientId: string
   coachId: string
 }): Promise<void> {
+  const coachEnabled = await isCoachClientNotificationEnabled(
+    params.coachId,
+    'sendClientNutritionSetup'
+  )
+  if (!coachEnabled) {
+    return
+  }
+
   const target = await getPortalClientNotificationTarget(params.clientId)
   if (!target) {
     return

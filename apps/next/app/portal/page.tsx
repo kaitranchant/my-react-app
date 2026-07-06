@@ -7,6 +7,8 @@ import { PortalBookSessionCard } from '@/components/portal/portal-book-session-c
 import { PortalActiveGoalsCard } from '@/components/portal/portal-active-goals-card'
 import { PortalCheckInSuccessBanner } from '@/components/portal/portal-check-in-success-banner'
 import { PortalFromCoachSection } from '@/components/portal/portal-from-coach-section'
+import { PortalHomeActionCard } from '@/components/portal/portal-home-action-card'
+import { PortalHomeInsightsRail } from '@/components/portal/portal-home-insights-rail'
 import { PortalHomeStatsRow } from '@/components/portal/portal-home-stats-row'
 import { PortalNextTeamEventCard } from '@/components/portal/portal-next-team-event-card'
 import { PortalProgramCard } from '@/components/portal/portal-program-card'
@@ -352,7 +354,7 @@ export default async function PortalPage() {
   ) : null
 
   return (
-    <div className="flex flex-col gap-4 lg:gap-6">
+    <div className="flex flex-col gap-3 md:gap-4 lg:gap-6">
       {!clientRecord ? (
         <PortalUnlinkedState feature="see your schedule and log workouts" />
       ) : homeData ? (
@@ -383,32 +385,38 @@ export default async function PortalPage() {
             lastActive={homeData.lastActive}
           />
 
-          {/* Mobile: hero and week context first, then prompts */}
-          <div className="flex flex-col gap-4 lg:hidden">
+          {/* Mobile: denser layout with grouped actions and horizontal insights */}
+          <div className="flex flex-col gap-3 md:hidden">
             {weekCard}
             <PortalFromCoachSection
               coachName={coachName}
               messageHighlight={messageHighlight}
               formReviewHighlight={formReviewHighlight}
             />
-            <PortalReadinessPrompt
-              status={homeData.checkInStatus}
+            <PortalHomeActionCard
+              checkInStatus={homeData.checkInStatus}
               dueLabel={checkInDueLabel}
+              needsNutritionLogToday={needsNutritionLogToday}
             />
-            <PortalNutritionPrompt needsLogToday={needsNutritionLogToday} />
             {submittedCheckInCard}
-            {sessionBookingCard}
-            <PortalActiveGoalsCard goals={goalHighlights} />
-            <PortalRecentPrs recentPrs={homeData.recentPrs} showViewAll />
-            {programCard}
+            <PortalHomeInsightsRail>
+              {sessionBookingCard}
+              <PortalActiveGoalsCard goals={goalHighlights} compact />
+              <PortalRecentPrs
+                recentPrs={homeData.recentPrs}
+                showViewAll
+                compact
+              />
+              {programCard}
+              {nextTeamEvent ? (
+                <PortalNextTeamEventCard nextEvent={nextTeamEvent} />
+              ) : null}
+            </PortalHomeInsightsRail>
             {heatmapCard}
-            {nextTeamEvent && (
-              <PortalNextTeamEventCard nextEvent={nextTeamEvent} />
-            )}
           </div>
 
-          {/* Desktop: two-column grid */}
-          <div className="hidden items-start gap-6 lg:grid lg:grid-cols-[1.35fr_22rem]">
+          {/* Tablet and desktop: two-column grid */}
+          <div className="hidden items-start gap-4 md:grid md:grid-cols-[1.35fr_22rem] lg:gap-6">
             <div className="flex min-w-0 flex-col gap-6">
               {weekCard}
               {heatmapCard}

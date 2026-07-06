@@ -4,6 +4,11 @@ import { revalidatePath } from 'next/cache'
 
 import { coachPreferencesToRow } from '@/lib/coach-preferences'
 import {
+  coachClientNotificationPreferencesToRow,
+  coachClientNotificationSelect,
+  parseCoachClientNotificationPreferences,
+} from '@/lib/coach-client-notification-preferences'
+import {
   notificationPreferencesToRow,
   parseNotificationPreferences,
 } from '@/lib/notification-preferences'
@@ -25,6 +30,7 @@ import {
   type OnboardingAutomationValues,
 } from '@/lib/validations/onboarding-automation'
 import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
+import type { CoachClientNotificationPreferenceKey } from '@/lib/validations/coach-client-notification-preferences'
 import { profileFormSchema, type ProfileFormValues } from '@/lib/validations/profile'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -178,6 +184,46 @@ export async function updateNotificationPreference(
 
   revalidatePath('/settings')
   revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function updateCoachClientNotificationPreference(
+  key: CoachClientNotificationPreferenceKey,
+  enabled: boolean
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select(coachClientNotificationSelect)
+    .eq('id', user.id)
+    .single()
+
+  if (fetchError) {
+    const message = fetchError.message.toLowerCase()
+    if (message.includes('coach_send_client')) {
+      return {
+        success: false,
+        error:
+          'Database schema is out of date. Run supabase db push (hosted) or supabase db reset (local).',
+      }
+    }
+    return { success: false, error: fetchError.message }
+  }
+
+  const current = parseCoachClientNotificationPreferences(profile)
+  const { error } = await supabase
+    .from('profiles')
+    .update(
+      coachClientNotificationPreferencesToRow({ ...current, [key]: enabled })
+    )
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
   return { success: true }
 }
 

@@ -10,6 +10,7 @@ type PortalRecentPrsProps = {
   recentPrs: RecentPrHighlight[]
   showViewAll?: boolean
   presentation?: 'default' | 'portal'
+  compact?: boolean
 }
 
 function MobileSectionLabel({ children }: { children: React.ReactNode }) {
@@ -24,8 +25,10 @@ export function PortalRecentPrs({
   recentPrs,
   showViewAll = false,
   presentation = 'default',
+  compact = false,
 }: PortalRecentPrsProps) {
   const isPortal = presentation === 'portal'
+  const visiblePrs = compact ? recentPrs.slice(0, 2) : recentPrs
   if (recentPrs.length === 0) {
     const emptyCard = (
       <Card className="gap-0 py-0">
@@ -49,7 +52,7 @@ export function PortalRecentPrs({
       </Card>
     )
 
-    return isPortal ? (
+    return isPortal && !compact ? (
       <section className="space-y-3">
         <MobileSectionLabel>Recent PRs</MobileSectionLabel>
         {emptyCard}
@@ -80,7 +83,7 @@ export function PortalRecentPrs({
       </CardHeader>
       <CardContent className="px-5 pb-5">
         <ul className="space-y-2">
-          {recentPrs.map((item) => (
+          {visiblePrs.map((item) => (
             <li
               key={item.id}
               className="flex items-center justify-between gap-4 border-b py-2 text-sm last:border-b-0"
@@ -99,7 +102,7 @@ export function PortalRecentPrs({
     </Card>
   )
 
-  return isPortal ? (
+  return isPortal && !compact ? (
     <section className="space-y-3">
       <MobileSectionLabel>Recent PRs</MobileSectionLabel>
       {prCard}

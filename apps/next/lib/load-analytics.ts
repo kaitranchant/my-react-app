@@ -90,6 +90,9 @@ export type LoadSummaryCounts = {
   unknown: number
 }
 
+/** Minimum prior weeks with logged volume before ACWR is shown. */
+export const MIN_ACWR_NONZERO_CHRONIC_WEEKS = 2
+
 export function calcSetVolume(
   weight: number | null,
   reps: number | null,
@@ -272,13 +275,17 @@ export function calcAcwr(
 
   const weeklyBuckets = aggregateWeeklyVolume(rows, 4, referenceDate)
   const priorWeeks = weeklyBuckets.slice(0, 3)
+  const nonzeroChronicWeeks = priorWeeks.filter((bucket) => bucket.volume > 0)
   const chronic =
     priorWeeks.length > 0
       ? priorWeeks.reduce((sum, bucket) => sum + bucket.volume, 0) /
         priorWeeks.length
       : 0
 
-  if (chronic <= 0) {
+  if (
+    chronic <= 0 ||
+    nonzeroChronicWeeks.length < MIN_ACWR_NONZERO_CHRONIC_WEEKS
+  ) {
     return {
       ratio: null,
       acute,

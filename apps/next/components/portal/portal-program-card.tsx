@@ -33,7 +33,7 @@ export function PortalProgramCard({
 
   return (
     <Link href="/portal/workouts" className="group block">
-      <Card className="transition-colors group-hover:border-brand/40">
+      <Card className="h-full transition-colors group-hover:border-brand/40">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-base">Your program</CardTitle>
           <ArrowRight className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />

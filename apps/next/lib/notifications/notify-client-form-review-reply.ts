@@ -6,6 +6,7 @@ import {
   getPortalClientNotificationTarget,
   isPortalClientNotificationEnabled,
 } from '@/lib/notifications/portal-client-notification-target'
+import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 
 export async function notifyClientOfFormReviewReply(params: {
   clientId: string
@@ -13,6 +14,14 @@ export async function notifyClientOfFormReviewReply(params: {
   reviewTitle: string
   coachFeedback?: string | null
 }): Promise<void> {
+  const coachEnabled = await isCoachClientNotificationEnabled(
+    params.coachId,
+    'sendClientFormReviewReplies'
+  )
+  if (!coachEnabled) {
+    return
+  }
+
   const target = await getPortalClientNotificationTarget(params.clientId)
   if (!target) {
     return

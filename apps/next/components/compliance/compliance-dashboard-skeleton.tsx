@@ -1,6 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
 
 export function ComplianceDashboardSkeleton() {
   return (
@@ -10,12 +9,9 @@ export function ComplianceDashboardSkeleton() {
         <Skeleton className="h-4 w-full max-w-2xl" />
       </div>
       <Card>
-        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-4 py-4 sm:gap-6 sm:py-5 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div
-              key={index}
-              className={cn('space-y-2', index === 4 && 'col-span-2 sm:col-span-1')}
-            >
+        <CardContent className="grid grid-cols-3 gap-x-3 gap-y-3 py-4 sm:gap-6 sm:py-5 md:grid-cols-4 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <div key={index} className="space-y-2">
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-8 w-12" />
             </div>

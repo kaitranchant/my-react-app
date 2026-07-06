@@ -114,6 +114,7 @@ export function PortalGoalsPanel({
         onChange={handleFilterChange}
         options={filterOptions}
         size="sm"
+        layout="scroll"
         className="md:hidden"
       />
 

@@ -10,6 +10,7 @@ import { isGoogleCalendarConfigured } from '@/lib/google-calendar/config'
 import { registerGoogleCalendarWatch } from '@/lib/google-calendar/watch'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import {
+  fetchClientWeeklySessionTargets,
   fetchCoachAvailabilityRules,
   fetchCoachAvailabilityExceptions,
   fetchCoachSessionPacks,
@@ -96,7 +97,7 @@ export default async function SchedulingPage({
     fetchCoachTasks(supabase, user.id),
     supabase
       .from('clients')
-      .select('id, full_name')
+      .select('id, full_name, weekly_session_target')
       .eq('coach_id', user.id)
       .eq('status', 'active')
       .order('full_name'),
@@ -116,6 +117,11 @@ export default async function SchedulingPage({
 
   const googleBlockedTimes = googleCalendarConnection
     ? await fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)
+    : []
+
+  const weekStartKey = weekKeys[0]!
+  const weekOverrides = settings.weekly_session_targets_enabled
+    ? await fetchClientWeeklySessionTargets(supabase, user.id, weekStartKey)
     : []
 
   const bookingDateKeys = getPortalBookingDateKeys(
@@ -173,6 +179,7 @@ export default async function SchedulingPage({
         connectError={connectError ?? null}
         connectSuccess={connected === 'google_calendar'}
         googleBlockedTimes={googleBlockedTimes}
+        weekOverrides={weekOverrides}
       />
     </div>
   )

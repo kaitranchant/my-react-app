@@ -1,10 +1,11 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useMemo } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
-import { FilterPills } from '@/components/ui/filter-pills'
+import { buildAttendanceHref } from '@/lib/attendance-page-data'
+import { FilterPillLinks, FilterPills } from '@/components/ui/filter-pills'
 import {
-  attendanceScopeToParams,
   parseAttendanceScope,
   teamBelongsToBaseScope,
   teamsForAttendanceScope,
@@ -38,7 +39,6 @@ export function AttendanceScopeTabs({
   scope?: AttendanceScope
   onScopeChange?: (scope: AttendanceScope) => void
 }) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -58,30 +58,11 @@ export function AttendanceScopeTabs({
       ? scope.teamId
       : null
 
-  function applyScope(nextScope: AttendanceScope) {
+  function buildScopeHref(nextScope: AttendanceScope) {
     if (onScopeChange) {
-      onScopeChange(nextScope)
-      return
+      return '#'
     }
-
-    const params = new URLSearchParams(searchParams.toString())
-    const { scope: scopeParam, team: teamParam } =
-      attendanceScopeToParams(nextScope)
-
-    if (scopeParam) {
-      params.set('scope', scopeParam)
-    } else {
-      params.delete('scope')
-    }
-
-    if (teamParam) {
-      params.set('team', teamParam)
-    } else {
-      params.delete('team')
-    }
-
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
+    return buildAttendanceHref(pathname, searchParams, { scope: nextScope })
   }
 
   function handleBaseScopeChange(value: string) {
@@ -101,73 +82,163 @@ export function AttendanceScopeTabs({
       }
     }
 
-    applyScope(nextScope)
+    onScopeChange?.(nextScope)
   }
 
   function handleTeamChange(value: string) {
-    if (value === 'all-teams') {
-      const { teamId: _teamId, ...baseScope } = scope
-      applyScope(baseScope)
-      return
-    }
+    if (onScopeChange) {
+      if (value === 'all-teams') {
+        const { teamId: _teamId, ...baseScope } = scope
+        onScopeChange(baseScope)
+        return
+      }
 
-    const team = teams.find((entry) => entry.id === value)
-    if (!team) {
-      return
-    }
+      const team = teams.find((entry) => entry.id === value)
+      if (!team) return
 
-    let baseScope: AttendanceScope =
-      scope.kind === 'gym'
-        ? scope
-        : scope.kind === 'personal'
+      let baseScope: AttendanceScope =
+        scope.kind === 'gym'
           ? scope
-          : { kind: 'all' }
+          : scope.kind === 'personal'
+            ? scope
+            : { kind: 'all' }
 
-    if (!teamBelongsToBaseScope(team, baseScope)) {
-      baseScope = team.gym_id
-        ? { kind: 'gym', gymId: team.gym_id }
-        : { kind: 'personal' }
+      if (!teamBelongsToBaseScope(team, baseScope)) {
+        baseScope = team.gym_id
+          ? { kind: 'gym', gymId: team.gym_id }
+          : { kind: 'personal' }
+      }
+
+      onScopeChange({ ...baseScope, teamId: value })
+      return
     }
-
-    applyScope({ ...baseScope, teamId: value })
   }
 
-  const locationOptions = [
-    { value: 'all', label: 'All' },
-    { value: 'personal', label: 'Personal' },
-    ...gyms.map((gym) => ({
-      value: gym.id,
-      label: gym.name,
-      title: gym.name,
-    })),
-  ]
+  const locationOptions = useMemo(() => {
+    const options = [
+      { value: 'all', label: 'All' },
+      { value: 'personal', label: 'Personal' },
+      ...gyms.map((gym) => ({
+        value: gym.id,
+        label: gym.name,
+        title: gym.name,
+      })),
+    ]
 
-  const teamOptions = [
-    { value: 'all-teams', label: 'All clients' },
-    ...visibleTeams.map((team) => ({
-      value: team.id,
-      label: team.name,
-      title: team.name,
-    })),
-  ]
+    if (onScopeChange) {
+      return options
+    }
+
+    return options.map((option) => {
+      const nextBase =
+        option.value === 'all'
+          ? ({ kind: 'all' } as const)
+          : option.value === 'personal'
+            ? ({ kind: 'personal' } as const)
+            : ({ kind: 'gym', gymId: option.value } as const)
+
+      let nextScope: AttendanceScope = nextBase
+      if (scope.teamId) {
+        const team = teams.find((entry) => entry.id === scope.teamId)
+        if (team && teamBelongsToBaseScope(team, nextBase)) {
+          nextScope = { ...nextBase, teamId: scope.teamId }
+        }
+      }
+
+      return {
+        href: buildScopeHref(nextScope),
+        label: option.label,
+        active: baseValue === option.value,
+      }
+    })
+  }, [baseValue, gyms, onScopeChange, scope.teamId, teams])
+
+  const teamOptions = useMemo(() => {
+    const options = [
+      { value: 'all-teams', label: 'All clients' },
+      ...visibleTeams.map((team) => ({
+        value: team.id,
+        label: team.name,
+        title: team.name,
+      })),
+    ]
+
+    if (onScopeChange) {
+      return options
+    }
+
+    return options.map((option) => {
+      if (option.value === 'all-teams') {
+        const { teamId: _teamId, ...baseScope } = scope
+        return {
+          href: buildScopeHref(baseScope),
+          label: option.label,
+          active: selectedTeamId === null,
+        }
+      }
+
+      const team = teams.find((entry) => entry.id === option.value)
+      if (!team) {
+        return {
+          href: pathname,
+          label: option.label,
+          active: false,
+        }
+      }
+
+      let baseScope: AttendanceScope =
+        scope.kind === 'gym'
+          ? scope
+          : scope.kind === 'personal'
+            ? scope
+            : { kind: 'all' }
+
+      if (!teamBelongsToBaseScope(team, baseScope)) {
+        baseScope = team.gym_id
+          ? { kind: 'gym', gymId: team.gym_id }
+          : { kind: 'personal' }
+      }
+
+      return {
+        href: buildScopeHref({ ...baseScope, teamId: option.value }),
+        label: option.label,
+        active: selectedTeamId === option.value,
+      }
+    })
+  }, [onScopeChange, pathname, scope, selectedTeamId, teams, visibleTeams])
 
   return (
     <div className="space-y-3">
-      <FilterPills
-        label="Filter by location"
-        value={baseValue}
-        onChange={handleBaseScopeChange}
-        options={locationOptions}
-      />
+      {onScopeChange ? (
+        <FilterPills
+          label="Filter by location"
+          value={baseValue}
+          onChange={handleBaseScopeChange}
+          options={locationOptions as { value: string; label: string }[]}
+        />
+      ) : (
+        <FilterPillLinks
+          label="Filter by location"
+          options={locationOptions as { href: string; label: string; active: boolean }[]}
+        />
+      )}
 
       {visibleTeams.length > 0 ? (
-        <FilterPills
-          label="Filter by team"
-          value={selectedTeamId ?? 'all-teams'}
-          onChange={handleTeamChange}
-          size="sm"
-          options={teamOptions}
-        />
+        onScopeChange ? (
+          <FilterPills
+            label="Filter by team"
+            value={selectedTeamId ?? 'all-teams'}
+            onChange={handleTeamChange}
+            size="sm"
+            options={teamOptions as { value: string; label: string }[]}
+          />
+        ) : (
+          <FilterPillLinks
+            label="Filter by team"
+            size="sm"
+            options={teamOptions as { href: string; label: string; active: boolean }[]}
+          />
+        )
       ) : null}
     </div>
   )

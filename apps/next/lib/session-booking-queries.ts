@@ -119,6 +119,20 @@ export async function fetchCoachSessionBookingSettings(
   return parseSessionBookingSettings(data)
 }
 
+export async function fetchClientWeeklySessionTargets(
+  supabase: SupabaseClient,
+  coachId: string,
+  weekStartKey: string
+) {
+  const { data } = await supabase
+    .from('client_weekly_session_targets')
+    .select('client_id, target_sessions')
+    .eq('coach_id', coachId)
+    .eq('week_start_date', weekStartKey)
+
+  return (data ?? []) as Array<{ client_id: string; target_sessions: number }>
+}
+
 export async function fetchPortalSessionBookingSettings(
   supabase: SupabaseClient
 ): Promise<SessionBookingSettings> {

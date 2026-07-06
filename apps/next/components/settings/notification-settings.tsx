@@ -110,7 +110,7 @@ export function NotificationSettings({
   }
 
   return (
-    <div>
+    <>
       {notificationOptions.map((option) => (
         <SettingsRow
           key={option.key}
@@ -132,6 +132,6 @@ export function NotificationSettings({
           </div>
         </SettingsRow>
       ))}
-    </div>
+    </>
   )
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { Search, UtensilsCrossed } from 'lucide-react'
+import { UtensilsCrossed } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -25,11 +25,11 @@ import {
   MealLibraryProteinFilter,
 } from '@/components/meal-library/meal-library-macro-filters'
 import { MealLibraryRowActions } from '@/components/meal-library/meal-library-row-actions'
+import { MealLibrarySearchInput } from '@/components/meal-library/meal-library-search-input'
 import { MealLibraryStatusBadge } from '@/components/meal-library/meal-library-status-badge'
 import { MealLibraryTypeFilter } from '@/components/meal-library/meal-library-type-filter'
 import { LibraryLoadError } from '@/components/library/schema-setup-notice'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
 import {
   buildMealLibraryHref,
   parseMealLibraryCalorieRange,
@@ -170,21 +170,9 @@ export default async function LibraryMealsPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="px-5 py-5">
-          <form action="/library/meals" method="get" className="relative">
-            {status ? <input type="hidden" name="status" value={status} /> : null}
-            {type ? <input type="hidden" name="type" value={type} /> : null}
-            {calories ? <input type="hidden" name="calories" value={calories} /> : null}
-            {protein ? <input type="hidden" name="protein" value={protein} /> : null}
-            {carbs ? <input type="hidden" name="carbs" value={carbs} /> : null}
-            {fat ? <input type="hidden" name="fat" value={fat} /> : null}
-            <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input
-              name="q"
-              defaultValue={q ?? ''}
-              placeholder="Search meals…"
-              className="pl-9"
-            />
-          </form>
+          <Suspense fallback={null}>
+            <MealLibrarySearchInput defaultQuery={q ?? ''} />
+          </Suspense>
 
           <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
             <div className="min-w-0">
@@ -234,8 +222,12 @@ export default async function LibraryMealsPage({
               <div className="px-6 py-20">
                 <EmptyState
                   icon={UtensilsCrossed}
-                  title="No meals yet"
-                  description="Add your first reusable meal to the library."
+                  title={q?.trim() ? 'No meals found' : 'No meals yet'}
+                  description={
+                    q?.trim() || status || type || calories || protein || carbs || fat
+                      ? 'No meals match this search or filter.'
+                      : 'Add your first reusable meal to the library.'
+                  }
                 />
               </div>
             ) : (

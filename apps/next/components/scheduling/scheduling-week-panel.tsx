@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   List,
   Loader2,
+  Target,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,6 +18,7 @@ import { AppointmentsList } from '@/components/scheduling/appointments-list'
 import { AppointmentManageDialog } from '@/components/scheduling/appointment-manage-dialog'
 import { SchedulingWeekCalendar } from '@/components/scheduling/scheduling-week-calendar'
 import { SchedulingWeekStats } from '@/components/scheduling/scheduling-week-stats'
+import { WeeklySessionTargetsDialog } from '@/components/scheduling/weekly-session-targets-dialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
@@ -26,6 +28,12 @@ import {
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import type { ClientSessionPack, CoachingAppointment } from '@/lib/session-booking-types'
+import {
+  buildClientSessionProgressMap,
+  clientDefaultsFromClients,
+  weekOverridesFromRows,
+  type ClientWeeklySessionDefault,
+} from '@/lib/weekly-session-targets'
 import { cn } from '@/lib/utils'
 
 type SchedulingWeekPanelProps = {
@@ -36,6 +44,9 @@ type SchedulingWeekPanelProps = {
   weekKeys: string[]
   clients: Array<{ id: string; full_name: string | null }>
   dateOptions: string[]
+  weeklyTargetsEnabled: boolean
+  clientDefaults: ClientWeeklySessionDefault[]
+  weekOverrides: Array<{ client_id: string; target_sessions: number }>
 }
 
 type WeekViewMode = 'calendar' | 'list'
@@ -44,14 +55,24 @@ type WeekData = {
   appointments: CoachingAppointment[]
   weekKeys: string[]
   googleBlockedTimes: GoogleCalendarBlockedTime[]
+  clientDefaults: ClientWeeklySessionDefault[]
+  weekOverrides: Array<{ client_id: string; target_sessions: number }>
 }
 
 function buildWeekData(
   appointments: CoachingAppointment[],
   weekKeys: string[],
-  googleBlockedTimes: GoogleCalendarBlockedTime[] = []
+  googleBlockedTimes: GoogleCalendarBlockedTime[] = [],
+  clientDefaults: ClientWeeklySessionDefault[] = [],
+  weekOverrides: Array<{ client_id: string; target_sessions: number }> = []
 ): WeekData {
-  return { appointments, weekKeys, googleBlockedTimes }
+  return {
+    appointments,
+    weekKeys,
+    googleBlockedTimes,
+    clientDefaults,
+    weekOverrides,
+  }
 }
 
 export function SchedulingWeekPanel({
@@ -62,19 +83,29 @@ export function SchedulingWeekPanel({
   weekKeys: initialWeekKeys,
   clients,
   dateOptions,
+  weeklyTargetsEnabled,
+  clientDefaults: initialClientDefaults,
+  weekOverrides: initialWeekOverrides,
 }: SchedulingWeekPanelProps) {
   const pathname = usePathname()
   const weekCacheRef = React.useRef(new Map<string, WeekData>())
   const prefetchingRef = React.useRef(new Set<string>())
 
   const [weekData, setWeekData] = React.useState<WeekData>(() =>
-    buildWeekData(initialAppointments, initialWeekKeys, initialGoogleBlockedTimes)
+    buildWeekData(
+      initialAppointments,
+      initialWeekKeys,
+      initialGoogleBlockedTimes,
+      initialClientDefaults,
+      initialWeekOverrides
+    )
   )
   const [isLoading, setIsLoading] = React.useState(false)
   const [viewMode, setViewMode] = React.useState<WeekViewMode>('calendar')
   const [selectedAppointment, setSelectedAppointment] =
     React.useState<CoachingAppointment | null>(null)
   const [manageOpen, setManageOpen] = React.useState(false)
+  const [targetsOpen, setTargetsOpen] = React.useState(false)
 
   const weekStartKey = weekData.weekKeys[0]!
   const weekEndKey = weekData.weekKeys[weekData.weekKeys.length - 1]!
@@ -82,15 +113,44 @@ export function SchedulingWeekPanel({
   const prevWeekStart = addDaysToDateKey(weekStartKey, -7)
   const nextWeekStart = addDaysToDateKey(weekStartKey, 7)
 
+  const weekOverridesMap = React.useMemo(
+    () => weekOverridesFromRows(weekData.weekOverrides),
+    [weekData.weekOverrides]
+  )
+
+  const clientSessionProgress = React.useMemo(
+    () =>
+      buildClientSessionProgressMap(
+        weekData.appointments,
+        clientDefaultsFromClients(weekData.clientDefaults),
+        weekOverridesMap,
+        weeklyTargetsEnabled
+      ),
+    [
+      weekData.appointments,
+      weekData.clientDefaults,
+      weekOverridesMap,
+      weeklyTargetsEnabled,
+    ]
+  )
+
   React.useEffect(() => {
     const next = buildWeekData(
       initialAppointments,
       initialWeekKeys,
-      initialGoogleBlockedTimes
+      initialGoogleBlockedTimes,
+      initialClientDefaults,
+      initialWeekOverrides
     )
     setWeekData(next)
     weekCacheRef.current.set(initialWeekKeys[0]!, next)
-  }, [initialAppointments, initialGoogleBlockedTimes, initialWeekKeys])
+  }, [
+    initialAppointments,
+    initialClientDefaults,
+    initialGoogleBlockedTimes,
+    initialWeekKeys,
+    initialWeekOverrides,
+  ])
 
   const syncWeekUrl = React.useCallback(
     (targetWeekStart: string, pushHistory: boolean) => {
@@ -126,7 +186,9 @@ export function SchedulingWeekPanel({
           buildWeekData(
             result.appointments,
             result.weekKeys,
-            result.googleBlockedTimes
+            result.googleBlockedTimes,
+            result.clientDefaults,
+            result.weekOverrides
           )
         )
       }
@@ -159,7 +221,9 @@ export function SchedulingWeekPanel({
         const next = buildWeekData(
           result.appointments,
           result.weekKeys,
-          result.googleBlockedTimes
+          result.googleBlockedTimes,
+          result.clientDefaults,
+          result.weekOverrides
         )
         weekCacheRef.current.set(targetWeekStart, next)
         setWeekData(next)
@@ -267,27 +331,42 @@ export function SchedulingWeekPanel({
           </Button>
         </div>
 
-        <div className="bg-muted mx-auto inline-flex rounded-lg p-1 sm:mx-0">
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
-            className={cn('h-8 gap-1.5')}
-            onClick={() => selectView('calendar')}
-          >
-            <LayoutGrid className="size-4" />
-            Calendar
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-            className={cn('h-8 gap-1.5')}
-            onClick={() => selectView('list')}
-          >
-            <List className="size-4" />
-            List
-          </Button>
+        <div className="flex items-center justify-center gap-2 sm:justify-end">
+          {weeklyTargetsEnabled ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={() => setTargetsOpen(true)}
+            >
+              <Target className="size-4" />
+              Targets
+            </Button>
+          ) : null}
+
+          <div className="bg-muted inline-flex rounded-lg p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+              className={cn('h-8 gap-1.5')}
+              onClick={() => selectView('calendar')}
+            >
+              <LayoutGrid className="size-4" />
+              Calendar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              className={cn('h-8 gap-1.5')}
+              onClick={() => selectView('list')}
+            >
+              <List className="size-4" />
+              List
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -315,6 +394,7 @@ export function SchedulingWeekPanel({
               googleBlockedTimes={weekData.googleBlockedTimes}
               coachPreferences={coachPreferences}
               weekKeys={weekData.weekKeys}
+              clientSessionProgress={clientSessionProgress}
               onSelectAppointment={openManage}
             />
           )
@@ -344,6 +424,18 @@ export function SchedulingWeekPanel({
         clients={clients}
         dateOptions={dateOptions}
       />
+
+      {weeklyTargetsEnabled ? (
+        <WeeklySessionTargetsDialog
+          open={targetsOpen}
+          onOpenChange={setTargetsOpen}
+          weekStartKey={weekStartKey}
+          clients={weekData.clientDefaults}
+          weekOverrides={weekOverridesMap}
+          appointments={weekData.appointments}
+          onSaved={refreshWeek}
+        />
+      ) : null}
     </div>
   )
 }

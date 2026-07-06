@@ -1,9 +1,5 @@
 import { Suspense } from 'react'
 
-import {
-  FilterPillsSkeleton,
-  LeaderboardFiltersSkeleton,
-} from '@/components/dashboard/async-fallback-skeletons'
 import { AttendanceScopeTabs } from '@/components/attendance/attendance-scope-tabs'
 import {
   ClearPageFilters,
@@ -14,30 +10,14 @@ import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { LeaderboardCategoryTabs } from '@/components/leaderboards/leaderboard-category-tabs'
 import { LeaderboardFormulaTabs } from '@/components/leaderboards/leaderboard-formula-tabs'
 import { LeaderboardPeriodTabs } from '@/components/leaderboards/leaderboard-period-tabs'
-import { LeaderboardTable } from '@/components/leaderboards/leaderboard-table'
-import { LeaderboardToolbar } from '@/components/leaderboards/leaderboard-toolbar'
-import { LeaderboardWeightClassFilter } from '@/components/leaderboards/leaderboard-weight-class-filter'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  fetchAttendanceClients,
-  fetchCoachTeams,
-  parseAttendanceScope,
-} from '@/lib/attendance'
+import { LeaderboardResultsSkeleton } from '@/components/leaderboards/leaderboard-results-skeleton'
+import { LeaderboardScopeContent } from '@/components/leaderboards/leaderboard-scope-content'
+import { fetchCoachTeams } from '@/lib/attendance'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import {
-  fetchLeaderboardExercises,
-  fetchLeaderboardRows,
-} from '@/lib/leaderboard-queries'
+import { leaderboardScopeSuspenseKey } from '@/lib/leaderboard-page-data'
 import { getGymsForCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
 import { getSubscriptionGate } from '@/lib/subscription-server'
-import {
-  parseLeaderboardExerciseId,
-  parseLeaderboardFormula,
-  parseLeaderboardMetric,
-  parseLeaderboardPeriod,
-  parseLeaderboardWeightClass,
-} from '@/lib/validations/leaderboard'
 
 export const metadata = {
   title: 'Leaderboards — Coaching App',
@@ -69,73 +49,21 @@ export default async function LeaderboardsPage({
     )
   }
 
-  const {
-    scope: scopeParam,
-    team: teamParam,
-    metric: metricParam,
-    period: periodParam,
-    exercise: exerciseParam,
-    formula: formulaParam,
-    class: classParam,
-  } = await searchParams
-
+  const resolvedSearchParams = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const coachPreferences = user
-    ? await getCoachPreferencesForUser(user.id)
-    : null
-  const coachGyms = user ? await getGymsForCoach(user.id) : []
-  const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
-  const coachTeams = user ? await fetchCoachTeams(supabase, user.id) : []
-  const scope = parseAttendanceScope(
-    scopeParam,
-    teamParam,
-    coachGymIds,
-    coachGyms,
-    coachTeams
-  )
-  const selectedTeamName = scope.teamId
-    ? coachTeams.find((team) => team.id === scope.teamId)?.name
-    : undefined
+  if (!user) {
+    return null
+  }
 
-  const metric = parseLeaderboardMetric(metricParam)
-  const period = parseLeaderboardPeriod(periodParam, metric)
-  const exerciseId = parseLeaderboardExerciseId(exerciseParam)
-  const formula = parseLeaderboardFormula(formulaParam)
-  const weightClass = parseLeaderboardWeightClass(classParam)
-
-  const [clients, exercises] = await Promise.all([
-    user
-      ? fetchAttendanceClients(supabase, {
-          scope,
-          coachGymIds,
-          userId: user.id,
-        })
-      : Promise.resolve([]),
-    fetchLeaderboardExercises(supabase),
+  const coachPreferences = await getCoachPreferencesForUser(user.id)
+  const [coachGyms, coachTeams] = await Promise.all([
+    getGymsForCoach(user.id),
+    fetchCoachTeams(supabase, user.id),
   ])
-
-  const {
-    rows,
-    resolvedExerciseId,
-    resolvedExerciseName,
-    availableWeightClasses,
-    periodLabel,
-  } = await fetchLeaderboardRows(supabase, {
-    clients,
-    metric,
-    period,
-    exerciseId,
-    formula,
-    weekStartsOn: coachPreferences?.weekStartsOn ?? 'monday',
-    weightUnit: coachPreferences?.weightUnit ?? 'lbs',
-    teamId: scope.teamId,
-    exercises,
-    weightClass,
-  })
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -144,8 +72,22 @@ export default async function LeaderboardsPage({
         description="Rank athletes by strength PRs, Wilks/DOTS scores, consistency, volume, improvement, and training streaks."
       />
 
-      <Suspense fallback={<LeaderboardFiltersSkeleton />}>
-        <PageFilterPersistence
+      <PageFilterPersistence
+        pageKey="leaderboards"
+        filterKeys={[
+          'scope',
+          'team',
+          'metric',
+          'period',
+          'exercise',
+          'formula',
+          'class',
+        ]}
+        defaultValues={{ metric: 'strength', period: 'month', formula: 'dots' }}
+      />
+      <div className="space-y-3">
+        <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+        <ClearPageFilters
           pageKey="leaderboards"
           filterKeys={[
             'scope',
@@ -156,61 +98,28 @@ export default async function LeaderboardsPage({
             'formula',
             'class',
           ]}
-          defaultValues={{ metric: 'strength', period: 'month', formula: 'dots' }}
         />
-        <div className="space-y-3">
-          <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
-          <ClearPageFilters
-            pageKey="leaderboards"
-            filterKeys={[
-              'scope',
-              'team',
-              'metric',
-              'period',
-              'exercise',
-              'formula',
-              'class',
-            ]}
-          />
-        </div>
-      </Suspense>
+      </div>
 
-      <Suspense fallback={<FilterPillsSkeleton count={5} />}>
-        <LeaderboardCategoryTabs />
-      </Suspense>
+      <LeaderboardCategoryTabs />
 
-      <Suspense fallback={<FilterPillsSkeleton count={4} />}>
-        <LeaderboardPeriodTabs />
-      </Suspense>
+      <LeaderboardPeriodTabs />
 
-      <Suspense fallback={<FilterPillsSkeleton count={3} />}>
-        <LeaderboardFormulaTabs />
-      </Suspense>
-
-      {scope.teamId ? (
-        <Suspense fallback={<FilterPillsSkeleton count={4} />}>
-          <LeaderboardWeightClassFilter weightClasses={availableWeightClasses} />
-        </Suspense>
-      ) : null}
+      <LeaderboardFormulaTabs />
 
       <Suspense
-        fallback={<Skeleton className="h-10 w-full max-w-md rounded-lg" />}
+        key={leaderboardScopeSuspenseKey(resolvedSearchParams)}
+        fallback={<LeaderboardResultsSkeleton />}
       >
-        <LeaderboardToolbar
-          exercises={exercises}
-          resolvedExerciseId={resolvedExerciseId}
-          resolvedExerciseName={resolvedExerciseName}
+        <LeaderboardScopeContent
+          searchParams={resolvedSearchParams}
+          userId={user.id}
+          coachGyms={coachGyms}
+          coachTeams={coachTeams}
+          weekStartsOn={coachPreferences?.weekStartsOn ?? 'monday'}
+          weightUnit={coachPreferences?.weightUnit ?? 'lbs'}
         />
       </Suspense>
-
-      <LeaderboardTable
-        rows={rows}
-        metric={metric}
-        exerciseName={resolvedExerciseName}
-        teamName={selectedTeamName}
-        periodLabel={periodLabel}
-        showWeightClass={Boolean(scope.teamId) && !weightClass}
-      />
     </div>
   )
 }

@@ -1,57 +1,40 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 
+import { buildLeaderboardMetricHref } from '@/lib/leaderboard-page-data'
 import { cn } from '@/lib/utils'
 import {
   LEADERBOARD_METRICS,
   getLeaderboardMetricConfig,
 } from '@/lib/leaderboard'
-import {
-  metricSupportsExercise,
-  parseLeaderboardMetric,
-} from '@/lib/validations/leaderboard'
+import { parseLeaderboardMetric } from '@/lib/validations/leaderboard'
 
 export function LeaderboardCategoryTabs() {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const metric = parseLeaderboardMetric(searchParams.get('metric') ?? undefined)
 
-  function handleChange(nextMetric: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('metric', nextMetric)
-
-    if (!metricSupportsExercise(parseLeaderboardMetric(nextMetric))) {
-      params.delete('exercise')
-    }
-
-    if (nextMetric !== 'relative_strength') {
-      params.delete('formula')
-    }
-
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
-  }
-
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-      {LEADERBOARD_METRICS.map((entry) => {
-        const Icon = entry.icon
-        const active = metric === entry.id
+    <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+      <div className="flex w-max gap-2 sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6">
+        {LEADERBOARD_METRICS.map((entry) => {
+          const Icon = entry.icon
+          const active = metric === entry.id
+          const href = buildLeaderboardMetricHref(pathname, searchParams, entry.id)
 
-        return (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => handleChange(entry.id)}
-            className={cn(
-              'min-w-0 rounded-xl border p-2.5 text-left transition-colors',
-              active
-                ? 'border-brand bg-brand text-brand-foreground shadow-sm'
-                : 'bg-card hover:border-brand/30 hover:bg-muted/30'
-            )}
-          >
+          return (
+            <Link
+              key={entry.id}
+              href={href}
+              className={cn(
+                'w-[10.25rem] shrink-0 rounded-xl border p-2.5 text-left transition-colors sm:w-auto',
+                active
+                  ? 'border-brand bg-brand text-brand-foreground shadow-sm'
+                  : 'bg-card hover:border-brand/30 hover:bg-muted/30'
+              )}
+            >
             <div className="mb-1.5 flex items-center gap-1.5">
               <span
                 className={cn(
@@ -80,9 +63,10 @@ export function LeaderboardCategoryTabs() {
             >
               {entry.description}
             </p>
-          </button>
+          </Link>
         )
       })}
+      </div>
     </div>
   )
 }
