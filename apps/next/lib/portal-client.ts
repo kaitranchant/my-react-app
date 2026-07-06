@@ -11,6 +11,7 @@ export type PortalClientRecord = Pick<
   | 'email'
   | 'leaderboard_opt_out'
   | 'biological_sex'
+  | 'progressive_overload_enabled'
 >
 
 export type PortalClientContext = {
@@ -44,7 +45,7 @@ export async function getPortalClientContext(): Promise<PortalClientContext | nu
   const { data: client, error } = await supabase
     .from('clients')
     .select(
-      'id, coach_id, full_name, avatar_url, email, leaderboard_opt_out, biological_sex'
+      'id, coach_id, full_name, avatar_url, email, leaderboard_opt_out, biological_sex, progressive_overload_enabled'
     )
     .eq('user_id', user.id)
     .maybeSingle()

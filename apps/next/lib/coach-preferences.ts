@@ -38,8 +38,8 @@ type ProfilePreferenceRow = Pick<
   | 'week_starts_on'
   | 'coach_timezone'
   | 'default_check_in_frequency'
-  | 'default_workout_log_view'
->
+> &
+  Partial<Pick<Profile, 'default_workout_log_view'>>
 
 export function resolveCoachTimezone(
   timezone: CoachPreferences['timezone']
