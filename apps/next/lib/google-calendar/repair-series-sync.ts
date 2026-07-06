@@ -7,9 +7,14 @@ import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-serie
 import {
   deleteGoogleCalendarEvent,
   getGoogleCalendarEvent,
+  getGoogleCalendarEventTimes,
   listGoogleCalendarEventsInRange,
 } from '@/lib/google-calendar/api'
 import { isExportedCoachingCalendarSummary } from '@/lib/google-calendar/coaching-event-summary'
+import {
+  intervalsOverlap,
+  isLinkedCoachingGoogleEvent,
+} from '@/lib/google-calendar/event-linking'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import {
   removeCoachingAppointmentFromGoogle,
@@ -39,18 +44,9 @@ type ScheduledAppointmentRow = {
   series_id: string | null
 }
 
-async function restoreSeriesAppointmentsCancelledByGoogleSync(coachId: string) {
+async function restoreAppointmentsCancelledByGoogleSync(coachId: string) {
   const admin = createAdminClient()
   if (!admin) return 0
-
-  const { data: seriesRows } = await admin
-    .from('coaching_appointment_series')
-    .select('id')
-    .eq('coach_id', coachId)
-    .eq('status', 'active')
-
-  const seriesIds = (seriesRows ?? []).map((series) => series.id)
-  if (seriesIds.length === 0) return 0
 
   const { data: restoredRows, error } = await admin
     .from('coaching_appointments')
@@ -61,7 +57,7 @@ async function restoreSeriesAppointmentsCancelledByGoogleSync(coachId: string) {
       google_calendar_event_id: null,
       google_calendar_updated_at: null,
     })
-    .in('series_id', seriesIds)
+    .eq('coach_id', coachId)
     .eq('status', 'cancelled')
     .in('cancellation_reason', [...GOOGLE_SYNC_CANCELLATION_REASONS])
     .select('id')
@@ -154,7 +150,7 @@ async function removeOrphanCoachingGoogleEvents(
 
   const { data: linkedAppointments } = await admin
     .from('coaching_appointments')
-    .select('google_calendar_event_id')
+    .select('starts_at, ends_at, google_calendar_event_id')
     .eq('coach_id', coachId)
     .eq('status', 'scheduled')
     .not('google_calendar_event_id', 'is', null)
@@ -168,8 +164,28 @@ async function removeOrphanCoachingGoogleEvents(
   let removed = 0
 
   for (const event of events) {
-    if (!event.id || linkedEventIds.has(event.id)) continue
-    if (!isExportedCoachingCalendarSummary(event.summary)) continue
+    if (!event.id || !isExportedCoachingCalendarSummary(event.summary)) continue
+
+    const times = getGoogleCalendarEventTimes(event)
+    if (!times) continue
+
+    if (isLinkedCoachingGoogleEvent(event.id, linkedEventIds)) {
+      continue
+    }
+
+    const overlapsScheduledSession = (linkedAppointments ?? []).some(
+      (appointment) =>
+        intervalsOverlap(
+          times.startsAt,
+          times.endsAt,
+          appointment.starts_at,
+          appointment.ends_at
+        )
+    )
+
+    if (overlapsScheduledSession) {
+      continue
+    }
 
     await deleteGoogleCalendarEvent(
       accessToken,
@@ -283,7 +299,7 @@ export async function repairCoachRecurringSeriesGoogleSync(
   ).toISOString()
 
   const restoredAppointments =
-    await restoreSeriesAppointmentsCancelledByGoogleSync(coachId)
+    await restoreAppointmentsCancelledByGoogleSync(coachId)
   const dedupedAppointments = await dedupeScheduledSeriesAppointments(coachId)
 
   const { data: profile } = await admin
@@ -294,9 +310,12 @@ export async function repairCoachRecurringSeriesGoogleSync(
     .eq('id', coachId)
     .maybeSingle()
   const coachPreferences = parseCoachPreferences(profile)
-  await extendCoachRecurringSeriesHorizon(admin, coachId, {
-    timezone: coachPreferences.timezone,
-  })
+  await extendCoachRecurringSeriesHorizon(
+    admin,
+    coachId,
+    { timezone: coachPreferences.timezone },
+    { awaitGoogleSync: true }
+  )
 
   const resyncedAppointments =
     (await resyncStaleGoogleCalendarLinks(coachId)) +
@@ -321,6 +340,39 @@ export async function repairCoachRecurringSeriesGoogleSync(
     resyncedAppointments,
     horizonExtended: true,
   }
+}
+
+export async function maintainCoachRecurringSeriesHorizon(
+  coachId: string
+): Promise<{ horizonBooked: number; resyncedAppointments: number }> {
+  const admin = createAdminClient()
+  if (!admin) {
+    throw new Error('Calendar maintenance is unavailable.')
+  }
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .select(
+      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+    )
+    .eq('id', coachId)
+    .maybeSingle()
+
+  const coachPreferences = parseCoachPreferences(profile)
+  const { bookedCount: horizonBooked } = await extendCoachRecurringSeriesHorizon(
+    admin,
+    coachId,
+    { timezone: coachPreferences.timezone },
+    { awaitGoogleSync: true }
+  )
+
+  const resyncedAppointments =
+    (await resyncStaleGoogleCalendarLinks(coachId)) +
+    (await resyncScheduledAppointmentsToGoogle(coachId, {
+      onlyMissing: true,
+    }))
+
+  return { horizonBooked, resyncedAppointments }
 }
 
 export async function finalizeCoachRecurringSeriesGoogleSync(
@@ -348,7 +400,8 @@ export async function finalizeCoachRecurringSeriesGoogleSync(
   const { bookedCount: horizonBooked } = await extendCoachRecurringSeriesHorizon(
     admin,
     coachId,
-    { timezone: coachPreferences.timezone }
+    { timezone: coachPreferences.timezone },
+    { awaitGoogleSync: true }
   )
 
   const settings = await fetchCoachSessionBookingSettings(admin, coachId)

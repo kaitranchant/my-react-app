@@ -1,5 +1,9 @@
 import type { GoogleCalendarEvent } from '@/lib/google-calendar/api'
 import { getGoogleCalendarEventTimes } from '@/lib/google-calendar/api'
+import {
+  intervalsOverlap,
+  isLinkedCoachingGoogleEvent,
+} from '@/lib/google-calendar/event-linking'
 
 export type GoogleCalendarBlockedTime = {
   id: string
@@ -12,18 +16,6 @@ type ScheduledAppointmentInterval = {
   starts_at: string
   ends_at: string
   google_calendar_event_id: string | null
-}
-
-function intervalsOverlap(
-  aStartIso: string,
-  aEndIso: string,
-  bStartIso: string,
-  bEndIso: string
-) {
-  return (
-    new Date(aStartIso).getTime() < new Date(bEndIso).getTime() &&
-    new Date(aEndIso).getTime() > new Date(bStartIso).getTime()
-  )
 }
 
 export function filterGoogleCalendarBlockedTimes(
@@ -40,7 +32,7 @@ export function filterGoogleCalendarBlockedTimes(
 
   for (const event of events) {
     if (!event.id || event.status === 'cancelled') continue
-    if (linkedEventIds.has(event.id)) continue
+    if (isLinkedCoachingGoogleEvent(event.id, linkedEventIds)) continue
 
     const times = getGoogleCalendarEventTimes(event)
     if (!times) continue

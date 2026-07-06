@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { isAuthorizedCronRequest } from '@/lib/cron/auth'
-import { finalizeCoachRecurringSeriesGoogleSync } from '@/lib/google-calendar/repair-series-sync'
+import { maintainCoachRecurringSeriesHorizon } from '@/lib/google-calendar/repair-series-sync'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   let appointmentsSynced = 0
 
   for (const coachId of coachIds) {
-    const result = await finalizeCoachRecurringSeriesGoogleSync(coachId)
+    const result = await maintainCoachRecurringSeriesHorizon(coachId)
 
     coachesProcessed += 1
     appointmentsBooked += result.horizonBooked
