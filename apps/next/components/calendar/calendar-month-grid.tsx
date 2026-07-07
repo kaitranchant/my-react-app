@@ -26,8 +26,6 @@ type CalendarMonthGridProps = {
   loading?: boolean
 }
 
-const DOUBLE_CLICK_DELAY_MS = 200
-
 const WEEKDAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 const WEEKDAY_HEADERS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
 
@@ -74,40 +72,19 @@ function CalendarDayCell({
   onSelectDate,
   onDayDoubleClick,
 }: CalendarDayCellProps) {
-  const clickTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  React.useEffect(() => {
-    return () => {
-      if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  function handleClick() {
-    if (!onDayDoubleClick) {
-      onSelectDate(dateKey)
-      return
-    }
-
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current)
-      clickTimeoutRef.current = null
-      onDayDoubleClick(dateKey)
-      return
-    }
-
-    clickTimeoutRef.current = setTimeout(() => {
-      clickTimeoutRef.current = null
-      onSelectDate(dateKey)
-    }, DOUBLE_CLICK_DELAY_MS)
-  }
-
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={handleClick}
+      onClick={() => onSelectDate(dateKey)}
+      onDoubleClick={
+        onDayDoubleClick
+          ? (event) => {
+              event.preventDefault()
+              onDayDoubleClick(dateKey)
+            }
+          : undefined
+      }
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()

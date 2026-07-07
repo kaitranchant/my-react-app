@@ -208,6 +208,35 @@ export async function getClientWorkoutWithExercises(
   return { success: true, workout }
 }
 
+export async function getCalendarMonthSummaries(
+  clientId: string,
+  year: number,
+  month: number
+): Promise<
+  | { success: true; days: CalendarDaySummary[] }
+  | { success: false; error: string }
+> {
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { start, end } = getMonthDateRange(year, month)
+  const { data: days, error: daysError } = await ctx.supabase
+    .from('client_scheduled_workouts')
+    .select('id, scheduled_date, name, status, started_at')
+    .eq('client_id', clientId)
+    .gte('scheduled_date', start)
+    .lte('scheduled_date', end)
+    .order('scheduled_date', { ascending: true })
+
+  if (daysError) {
+    return { success: false, error: daysError.message }
+  }
+
+  return { success: true, days: (days ?? []) as CalendarDaySummary[] }
+}
+
 export async function getCalendarMonthData(
   clientId: string,
   year: number,
@@ -222,47 +251,30 @@ export async function getCalendarMonthData(
     return { success: false, error: 'Invalid date.' }
   }
 
-  const ctx = await requireClient(clientId)
-  if (!ctx) {
-    return { success: false, error: 'Client not found.' }
+  const summariesResult = await getCalendarMonthSummaries(clientId, year, month)
+  if (!summariesResult.success) {
+    return summariesResult
   }
 
-  const { supabase } = ctx
-  const { start, end } = getMonthDateRange(year, month)
-
-  const [{ data: days, error: daysError }, { data: selected, error: selectedError }] =
-    await Promise.all([
-      supabase
-        .from('client_scheduled_workouts')
-        .select('id, scheduled_date, name, status, started_at')
-        .eq('client_id', clientId)
-        .gte('scheduled_date', start)
-        .lte('scheduled_date', end)
-        .order('scheduled_date', { ascending: true }),
-      supabase
-        .from('client_scheduled_workouts')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('scheduled_date', parsedDate.data)
-        .maybeSingle(),
-    ])
-
-  if (daysError) {
-    return { success: false, error: daysError.message }
-  }
-  if (selectedError) {
-    return { success: false, error: selectedError.message }
-  }
+  const selectedSummary = summariesResult.days.find(
+    (day) => day.scheduled_date === parsedDate.data
+  )
 
   let selectedWorkout: ClientScheduledWorkoutWithExercises | null = null
-  if (selected) {
-    selectedWorkout = await fetchWorkoutWithExercises(supabase, selected.id)
+  if (selectedSummary) {
+    const workoutResult = await getClientWorkoutWithExercises(
+      clientId,
+      selectedSummary.id
+    )
+    if (workoutResult.success) {
+      selectedWorkout = workoutResult.workout
+    }
   }
 
   return {
     success: true,
     data: {
-      days: (days ?? []) as CalendarDaySummary[],
+      days: summariesResult.days,
       selectedWorkout,
     },
   }

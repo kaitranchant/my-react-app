@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import { ClipboardList, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { getPortalCalendarMonthData } from '@/app/portal/actions'
+import {
+  getPortalCalendarMonthSummaries,
+  getPortalWorkoutWithExercises,
+} from '@/app/portal/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
 import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
@@ -33,6 +36,10 @@ type PortalCalendarPanelProps = {
   weightUnit?: WeightUnit
 }
 
+function getMonthCacheKey(targetYear: number, targetMonth: number) {
+  return `${targetYear}-${targetMonth}`
+}
+
 export function PortalCalendarPanel({
   clientId,
   initialYear,
@@ -54,8 +61,76 @@ export function PortalCalendarPanel({
   const [workout, setWorkout] =
     React.useState<ClientScheduledWorkoutWithExercises | null>(initialWorkout)
   const [loading, setLoading] = React.useState(false)
+  const [workoutLoading, setWorkoutLoading] = React.useState(false)
+  const monthCacheRef = React.useRef(
+    new Map<string, CalendarDaySummary[]>([
+      [getMonthCacheKey(initialYear, initialMonth), initialDays],
+    ])
+  )
   const [logOpen, setLogOpen] = React.useState(false)
   const handledActionRef = React.useRef<string | null>(null)
+
+  const selectedDaySummary = React.useMemo(
+    () => scheduledDays.find((day) => day.scheduled_date === selectedDate),
+    [scheduledDays, selectedDate]
+  )
+
+  const displayWorkout =
+    workout?.scheduled_date === selectedDate ? workout : null
+
+  function invalidateMonthCache(targetYear?: number, targetMonth?: number) {
+    if (targetYear !== undefined && targetMonth !== undefined) {
+      monthCacheRef.current.delete(getMonthCacheKey(targetYear, targetMonth))
+      return
+    }
+
+    monthCacheRef.current.clear()
+  }
+
+  async function ensureMonthDays(
+    targetYear: number,
+    targetMonth: number,
+    options?: { force?: boolean }
+  ): Promise<CalendarDaySummary[] | null> {
+    const cacheKey = getMonthCacheKey(targetYear, targetMonth)
+    if (!options?.force && monthCacheRef.current.has(cacheKey)) {
+      return monthCacheRef.current.get(cacheKey)!
+    }
+
+    setLoading(true)
+    const result = await getPortalCalendarMonthSummaries(targetYear, targetMonth)
+    setLoading(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return null
+    }
+
+    monthCacheRef.current.set(cacheKey, result.days)
+    return result.days
+  }
+
+  async function loadSelectedDayWorkout(
+    dateKey: string,
+    workoutId: string
+  ): Promise<ClientScheduledWorkoutWithExercises | null> {
+    if (workout?.id === workoutId && workout.scheduled_date === dateKey) {
+      return workout
+    }
+
+    setWorkoutLoading(true)
+    const result = await getPortalWorkoutWithExercises(workoutId)
+    setWorkoutLoading(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      setWorkout(null)
+      return null
+    }
+
+    setWorkout(result.workout)
+    return result.workout
+  }
 
   function openLogWorkout(
     workoutToLog: ClientScheduledWorkoutWithExercises | null = workout
@@ -77,33 +152,53 @@ export function PortalCalendarPanel({
     nextMonth = month,
     nextSelectedDate = selectedDate
   ) {
-    setLoading(true)
-    const result = await getPortalCalendarMonthData(
-      nextYear,
-      nextMonth,
-      nextSelectedDate
-    )
-    setLoading(false)
-
-    if (!result.success) {
-      toast.error(result.error)
+    invalidateMonthCache(nextYear, nextMonth)
+    const days = await ensureMonthDays(nextYear, nextMonth, { force: true })
+    if (!days) {
       return null
     }
 
-    setScheduledDays(result.data.days)
-    setWorkout(result.data.selectedWorkout)
-    return result.data.selectedWorkout
+    setScheduledDays(days)
+
+    const summary = days.find((day) => day.scheduled_date === nextSelectedDate)
+    if (!summary) {
+      setWorkout(null)
+      return null
+    }
+
+    return loadSelectedDayWorkout(nextSelectedDate, summary.id)
   }
 
   async function handleMonthChange(nextYear: number, nextMonth: number) {
     setYear(nextYear)
     setMonth(nextMonth)
-    await refreshCalendar(nextYear, nextMonth, selectedDate)
+
+    const days = (await ensureMonthDays(nextYear, nextMonth)) ?? []
+    setScheduledDays(days)
+
+    const summary = days.find((day) => day.scheduled_date === selectedDate)
+    if (summary) {
+      if (workout?.scheduled_date !== selectedDate) {
+        void loadSelectedDayWorkout(selectedDate, summary.id)
+      }
+      return
+    }
+
+    if (workout?.scheduled_date !== selectedDate) {
+      setWorkout(null)
+    }
   }
 
   async function handleSelectDate(dateKey: string) {
     setSelectedDate(dateKey)
-    await refreshCalendar(year, month, dateKey)
+
+    const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)
+    if (!summary) {
+      setWorkout(null)
+      return
+    }
+
+    await loadSelectedDayWorkout(dateKey, summary.id)
   }
 
   React.useEffect(() => {
@@ -147,11 +242,11 @@ export function PortalCalendarPanel({
   }, [initialAction, initialActionDate])
 
   function getLogButtonLabel() {
-    if (!workout) return 'Log workout'
-    if (workout.status === 'completed') return 'View log'
-    if (workout.status === 'skipped') return 'View workout'
-    if (workout.status === 'in_progress') return 'Continue log'
-    if (workout.started_at) return 'Resume workout'
+    if (!displayWorkout) return 'Log workout'
+    if (displayWorkout.status === 'completed') return 'View log'
+    if (displayWorkout.status === 'skipped') return 'View workout'
+    if (displayWorkout.status === 'in_progress') return 'Continue log'
+    if (displayWorkout.started_at) return 'Resume workout'
     return 'Log workout'
   }
 
@@ -163,31 +258,36 @@ export function PortalCalendarPanel({
             Selected day
           </p>
           <p className="font-semibold">{formatDayHeader(selectedDate)}</p>
-          {workout ? (
+          {displayWorkout || selectedDaySummary ? (
             <p className="text-muted-foreground truncate text-sm">
-              {workout.name}
-              {workout.exercises.length > 0 &&
-                ` · ${workout.exercises.length} exercise${
-                  workout.exercises.length === 1 ? '' : 's'
+              {displayWorkout?.name ?? selectedDaySummary?.name}
+              {displayWorkout && displayWorkout.exercises.length > 0 &&
+                ` · ${displayWorkout.exercises.length} exercise${
+                  displayWorkout.exercises.length === 1 ? '' : 's'
                 }`}
               {' · '}
               {getWorkoutDisplayStatus(
-                workout.status,
-                workoutHasProgress(workout, [])
+                displayWorkout?.status ?? selectedDaySummary!.status,
+                displayWorkout
+                  ? workoutHasProgress(displayWorkout, [])
+                  : workoutHasProgress(selectedDaySummary!, [])
               ).label}
+              {workoutLoading && !displayWorkout && (
+                <Loader2 className="ml-1 inline size-3 animate-spin" />
+              )}
             </p>
           ) : (
             <p className="text-muted-foreground text-sm">Rest day — no session scheduled</p>
           )}
         </div>
 
-        {workout && (
+        {displayWorkout && (
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" onClick={() => openLogWorkout()}>
               <ClipboardList className="size-4" />
               {getLogButtonLabel()}
             </Button>
-            <PrintWorkoutButton workout={workout} selectedDate={selectedDate} />
+            <PrintWorkoutButton workout={displayWorkout} selectedDate={selectedDate} />
           </div>
         )}
       </div>
@@ -217,14 +317,14 @@ export function PortalCalendarPanel({
         </p>
       )}
 
-      {workout && !isMobile && (
+      {displayWorkout && !isMobile && (
         <WorkoutLogModal
           open={logOpen}
           onOpenChange={setLogOpen}
           clientId={clientId}
           selectedDate={selectedDate}
-          workoutId={workout.id}
-          initialStatus={workout.status}
+          workoutId={displayWorkout.id}
+          initialStatus={displayWorkout.status}
           exercises={[]}
           variant="client"
           weightUnit={weightUnit}

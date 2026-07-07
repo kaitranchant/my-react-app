@@ -23,7 +23,8 @@ import {
   createScheduledWorkout,
   deleteScheduledWorkout,
   getCalendarCopyTargetClients,
-  getCalendarMonthData,
+  getCalendarMonthSummaries,
+  getClientWorkoutWithExercises,
   getSchedulableWorkoutTemplates,
   scheduleProgramWorkoutTemplateToDate,
   type CalendarCopyTargetClient,
@@ -90,6 +91,10 @@ import type {
 
 type CalendarQuickAction = 'log' | 'schedule'
 
+function getMonthCacheKey(targetYear: number, targetMonth: number) {
+  return `${targetYear}-${targetMonth}`
+}
+
 type ClientCalendarPanelProps = {
   clientId: string
   clientName: string
@@ -134,6 +139,12 @@ export function ClientCalendarPanel({
   const [workout, setWorkout] =
     React.useState<ClientScheduledWorkoutWithExercises | null>(initialWorkout)
   const [loading, setLoading] = React.useState(false)
+  const [workoutLoading, setWorkoutLoading] = React.useState(false)
+  const monthCacheRef = React.useRef(
+    new Map<string, CalendarDaySummary[]>([
+      [getMonthCacheKey(initialYear, initialMonth), initialDays],
+    ])
+  )
   const [pending, setPending] = React.useState(false)
   const [builderOpen, setBuilderOpen] = React.useState(false)
   const [openBuilderForDate, setOpenBuilderForDate] = React.useState<
@@ -278,9 +289,71 @@ export function ClientCalendarPanel({
     setSchedulableTemplates(result.templates)
   }, [])
 
-  React.useEffect(() => {
-    void loadSchedulableTemplates()
-  }, [loadSchedulableTemplates])
+  const selectedDaySummary = React.useMemo(
+    () => scheduledDays.find((day) => day.scheduled_date === selectedDate),
+    [scheduledDays, selectedDate]
+  )
+
+  const displayWorkout =
+    workout?.scheduled_date === selectedDate ? workout : null
+
+  function invalidateMonthCache(targetYear?: number, targetMonth?: number) {
+    if (targetYear !== undefined && targetMonth !== undefined) {
+      monthCacheRef.current.delete(getMonthCacheKey(targetYear, targetMonth))
+      return
+    }
+
+    monthCacheRef.current.clear()
+  }
+
+  async function ensureMonthDays(
+    targetYear: number,
+    targetMonth: number,
+    options?: { force?: boolean }
+  ): Promise<CalendarDaySummary[] | null> {
+    const cacheKey = getMonthCacheKey(targetYear, targetMonth)
+    if (!options?.force && monthCacheRef.current.has(cacheKey)) {
+      return monthCacheRef.current.get(cacheKey)!
+    }
+
+    setLoading(true)
+    const result = await getCalendarMonthSummaries(
+      clientId,
+      targetYear,
+      targetMonth
+    )
+    setLoading(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return null
+    }
+
+    monthCacheRef.current.set(cacheKey, result.days)
+    return result.days
+  }
+
+  async function loadSelectedDayWorkout(
+    dateKey: string,
+    workoutId: string
+  ): Promise<ClientScheduledWorkoutWithExercises | null> {
+    if (workout?.id === workoutId && workout.scheduled_date === dateKey) {
+      return workout
+    }
+
+    setWorkoutLoading(true)
+    const result = await getClientWorkoutWithExercises(clientId, workoutId)
+    setWorkoutLoading(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      setWorkout(null)
+      return null
+    }
+
+    setWorkout(result.workout)
+    return result.workout
+  }
 
   function formatTemplateLabel(template: SchedulableWorkoutTemplate) {
     const exerciseLabel =
@@ -350,44 +423,60 @@ export function ClientCalendarPanel({
     nextMonth = month,
     nextSelectedDate = selectedDate
   ) {
-    setLoading(true)
-    const result = await getCalendarMonthData(
-      clientId,
-      nextYear,
-      nextMonth,
-      nextSelectedDate
-    )
-    setLoading(false)
-
-    if (!result.success) {
-      toast.error(result.error)
+    invalidateMonthCache(nextYear, nextMonth)
+    const days = await ensureMonthDays(nextYear, nextMonth, { force: true })
+    if (!days) {
       return null
     }
 
-    setScheduledDays(result.data.days)
-    setWorkout(result.data.selectedWorkout)
-    return result.data.selectedWorkout
+    setScheduledDays(days)
+
+    const summary = days.find((day) => day.scheduled_date === nextSelectedDate)
+    if (!summary) {
+      setWorkout(null)
+      return null
+    }
+
+    return loadSelectedDayWorkout(nextSelectedDate, summary.id)
   }
 
   async function handleMonthChange(nextYear: number, nextMonth: number) {
     setYear(nextYear)
     setMonth(nextMonth)
-    await refreshCalendar(nextYear, nextMonth, selectedDate)
+
+    const days = (await ensureMonthDays(nextYear, nextMonth)) ?? []
+    setScheduledDays(days)
+
+    const summary = days.find((day) => day.scheduled_date === selectedDate)
+    if (summary) {
+      if (workout?.scheduled_date !== selectedDate) {
+        void loadSelectedDayWorkout(selectedDate, summary.id)
+      }
+      return
+    }
+
+    if (workout?.scheduled_date !== selectedDate) {
+      setWorkout(null)
+    }
   }
 
   async function handleSelectDate(dateKey: string) {
     setSelectedDate(dateKey)
-    await refreshCalendar(year, month, dateKey)
+
+    const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)
+    if (!summary) {
+      setWorkout(null)
+      return
+    }
+
+    await loadSelectedDayWorkout(dateKey, summary.id)
   }
 
   async function handleDayDoubleClick(dateKey: string) {
     setSelectedDate(dateKey)
 
-    const dayHasWorkout = scheduledDays.some(
-      (day) => day.scheduled_date === dateKey
-    )
-
-    if (!dayHasWorkout) {
+    const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)
+    if (!summary) {
       openCreateDialog(dateKey)
       return
     }
@@ -398,7 +487,7 @@ export function ClientCalendarPanel({
     }
 
     setOpenBuilderForDate(dateKey)
-    const loaded = await refreshCalendar(year, month, dateKey)
+    const loaded = await loadSelectedDayWorkout(dateKey, summary.id)
     if (!loaded) {
       setOpenBuilderForDate(null)
     }
@@ -680,18 +769,23 @@ export function ClientCalendarPanel({
             Selected day
           </p>
           <p className="font-semibold">{formatDayHeader(selectedDate)}</p>
-          {workout ? (
+          {displayWorkout || selectedDaySummary ? (
             <p className="text-muted-foreground truncate text-sm">
-              {workout.name}
-              {workout.exercises.length > 0 &&
-                ` · ${workout.exercises.length} exercise${
-                  workout.exercises.length === 1 ? '' : 's'
+              {displayWorkout?.name ?? selectedDaySummary?.name}
+              {displayWorkout && displayWorkout.exercises.length > 0 &&
+                ` · ${displayWorkout.exercises.length} exercise${
+                  displayWorkout.exercises.length === 1 ? '' : 's'
                 }`}
               {' · '}
               {getWorkoutDisplayStatus(
-                workout.status,
-                workoutHasProgress(workout, [])
+                displayWorkout?.status ?? selectedDaySummary!.status,
+                displayWorkout
+                  ? workoutHasProgress(displayWorkout, [])
+                  : workoutHasProgress(selectedDaySummary!, [])
               ).label}
+              {workoutLoading && !displayWorkout && (
+                <Loader2 className="ml-1 inline size-3 animate-spin" />
+              )}
             </p>
           ) : (
             <p className="text-muted-foreground text-sm">No workout scheduled</p>
@@ -699,7 +793,7 @@ export function ClientCalendarPanel({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {workout ? (
+          {displayWorkout ? (
             <>
               <Button
                 type="button"
@@ -707,13 +801,13 @@ export function ClientCalendarPanel({
                 onClick={() => openLogWorkout()}
               >
                 <ClipboardList className="size-4" />
-                {workout.status === 'completed'
+                {displayWorkout.status === 'completed'
                   ? 'View log'
-                  : workout.status === 'skipped'
+                  : displayWorkout.status === 'skipped'
                     ? 'View workout'
-                    : workout.status === 'in_progress'
+                    : displayWorkout.status === 'in_progress'
                       ? 'Continue log'
-                      : workout.started_at
+                      : displayWorkout.started_at
                         ? 'Resume workout'
                         : 'Log workout'}
               </Button>
@@ -727,7 +821,7 @@ export function ClientCalendarPanel({
                 Edit workout
               </Button>
               <PrintWorkoutButton
-                workout={workout}
+                workout={displayWorkout}
                 selectedDate={selectedDate}
                 subtitle={personalMode ? 'Personal training' : clientName}
               />
