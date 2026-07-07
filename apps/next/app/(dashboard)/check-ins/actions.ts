@@ -161,7 +161,7 @@ export async function updateCoachCheckIn(
   const { supabase, user } = await requireUser()
   const { data: existing, error: fetchError } = await supabase
     .from('client_check_ins')
-    .select('id, client_id, coach_id, check_in_date, reviewed_at')
+    .select('id, client_id, coach_id, check_in_date, reviewed_at, submitted_by')
     .eq('id', checkInId)
     .eq('coach_id', user.id)
     .maybeSingle()
