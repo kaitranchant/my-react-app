@@ -60,6 +60,7 @@ type WorkoutLogKeypadContextValue = {
   canGoPreviousSet: boolean
   canGoNextSet: boolean
   getActiveValue: () => string
+  getSetCount: (exerciseId: string) => number
   keypadReserveHeight: number
   setKeypadReserveHeight: (height: number) => void
 }
@@ -381,6 +382,10 @@ export function WorkoutLogKeypadProvider({
     if (next) navigateToTarget(next)
   }, [activeTarget, getContext, navigateToTarget])
 
+  const getSetCount = React.useCallback((exerciseId: string) => {
+    return getContext(exerciseId)?.sets.length ?? 0
+  }, [getContext])
+
   const value = React.useMemo<WorkoutLogKeypadContextValue>(
     () => ({
       enabled,
@@ -404,6 +409,7 @@ export function WorkoutLogKeypadProvider({
       canGoPreviousSet,
       canGoNextSet,
       getActiveValue,
+      getSetCount,
       keypadReserveHeight,
       setKeypadReserveHeight,
     }),
@@ -429,6 +435,7 @@ export function WorkoutLogKeypadProvider({
       canGoPreviousSet,
       canGoNextSet,
       getActiveValue,
+      getSetCount,
       keypadReserveHeight,
     ]
   )

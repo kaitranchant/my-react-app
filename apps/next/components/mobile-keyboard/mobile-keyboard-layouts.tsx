@@ -5,6 +5,9 @@ import { CornerDownLeft, Delete } from 'lucide-react'
 
 import {
   HideKeyboardIcon,
+  KEYPAD_GRID_CLASS,
+  KEYPAD_KEY_CLASS,
+  KEYPAD_ROW_HEIGHT,
   KeypadButton,
 } from '@/components/mobile-keyboard/keypad-surface'
 import type { MobileKeyboardMode } from '@/lib/mobile-keyboard/resolve-keyboard-mode'
@@ -36,15 +39,15 @@ function NumericGrid({
 
   return (
     <div
-      className="box-border grid w-full max-w-full min-w-0 grid-cols-4 gap-1 px-2 pt-2 pb-1 sm:gap-1.5 sm:px-3 sm:pt-2.5 sm:pb-1.5"
-      style={{ gridTemplateRows: 'repeat(4, minmax(3rem, auto))' }}
+      className={cn(KEYPAD_GRID_CLASS, 'grid-cols-4')}
+      style={{ gridTemplateRows: `repeat(4, ${KEYPAD_ROW_HEIGHT})` }}
     >
       {['1', '2', '3'].map((digit) => (
         <KeypadButton
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -53,7 +56,7 @@ function NumericGrid({
         aria-label="Backspace"
         variant="icon"
         onClick={backspace}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         <Delete className="size-5" />
       </KeypadButton>
@@ -63,7 +66,7 @@ function NumericGrid({
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -72,7 +75,10 @@ function NumericGrid({
         aria-label="Done"
         variant="accent"
         onClick={closeKeyboard}
-        className="row-span-3 h-full min-h-[calc(9rem+0.5rem)] text-sm font-bold sm:min-h-[calc(10rem+0.75rem)] sm:text-base"
+        className={cn(
+          KEYPAD_KEY_CLASS,
+          'row-span-3 text-base font-bold tracking-wide sm:text-lg'
+        )}
       >
         Done
       </KeypadButton>
@@ -82,7 +88,7 @@ function NumericGrid({
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -92,17 +98,17 @@ function NumericGrid({
         <KeypadButton
           aria-label="Decimal point"
           onClick={() => appendChar('.')}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           .
         </KeypadButton>
       ) : (
-        <div />
+        <div aria-hidden className={KEYPAD_KEY_CLASS} />
       )}
       <KeypadButton
         aria-label="Digit 0"
         onClick={() => appendChar('0')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         0
       </KeypadButton>
@@ -110,7 +116,7 @@ function NumericGrid({
         aria-label="Hide keyboard"
         variant="icon"
         onClick={closeKeyboard}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         <HideKeyboardIcon />
       </KeypadButton>
@@ -134,14 +140,14 @@ function TextGrid({
   }
 
   return (
-    <div className="box-border w-full max-w-full min-w-0 space-y-1 px-2 pt-2 pb-1 sm:space-y-1.5 sm:px-3 sm:pt-2.5 sm:pb-1.5">
+    <div className={cn(KEYPAD_GRID_CLASS, 'space-y-1.5 sm:space-y-2')}>
       {QWERTY_ROWS.map((row, rowIndex) => (
         <div
           key={rowIndex}
           className={cn(
-            'flex justify-center gap-1 sm:gap-1.5',
-            rowIndex === 1 && 'px-3 sm:px-4',
-            rowIndex === 2 && 'px-6 sm:px-8'
+            'flex justify-center gap-1.5 sm:gap-2',
+            rowIndex === 1 && 'px-2 sm:px-3',
+            rowIndex === 2 && 'px-5 sm:px-7'
           )}
         >
           {row.map((char) => (
@@ -149,7 +155,7 @@ function TextGrid({
               key={char}
               aria-label={char}
               onClick={() => handleChar(char)}
-              className="h-11 min-w-8 flex-1 sm:h-12 sm:min-w-9"
+              className="h-12 min-h-12 min-w-9 flex-1 sm:h-[3.25rem] sm:min-w-10"
             >
               {shift ? char.toUpperCase() : char}
             </KeypadButton>
@@ -157,12 +163,12 @@ function TextGrid({
         </div>
       ))}
 
-      <div className="flex gap-1 sm:gap-1.5">
+      <div className="flex gap-1.5 sm:gap-2">
         <KeypadButton
           aria-label="Shift"
           variant={shift ? 'accent' : 'default'}
           onClick={() => setShift((current) => !current)}
-          className="h-11 min-w-12 sm:h-12"
+          className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
         >
           ⇧
         </KeypadButton>
@@ -171,7 +177,7 @@ function TextGrid({
             key={char}
             aria-label={char}
             onClick={() => appendChar(char)}
-            className="h-11 min-w-10 flex-1 sm:h-12"
+            className="h-12 min-h-12 min-w-10 flex-1 sm:h-[3.25rem]"
           >
             {char}
           </KeypadButton>
@@ -179,7 +185,7 @@ function TextGrid({
         <KeypadButton
           aria-label="Space"
           onClick={() => appendChar(' ')}
-          className="h-11 min-w-0 flex-[2] sm:h-12"
+          className="h-12 min-h-12 min-w-0 flex-[2] sm:h-[3.25rem]"
         >
           space
         </KeypadButton>
@@ -187,18 +193,18 @@ function TextGrid({
           aria-label="Backspace"
           variant="icon"
           onClick={backspace}
-          className="h-11 min-w-12 sm:h-12"
+          className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
         >
           <Delete className="size-5" />
         </KeypadButton>
       </div>
 
-      <div className="flex gap-1 sm:gap-1.5">
+      <div className="flex gap-1.5 sm:gap-2">
         {multiline ? (
           <KeypadButton
             aria-label="New line"
             onClick={() => appendChar('\n')}
-            className="h-11 min-w-16 sm:h-12"
+            className="h-12 min-h-12 min-w-16 sm:h-[3.25rem]"
           >
             <CornerDownLeft className="size-5" />
           </KeypadButton>
@@ -207,7 +213,7 @@ function TextGrid({
           aria-label="Done"
           variant="accent"
           onClick={closeKeyboard}
-          className="h-11 min-w-0 flex-1 text-sm font-bold sm:h-12 sm:text-base"
+          className="h-12 min-h-12 min-w-0 flex-1 text-base font-bold sm:h-[3.25rem] sm:text-lg"
         >
           Done
         </KeypadButton>
@@ -215,7 +221,7 @@ function TextGrid({
           aria-label="Hide keyboard"
           variant="icon"
           onClick={closeKeyboard}
-          className="h-11 min-w-12 sm:h-12"
+          className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
         >
           <HideKeyboardIcon />
         </KeypadButton>
@@ -231,15 +237,15 @@ function TelGrid({
 }: Omit<MobileKeyboardLayoutProps, 'multiline' | 'mode'>) {
   return (
     <div
-      className="box-border grid w-full max-w-full min-w-0 grid-cols-4 gap-1 px-2 pt-2 pb-1 sm:gap-1.5 sm:px-3 sm:pt-2.5 sm:pb-1.5"
-      style={{ gridTemplateRows: 'repeat(5, minmax(3rem, auto))' }}
+      className={cn(KEYPAD_GRID_CLASS, 'grid-cols-4')}
+      style={{ gridTemplateRows: `repeat(5, ${KEYPAD_ROW_HEIGHT})` }}
     >
       {['1', '2', '3'].map((digit) => (
         <KeypadButton
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -248,7 +254,7 @@ function TelGrid({
         aria-label="Backspace"
         variant="icon"
         onClick={backspace}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         <Delete className="size-5" />
       </KeypadButton>
@@ -258,7 +264,7 @@ function TelGrid({
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -267,7 +273,10 @@ function TelGrid({
         aria-label="Done"
         variant="accent"
         onClick={closeKeyboard}
-        className="row-span-3 h-full min-h-[calc(9rem+0.5rem)] text-sm font-bold sm:min-h-[calc(10rem+0.75rem)] sm:text-base"
+        className={cn(
+          KEYPAD_KEY_CLASS,
+          'row-span-3 text-base font-bold tracking-wide sm:text-lg'
+        )}
       >
         Done
       </KeypadButton>
@@ -277,7 +286,7 @@ function TelGrid({
           key={digit}
           aria-label={`Digit ${digit}`}
           onClick={() => appendChar(digit)}
-          className="h-full min-h-11 sm:min-h-12"
+          className={KEYPAD_KEY_CLASS}
         >
           {digit}
         </KeypadButton>
@@ -286,21 +295,21 @@ function TelGrid({
       <KeypadButton
         aria-label="Open parenthesis"
         onClick={() => appendChar('(')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         (
       </KeypadButton>
       <KeypadButton
         aria-label="Close parenthesis"
         onClick={() => appendChar(')')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         )
       </KeypadButton>
       <KeypadButton
         aria-label="Hyphen"
         onClick={() => appendChar('-')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         -
       </KeypadButton>
@@ -308,14 +317,14 @@ function TelGrid({
       <KeypadButton
         aria-label="Plus"
         onClick={() => appendChar('+')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         +
       </KeypadButton>
       <KeypadButton
         aria-label="Digit 0"
         onClick={() => appendChar('0')}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         0
       </KeypadButton>
@@ -323,7 +332,7 @@ function TelGrid({
         aria-label="Hide keyboard"
         variant="icon"
         onClick={closeKeyboard}
-        className="h-full min-h-11 sm:min-h-12"
+        className={KEYPAD_KEY_CLASS}
       >
         <HideKeyboardIcon />
       </KeypadButton>

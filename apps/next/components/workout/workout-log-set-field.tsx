@@ -92,7 +92,7 @@ export function WorkoutLogSetField({
       aria-selected={isActive}
       {...tapHandlers}
       className={cn(
-        'bg-background flex h-9 min-w-0 touch-pan-y items-center justify-center rounded-lg border px-1.5 text-center text-base font-medium transition-[color,box-shadow] outline-none sm:h-10 sm:px-2 sm:text-sm',
+        'bg-background flex h-11 min-w-0 touch-pan-y items-center justify-center rounded-lg border px-2 text-center text-base font-medium transition-[color,box-shadow,transform] duration-75 outline-none active:scale-[0.98] sm:h-10 sm:px-2 sm:text-sm',
         isActive
           ? 'border-brand ring-brand/40 ring-2'
           : 'border-input hover:bg-muted/40',

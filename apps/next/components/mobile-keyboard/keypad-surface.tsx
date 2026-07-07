@@ -8,6 +8,14 @@ import { cn } from '@/lib/utils'
 
 export const KEYPAD_EXIT_MS = 260
 
+/** Shared padding and gap for all custom keypad grids. */
+export const KEYPAD_GRID_CLASS =
+  'keypad-grid box-border grid w-full max-w-full min-w-0 px-2.5 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2'
+
+export const KEYPAD_ROW_HEIGHT = 'minmax(3.25rem, auto)'
+
+export const KEYPAD_KEY_CLASS = 'h-full min-h-12 sm:min-h-[3.25rem]'
+
 export type ViewportFrame = {
   left: number
   width: number
@@ -99,15 +107,15 @@ export function KeypadButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex min-w-0 items-center justify-center rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 sm:rounded-xl sm:text-base touch-manipulation',
+        'flex min-w-0 select-none items-center justify-center rounded-xl text-base font-semibold transition-[transform,opacity,background-color] duration-75 disabled:pointer-events-none disabled:opacity-40 sm:text-lg touch-manipulation [-webkit-tap-highlight-color:transparent] active:scale-[0.96] active:opacity-90',
         variant === 'accent' &&
-          'bg-brand text-brand-foreground hover:bg-brand/90',
+          'bg-brand text-brand-foreground hover:bg-brand/90 active:bg-brand/80',
         variant === 'icon' &&
-          'bg-muted/80 text-foreground hover:bg-muted',
+          'bg-muted/80 text-foreground hover:bg-muted active:bg-muted/70',
         variant === 'wide' &&
-          'bg-muted/80 text-foreground hover:bg-muted',
+          'bg-muted/80 text-foreground hover:bg-muted active:bg-muted/70',
         variant === 'default' &&
-          'bg-muted/80 text-foreground hover:bg-muted',
+          'bg-muted/80 text-foreground hover:bg-muted active:bg-muted/70',
         className
       )}
     >

@@ -23,6 +23,19 @@ export type ActiveKeypadTarget = {
   field: WorkoutLogKeypadField
 }
 
+const KEYPAD_FIELD_LABELS: Record<WorkoutLogKeypadField, string> = {
+  weight: 'Weight',
+  reps: 'Reps',
+  durationSeconds: 'Time',
+  distanceMeters: 'Distance',
+  barSpeed: 'Bar speed',
+  peakPower: 'Peak power',
+}
+
+export function getKeypadFieldLabel(field: WorkoutLogKeypadField): string {
+  return KEYPAD_FIELD_LABELS[field]
+}
+
 const DECIMAL_FIELDS = new Set<WorkoutLogKeypadField>([
   'weight',
   'barSpeed',

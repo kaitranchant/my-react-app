@@ -13,6 +13,7 @@ import {
   getPreviousSessionCopyValuesForSet,
   getAdjacentSetKeypadTarget,
   getNextKeypadTarget,
+  getKeypadFieldLabel,
   getVisibleKeypadFields,
   getWeightIncrement,
   shouldCompleteSetOnKeypadNext,
@@ -278,5 +279,13 @@ describe('workout-log-keypad', () => {
     const remainder = calculatePlatesPerSide(50, 45, [45, 25, 10])
     assert.equal(remainder.achievable, false)
     assert.ok(remainder.remainderPerSide > 0)
+  })
+})
+
+describe('getKeypadFieldLabel', () => {
+  it('returns human-readable field names', () => {
+    assert.equal(getKeypadFieldLabel('weight'), 'Weight')
+    assert.equal(getKeypadFieldLabel('reps'), 'Reps')
+    assert.equal(getKeypadFieldLabel('durationSeconds'), 'Time')
   })
 })
