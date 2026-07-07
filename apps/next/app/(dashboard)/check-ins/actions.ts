@@ -2,7 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { checkInValuesToRow, checkInValuesToUpdate } from '@/lib/check-ins'
+import {
+  checkInValuesToRow,
+  checkInValuesToUpdate,
+  resolveCheckInReviewedAt,
+} from '@/lib/check-ins'
 import { createClient } from '@/lib/supabase/server'
 import { notifyClientOfCheckInReview } from '@/lib/notifications/notify-client-check-in-review'
 import {
@@ -68,8 +72,10 @@ export async function submitCoachCheckIn(
     'coach'
   )
 
-  const reviewedAt =
-    parsed.data.coachNotes != null ? new Date().toISOString() : null
+  const reviewedAt = resolveCheckInReviewedAt(
+    { reviewed_at: null, submitted_by: 'coach' },
+    parsed.data.coachNotes
+  )
 
   const { error } = await ctx.supabase.from('client_check_ins').upsert(
     {
@@ -83,7 +89,7 @@ export async function submitCoachCheckIn(
     return { success: false, error: error.message }
   }
 
-  if (reviewedAt) {
+  if (reviewedAt && parsed.data.coachNotes != null) {
     void notifyClientOfCheckInReview({
       clientId,
       coachId: ctx.user.id,
@@ -164,10 +170,7 @@ export async function updateCoachCheckIn(
     return { success: false, error: 'Check-in not found.' }
   }
 
-  const reviewedAt =
-    parsed.data.coachNotes != null
-      ? new Date().toISOString()
-      : null
+  const reviewedAt = resolveCheckInReviewedAt(existing, parsed.data.coachNotes)
 
   const { error } = await supabase
     .from('client_check_ins')

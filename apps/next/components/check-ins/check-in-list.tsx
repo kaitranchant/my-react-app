@@ -50,10 +50,19 @@ type CheckInListProps = {
   weightUnit?: WeightUnit
 }
 
-function CoachResponseEditor({ checkIn }: { checkIn: CheckInListItem }) {
+function CoachResponseEditor({
+  checkIn,
+  pending,
+}: {
+  checkIn: CheckInListItem
+  pending: boolean
+}) {
   const router = useRouter()
   const [notes, setNotes] = React.useState(checkIn.coach_notes ?? '')
   const [isSaving, setIsSaving] = React.useState(false)
+
+  const savedNotes = checkIn.coach_notes ?? ''
+  const isDirty = notes !== savedNotes
 
   React.useEffect(() => {
     setNotes(checkIn.coach_notes ?? '')
@@ -65,19 +74,25 @@ function CoachResponseEditor({ checkIn }: { checkIn: CheckInListItem }) {
     setIsSaving(false)
 
     if (result.success) {
-      toast.success('Coach response saved')
+      toast.success(pending ? 'Check-in marked as reviewed' : 'Coach response saved')
       router.refresh()
     } else {
       toast.error(result.error)
     }
   }
 
+  const canSave = pending ? true : isDirty
+
   return (
     <div className="border-brand/20 bg-brand/5 grid gap-3 rounded-xl border-2 p-4">
       <div className="space-y-1">
-        <p className="text-brand text-sm font-medium">Coach response</p>
+        <p className="text-brand text-sm font-medium">
+          {pending ? 'Review check-in' : 'Coach response'}
+        </p>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Your dedicated coaching moment — feedback the client will see after review.
+          {pending
+            ? 'Optional feedback for the client. You can mark this check-in as reviewed without adding a response.'
+            : 'Feedback the client will see in their portal.'}
         </p>
       </div>
       <Textarea
@@ -92,9 +107,13 @@ function CoachResponseEditor({ checkIn }: { checkIn: CheckInListItem }) {
           type="button"
           size="sm"
           onClick={handleSave}
-          disabled={isSaving || notes === (checkIn.coach_notes ?? '')}
+          disabled={isSaving || !canSave}
         >
-          {isSaving ? 'Saving…' : 'Save response'}
+          {isSaving
+            ? 'Saving…'
+            : pending
+              ? 'Mark as reviewed'
+              : 'Save response'}
         </Button>
       </div>
     </div>
@@ -240,7 +259,7 @@ function CheckInRow({
           />
         ) : (
           <>
-            <CoachResponseEditor checkIn={checkIn} />
+            <CoachResponseEditor checkIn={checkIn} pending={pending} />
             <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
               <Button
                 type="button"

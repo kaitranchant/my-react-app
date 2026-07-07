@@ -19,6 +19,7 @@ import {
   shouldCompleteSetOnKeypadNext,
   shouldReplacePredictedFieldValue,
 } from './workout-log-keypad'
+import { createSetDraftId } from './workout-log'
 
 const weightRepsFields = {
   showWeight: true,
@@ -32,6 +33,7 @@ const weightRepsFields = {
 
 function makeSets(count: number): WorkoutLogSetDraft[] {
   return Array.from({ length: count }, (_, index) => ({
+    draftId: createSetDraftId(),
     setNumber: index + 1,
     targetLabel: null,
     weight: '',
@@ -135,6 +137,42 @@ describe('workout-log-keypad', () => {
       setNumber: 2,
       field: 'weight',
     })
+  })
+
+  it('navigates NEXT to the next set in order even when sets are unsorted', () => {
+    const sets = makeSets(3)
+    const shuffledSets = [sets[2]!, sets[0]!, sets[1]!]
+
+    assert.deepEqual(
+      getNextKeypadTarget(
+        { exerciseId: 'ex-1', setNumber: 1, field: 'reps' },
+        shuffledSets,
+        weightRepsFields
+      ),
+      {
+        exerciseId: 'ex-1',
+        setNumber: 2,
+        field: 'weight',
+      }
+    )
+  })
+
+  it('does not skip ahead to later incomplete sets', () => {
+    const sets = makeSets(3)
+    sets[1]!.completed = true
+
+    assert.deepEqual(
+      getNextKeypadTarget(
+        { exerciseId: 'ex-1', setNumber: 1, field: 'reps' },
+        sets,
+        weightRepsFields
+      ),
+      {
+        exerciseId: 'ex-1',
+        setNumber: 2,
+        field: 'weight',
+      }
+    )
   })
 
   it('navigates up and down between sets on the same field', () => {

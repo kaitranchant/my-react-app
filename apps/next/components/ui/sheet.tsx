@@ -4,6 +4,7 @@ import * as React from 'react'
 import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
+import { isMobileKeypadInteraction } from '@/lib/mobile-keyboard/is-keypad-interaction'
 import { cn } from '@/lib/utils'
 
 function Sheet({
@@ -50,10 +51,58 @@ function SheetContent({
   className,
   children,
   side = 'right',
+  onPointerDownOutside,
+  onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
 }) {
+  const handlePointerDownOutside = React.useCallback<
+    NonNullable<
+      React.ComponentProps<typeof SheetPrimitive.Content>['onPointerDownOutside']
+    >
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onPointerDownOutside?.(event)
+    },
+    [onPointerDownOutside]
+  )
+
+  const handleInteractOutside = React.useCallback<
+    NonNullable<
+      React.ComponentProps<typeof SheetPrimitive.Content>['onInteractOutside']
+    >
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onInteractOutside?.(event)
+    },
+    [onInteractOutside]
+  )
+
+  const handleFocusOutside = React.useCallback<
+    NonNullable<
+      React.ComponentProps<typeof SheetPrimitive.Content>['onFocusOutside']
+    >
+  >(
+    (event) => {
+      if (isMobileKeypadInteraction(event.target)) {
+        event.preventDefault()
+        return
+      }
+      onFocusOutside?.(event)
+    },
+    [onFocusOutside]
+  )
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -71,6 +120,9 @@ function SheetContent({
             'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t pb-[env(safe-area-inset-bottom)]',
           className
         )}
+        onPointerDownOutside={handlePointerDownOutside}
+        onInteractOutside={handleInteractOutside}
+        onFocusOutside={handleFocusOutside}
         {...props}
       >
         {children}

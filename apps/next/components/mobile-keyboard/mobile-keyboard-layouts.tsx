@@ -19,6 +19,12 @@ const QWERTY_ROWS = [
   ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
 ] as const
 
+const NUMBER_ROWS = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+  ['-', '/', ':', ';', '(', ')', '$', '&', '@', '"'],
+  ['.', ',', '?', '!', "'", '_'],
+] as const
+
 const EMAIL_EXTRA_KEYS = ['@', '.', '-', '_'] as const
 
 type MobileKeyboardLayoutProps = {
@@ -132,6 +138,7 @@ function TextGrid({
   closeKeyboard,
 }: MobileKeyboardLayoutProps) {
   const [shift, setShift] = React.useState(false)
+  const [showNumbers, setShowNumbers] = React.useState(false)
   const extraKeys = mode === 'email' ? EMAIL_EXTRA_KEYS : []
 
   const handleChar = (char: string) => {
@@ -139,49 +146,101 @@ function TextGrid({
     if (shift) setShift(false)
   }
 
+  const showLetters = () => {
+    setShowNumbers(false)
+    setShift(false)
+  }
+
+  const showNumberPad = () => {
+    setShowNumbers(true)
+    setShift(false)
+  }
+
   return (
     <div className={cn(KEYPAD_GRID_CLASS, 'space-y-1.5 sm:space-y-2')}>
-      {QWERTY_ROWS.map((row, rowIndex) => (
-        <div
-          key={rowIndex}
-          className={cn(
-            'flex justify-center gap-1.5 sm:gap-2',
-            rowIndex === 1 && 'px-2 sm:px-3',
-            rowIndex === 2 && 'px-5 sm:px-7'
-          )}
-        >
-          {row.map((char) => (
-            <KeypadButton
-              key={char}
-              aria-label={char}
-              onClick={() => handleChar(char)}
-              className="h-12 min-h-12 min-w-9 flex-1 sm:h-[3.25rem] sm:min-w-10"
+      {showNumbers
+        ? NUMBER_ROWS.map((row, rowIndex) => (
+            <div
+              key={rowIndex}
+              className={cn(
+                'flex justify-center gap-1.5 sm:gap-2',
+                rowIndex === 2 && 'px-5 sm:px-7'
+              )}
             >
-              {shift ? char.toUpperCase() : char}
-            </KeypadButton>
+              {row.map((char) => (
+                <KeypadButton
+                  key={char}
+                  aria-label={char}
+                  onClick={() => appendChar(char)}
+                  className="h-12 min-h-12 min-w-9 flex-1 sm:h-[3.25rem] sm:min-w-10"
+                >
+                  {char}
+                </KeypadButton>
+              ))}
+            </div>
+          ))
+        : QWERTY_ROWS.map((row, rowIndex) => (
+            <div
+              key={rowIndex}
+              className={cn(
+                'flex justify-center gap-1.5 sm:gap-2',
+                rowIndex === 1 && 'px-2 sm:px-3',
+                rowIndex === 2 && 'px-5 sm:px-7'
+              )}
+            >
+              {row.map((char) => (
+                <KeypadButton
+                  key={char}
+                  aria-label={char}
+                  onClick={() => handleChar(char)}
+                  className="h-12 min-h-12 min-w-9 flex-1 sm:h-[3.25rem] sm:min-w-10"
+                >
+                  {shift ? char.toUpperCase() : char}
+                </KeypadButton>
+              ))}
+            </div>
           ))}
-        </div>
-      ))}
 
       <div className="flex gap-1.5 sm:gap-2">
-        <KeypadButton
-          aria-label="Shift"
-          variant={shift ? 'accent' : 'default'}
-          onClick={() => setShift((current) => !current)}
-          className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
-        >
-          ⇧
-        </KeypadButton>
-        {extraKeys.map((char) => (
+        {showNumbers ? (
           <KeypadButton
-            key={char}
-            aria-label={char}
-            onClick={() => appendChar(char)}
-            className="h-12 min-h-12 min-w-10 flex-1 sm:h-[3.25rem]"
+            aria-label="Letters"
+            onClick={showLetters}
+            className="h-12 min-h-12 min-w-14 text-sm sm:h-[3.25rem]"
           >
-            {char}
+            ABC
           </KeypadButton>
-        ))}
+        ) : (
+          <>
+            <KeypadButton
+              aria-label="Numbers"
+              onClick={showNumberPad}
+              className="h-12 min-h-12 min-w-14 text-sm sm:h-[3.25rem]"
+            >
+              123
+            </KeypadButton>
+            <KeypadButton
+              aria-label="Shift"
+              variant={shift ? 'accent' : 'default'}
+              onClick={() => setShift((current) => !current)}
+              className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
+            >
+              ⇧
+            </KeypadButton>
+          </>
+        )}
+        {!showNumbers
+          ? extraKeys.map((char) => (
+              <KeypadButton
+                key={char}
+                aria-label={char}
+                onClick={() => appendChar(char)}
+                className="h-12 min-h-12 min-w-10 flex-1 sm:h-[3.25rem]"
+              >
+                {char}
+              </KeypadButton>
+            ))
+          : null}
         <KeypadButton
           aria-label="Space"
           onClick={() => appendChar(' ')}

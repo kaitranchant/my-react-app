@@ -19,6 +19,7 @@ import {
   type WorkoutLogExerciseMetaValues,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
+import { syncWorkoutLogSetsForExercises } from '@/lib/workout-log-set-sync'
 import { createClient } from '@/lib/supabase/server'
 import { requireClientAccess } from '@/lib/gym-access'
 import type {
@@ -222,6 +223,10 @@ export async function saveWorkoutLogSets(
     return { success: false, error: 'Workout not found.' }
   }
 
+  if (workout.status === 'completed' || workout.status === 'skipped') {
+    return { success: true }
+  }
+
   const exerciseIds = new Set(workout.exercises.map((row) => row.id))
   for (const set of parsed.data.sets) {
     if (!exerciseIds.has(set.scheduledExerciseId)) {
@@ -270,38 +275,13 @@ export async function saveWorkoutLogSets(
     }
   }
 
-  const setsByExercise = new Map<string, number[]>()
-  for (const set of parsed.data.sets) {
-    const existing = setsByExercise.get(set.scheduledExerciseId) ?? []
-    existing.push(set.setNumber)
-    setsByExercise.set(set.scheduledExerciseId, existing)
-  }
-
-  for (const exercise of workout.exercises) {
-    const keptSetNumbers = setsByExercise.get(exercise.id) ?? []
-
-    if (keptSetNumbers.length === 0) {
-      const { error } = await supabase
-        .from('workout_log_sets')
-        .delete()
-        .eq('scheduled_exercise_id', exercise.id)
-
-      if (error) {
-        return { success: false, error: error.message }
-      }
-      continue
-    }
-
-    const maxSetNumber = Math.max(...keptSetNumbers)
-    const { error } = await supabase
-      .from('workout_log_sets')
-      .delete()
-      .eq('scheduled_exercise_id', exercise.id)
-      .gt('set_number', maxSetNumber)
-
-    if (error) {
-      return { success: false, error: error.message }
-    }
+  const syncResult = await syncWorkoutLogSetsForExercises(
+    supabase,
+    parsed.data.sets,
+    exerciseIds
+  )
+  if (!syncResult.success) {
+    return syncResult
   }
 
   if (options?.revalidate !== false) {
@@ -323,6 +303,10 @@ export async function completeWorkoutLog(
   const workout = await fetchWorkoutWithExercises(supabase, workoutId)
   if (!workout || workout.client_id !== clientId) {
     return { success: false, error: 'Workout not found.' }
+  }
+
+  if (workout.status === 'completed') {
+    return { success: true, newPrs: [] }
   }
 
   const achievedAt = new Date().toISOString()

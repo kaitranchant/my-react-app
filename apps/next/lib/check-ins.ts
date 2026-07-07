@@ -160,6 +160,25 @@ export function isCheckInPendingReview(checkIn: ClientCheckIn): boolean {
   return checkIn.reviewed_at == null && checkIn.submitted_by === 'client'
 }
 
+export function resolveCheckInReviewedAt(
+  existing: Pick<ClientCheckIn, 'reviewed_at' | 'submitted_by'>,
+  coachNotes: string | null
+): string | null {
+  if (existing.reviewed_at) {
+    return existing.reviewed_at
+  }
+
+  if (existing.submitted_by === 'client') {
+    return new Date().toISOString()
+  }
+
+  if (coachNotes != null) {
+    return new Date().toISOString()
+  }
+
+  return null
+}
+
 export type GradedScaleTone = 'positive' | 'negative' | 'neutral'
 
 export type GradedScaleConfig = {

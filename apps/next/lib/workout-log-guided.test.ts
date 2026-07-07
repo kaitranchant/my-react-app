@@ -5,10 +5,12 @@ import {
   findResumeExerciseIndex,
   isExerciseFullyLogged,
   isGuidedWorkoutSessionEligible,
+  shouldGuidedWorkoutAutoAdvance,
 } from './workout-log'
 import type { WorkoutLogSetDraft } from './workout-log'
 
 const completedSet: WorkoutLogSetDraft = {
+  draftId: 'set-draft-completed',
   setNumber: 1,
   targetLabel: null,
   weight: '135',
@@ -57,6 +59,38 @@ test('findResumeExerciseIndex returns last exercise when all are complete', () =
   })
 
   assert.equal(index, 2)
+})
+
+test('shouldGuidedWorkoutAutoAdvance only when the active exercise just finished', () => {
+  assert.equal(
+    shouldGuidedWorkoutAutoAdvance({
+      previousExerciseId: 'ex-2',
+      previousWasFullyLogged: false,
+      activeExerciseId: 'ex-2',
+      isFullyLogged: true,
+    }),
+    true
+  )
+
+  assert.equal(
+    shouldGuidedWorkoutAutoAdvance({
+      previousExerciseId: 'ex-2',
+      previousWasFullyLogged: false,
+      activeExerciseId: 'ex-1',
+      isFullyLogged: true,
+    }),
+    false
+  )
+
+  assert.equal(
+    shouldGuidedWorkoutAutoAdvance({
+      previousExerciseId: 'ex-1',
+      previousWasFullyLogged: true,
+      activeExerciseId: 'ex-1',
+      isFullyLogged: true,
+    }),
+    false
+  )
 })
 
 test('isGuidedWorkoutSessionEligible enables client page logging', () => {

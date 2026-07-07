@@ -99,7 +99,7 @@ export default async function CheckInsPage({
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <PageHeader
         title="Check-ins"
-        description="Review client submissions, add feedback, or log metrics on their behalf."
+        description="Review client submissions, confirm check-ins, add optional feedback, or log metrics on their behalf."
       />
 
       <Tabs defaultValue={defaultTab}>

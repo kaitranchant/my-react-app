@@ -149,7 +149,7 @@ function CoachResponseField({
       <div className="space-y-1">
         <Label htmlFor="check-in-coach-notes">Coach response</Label>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Your dedicated coaching moment — feedback the client will see after review.
+          Optional — the client will see this after you mark the check-in as reviewed.
         </p>
       </div>
       <Textarea

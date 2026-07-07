@@ -155,30 +155,14 @@ export function getNextKeypadTarget(
     }
   }
 
-  const nextIncompleteSet = sets.find(
-    (set) => set.setNumber > current.setNumber && !set.completed
-  )
-  if (nextIncompleteSet) {
-    return {
-      exerciseId: current.exerciseId,
-      setNumber: nextIncompleteSet.setNumber,
-      field: visibleFields[0]!,
-    }
-  }
+  const nextSet = getAdjacentSetKeypadTarget(current, sets, 'down')
+  if (!nextSet) return null
 
-  const firstIncompleteSet = sets.find((set) => !set.completed)
-  if (
-    firstIncompleteSet &&
-    firstIncompleteSet.setNumber !== current.setNumber
-  ) {
-    return {
-      exerciseId: current.exerciseId,
-      setNumber: firstIncompleteSet.setNumber,
-      field: visibleFields[0]!,
-    }
+  return {
+    exerciseId: nextSet.exerciseId,
+    setNumber: nextSet.setNumber,
+    field: visibleFields[0]!,
   }
-
-  return null
 }
 
 export function shouldCompleteSetOnKeypadNext(

@@ -23,6 +23,7 @@ export type PreviousSetLog = {
 }
 
 export type WorkoutLogSetDraft = {
+  draftId: string
   setNumber: number
   targetLabel: string | null
   weight: string
@@ -39,6 +40,22 @@ export type WorkoutLogSetDraft = {
 const DEFAULT_SET_COUNT = 3
 export const MAX_LOG_SETS = 20
 export const MIN_LOG_SETS = 1
+
+let nextSetDraftId = 0
+
+export function createSetDraftId(): string {
+  nextSetDraftId += 1
+  return `set-draft-${nextSetDraftId}`
+}
+
+export function ensureSetDraftIds(
+  sets: WorkoutLogSetDraft[]
+): WorkoutLogSetDraft[] {
+  return sets.map((set) => ({
+    ...set,
+    draftId: set.draftId || createSetDraftId(),
+  }))
+}
 
 const DEFAULT_REST_SECONDS = 90
 const DEFAULT_WEIGHT_INCREMENT = 2.5
@@ -635,6 +652,7 @@ function buildSetDraft(
 
   if (!existing) {
     return {
+      draftId: createSetDraftId(),
       setNumber,
       targetLabel,
       weight: suggested.weight,
@@ -667,6 +685,7 @@ function buildSetDraft(
     (existing.distance_meters == null && suggested.distanceMeters !== '')
 
   return {
+    draftId: createSetDraftId(),
     setNumber,
     targetLabel,
     weight,
@@ -736,16 +755,9 @@ export function exerciseHasRpeTarget(
 
 export function getWorkoutLogSetGridTemplate(
   fields: WorkoutLogFieldFlags,
-  canRemoveSet: boolean,
-  options?: { hideConfirmColumn?: boolean }
+  canRemoveSet: boolean
 ): string {
   if (fields.completionOnly) {
-    if (options?.hideConfirmColumn) {
-      return canRemoveSet
-        ? '1.5rem minmax(0, 1fr) 1.5rem'
-        : '1.5rem minmax(0, 1fr)'
-    }
-
     return canRemoveSet
       ? '1.5rem minmax(0, 1fr) 2rem 1.5rem'
       : '1.5rem minmax(0, 1fr) 2rem'
@@ -812,6 +824,17 @@ export function findResumeExerciseIndex(
   })
 
   return firstIncomplete === -1 ? exercises.length - 1 : firstIncomplete
+}
+
+export function shouldGuidedWorkoutAutoAdvance(input: {
+  previousExerciseId: string | null
+  previousWasFullyLogged: boolean
+  activeExerciseId: string
+  isFullyLogged: boolean
+}): boolean {
+  if (!input.isFullyLogged) return false
+  if (input.previousExerciseId !== input.activeExerciseId) return false
+  return !input.previousWasFullyLogged
 }
 
 export function getSectionLabelForExercise(
@@ -931,6 +954,7 @@ export function appendSetDraft(
   return [
     ...sets,
     {
+      draftId: createSetDraftId(),
       setNumber: nextSetNumber,
       targetLabel: getTargetLabelForSet(exercise, nextSetNumber),
       weight,
@@ -949,20 +973,24 @@ export function appendSetDraft(
 export function removeSetDraft(
   exercise: ScheduledWorkoutExerciseWithDetails,
   sets: WorkoutLogSetDraft[],
-  setNumber: number
+  draftId: string
 ): WorkoutLogSetDraft[] | null {
   if (sets.length <= MIN_LOG_SETS) return null
 
-  return sets
-    .filter((set) => set.setNumber !== setNumber)
-    .map((set, index) => {
-      const nextSetNumber = index + 1
-      return {
-        ...set,
-        setNumber: nextSetNumber,
-        targetLabel: getTargetLabelForSet(exercise, nextSetNumber),
-      }
-    })
+  const nextSets = [...sets]
+    .sort((left, right) => left.setNumber - right.setNumber)
+    .filter((set) => set.draftId !== draftId)
+
+  if (nextSets.length === sets.length) return null
+
+  return nextSets.map((set, index) => {
+    const nextSetNumber = index + 1
+    return {
+      ...set,
+      setNumber: nextSetNumber,
+      targetLabel: getTargetLabelForSet(exercise, nextSetNumber),
+    }
+  })
 }
 
 export function parseOptionalNumber(value: string): number | null {

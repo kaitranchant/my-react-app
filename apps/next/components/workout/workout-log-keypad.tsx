@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Copy, Delete, Layers } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Delete, Layers } from 'lucide-react'
 
 import {
   HideKeyboardIcon,
@@ -74,52 +74,6 @@ function WorkoutKeypadHeader({
   )
 }
 
-function WorkoutSetNavBar({
-  setNumber,
-  setCount,
-  canGoPreviousSet,
-  canGoNextSet,
-  onPreviousSet,
-  onNextSet,
-}: {
-  setNumber: number
-  setCount: number
-  canGoPreviousSet: boolean
-  canGoNextSet: boolean
-  onPreviousSet: () => void
-  onNextSet: () => void
-}) {
-  if (setCount <= 1) return null
-
-  return (
-    <div className="flex items-center gap-1 border-b px-2 py-1.5 sm:px-3">
-      <KeypadButton
-        aria-label="Previous set"
-        variant="icon"
-        disabled={!canGoPreviousSet}
-        onClick={onPreviousSet}
-        className="h-9 min-h-9 flex-1 sm:h-10 sm:min-h-10"
-      >
-        <ChevronLeft className="size-5" />
-        <span className="text-xs font-medium">Set</span>
-      </KeypadButton>
-      <span className="text-muted-foreground shrink-0 px-1 text-xs font-medium tabular-nums">
-        {setNumber} / {setCount}
-      </span>
-      <KeypadButton
-        aria-label="Next set"
-        variant="icon"
-        disabled={!canGoNextSet}
-        onClick={onNextSet}
-        className="h-9 min-h-9 flex-1 sm:h-10 sm:min-h-10"
-      >
-        <span className="text-xs font-medium">Set</span>
-        <ChevronRight className="size-5" />
-      </KeypadButton>
-    </div>
-  )
-}
-
 function WorkoutLogKeypadContent({
   activeTarget,
   activeValue,
@@ -179,14 +133,6 @@ function WorkoutLogKeypadContent({
         setCount={setCount}
         onClose={closeKeypad}
       />
-      <WorkoutSetNavBar
-        setNumber={activeTarget.setNumber}
-        setCount={setCount}
-        canGoPreviousSet={canGoPreviousSet}
-        canGoNextSet={canGoNextSet}
-        onPreviousSet={goPreviousSet}
-        onNextSet={goNextSet}
-      />
       <div
         className={cn(KEYPAD_GRID_CLASS, 'grid-cols-5')}
         style={{ gridTemplateRows: `repeat(4, ${KEYPAD_ROW_HEIGHT})` }}
@@ -203,15 +149,13 @@ function WorkoutLogKeypadContent({
         {digitButton('2')}
         {digitButton('3')}
         <KeypadButton
-          aria-label="Next field"
-          variant="accent"
-          onClick={goNext}
-          className={cn(
-            KEYPAD_KEY_CLASS,
-            'row-span-3 text-base font-bold tracking-wide sm:text-lg'
-          )}
+          aria-label="Previous set"
+          variant="icon"
+          disabled={!canGoPreviousSet}
+          onClick={goPreviousSet}
+          className={KEYPAD_KEY_CLASS}
         >
-          NEXT
+          <ChevronUp className="size-5" />
         </KeypadButton>
 
         <KeypadButton
@@ -225,6 +169,15 @@ function WorkoutLogKeypadContent({
         {digitButton('4')}
         {digitButton('5')}
         {digitButton('6')}
+        <KeypadButton
+          aria-label="Next set"
+          variant="icon"
+          disabled={!canGoNextSet}
+          onClick={goNextSet}
+          className={KEYPAD_KEY_CLASS}
+        >
+          <ChevronDown className="size-5" />
+        </KeypadButton>
 
         <KeypadButton
           aria-label="Copy previous set"
@@ -237,6 +190,17 @@ function WorkoutLogKeypadContent({
         {digitButton('7')}
         {digitButton('8')}
         {digitButton('9')}
+        <KeypadButton
+          aria-label="Next field"
+          variant="accent"
+          onClick={goNext}
+          className={cn(
+            KEYPAD_KEY_CLASS,
+            'row-span-2 text-base font-bold tracking-wide sm:text-lg'
+          )}
+        >
+          NEXT
+        </KeypadButton>
 
         <KeypadButton
           aria-label="Plate calculator"
@@ -247,14 +211,7 @@ function WorkoutLogKeypadContent({
         >
           <Layers className="size-5" />
         </KeypadButton>
-        <KeypadButton
-          aria-label="Backspace"
-          variant="icon"
-          onClick={backspace}
-          className={KEYPAD_KEY_CLASS}
-        >
-          <Delete className="size-5" />
-        </KeypadButton>
+        {digitButton('0')}
         {showDecimal ? (
           <KeypadButton
             aria-label="Decimal point"
@@ -266,7 +223,14 @@ function WorkoutLogKeypadContent({
         ) : (
           <div aria-hidden className="min-h-12" />
         )}
-        {digitButton('0')}
+        <KeypadButton
+          aria-label="Backspace"
+          variant="icon"
+          onClick={backspace}
+          className={KEYPAD_KEY_CLASS}
+        >
+          <Delete className="size-5" />
+        </KeypadButton>
       </div>
     </>
   )

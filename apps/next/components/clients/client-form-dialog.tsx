@@ -41,6 +41,7 @@ import {
 } from '@/lib/validations/client'
 import {
   createClientRecord,
+  fetchClientForEdit,
   updateClientRecord,
 } from '@/app/(dashboard)/clients/actions'
 import { ClientAvatarUpload } from '@/components/clients/client-avatar'
@@ -107,6 +108,8 @@ export function ClientFormDialog({
 }: ClientFormDialogProps) {
   const router = useRouter()
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
+  const [loadingClient, setLoadingClient] = React.useState(false)
+  const previousOpenRef = React.useRef(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : uncontrolledOpen
   const setOpen = (next: boolean) => {
@@ -122,13 +125,48 @@ export function ClientFormDialog({
   })
 
   React.useEffect(() => {
-    if (open) {
-      form.reset(client ? clientToFormValues(client) : clientFormDefaults)
+    const justOpened = open && !previousOpenRef.current
+    previousOpenRef.current = open
+
+    if (!justOpened) {
+      return
     }
+
+    if (!isEdit || !client?.id) {
+      form.reset(clientFormDefaults)
+      return
+    }
+
+    let cancelled = false
+    setLoadingClient(true)
+
+    void fetchClientForEdit(client.id)
+      .then((result) => {
+        if (cancelled) return
+        if (result.success) {
+          form.reset(clientToFormValues(result.client))
+          return
+        }
+
+        form.reset(clientToFormValues(client))
+        toast.error(result.error)
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingClient(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // Reset only when the dialog opens; fetch uses client.id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, isEdit, client?.id])
 
   async function onSubmit(values: ClientFormValues) {
+    if (loadingClient) return
+
     const result = isEdit
       ? await updateClientRecord(client!.id, values)
       : await createClientRecord(values)
@@ -157,6 +195,14 @@ export function ClientFormDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {loadingClient ? (
+              <p className="text-muted-foreground text-sm">Loading client details…</p>
+            ) : null}
+
+            <fieldset
+              disabled={loadingClient}
+              className={loadingClient ? 'pointer-events-none opacity-60' : undefined}
+            >
             <FormSection title="Profile">
               {isEdit && client && (
                 <ClientAvatarUpload
@@ -355,16 +401,21 @@ export function ClientFormDialog({
             />
 
             {isEdit && client && <ClientAccountEmailActions client={client} />}
+            </fieldset>
 
             <DialogFooter className="gap-2 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
+                disabled={loadingClient}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting || loadingClient}
+              >
                 {form.formState.isSubmitting
                   ? 'Saving…'
                   : isEdit

@@ -17,7 +17,7 @@ import {
   type ClientFormValues,
   type InviteClientValues,
 } from '@/lib/validations/client'
-import type { ClientCoachingType, ClientStatus } from 'app/types/database'
+import type { ClientCoachingType, ClientStatus, Client } from 'app/types/database'
 import { getCoachSubscriptionContext, assertCanAddClient } from '@/lib/subscription-entitlements'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -217,6 +217,36 @@ export async function updateClientRecord(
   revalidatePath('/leaderboards')
   revalidatePath('/portal/leaderboards')
   return { success: true }
+}
+
+export type FetchClientForEditResult =
+  | { success: true; client: Client }
+  | { success: false; error: string }
+
+export async function fetchClientForEdit(
+  id: string
+): Promise<FetchClientForEditResult> {
+  const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked && !blocked.success) {
+    return blocked
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if (!data) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  return { success: true, client: data as Client }
 }
 
 export async function setClientStatus(

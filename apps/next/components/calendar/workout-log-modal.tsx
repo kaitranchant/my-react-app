@@ -137,6 +137,7 @@ import {
   getSectionLabelForExercise,
   isExerciseFullyLogged,
   isWorkoutFullyLogged,
+  shouldGuidedWorkoutAutoAdvance,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
   getLogFieldsForExercise,
@@ -155,6 +156,7 @@ import {
   parseOptionalNumber,
   parseRestSeconds,
   removeSetDraft,
+  ensureSetDraftIds,
   workoutHasProgress,
   type WorkoutLogSetDraft,
 } from '@/lib/workout-log'
@@ -310,6 +312,15 @@ function serializeWorkoutLogForSave(
   })
 }
 
+function normalizeExerciseState(state: ExerciseLogState): ExerciseLogState {
+  return Object.fromEntries(
+    Object.entries(state).map(([exerciseId, sets]) => [
+      exerciseId,
+      ensureSetDraftIds(sets),
+    ])
+  )
+}
+
 function parseSerializedWorkoutLog(serialized: string): {
   sets: ExerciseLogState
   meta: ExerciseMetaState
@@ -327,11 +338,11 @@ function parseSerializedWorkoutLog(serialized: string): {
       | [string, WorkoutLogSetDraft[]][]
 
     if (Array.isArray(parsed)) {
-      return { sets: Object.fromEntries(parsed), meta: {} }
+      return { sets: normalizeExerciseState(Object.fromEntries(parsed)), meta: {} }
     }
 
     return {
-      sets: Object.fromEntries(parsed.sets ?? []),
+      sets: normalizeExerciseState(Object.fromEntries(parsed.sets ?? [])),
       meta: Object.fromEntries(parsed.meta ?? []),
     }
   } catch {
@@ -400,7 +411,7 @@ type WorkoutLogExerciseProps = {
     patch: Partial<WorkoutLogSetDraft>
   ) => void
   onAddSet: () => void
-  onRemoveSet: (setNumber: number) => void
+  onRemoveSet: (draftId: string) => void
   onEdit: () => void
   onReplace: () => void
   onDelete: () => void
@@ -410,7 +421,6 @@ type WorkoutLogExerciseProps = {
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
   className?: string
-  guidedLayout?: boolean
   progressiveOverloadEnabled?: boolean
 }
 
@@ -438,15 +448,14 @@ function WorkoutLogExercise({
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
   className,
-  guidedLayout = false,
   progressiveOverloadEnabled = false,
 }: WorkoutLogExerciseProps) {
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [formReviewOpen, setFormReviewOpen] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
-  const [openSwipeSetNumber, setOpenSwipeSetNumber] =
-    React.useState<number | null>(null)
+  const [openSwipeDraftId, setOpenSwipeDraftId] =
+    React.useState<string | null>(null)
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -512,11 +521,7 @@ function WorkoutLogExercise({
   const hasExerciseNotes = Boolean(
     exercise.workout_notes?.trim() || exercise.client_notes?.trim()
   )
-  const useConfirmAllButton =
-    fields.completionOnly && guidedLayout && !readOnly
-  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, false, {
-    hideConfirmColumn: useConfirmAllButton,
-  })
+  const setGridTemplate = getWorkoutLogSetGridTemplate(fields, false)
 
   const activeSetNumber =
     sets.find((set) => !set.completed)?.setNumber ?? null
@@ -594,10 +599,6 @@ function WorkoutLogExercise({
         handleLocalSetChange(set.setNumber, { completed: true })
       }
     }
-  }
-
-  function handleConfirmAll() {
-    handleMarkAll()
   }
 
   function handleCopyPreviousSession(setNumber: number) {
@@ -953,9 +954,7 @@ function WorkoutLogExercise({
                           {fields.showDistance && <span>m</span>}
                         </>
                       )}
-                      {!useConfirmAllButton && (
-                        <span className="sr-only">Done</span>
-                      )}
+                      <span className="sr-only">Done</span>
                     </div>
 
                     {sets.map((set) => {
@@ -972,16 +971,16 @@ function WorkoutLogExercise({
 
                       return (
                         <WorkoutLogSwipeableSetRow
-                          key={set.setNumber}
+                          key={set.draftId}
                           enabled={canRemoveSet}
-                          open={openSwipeSetNumber === set.setNumber}
+                          open={openSwipeDraftId === set.draftId}
                           onOpenChange={(open) =>
-                            setOpenSwipeSetNumber(open ? set.setNumber : null)
+                            setOpenSwipeDraftId(open ? set.draftId : null)
                           }
-                          onDelete={() => onRemoveSet(set.setNumber)}
+                          onDelete={() => onRemoveSet(set.draftId)}
                           onInteractionStart={() => {
-                            setOpenSwipeSetNumber((current) =>
-                              current === set.setNumber ? current : null
+                            setOpenSwipeDraftId((current) =>
+                              current === set.draftId ? current : null
                             )
                           }}
                           className="border-b last:border-b-0"
@@ -1128,35 +1127,33 @@ function WorkoutLogExercise({
                             />
                           )}
 
-                          {!useConfirmAllButton && (
-                            <div className="flex justify-center">
-                              <button
-                                type="button"
-                                disabled={readOnly || !canConfirmSet(set)}
-                                onClick={() => handleSetToggle(set)}
-                                className={cn(
-                                  'flex size-7 items-center justify-center rounded-full border-2 transition-all sm:size-8',
-                                  set.completed
-                                    ? 'border-status-success bg-status-success text-white shadow-sm'
-                                    : isActive
-                                      ? 'border-brand hover:bg-brand/10'
-                                      : set.predicted
-                                        ? 'border-brand/50 hover:bg-brand/10'
-                                        : 'border-muted-foreground/25 hover:bg-muted/50',
-                                  'disabled:pointer-events-none disabled:opacity-40'
-                                )}
-                                aria-label={
-                                  set.completed
-                                    ? `Mark set ${set.setNumber} incomplete`
-                                    : `Confirm set ${set.setNumber}`
-                                }
-                              >
-                                {set.completed && (
-                                  <Check className="size-4" strokeWidth={3} />
-                                )}
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              disabled={readOnly || !canConfirmSet(set)}
+                              onClick={() => handleSetToggle(set)}
+                              className={cn(
+                                'flex size-7 items-center justify-center rounded-full border-2 transition-all sm:size-8',
+                                set.completed
+                                  ? 'border-status-success bg-status-success text-white shadow-sm'
+                                  : isActive
+                                    ? 'border-brand hover:bg-brand/10'
+                                    : set.predicted
+                                      ? 'border-brand/50 hover:bg-brand/10'
+                                      : 'border-muted-foreground/25 hover:bg-muted/50',
+                                'disabled:pointer-events-none disabled:opacity-40'
+                              )}
+                              aria-label={
+                                set.completed
+                                  ? `Mark set ${set.setNumber} incomplete`
+                                  : `Confirm set ${set.setNumber}`
+                              }
+                            >
+                              {set.completed && (
+                                <Check className="size-4" strokeWidth={3} />
+                              )}
+                            </button>
+                          </div>
 
                           </div>
                         </WorkoutLogSwipeableSetRow>
@@ -1177,7 +1174,7 @@ function WorkoutLogExercise({
                         Add set
                       </Button>
                     )}
-                    {!allComplete && sets.length > 0 && !useConfirmAllButton && (
+                    {!allComplete && sets.length > 0 && (
                       <Button
                         type="button"
                         variant="link"
@@ -1192,22 +1189,6 @@ function WorkoutLogExercise({
                 )}
               </div>
             ) : null}
-
-            {useConfirmAllButton && sets.length > 0 && !allComplete && (
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 w-full rounded-full border-2 text-base font-semibold"
-                  onClick={handleConfirmAll}
-                >
-                  Confirm
-                </Button>
-                <p className="text-muted-foreground text-center text-xs">
-                  Press &apos;Confirm&apos; to mark all sets complete.
-                </p>
-              </div>
-            )}
 
           {(fields.showBarSpeed || fields.showPeakPower) && (
             <div className="space-y-2">
@@ -1361,6 +1342,10 @@ export function WorkoutLogScreen({
     React.useState<'guided' | 'list'>(defaultSessionViewMode)
   const [exerciseNavOpen, setExerciseNavOpen] = React.useState(false)
   const guidedAutoAdvanceRef = React.useRef(false)
+  const guidedExerciseCompletionRef = React.useRef<{
+    exerciseId: string | null
+    wasFullyLogged: boolean
+  }>({ exerciseId: null, wasFullyLogged: false })
   const guidedWorkoutInitRef = React.useRef<string | null>(null)
   const [editingExercise, setEditingExercise] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
@@ -1741,8 +1726,9 @@ export function WorkoutLogScreen({
       )
       const needsSave = payloadKey !== lastPersistedStateRef.current
 
+      saveInFlightRef.current = true
+
       if (needsSave) {
-        saveInFlightRef.current = true
         const saved = await persistSetsRef.current(currentState, {
           silent: true,
           reload: false,
@@ -1750,7 +1736,6 @@ export function WorkoutLogScreen({
           blockUi: false,
           revalidate: false,
         })
-        saveInFlightRef.current = false
 
         if (!saved) {
           setShowWorkoutComplete(false)
@@ -1762,42 +1747,39 @@ export function WorkoutLogScreen({
         }
       }
 
-      void (async () => {
-        try {
-          const result = isClientPortal
-            ? await completePortalWorkoutLog(workoutId)
-            : await completeWorkoutLog(clientId, workoutId)
+      const result = isClientPortal
+        ? await completePortalWorkoutLog(workoutId)
+        : await completeWorkoutLog(clientId, workoutId)
 
-          if (result.success) {
-            setData((current) =>
-              current ? { ...current, status: 'completed' } : current
-            )
-
-            void (isClientPortal
-              ? persistPortalWorkoutPrs(workoutId)
-              : persistWorkoutLogPrs(clientId, workoutId))
-
-            window.setTimeout(() => {
-              onChangedRef.current()
-            }, 0)
-            return
-          }
-
-          pendingCelebrationPrsRef.current = []
-          setPendingCelebrationPrs([])
-          setShowWorkoutComplete(false)
-          setShowCelebration(false)
-          setCelebrationPrs([])
-          toast.error(result.error)
-        } finally {
-          autoCompletingRef.current = false
-          saveInFlightRef.current = false
+      if (result.success) {
+        setData((current) =>
+          current ? { ...current, status: 'completed' } : current
+        )
+        if (dataRef.current) {
+          dataRef.current = { ...dataRef.current, status: 'completed' }
         }
-      })()
+
+        void (isClientPortal
+          ? persistPortalWorkoutPrs(workoutId)
+          : persistWorkoutLogPrs(clientId, workoutId))
+
+        window.setTimeout(() => {
+          onChangedRef.current()
+        }, 0)
+        return
+      }
+
+      pendingCelebrationPrsRef.current = []
+      setPendingCelebrationPrs([])
+      setShowWorkoutComplete(false)
+      setShowCelebration(false)
+      setCelebrationPrs([])
+      toast.error(result.error)
     } catch {
       setShowWorkoutComplete(false)
       pendingCelebrationPrsRef.current = []
       setPendingCelebrationPrs([])
+    } finally {
       autoCompletingRef.current = false
       saveInFlightRef.current = false
     }
@@ -1814,6 +1796,14 @@ export function WorkoutLogScreen({
   )
 
   const runAutoSave = React.useCallback(async () => {
+    if (autoCompletingRef.current) return
+    if (
+      dataRef.current?.status === 'completed' ||
+      dataRef.current?.status === 'skipped'
+    ) {
+      return
+    }
+
     if (saveInFlightRef.current) {
       queuedSaveRef.current = true
       return
@@ -1962,11 +1952,29 @@ export function WorkoutLogScreen({
   React.useEffect(() => {
     if (!showGuidedSession || !data || !activeExercise) {
       guidedAutoAdvanceRef.current = false
+      guidedExerciseCompletionRef.current = {
+        exerciseId: null,
+        wasFullyLogged: false,
+      }
       return
     }
 
     const sets = exerciseState[activeExercise.id] ?? []
-    if (!isExerciseFullyLogged(sets)) {
+    const isFullyLogged = isExerciseFullyLogged(sets)
+    const tracking = guidedExerciseCompletionRef.current
+    const justCompleted = shouldGuidedWorkoutAutoAdvance({
+      previousExerciseId: tracking.exerciseId,
+      previousWasFullyLogged: tracking.wasFullyLogged,
+      activeExerciseId: activeExercise.id,
+      isFullyLogged,
+    })
+
+    guidedExerciseCompletionRef.current = {
+      exerciseId: activeExercise.id,
+      wasFullyLogged: isFullyLogged,
+    }
+
+    if (!justCompleted) {
       guidedAutoAdvanceRef.current = false
       return
     }
@@ -1998,6 +2006,8 @@ export function WorkoutLogScreen({
 
   React.useEffect(() => {
     if (!active || readOnly || !data) return
+    if (autoCompletingRef.current) return
+    if (data.status === 'completed' || data.status === 'skipped') return
 
     if (skipAutoSaveRef.current) {
       skipAutoSaveRef.current = false
@@ -2045,6 +2055,8 @@ export function WorkoutLogScreen({
     notifyParent?: boolean
     revalidate?: boolean
   }) {
+    if (autoCompletingRef.current) return
+
     const status = dataRef.current?.status
     if (status === 'completed' || status === 'skipped') {
       return
@@ -2197,13 +2209,13 @@ export function WorkoutLogScreen({
 
   function handleRemoveSet(
     exercise: ScheduledWorkoutExerciseWithDetails,
-    setNumber: number
+    draftId: string
   ) {
     setExerciseState((current) => {
       const nextSets = removeSetDraft(
         exercise,
         current[exercise.id] ?? [],
-        setNumber
+        draftId
       )
 
       if (!nextSets) {
@@ -2306,7 +2318,7 @@ export function WorkoutLogScreen({
           handleSetChange(exercise, setNumber, patch)
         }
         onAddSet={() => handleAddSet(exercise)}
-        onRemoveSet={(setNumber) => handleRemoveSet(exercise, setNumber)}
+        onRemoveSet={(draftId) => handleRemoveSet(exercise, draftId)}
         onEdit={() => setEditingExercise(exercise)}
         onReplace={() => setReplacingExercise(exercise)}
         onDelete={() => requestRemoveExercise(exercise)}
@@ -2320,7 +2332,6 @@ export function WorkoutLogScreen({
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
         className={options?.className}
-        guidedLayout={showGuidedSession}
         progressiveOverloadEnabled={data.progressiveOverloadEnabled}
       />
     )
@@ -2382,7 +2393,8 @@ export function WorkoutLogScreen({
       >
         <div
           className={cn(
-            'shrink-0 border-b px-4 py-3 sm:px-5 sm:py-4',
+            'shrink-0 border-b px-4 sm:px-5',
+            isPage ? 'py-2.5 sm:py-4' : 'py-3 sm:py-4',
             isPage ? 'pr-4 sm:pr-5' : 'pr-12 sm:pr-14'
           )}
         >
@@ -2396,12 +2408,12 @@ export function WorkoutLogScreen({
           )}
 
           {isPage && (
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="-ml-2"
+                className="-ml-2 shrink-0"
                 onClick={handleBack}
               >
                 <ArrowLeft className="size-4" />
@@ -2412,6 +2424,12 @@ export function WorkoutLogScreen({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
+                  aria-label={
+                    sessionViewMode === 'guided'
+                      ? 'Switch to list view'
+                      : 'Switch to guided view'
+                  }
                   onClick={() =>
                     setSessionViewMode((current) =>
                       current === 'guided' ? 'list' : 'guided'
@@ -2419,18 +2437,22 @@ export function WorkoutLogScreen({
                   }
                 >
                   <LayoutList className="size-4" />
-                  {sessionViewMode === 'guided' ? 'List view' : 'Guided'}
+                  <span className="hidden min-[420px]:inline">
+                    {sessionViewMode === 'guided' ? 'List view' : 'Guided'}
+                  </span>
                 </Button>
               ) : null}
             </div>
           )}
 
-          <div className="space-y-2.5">
+          <div className={cn('space-y-2.5', isPage && 'space-y-2')}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <p className="text-muted-foreground text-xs font-medium">
-                  {formatDayHeader(selectedDate)}
-                </p>
+                {!isPage ? (
+                  <p className="text-muted-foreground text-xs font-medium">
+                    {formatDayHeader(selectedDate)}
+                  </p>
+                ) : null}
                 <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
                   {data?.name ?? 'Workout'}
                 </h2>
@@ -2770,11 +2792,14 @@ export function WorkoutLogScreen({
 export function WorkoutLogModal({
   open,
   onOpenChange,
+  workoutId,
   ...props
 }: WorkoutLogModalProps) {
   return (
     <WorkoutLogScreen
+      key={workoutId}
       {...props}
+      workoutId={workoutId}
       presentation="modal"
       active={open}
       onClose={() => onOpenChange(false)}

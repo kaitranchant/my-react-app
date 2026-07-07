@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/sheet'
 import { ClientOnboardingDocumentsPanel } from '@/components/clients/client-onboarding-documents-panel'
 import { ClientAssessmentNotesPanel } from '@/components/clients/client-assessment-notes-panel'
+import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
 import { useClientGymShareActions } from '@/components/gym/client-gym-share-toggle'
 import type { ClientOnboardingDocumentsSummary } from '@/lib/onboarding-data'
 import type { Client, Gym } from 'app/types/database'
@@ -122,19 +123,23 @@ export function ClientDetailOverflowMenu({
       </Sheet>
 
       <Sheet open={assessmentNotesOpen} onOpenChange={setAssessmentNotesOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <SheetHeader className="shrink-0 border-b">
             <SheetTitle>Assessment notes</SheetTitle>
             <SheetDescription>
               Observations from {clientName}&apos;s initial assessment.
             </SheetDescription>
           </SheetHeader>
-          <div className="px-4 pb-4">
+          <div
+            data-nested-keyboard-scroll
+            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4"
+          >
             <ClientAssessmentNotesPanel
               clientId={client.id}
               clientName={clientName}
               initialNotes={initialAssessmentNotes}
             />
+            <MobileKeyboardReserve />
           </div>
         </SheetContent>
       </Sheet>

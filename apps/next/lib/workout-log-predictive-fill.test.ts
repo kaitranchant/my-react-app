@@ -64,6 +64,7 @@ function baseExercise(
 
 function emptySet(setNumber: number, overrides: Partial<WorkoutLogSetDraft> = {}) {
   return {
+    draftId: `set-draft-${setNumber}`,
     setNumber,
     targetLabel: '8',
     weight: '',

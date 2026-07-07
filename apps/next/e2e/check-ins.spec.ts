@@ -55,13 +55,9 @@ test.describe('Check-ins and progress photos', () => {
       timeout: 15_000,
     })
 
-    await page
-      .getByPlaceholder('Share encouragement, adjustments, or next steps…')
-      .first()
-      .fill('Great consistency this week.')
-    await page.getByRole('button', { name: 'Save response' }).first().click()
+    await page.getByRole('button', { name: 'Mark as reviewed' }).first().click()
 
-    await expect(page.getByText('Coach response saved')).toBeVisible({
+    await expect(page.getByText('Check-in marked as reviewed')).toBeVisible({
       timeout: 10_000,
     })
     await page.reload()

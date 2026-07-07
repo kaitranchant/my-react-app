@@ -9,6 +9,7 @@ import {
 } from '@/lib/mobile-keyboard/resolve-keyboard-mode'
 import { dismissFloatingLayers } from '@/lib/mobile-keyboard/dismiss-floating-layers'
 import {
+  NESTED_KEYBOARD_SCROLL_SELECTOR,
   scrollElementIntoMainContent,
   scrollFocusedInputIntoView,
 } from '@/lib/visual-viewport/app-viewport'
@@ -78,6 +79,12 @@ export function MobileKeyboardProvider({
     (element?: HTMLElement | null) => {
       if (!element) return
 
+      const nestedScroll = element.closest(NESTED_KEYBOARD_SCROLL_SELECTOR)
+      if (nestedScroll instanceof HTMLElement) {
+        scrollFocusedInputIntoView(element, nestedScroll, { paddingPx: 24 })
+        return
+      }
+
       const main = document.getElementById('main-content')
       if (main && main.contains(element)) {
         scrollFocusedInputIntoView(element, main)
@@ -91,6 +98,12 @@ export function MobileKeyboardProvider({
     },
     []
   )
+
+  const scrollActiveFieldIntoView = React.useCallback(() => {
+    if (!activeField) return
+    const registration = fieldsRef.current.get(activeField.id)
+    scrollFieldIntoView(registration?.getElement() ?? null)
+  }, [activeField, scrollFieldIntoView])
 
   const openField = React.useCallback(
     (id: string, element?: HTMLElement | null) => {
@@ -152,9 +165,15 @@ export function MobileKeyboardProvider({
       if (!registration) return
       setEditingValue(value)
       registration.setValue(value)
+      requestAnimationFrame(() => scrollFieldIntoView(registration.getElement()))
     },
-    [activeField]
+    [activeField, scrollFieldIntoView]
   )
+
+  React.useEffect(() => {
+    if (!activeField || keypadReserveHeight <= 0) return
+    requestAnimationFrame(() => scrollActiveFieldIntoView())
+  }, [activeField, keypadReserveHeight, scrollActiveFieldIntoView])
 
   const appendChar = React.useCallback(
     (char: string) => {
