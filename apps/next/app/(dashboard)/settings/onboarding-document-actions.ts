@@ -1,14 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { randomUUID } from 'crypto'
 
 import {
   ONBOARDING_DOCUMENTS_BUCKET,
-  ONBOARDING_PDF_MAX_BYTES,
-  coachOnboardingTemplatePath,
-  resolveOnboardingPdfContentType,
 } from '@/lib/onboarding-documents'
+import { uploadCoachOnboardingDocumentFile } from '@/lib/onboarding-document-upload'
 import { createClient } from '@/lib/supabase/server'
 import {
   uploadOnboardingDocumentSchema,
@@ -37,59 +34,25 @@ export async function uploadCoachOnboardingDocument(
   formData: FormData,
   values: UploadOnboardingDocumentValues
 ): Promise<OnboardingDocumentActionResult> {
-  const parsed = uploadOnboardingDocumentSchema.safeParse(values)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
-  }
-
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
     return { success: false, error: 'No PDF provided.' }
   }
 
-  const contentType = resolveOnboardingPdfContentType(file)
-  if (!contentType) {
-    return { success: false, error: 'Unsupported file type. Upload a PDF.' }
-  }
-
-  if (file.size > ONBOARDING_PDF_MAX_BYTES) {
-    return { success: false, error: 'PDF must be under 10 MB.' }
-  }
-
   const { supabase, user } = await requireUser()
-  const documentId = randomUUID()
-  const storagePath = coachOnboardingTemplatePath(user.id, documentId)
-  const buffer = Buffer.from(await file.arrayBuffer())
+  const result = await uploadCoachOnboardingDocumentFile(
+    supabase,
+    user.id,
+    file,
+    values
+  )
 
-  const { error: uploadError } = await supabase.storage
-    .from(ONBOARDING_DOCUMENTS_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType,
-      upsert: false,
-    })
-
-  if (uploadError) {
-    return { success: false, error: 'Failed to upload PDF.' }
-  }
-
-  const { error: insertError } = await supabase
-    .from('coach_onboarding_documents')
-    .insert({
-      id: documentId,
-      coach_id: user.id,
-      name: parsed.data.name,
-      document_type: parsed.data.documentType,
-      storage_path: storagePath,
-      is_default: parsed.data.isDefault ?? false,
-    })
-
-  if (insertError) {
-    await supabase.storage.from(ONBOARDING_DOCUMENTS_BUCKET).remove([storagePath])
-    return { success: false, error: 'Failed to save document.' }
+  if (!result.success) {
+    return result
   }
 
   revalidateOnboardingPaths()
-  return { success: true, documentId }
+  return result
 }
 
 export async function updateCoachOnboardingDocument(

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { ClientFormDialog } from '@/components/clients/client-form-dialog'
 import { ClientAccountBanner } from '@/components/clients/client-account-banner'
 import { ClientQuickActions } from '@/components/clients/client-quick-actions'
+import { ClientDetailOverflowMenu } from '@/components/clients/client-detail-overflow-menu'
 import { ClientAvatar } from '@/components/clients/client-avatar'
 import { ClientDetailTabs } from '@/components/clients/client-detail-tabs'
 import { resolveClientDetailMainTab } from '@/lib/client-detail-tabs'
@@ -24,12 +25,12 @@ import {
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import {
   ClientGymMemberBadge,
-  ClientGymShareMenu,
 } from '@/components/gym/client-gym-share-toggle'
 import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { ClientUserTypeBadge } from '@/components/clients/client-user-type-badge'
 import { StatusBadge } from '@/components/clients/status-badge'
 import { ClientDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
+import { fetchClientOnboardingDocumentsSummary } from '@/lib/onboarding-data'
 import type { Client, ClientTeamMembership } from 'app/types/database'
 
 export default async function ClientDetailPage({
@@ -89,6 +90,11 @@ export default async function ClientDetailPage({
     .filter((row) => row.team)
     .map((row) => ({ team: row.team! })) as ClientTeamMembership[]
 
+  const onboardingDocuments =
+    user && !coachSelf
+      ? await fetchClientOnboardingDocumentsSummary(supabase, clientId, user.id)
+      : null
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <Suspense fallback={<BreadcrumbSkeleton />}>
@@ -139,9 +145,12 @@ export default async function ClientDetailPage({
                 }
               />
             ) : null}
-            {coachGyms.length > 0 && !coachSelf ? (
-              <ClientGymShareMenu
+            {!coachSelf && onboardingDocuments ? (
+              <ClientDetailOverflowMenu
                 client={client}
+                clientName={client.full_name}
+                initialAssessmentNotes={client.onboarding_assessment_notes}
+                onboardingDocuments={onboardingDocuments}
                 gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
                 isPrimaryCoach={viewerIsPrimaryCoach}
               />

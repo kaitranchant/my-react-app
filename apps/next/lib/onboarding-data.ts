@@ -149,3 +149,26 @@ export function isClientOnboardingDocumentsComplete(
 ) {
   return requests.length > 0 && isOnboardingPacketComplete(requests)
 }
+
+export async function fetchClientCompletedOnboardingDocumentIds(
+  supabase: SupabaseClient<Database>,
+  clientId: string,
+  coachId: string
+) {
+  const { data: packets } = await supabase
+    .from('client_onboarding_packets')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('coach_id', coachId)
+
+  const packetIds = (packets ?? []).map((packet) => packet.id)
+  if (packetIds.length === 0) return [] as string[]
+
+  const { data: requests } = await supabase
+    .from('client_document_signing_requests')
+    .select('document_id, status')
+    .in('packet_id', packetIds)
+    .eq('status', 'signed')
+
+  return Array.from(new Set((requests ?? []).map((request) => request.document_id)))
+}

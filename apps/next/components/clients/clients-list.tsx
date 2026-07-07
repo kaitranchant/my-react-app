@@ -2,10 +2,10 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, PauseCircle, PlayCircle, X } from 'lucide-react'
+import { Archive, ArchiveRestore, PauseCircle, PlayCircle, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { bulkSetClientStatus } from '@/app/(dashboard)/clients/actions'
+import { bulkDeleteClientRecords, bulkSetClientStatus } from '@/app/(dashboard)/clients/actions'
 import { ClientUserTypeBadge } from '@/components/clients/client-user-type-badge'
 import { ClientInviteStatusBadge } from '@/components/clients/client-invite-status-badge'
 import { ClientOnboardingDocsBadge } from '@/components/clients/client-onboarding-docs-badge'
@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/clients/status-badge'
 import { ClientGymBadge } from '@/components/gym/client-gym-badge'
 import { ClientTeamBadges } from '@/components/teams/client-team-badges'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PersonRow } from '@/components/ui/person-row'
 import {
   Card,
@@ -55,6 +56,31 @@ export function ClientsList({
   const selectableClients = clients.filter((client) => !client.is_coach_self)
   const allSelected =
     selectableClients.length > 0 && selectedCount === selectableClients.length
+
+  const deleteConfirm = useConfirmDialog({
+    title: `Delete ${selectedCount} client${selectedCount === 1 ? '' : 's'}?`,
+    description:
+      'This permanently removes the selected clients and cannot be undone.',
+    confirmLabel: 'Delete clients',
+    destructive: true,
+    onConfirm: async () => {
+      setPending(true)
+      const result = await bulkDeleteClientRecords(Array.from(selectedIds))
+      setPending(false)
+
+      if (result.success) {
+        const count = result.count ?? selectedCount
+        toast.success(
+          `Deleted ${count} client${count === 1 ? '' : 's'}`
+        )
+        clearSelection()
+        router.refresh()
+      } else {
+        toast.error(result.error)
+        throw new Error(result.error)
+      }
+    },
+  })
 
   function toggleOne(clientId: string, checked: boolean) {
     const client = clients.find((entry) => entry.id === clientId)
@@ -355,10 +381,22 @@ export function ClientsList({
                 <ArchiveRestore className="size-4" />
                 Restore
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={deleteConfirm.open}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+                Delete
+              </Button>
             </div>
           </div>
         </div>
       ) : null}
+      {deleteConfirm.dialog}
     </>
   )
 }

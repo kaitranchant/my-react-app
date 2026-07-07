@@ -472,6 +472,34 @@ export async function updateClientNotes(
   return { success: true }
 }
 
+export async function updateClientOnboardingAssessmentNotes(
+  id: string,
+  notes: string
+): Promise<ActionResult> {
+  const parsed = clientNotesSchema.safeParse(notes)
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid notes.',
+    }
+  }
+
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from('clients')
+    .update({
+      onboarding_assessment_notes: parsed.data ? parsed.data : null,
+    })
+    .eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath(`/clients/${id}`)
+  return { success: true }
+}
+
 export async function updateClientProfileField(
   id: string,
   field: 'goal' | 'phone',
@@ -546,6 +574,33 @@ export async function bulkSetClientStatus(
     revalidatePath(`/clients/${client.id}`)
   }
 
+  return { success: true, count: data?.length ?? 0 }
+}
+
+export async function bulkDeleteClientRecords(
+  clientIds: string[]
+): Promise<ActionResult & { count?: number }> {
+  const uniqueIds = Array.from(new Set(clientIds))
+
+  if (uniqueIds.length === 0) {
+    return { success: false, error: 'Select at least one client.' }
+  }
+
+  const { supabase, user } = await requireUser()
+
+  const { data, error } = await supabase
+    .from('clients')
+    .delete()
+    .eq('coach_id', user.id)
+    .eq('is_coach_self', false)
+    .in('id', uniqueIds)
+    .select('id')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidateClients()
   return { success: true, count: data?.length ?? 0 }
 }
 

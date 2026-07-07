@@ -32,6 +32,10 @@ const baseClient: Client = {
   biological_sex: null,
   invite_accepted_at: '2026-06-16T12:00:00.000Z',
   onboarding_automation_at: null,
+  stripe_customer_id: null,
+  weekly_session_target: null,
+  progressive_overload_enabled: true,
+  onboarding_assessment_notes: null,
   created_at: '2026-06-10T12:00:00.000Z',
   updated_at: '2026-06-16T12:00:00.000Z',
 }
@@ -78,7 +82,25 @@ test('builds onboarding progress from client activity', () => {
     programAssigned: true,
     firstCheckInDue: true,
     firstWorkoutLogged: true,
+    assessmentNotesRecorded: false,
   })
+  assert.equal(isClientOnboardingComplete(progress), false)
+})
+
+test('marks assessment notes recorded when notes are saved', () => {
+  const progress = buildClientOnboardingProgress({
+    client: {
+      ...baseClient,
+      onboarding_assessment_notes: 'Knee history, strong squat pattern.',
+    },
+    hasProgram: true,
+    checkIns: [{ check_in_date: '2026-06-20' }],
+    workouts: [{ status: 'completed' }],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-24',
+  })
+
+  assert.equal(progress.assessmentNotesRecorded, true)
   assert.equal(isClientOnboardingComplete(progress), true)
 })
 

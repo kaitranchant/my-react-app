@@ -13,6 +13,11 @@ export type ClientOnboardingProgress = {
   programAssigned: boolean
   firstCheckInDue: boolean
   firstWorkoutLogged: boolean
+  assessmentNotesRecorded: boolean
+}
+
+export function hasOnboardingAssessmentNotes(notes: string | null | undefined): boolean {
+  return Boolean(notes?.trim())
 }
 
 export function getInviteAcceptedAt(client: Client): string | null {
@@ -85,6 +90,9 @@ export function buildClientOnboardingProgress(input: {
       input.todayKey
     ),
     firstWorkoutLogged: hasLoggedFirstWorkout(input.workouts),
+    assessmentNotesRecorded: hasOnboardingAssessmentNotes(
+      input.client.onboarding_assessment_notes
+    ),
   }
 }
 
@@ -95,7 +103,8 @@ export function isClientOnboardingComplete(
     progress.inviteAccepted &&
     progress.programAssigned &&
     progress.firstCheckInDue &&
-    progress.firstWorkoutLogged
+    progress.firstWorkoutLogged &&
+    progress.assessmentNotesRecorded
   )
 }
 

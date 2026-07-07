@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Client, Gym } from 'app/types/database'
 
-function useClientGymShareActions(
+export function useClientGymShareActions(
   client: Pick<Client, 'id' | 'gym_id'>,
   gyms: Pick<Gym, 'id' | 'name'>[]
 ) {

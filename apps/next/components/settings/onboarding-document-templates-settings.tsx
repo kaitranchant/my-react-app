@@ -1,14 +1,14 @@
 'use client'
 
 import * as React from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { FileText, Trash2, Upload } from 'lucide-react'
+import { ExternalLink, Eye, FileText, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
   deleteCoachOnboardingDocument,
   updateCoachOnboardingDocument,
-  uploadCoachOnboardingDocument,
 } from '@/app/(dashboard)/settings/onboarding-document-actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,12 +28,39 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import {
   ONBOARDING_PDF_ACCEPT,
+  ONBOARDING_PDF_MAX_BYTES,
   ONBOARDING_PDF_UPLOAD_HINT,
   onboardingDocumentTypeLabels,
 } from '@/lib/onboarding-documents'
 import type { CoachOnboardingDocument } from 'app/types/database'
 import type { OnboardingDocumentType } from 'app/types/database'
+
+const PdfDocumentViewer = dynamic(
+  () =>
+    import('@/components/onboarding/pdf-document-viewer').then(
+      (module) => module.PdfDocumentViewer
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="text-muted-foreground text-sm">Loading document…</p>
+    ),
+  }
+)
+
+type DocumentPreview = {
+  id: string
+  name: string
+  url: string
+}
 
 type OnboardingDocumentTemplatesSettingsProps = {
   documents: CoachOnboardingDocument[]
@@ -49,6 +76,11 @@ export function OnboardingDocumentTemplatesSettings({
   const [name, setName] = React.useState('')
   const [documentType, setDocumentType] =
     React.useState<OnboardingDocumentType>('par_q')
+  const [preview, setPreview] = React.useState<DocumentPreview | null>(null)
+  const [previewPendingId, setPreviewPendingId] = React.useState<string | null>(
+    null
+  )
+  const previewRequestRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
     setDocuments(initialDocuments)
@@ -60,25 +92,40 @@ export function OnboardingDocumentTemplatesSettings({
       return
     }
 
-    setUploadPending(true)
-    const formData = new FormData()
-    formData.set('file', file)
-
-    const result = await uploadCoachOnboardingDocument(formData, {
-      name: name.trim(),
-      documentType,
-      isDefault: true,
-    })
-    setUploadPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
+    if (file.size > ONBOARDING_PDF_MAX_BYTES) {
+      toast.error('PDF must be under 10 MB.')
       return
     }
 
-    toast.success('Document uploaded.')
-    setName('')
-    router.refresh()
+    setUploadPending(true)
+    const formData = new FormData()
+    formData.set('file', file)
+    formData.set('name', name.trim())
+    formData.set('documentType', documentType)
+    formData.set('isDefault', 'true')
+
+    try {
+      const response = await fetch('/api/onboarding-documents/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = (await response.json()) as
+        | { success: true }
+        | { success: false; error: string }
+
+      if (!response.ok || !result.success) {
+        toast.error('error' in result ? result.error : 'Failed to upload PDF.')
+        return
+      }
+
+      toast.success('Document uploaded.')
+      setName('')
+      router.refresh()
+    } catch {
+      toast.error('Failed to upload PDF. Please try again.')
+    } finally {
+      setUploadPending(false)
+    }
   }
 
   async function handleDelete(documentId: string) {
@@ -110,6 +157,38 @@ export function OnboardingDocumentTemplatesSettings({
 
     toast.success('Document updated.')
     router.refresh()
+  }
+
+  async function openDocumentPreview(document: CoachOnboardingDocument) {
+    if (previewRequestRef.current === document.id) return
+
+    previewRequestRef.current = document.id
+    setPreviewPendingId(document.id)
+
+    try {
+      const response = await fetch(`/api/onboarding-documents/${document.id}/url`)
+      const result = (await response.json()) as
+        | { success: true; url: string }
+        | { success: false; error: string }
+
+      if (!response.ok || !result.success) {
+        toast.error('error' in result ? result.error : 'Could not open document.')
+        return
+      }
+
+      setPreview({
+        id: document.id,
+        name: document.name,
+        url: result.url,
+      })
+    } catch {
+      toast.error('Could not open document.')
+    } finally {
+      if (previewRequestRef.current === document.id) {
+        previewRequestRef.current = null
+      }
+      setPreviewPendingId((current) => (current === document.id ? null : current))
+    }
   }
 
   return (
@@ -191,6 +270,8 @@ export function OnboardingDocumentTemplatesSettings({
               <DocumentRow
                 key={document.id}
                 document={document}
+                viewPending={previewPendingId === document.id}
+                onView={() => void openDocumentPreview(document)}
                 onDelete={() => void handleDelete(document.id)}
                 onSave={(nextName, nextType) =>
                   void handleRename(document.id, nextName, nextType)
@@ -200,16 +281,53 @@ export function OnboardingDocumentTemplatesSettings({
           </div>
         )}
       </CardContent>
+
+      <Sheet
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null)
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+          <SheetHeader className="gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
+              <div className="space-y-1">
+                <SheetTitle>{preview?.name ?? 'Document preview'}</SheetTitle>
+                <SheetDescription>Uploaded onboarding template</SheetDescription>
+              </div>
+              {preview ? (
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <a
+                    href={preview.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="size-4" />
+                    Open in new tab
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </SheetHeader>
+          <div className="px-4 pb-4">
+            {preview ? <PdfDocumentViewer fileUrl={preview.url} /> : null}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   )
 }
 
 function DocumentRow({
   document,
+  viewPending,
+  onView,
   onDelete,
   onSave,
 }: {
   document: CoachOnboardingDocument
+  viewPending: boolean
+  onView: () => void
   onDelete: () => void
   onSave: (name: string, type: OnboardingDocumentType) => void
 }) {
@@ -264,6 +382,16 @@ function DocumentRow({
             Save
           </Button>
         ) : null}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={viewPending}
+          onClick={onView}
+        >
+          <Eye className="size-4" />
+          {viewPending ? 'Opening…' : 'View'}
+        </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
           <Trash2 className="size-4" />
         </Button>

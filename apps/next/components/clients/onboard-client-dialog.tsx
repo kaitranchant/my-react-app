@@ -1,32 +1,33 @@
 'use client'
 
 import * as React from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Check,
   Circle,
-  ClipboardCheck,
-  FilePenLine,
+  ClipboardPen,
   FileText,
-  Mail,
   Sparkles,
-  TabletSmartphone,
   UserPlus,
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { createClientRecord } from '@/app/(dashboard)/clients/actions'
+import {
+  createClientRecord,
+  updateClientOnboardingAssessmentNotes,
+} from '@/app/(dashboard)/clients/actions'
 import {
   createOnboardingPacket,
+  fetchClientOnboardingCompletion,
   fetchClientsForOnboarding,
   fetchOnboardingTemplatesForCoach,
   getOnboardingSignSession,
 } from '@/app/(dashboard)/clients/onboarding-actions'
 import { DocumentSigningFlow } from '@/components/onboarding/document-signing-flow'
+import { OnboardingDocumentsStep } from '@/components/clients/onboarding-documents-step'
 import {
   setClientAvatarPreset,
   uploadPendingClientAvatar,
@@ -72,6 +73,9 @@ import {
   type ClientFormValues,
 } from '@/lib/validations/client'
 import type { CoachOnboardingDocument } from 'app/types/database'
+import {
+  getDefaultOnboardingDocumentSelections,
+} from '@/lib/onboarding-documents'
 
 type OnboardClientDialogProps = {
   trigger?: React.ReactNode
@@ -85,7 +89,7 @@ type ClientOption = {
   status: string
 }
 
-type OnboardStepId = 'clientDetails' | 'documents' | 'signing'
+type OnboardStepId = 'clientDetails' | 'documents' | 'assessmentNotes'
 
 type InPersonSigningSession = Extract<
   Awaited<ReturnType<typeof getOnboardingSignSession>>,
@@ -111,15 +115,15 @@ const checklistSteps: Array<{
   },
   {
     id: 'documents',
-    title: 'Select documents',
-    description: 'Choose PAR-Q, liability waiver, and other forms to collect.',
+    title: 'Onboarding documents',
+    description: 'Fill forms, collect signatures, or upload completed copies.',
     icon: FileText,
   },
   {
-    id: 'signing',
-    title: 'Collect signatures',
-    description: 'Sign in person on this device or send a link by email.',
-    icon: FilePenLine,
+    id: 'assessmentNotes',
+    title: 'Assessment notes',
+    description: 'Jot down observations from the initial assessment.',
+    icon: ClipboardPen,
   },
 ]
 
@@ -130,8 +134,10 @@ export function OnboardClientDialog({
   const router = useRouter()
   const searchParams = useSearchParams()
   const handledShortcutRef = React.useRef(false)
+  const prefillClientIdRef = React.useRef<string | null>(null)
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
+  const [loadError, setLoadError] = React.useState<string | null>(null)
   const [pending, setPending] = React.useState(false)
   const [activeStep, setActiveStep] = React.useState<OnboardStepId | null>(null)
   const [completedSteps, setCompletedSteps] = React.useState<
@@ -139,7 +145,7 @@ export function OnboardClientDialog({
   >({
     clientDetails: false,
     documents: false,
-    signing: false,
+    assessmentNotes: false,
   })
   const [clientMode, setClientMode] = React.useState<'new' | 'existing'>('new')
   const [clients, setClients] = React.useState<ClientOption[]>([])
@@ -147,7 +153,12 @@ export function OnboardClientDialog({
   const [existingClientId, setExistingClientId] = React.useState('')
   const [resolvedClientId, setResolvedClientId] = React.useState<string | null>(null)
   const [resolvedClientName, setResolvedClientName] = React.useState('')
-  const [selectedDocumentIds, setSelectedDocumentIds] = React.useState<string[]>([])
+  const [selectedFillDocumentIds, setSelectedFillDocumentIds] = React.useState<string[]>(
+    []
+  )
+  const [selectedSignatureDocumentIds, setSelectedSignatureDocumentIds] =
+    React.useState<string[]>([])
+  const [completedDocumentIds, setCompletedDocumentIds] = React.useState<string[]>([])
   const [deliveryMethod, setDeliveryMethod] = React.useState<'email' | 'in_person'>(
     'in_person'
   )
@@ -157,6 +168,8 @@ export function OnboardClientDialog({
   const [signingSession, setSigningSession] =
     React.useState<InPersonSigningSession | null>(null)
   const [inPersonSigning, setInPersonSigning] = React.useState(false)
+  const [assessmentNotes, setAssessmentNotes] = React.useState('')
+  const [savedAssessmentNotes, setSavedAssessmentNotes] = React.useState('')
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -176,49 +189,77 @@ export function OnboardClientDialog({
     if (searchParams.get('onboard') !== '1') return
 
     handledShortcutRef.current = true
+    prefillClientIdRef.current = searchParams.get('onboardClientId')
     setOpen(true)
 
     const params = new URLSearchParams(searchParams.toString())
     params.delete('onboard')
+    params.delete('onboardClientId')
     const query = params.toString()
     router.replace(query ? `/clients?${query}` : '/clients', { scroll: false })
   }, [router, searchParams])
 
   React.useEffect(() => {
     if (!open) {
+      setLoading(false)
+      setLoadError(null)
       setActiveStep(null)
       setCompletedSteps({
         clientDetails: false,
         documents: false,
-        signing: false,
+        assessmentNotes: false,
       })
       setClientMode('new')
       setExistingClientId('')
       setResolvedClientId(null)
       setResolvedClientName('')
-      setSelectedDocumentIds([])
+      setSelectedFillDocumentIds([])
+      setSelectedSignatureDocumentIds([])
+      setCompletedDocumentIds([])
       setDeliveryMethod('in_person')
       setPendingAvatar(null)
       setPendingPresetId(null)
       setSigningSession(null)
       setInPersonSigning(false)
+      setAssessmentNotes('')
+      setSavedAssessmentNotes('')
       form.reset(onboardClientDefaults)
       return
     }
 
     let cancelled = false
     setLoading(true)
+    setLoadError(null)
 
     Promise.all([fetchClientsForOnboarding(), fetchOnboardingTemplatesForCoach()])
       .then(([clientRows, documentRows]) => {
         if (cancelled) return
         setClients(clientRows)
         setDocuments(documentRows)
-        setSelectedDocumentIds(
-          documentRows
-            .filter((document) => document.is_default)
-            .map((document) => document.id)
-        )
+        const defaults = getDefaultOnboardingDocumentSelections(documentRows)
+        setSelectedFillDocumentIds(defaults.fillIds)
+        setSelectedSignatureDocumentIds(defaults.signatureIds)
+
+        const prefillClientId = prefillClientIdRef.current
+        prefillClientIdRef.current = null
+        if (prefillClientId) {
+          const match = clientRows.find((client) => client.id === prefillClientId)
+          if (match) {
+            setClientMode('existing')
+            setExistingClientId(prefillClientId)
+            setResolvedClientId(prefillClientId)
+            setResolvedClientName(match.full_name)
+            setCompletedSteps((current) => ({ ...current, clientDetails: true }))
+            setActiveStep(
+              documentRows.length > 0 ? 'documents' : 'assessmentNotes'
+            )
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError('Could not load onboarding data. Please try again.')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -227,10 +268,39 @@ export function OnboardClientDialog({
     return () => {
       cancelled = true
     }
-  }, [open, form])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when dialog opens
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open || !resolvedClientId) return
+
+    let cancelled = false
+    void fetchClientOnboardingCompletion(resolvedClientId).then((result) => {
+      if (!cancelled) {
+        setCompletedDocumentIds(result.completedDocumentIds)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, resolvedClientId])
+
+  async function refreshCompletedDocuments() {
+    if (!resolvedClientId) return
+    const result = await fetchClientOnboardingCompletion(resolvedClientId)
+    setCompletedDocumentIds(result.completedDocumentIds)
+    router.refresh()
+  }
 
   function markStepComplete(stepId: OnboardStepId) {
     setCompletedSteps((current) => ({ ...current, [stepId]: true }))
+  }
+
+  function goToAssessmentNotesStep() {
+    markStepComplete('documents')
+    setInPersonSigning(false)
+    setActiveStep('assessmentNotes')
   }
 
   function goToNextStep(afterStep: OnboardStepId) {
@@ -240,11 +310,15 @@ export function OnboardClientDialog({
     setActiveStep(null)
   }
 
-  function toggleDocument(documentId: string, checked: boolean) {
-    setSelectedDocumentIds((current) =>
-      checked
-        ? [...current, documentId]
-        : current.filter((id) => id !== documentId)
+  function toggleFillDocument(documentId: string, checked: boolean) {
+    setSelectedFillDocumentIds((current) =>
+      checked ? [...current, documentId] : current.filter((id) => id !== documentId)
+    )
+  }
+
+  function toggleSignatureDocument(documentId: string, checked: boolean) {
+    setSelectedSignatureDocumentIds((current) =>
+      checked ? [...current, documentId] : current.filter((id) => id !== documentId)
     )
   }
 
@@ -321,33 +395,35 @@ export function OnboardClientDialog({
   async function completeDocumentsStep() {
     if (!documentsAvailable) {
       markStepComplete('documents')
-      goToNextStep('documents')
+      setActiveStep('assessmentNotes')
       return true
     }
 
-    if (selectedDocumentIds.length === 0) {
-      toast.error('Select at least one document.')
-      return false
-    }
-
     markStepComplete('documents')
-    goToNextStep('documents')
+    setActiveStep('assessmentNotes')
     return true
   }
 
-  async function completeSigningStep() {
+  function getPendingSignatureDocumentIds() {
+    return selectedSignatureDocumentIds.filter(
+      (documentId) => !completedDocumentIds.includes(documentId)
+    )
+  }
+
+  async function startSignatureCollection(method: 'email' | 'in_person') {
     if (!documentsAvailable) {
-      toast.success(`${resolvedClientName || 'Client'} added. Upload document templates in Settings to collect signatures later.`)
-      markStepComplete('signing')
-      setOpen(false)
-      router.refresh()
+      if (!resolvedClientId) {
+        toast.error('Complete client details first.')
+        setActiveStep('clientDetails')
+        return
+      }
+      goToAssessmentNotesStep()
       return
     }
 
-    if (selectedDocumentIds.length === 0) {
-      toast.error('Select at least one document.')
-      setActiveStep('documents')
-      setCompletedSteps((current) => ({ ...current, documents: false }))
+    const signatureDocumentIds = getPendingSignatureDocumentIds()
+    if (signatureDocumentIds.length === 0) {
+      toast.error('Select at least one document that still needs a signature.')
       return
     }
 
@@ -359,17 +435,18 @@ export function OnboardClientDialog({
     }
 
     const signerEmail = resolveSignerEmail()
-    if (deliveryMethod === 'email' && !signerEmail) {
+    if (method === 'email' && !signerEmail) {
       toast.error('Add an email address before sending documents by email.')
       return
     }
 
+    setDeliveryMethod(method)
     setPending(true)
     const result = await createOnboardingPacket({
       clientId,
-      documentIds: selectedDocumentIds,
-      deliveryMethod,
-      signerEmail: deliveryMethod === 'email' ? signerEmail : undefined,
+      documentIds: signatureDocumentIds,
+      deliveryMethod: method,
+      signerEmail: method === 'email' ? signerEmail : undefined,
     })
     setPending(false)
 
@@ -382,11 +459,9 @@ export function OnboardClientDialog({
       return
     }
 
-    if (deliveryMethod === 'email') {
-      markStepComplete('signing')
+    if (method === 'email') {
       toast.success('Onboarding documents sent.')
-      setOpen(false)
-      router.refresh()
+      void refreshCompletedDocuments()
       return
     }
 
@@ -401,16 +476,47 @@ export function OnboardClientDialog({
   }
 
   function handleSigningComplete() {
-    markStepComplete('signing')
+    void refreshCompletedDocuments()
+    goToAssessmentNotesStep()
+    toast.success('Documents signed.')
+  }
+
+  async function completeAssessmentNotesStep(skipNotes = false) {
+    const clientId = resolvedClientId
+    if (!clientId) {
+      toast.error('Complete client details first.')
+      setActiveStep('clientDetails')
+      return
+    }
+
+    const trimmedNotes = assessmentNotes.trim()
+    const shouldSave = !skipNotes && trimmedNotes !== savedAssessmentNotes.trim()
+
+    if (shouldSave) {
+      setPending(true)
+      const result = await updateClientOnboardingAssessmentNotes(
+        clientId,
+        assessmentNotes
+      )
+      setPending(false)
+
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+
+      setSavedAssessmentNotes(trimmedNotes)
+      if (trimmedNotes) {
+        markStepComplete('assessmentNotes')
+      }
+    }
+
     toast.success('Client onboarded successfully.')
     setOpen(false)
     router.refresh()
   }
 
   function handleChecklistStepClick(stepId: OnboardStepId) {
-    if (stepId === 'documents' && !completedSteps.clientDetails) return
-    if (stepId === 'signing' && !completedSteps.clientDetails) return
-    if (stepId === 'signing' && documentsAvailable && !completedSteps.documents) return
     if (activeStep === stepId) {
       setActiveStep(null)
       return
@@ -425,11 +531,17 @@ export function OnboardClientDialog({
     }
     if (stepId === 'documents' && completedSteps.documents) {
       if (!documentsAvailable) return 'Documents skipped (no templates)'
-      const count = selectedDocumentIds.length
+      if (completedDocumentIds.length > 0) {
+        return `${completedDocumentIds.length} document${completedDocumentIds.length === 1 ? '' : 's'} on file`
+      }
+      const count =
+        selectedFillDocumentIds.length + selectedSignatureDocumentIds.length
       return `${count} document${count === 1 ? '' : 's'} selected`
     }
-    if (stepId === 'signing' && completedSteps.signing) {
-      return deliveryMethod === 'email' ? 'Documents sent by email' : 'Documents signed'
+    if (stepId === 'assessmentNotes' && completedSteps.assessmentNotes) {
+      const preview = savedAssessmentNotes.trim()
+      if (!preview) return 'Assessment notes saved'
+      return preview.length > 48 ? `${preview.slice(0, 48)}…` : preview
     }
     return checklistSteps.find((step) => step.id === stepId)?.title ?? ''
   }
@@ -441,7 +553,9 @@ export function OnboardClientDialog({
         className={
           inPersonSigning
             ? 'max-h-[90vh] max-w-3xl overflow-y-auto'
-            : 'max-h-[90vh] max-w-xl overflow-y-auto'
+            : activeStep === 'documents'
+              ? 'max-h-[90vh] max-w-2xl overflow-y-auto'
+              : 'max-h-[90vh] max-w-xl overflow-y-auto'
         }
       >
         <DialogHeader>
@@ -453,6 +567,37 @@ export function OnboardClientDialog({
 
         {loading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
+        ) : loadError ? (
+          <div className="grid gap-3">
+            <p className="text-destructive text-sm">{loadError}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => {
+                setLoadError(null)
+                setLoading(true)
+                void Promise.all([
+                  fetchClientsForOnboarding(),
+                  fetchOnboardingTemplatesForCoach(),
+                ])
+                  .then(([clientRows, documentRows]) => {
+                    setClients(clientRows)
+                    setDocuments(documentRows)
+                    const defaults = getDefaultOnboardingDocumentSelections(documentRows)
+                    setSelectedFillDocumentIds(defaults.fillIds)
+                    setSelectedSignatureDocumentIds(defaults.signatureIds)
+                  })
+                  .catch(() => {
+                    setLoadError('Could not load onboarding data. Please try again.')
+                  })
+                  .finally(() => setLoading(false))
+              }}
+            >
+              Retry
+            </Button>
+          </div>
         ) : (
           <div className="grid gap-5">
             {!inPersonSigning ? (
@@ -469,23 +614,16 @@ export function OnboardClientDialog({
                   const done = completedSteps[step.id]
                   const isActive = activeStep === step.id
                   const Icon = step.icon
-                  const isLocked =
-                    (step.id === 'documents' && !completedSteps.clientDetails) ||
-                    (step.id === 'signing' &&
-                      (!completedSteps.clientDetails ||
-                        (documentsAvailable && !completedSteps.documents)))
 
                   return (
                     <button
                       key={step.id}
                       type="button"
-                      disabled={isLocked}
                       onClick={() => handleChecklistStepClick(step.id)}
                       className={cn(
                         'flex w-full items-start gap-3 rounded-lg border bg-background/80 p-3 text-left transition-colors',
                         isActive && 'border-brand/30 ring-brand/20 ring-1',
-                        done && 'border-brand/20 bg-brand/5',
-                        isLocked && 'cursor-not-allowed opacity-50'
+                        done && 'border-brand/20 bg-brand/5'
                       )}
                     >
                       <div
@@ -682,85 +820,43 @@ export function OnboardClientDialog({
                 ) : null}
 
                 {activeStep === 'documents' ? (
-              documentsAvailable ? (
-                <div className="grid gap-3">
-                  <Label>Documents to sign</Label>
-                  {documents.map((document) => (
-                    <label
-                      key={document.id}
-                      className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedDocumentIds.includes(document.id)}
-                        onChange={(event) =>
-                          toggleDocument(document.id, event.target.checked)
-                        }
-                      />
-                      <span>{document.name}</span>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid gap-3 rounded-lg border p-4">
-                  <p className="text-muted-foreground text-sm">
-                    No document templates yet. Upload PAR-Q and liability PDFs in
-                    Settings, or finish now to create the client and send documents
-                    later.
-                  </p>
-                  <Button asChild variant="outline" className="w-fit">
-                    <Link href="/settings#onboarding">Upload document templates</Link>
-                  </Button>
-                </div>
-              )
+                  <OnboardingDocumentsStep
+                    clientId={resolvedClientId}
+                    clientName={resolvedClientName}
+                    clientEmail={resolveSignerEmail() || null}
+                    documents={documents}
+                    completedDocumentIds={completedDocumentIds}
+                    selectedFillIds={selectedFillDocumentIds}
+                    selectedSignatureIds={selectedSignatureDocumentIds}
+                    onToggleFill={toggleFillDocument}
+                    onToggleSignature={toggleSignatureDocument}
+                    deliveryMethod={deliveryMethod}
+                    onDeliveryMethodChange={setDeliveryMethod}
+                    onCompletedUpload={() => void refreshCompletedDocuments()}
+                    onStartInPersonSigning={() =>
+                      void startSignatureCollection('in_person')
+                    }
+                    onSendEmail={() => void startSignatureCollection('email')}
+                    pending={pending}
+                  />
                 ) : null}
 
-                {activeStep === 'signing' ? (
-              <div className="grid gap-4">
-                {documentsAvailable ? (
-                  <>
-                    <div className="bg-muted/40 rounded-md border px-3 py-2 text-sm">
-                      <p>
-                        <span className="font-medium">
-                          {resolvedClientName || 'Client'}
-                        </span>
-                        {resolveSignerEmail() ? ` · ${resolveSignerEmail()}` : ''}
-                      </p>
-                      <p className="text-muted-foreground mt-1">
-                        {selectedDocumentIds.length} document
-                        {selectedDocumentIds.length === 1 ? '' : 's'} ready to sign
-                      </p>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>How should they sign?</Label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Button
-                          type="button"
-                          variant={deliveryMethod === 'in_person' ? 'brand' : 'outline'}
-                          onClick={() => setDeliveryMethod('in_person')}
-                        >
-                          <TabletSmartphone className="size-4" />
-                          Sign in person
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={deliveryMethod === 'email' ? 'brand' : 'outline'}
-                          onClick={() => setDeliveryMethod('email')}
-                        >
-                          <Mail className="size-4" />
-                          Email link
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Client record is ready. Finish onboarding to add them to your
-                    list — you can collect signatures once document templates are
-                    uploaded.
-                  </p>
-                )}
-              </div>
+                {activeStep === 'assessmentNotes' ? (
+                  <div className="grid gap-3">
+                    <Label htmlFor="onboard-assessment-notes">Assessment notes</Label>
+                    <Textarea
+                      id="onboard-assessment-notes"
+                      rows={5}
+                      className="min-h-[8rem] resize-y"
+                      value={assessmentNotes}
+                      onChange={(event) => setAssessmentNotes(event.target.value)}
+                      placeholder="Movement screen results, injuries, goals discussed…"
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      Optional — saved to this client&apos;s profile and counted toward
+                      onboarding on their dashboard.
+                    </p>
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -792,23 +888,32 @@ export function OnboardClientDialog({
                 variant="brand"
                 onClick={() => void completeDocumentsStep()}
               >
-                Continue
+                Continue to assessment notes
               </Button>
             ) : null}
-            {activeStep === 'signing' ? (
-              <Button
-                type="button"
-                variant="brand"
-                disabled={pending}
-                onClick={() => void completeSigningStep()}
-              >
-                <ClipboardCheck className="size-4" />
-                {documentsAvailable
-                  ? deliveryMethod === 'email'
-                    ? 'Send documents'
-                    : 'Start signing'
-                  : 'Finish onboarding'}
-              </Button>
+            {activeStep === 'assessmentNotes' ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => void completeAssessmentNotesStep(true)}
+                >
+                  Finish without notes
+                </Button>
+                <Button
+                  type="button"
+                  variant="brand"
+                  disabled={pending}
+                  onClick={() => void completeAssessmentNotesStep(false)}
+                >
+                  {pending
+                    ? 'Saving…'
+                    : assessmentNotes.trim()
+                      ? 'Save & finish'
+                      : 'Finish onboarding'}
+                </Button>
+              </>
             ) : null}
           </DialogFooter>
         ) : null}

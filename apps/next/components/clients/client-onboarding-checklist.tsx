@@ -1,16 +1,21 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Check,
   Circle,
   ClipboardList,
+  ClipboardPen,
   Dumbbell,
   Moon,
   Sparkles,
   UserCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
+import { updateClientOnboardingAssessmentNotes } from '@/app/(dashboard)/clients/actions'
 import {
   Card,
   CardContent,
@@ -19,6 +24,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import {
   getCheckInDueStepLabel,
@@ -27,8 +33,10 @@ import {
 import type { CheckInFrequency } from 'app/types/database'
 
 type ClientOnboardingChecklistProps = {
+  clientId: string
   clientName: string
   progress: ClientOnboardingProgress
+  initialAssessmentNotes: string | null
   programName?: string | null
   checkInFrequency: CheckInFrequency
   onOpenPrograms?: () => void
@@ -36,8 +44,8 @@ type ClientOnboardingChecklistProps = {
   onOpenCalendar?: () => void
 }
 
-const steps: Array<{
-  key: keyof ClientOnboardingProgress
+const milestoneSteps: Array<{
+  key: Exclude<keyof ClientOnboardingProgress, 'assessmentNotesRecorded'>
   title: string
   description: string
   icon: typeof UserCheck
@@ -76,18 +84,45 @@ const steps: Array<{
   },
 ]
 
+const assessmentStep = {
+  key: 'assessmentNotesRecorded' as const,
+  title: 'Assessment notes',
+  description: 'Jot down observations from the initial assessment.',
+  icon: ClipboardPen,
+}
+
+const totalSteps = milestoneSteps.length + 1
+
 export function ClientOnboardingChecklist({
+  clientId,
   clientName,
   progress,
+  initialAssessmentNotes,
   programName,
   checkInFrequency,
   onOpenPrograms,
   onOpenCheckIns,
   onOpenCalendar,
 }: ClientOnboardingChecklistProps) {
-  const completedCount = steps.filter((step) => progress[step.key]).length
+  const router = useRouter()
+  const [assessmentNotes, setAssessmentNotes] = React.useState(
+    initialAssessmentNotes ?? ''
+  )
+  const [isSavingNotes, setIsSavingNotes] = React.useState(false)
 
-  function getStepLabel(stepKey: keyof ClientOnboardingProgress) {
+  const savedAssessmentNotes = initialAssessmentNotes ?? ''
+  const assessmentNotesDirty = assessmentNotes !== savedAssessmentNotes
+  const completedCount =
+    milestoneSteps.filter((step) => progress[step.key]).length +
+    (progress.assessmentNotesRecorded ? 1 : 0)
+
+  React.useEffect(() => {
+    setAssessmentNotes(initialAssessmentNotes ?? '')
+  }, [initialAssessmentNotes])
+
+  function getStepLabel(
+    stepKey: Exclude<keyof ClientOnboardingProgress, 'assessmentNotesRecorded'>
+  ) {
     if (stepKey === 'programAssigned' && progress.programAssigned && programName) {
       return `Program assigned: ${programName}`
     }
@@ -96,7 +131,7 @@ export function ClientOnboardingChecklist({
       return getCheckInDueStepLabel(checkInFrequency, progress.firstCheckInDue)
     }
 
-    return steps.find((step) => step.key === stepKey)?.title ?? ''
+    return milestoneSteps.find((step) => step.key === stepKey)?.title ?? ''
   }
 
   function handleAction(action?: 'programs' | 'checkIns' | 'calendar') {
@@ -114,6 +149,25 @@ export function ClientOnboardingChecklist({
     }
   }
 
+  async function handleSaveAssessmentNotes() {
+    setIsSavingNotes(true)
+    const result = await updateClientOnboardingAssessmentNotes(
+      clientId,
+      assessmentNotes
+    )
+    setIsSavingNotes(false)
+
+    if (result.success) {
+      toast.success('Assessment notes saved')
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const AssessmentIcon = assessmentStep.icon
+  const assessmentDone = progress.assessmentNotesRecorded
+
   return (
     <Card className="border-brand/20 bg-brand/5 gap-0 py-0">
       <CardHeader className="border-brand/10 flex flex-row items-start justify-between gap-4 space-y-0 border-b px-4 py-4 sm:px-6">
@@ -124,13 +178,13 @@ export function ClientOnboardingChecklist({
           <div className="space-y-1">
             <CardTitle className="text-base">Client onboarding</CardTitle>
             <CardDescription>
-              {completedCount} of {steps.length} milestones for {clientName}.
+              {completedCount} of {totalSteps} milestones for {clientName}.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 px-4 py-4 sm:px-6">
-        {steps.map((step) => {
+        {milestoneSteps.map((step) => {
           const done = progress[step.key]
           const Icon = step.icon
 
@@ -181,6 +235,68 @@ export function ClientOnboardingChecklist({
             </div>
           )
         })}
+
+        <div
+          className={cn(
+            'flex flex-col gap-3 rounded-xl border bg-background/80 p-4',
+            assessmentDone && 'border-brand/20 bg-brand/5'
+          )}
+        >
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div
+              className={cn(
+                'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full',
+                assessmentDone
+                  ? 'bg-brand text-brand-foreground'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {assessmentDone ? (
+                <Check className="size-4" aria-hidden />
+              ) : (
+                <Circle className="size-4" aria-hidden />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <AssessmentIcon className="text-muted-foreground size-4 shrink-0" />
+                  <p className="text-sm font-semibold">{assessmentStep.title}</p>
+                </div>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {assessmentStep.description}
+                </p>
+              </div>
+              <Textarea
+                rows={4}
+                className="min-h-[6rem] resize-y"
+                value={assessmentNotes}
+                onChange={(event) => setAssessmentNotes(event.target.value)}
+                placeholder="Movement screen results, injuries, goals discussed…"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssessmentNotes(savedAssessmentNotes)}
+                  disabled={!assessmentNotesDirty || isSavingNotes}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void handleSaveAssessmentNotes()}
+                  disabled={!assessmentNotesDirty || isSavingNotes}
+                >
+                  {isSavingNotes ? 'Saving…' : 'Save notes'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <p className="text-muted-foreground text-xs leading-relaxed">
           Configure auto-assign and welcome messages in{' '}
           <Link

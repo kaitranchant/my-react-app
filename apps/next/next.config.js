@@ -78,8 +78,10 @@ const withTurpopack = {
  * @type {import('next').NextConfig}
  */
 module.exports = {
-  serverActions: {
-    bodySizeLimit: '12mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '12mb',
+    },
   },
 
   transpilePackages: [

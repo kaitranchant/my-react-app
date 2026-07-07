@@ -506,6 +506,10 @@ await checkRestTable(
   'clients.progressive_overload_enabled column',
   '/rest/v1/clients?select=progressive_overload_enabled&limit=1'
 )
+await checkRestTable(
+  'clients.onboarding_assessment_notes column',
+  '/rest/v1/clients?select=onboarding_assessment_notes&limit=1'
+)
 
 // Migration 0058 — team challenges
 await checkRestTable(

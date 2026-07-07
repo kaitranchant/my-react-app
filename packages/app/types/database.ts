@@ -608,6 +608,7 @@ export type Database = {
           stripe_customer_id: string | null
           weekly_session_target: number | null
           progressive_overload_enabled: boolean
+          onboarding_assessment_notes: string | null
           created_at: string
           updated_at: string
         }
@@ -635,6 +636,7 @@ export type Database = {
           stripe_customer_id?: string | null
           weekly_session_target?: number | null
           progressive_overload_enabled?: boolean
+          onboarding_assessment_notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -662,6 +664,7 @@ export type Database = {
           stripe_customer_id?: string | null
           weekly_session_target?: number | null
           progressive_overload_enabled?: boolean
+          onboarding_assessment_notes?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -85,3 +85,40 @@ export const onboardingDocumentTypeLabels: Record<
   liability: 'Liability waiver',
   other: 'Other',
 }
+
+export function isFillOnlyOnboardingDocument(
+  documentType: CoachOnboardingDocument['document_type'] | string
+) {
+  return documentType === 'par_q'
+}
+
+export function isSignatureOnboardingDocument(
+  documentType: CoachOnboardingDocument['document_type'] | string
+) {
+  return !isFillOnlyOnboardingDocument(documentType)
+}
+
+export function partitionOnboardingDocuments(documents: CoachOnboardingDocument[]) {
+  return {
+    fillDocuments: documents.filter((document) =>
+      isFillOnlyOnboardingDocument(document.document_type)
+    ),
+    signatureDocuments: documents.filter((document) =>
+      isSignatureOnboardingDocument(document.document_type)
+    ),
+  }
+}
+
+export function getDefaultOnboardingDocumentSelections(
+  documents: CoachOnboardingDocument[]
+) {
+  const defaults = documents.filter((document) => document.is_default)
+  return {
+    fillIds: defaults
+      .filter((document) => isFillOnlyOnboardingDocument(document.document_type))
+      .map((document) => document.id),
+    signatureIds: defaults
+      .filter((document) => isSignatureOnboardingDocument(document.document_type))
+      .map((document) => document.id),
+  }
+}

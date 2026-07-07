@@ -11,13 +11,14 @@ import {
   buildOnboardingSignUrl,
   getOnboardingSignExpiryDate,
 } from '@/lib/invite'
-import { fetchCoachOnboardingDocuments } from '@/lib/onboarding-data'
+import { fetchCoachOnboardingDocuments, fetchClientCompletedOnboardingDocumentIds } from '@/lib/onboarding-data'
 import { notifyCoachOnboardingDocumentsComplete } from '@/lib/notifications/notify-coach-onboarding-documents-complete'
 import {
   ONBOARDING_DOCUMENTS_BUCKET,
   clientSignatureImagePath,
   clientSignedPdfPath,
   createOnboardingDocumentSignedUrl,
+  isFillOnlyOnboardingDocument,
 } from '@/lib/onboarding-documents'
 import {
   dataUrlToPngBytes,
@@ -423,15 +424,11 @@ async function maybeCompletePacket(
 
 export async function completeDocumentSign(input: {
   values: CompleteDocumentSignValues
-  signatureDataUrl: string
+  signatureDataUrl?: string | null
 }) {
   const parsed = completeDocumentSignSchema.safeParse(input.values)
   if (!parsed.success) {
     return { success: false as const, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
-  }
-
-  if (!input.signatureDataUrl.startsWith('data:image/png')) {
-    return { success: false as const, error: 'Signature is required.' }
   }
 
   const { token, packetId, requestId, signerName, signerEmail } = parsed.data
@@ -483,6 +480,15 @@ export async function completeDocumentSign(input: {
     return { success: false as const, error: 'Document template is missing.' }
   }
 
+  const isFillOnly = isFillOnlyOnboardingDocument(document.document_type)
+
+  if (
+    !isFillOnly &&
+    (!input.signatureDataUrl || !input.signatureDataUrl.startsWith('data:image/png'))
+  ) {
+    return { success: false as const, error: 'Signature is required.' }
+  }
+
   const { data: templateFile, error: downloadError } = await admin.storage
     .from(ONBOARDING_DOCUMENTS_BUCKET)
     .download(document.storage_path)
@@ -493,27 +499,35 @@ export async function completeDocumentSign(input: {
 
   const signedAt = new Date()
   const signedAtLabel = formatOnboardingSignDate(signedAt.toISOString()) ?? signedAt.toISOString()
-  const signatureBytes = new Uint8Array(dataUrlToPngBytes(input.signatureDataUrl))
   const templateBytes = new Uint8Array(await templateFile.arrayBuffer())
-  const signedPdfBuffer = await mergeSignatureIntoPdf({
-    templatePdfBytes: templateBytes,
-    signaturePngBytes: signatureBytes,
-    signerName,
-    signedAtLabel,
-  })
+  const signedPdfBuffer = isFillOnly
+    ? Buffer.from(templateBytes)
+    : await mergeSignatureIntoPdf({
+        templatePdfBytes: templateBytes,
+        signaturePngBytes: new Uint8Array(
+          dataUrlToPngBytes(input.signatureDataUrl!)
+        ),
+        signerName,
+        signedAtLabel,
+      })
 
-  const signaturePath = clientSignatureImagePath(packet.clientId, requestId)
+  const signaturePath = isFillOnly
+    ? null
+    : clientSignatureImagePath(packet.clientId, requestId)
   const signedPdfPath = clientSignedPdfPath(packet.clientId, requestId)
 
-  const { error: signatureUploadError } = await admin.storage
-    .from(ONBOARDING_DOCUMENTS_BUCKET)
-    .upload(signaturePath, signatureBytes, {
-      contentType: 'image/png',
-      upsert: true,
-    })
+  if (!isFillOnly && signaturePath && input.signatureDataUrl) {
+    const signatureBytes = new Uint8Array(dataUrlToPngBytes(input.signatureDataUrl))
+    const { error: signatureUploadError } = await admin.storage
+      .from(ONBOARDING_DOCUMENTS_BUCKET)
+      .upload(signaturePath, signatureBytes, {
+        contentType: 'image/png',
+        upsert: true,
+      })
 
-  if (signatureUploadError) {
-    return { success: false as const, error: 'Failed to save signature.' }
+    if (signatureUploadError) {
+      return { success: false as const, error: 'Failed to save signature.' }
+    }
   }
 
   const { error: signedPdfUploadError } = await admin.storage
@@ -625,6 +639,16 @@ export async function fetchClientsForOnboarding() {
 export async function fetchOnboardingTemplatesForCoach() {
   const { supabase, user } = await requireUser()
   return fetchCoachOnboardingDocuments(supabase, user.id)
+}
+
+export async function fetchClientOnboardingCompletion(clientId: string) {
+  const { supabase, user } = await requireUser()
+  const completedDocumentIds = await fetchClientCompletedOnboardingDocumentIds(
+    supabase,
+    clientId,
+    user.id
+  )
+  return { completedDocumentIds }
 }
 
 export async function getOnboardingSignSession(input: {

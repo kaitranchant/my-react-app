@@ -25,6 +25,16 @@ export type CreateOnboardingPacketValues = z.infer<
   typeof createOnboardingPacketSchema
 >
 
+export const uploadCompletedOnboardingDocumentSchema = z.object({
+  clientId: z.string().uuid(),
+  documentId: z.string().uuid(),
+  signerName: z.string().trim().min(1, 'Name is required').max(200).optional(),
+})
+
+export type UploadCompletedOnboardingDocumentValues = z.infer<
+  typeof uploadCompletedOnboardingDocumentSchema
+>
+
 export const completeDocumentSignSchema = z.object({
   token: z.string().uuid().optional(),
   packetId: z.string().uuid().optional(),

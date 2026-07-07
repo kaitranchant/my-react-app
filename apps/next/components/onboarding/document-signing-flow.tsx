@@ -4,7 +4,7 @@ import * as React from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import SignatureCanvas from 'react-signature-canvas'
-import { CheckCircle2, Eraser, FilePenLine } from 'lucide-react'
+import { CheckCircle2, Eraser, ExternalLink, FilePenLine } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { isFillOnlyOnboardingDocument } from '@/lib/onboarding-documents'
 import { getNextPendingSigningRequest } from '@/lib/onboarding-signing'
 import type { DocumentSigningStatus } from 'app/types/database'
 
@@ -90,6 +91,9 @@ export function DocumentSigningFlow({
   const currentDocument = documents.find(
     (document) => document.request_id === currentRequestId
   )
+  const isFillOnlyDocument = isFillOnlyOnboardingDocument(
+    currentDocument?.document_type ?? 'other'
+  )
   const signedCount = documents.filter((document) => document.status === 'signed').length
 
   React.useEffect(() => {
@@ -124,7 +128,11 @@ export function DocumentSigningFlow({
     if (!currentRequestId || !currentDocument) return
 
     if (!consent) {
-      toast.error('Please confirm you agree to sign this document.')
+      toast.error(
+        isFillOnlyDocument
+          ? 'Please confirm the form has been completed.'
+          : 'Please confirm you agree to sign this document.'
+      )
       return
     }
 
@@ -138,15 +146,18 @@ export function DocumentSigningFlow({
       return
     }
 
-    if (signatureRef.current?.isEmpty()) {
-      toast.error('Draw your signature before submitting.')
-      return
-    }
+    let signatureDataUrl: string | null = null
+    if (!isFillOnlyDocument) {
+      if (signatureRef.current?.isEmpty()) {
+        toast.error('Draw your signature before submitting.')
+        return
+      }
 
-    const signatureDataUrl = signatureRef.current?.toDataURL('image/png')
-    if (!signatureDataUrl) {
-      toast.error('Could not capture signature.')
-      return
+      signatureDataUrl = signatureRef.current?.toDataURL('image/png') ?? null
+      if (!signatureDataUrl) {
+        toast.error('Could not capture signature.')
+        return
+      }
     }
 
     setPending(true)
@@ -173,14 +184,19 @@ export function DocumentSigningFlow({
 
     if (result.complete) {
       setComplete(true)
-      toast.success('All documents signed. Thank you!')
+      toast.success('All documents complete. Thank you!')
+      onComplete?.()
       if (!onComplete && mode === 'coach') {
         router.push(`/clients/${clientId}`)
       }
       return
     }
 
-    toast.success(`${currentDocument.document_name} signed.`)
+    toast.success(
+      isFillOnlyDocument
+        ? `${currentDocument.document_name} marked complete.`
+        : `${currentDocument.document_name} signed.`
+    )
 
     if (result.nextRequestId) {
       setCurrentRequestId(result.nextRequestId)
@@ -207,7 +223,7 @@ export function DocumentSigningFlow({
           </h1>
           <p className="text-muted-foreground text-sm">
             {mode === 'coach'
-              ? `${preview.clientName} has signed all onboarding documents.`
+              ? `${preview.clientName} has completed all onboarding documents.`
               : 'Thank you. Your coach has been notified.'}
           </p>
         </div>
@@ -228,17 +244,28 @@ export function DocumentSigningFlow({
           : 'mx-auto flex max-w-3xl flex-col gap-6'
       }
     >
-      <div className="space-y-2">
-        {!embedded ? (
-          <p className="text-muted-foreground text-sm">Onboarding documents</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          {!embedded ? (
+            <p className="text-muted-foreground text-sm">Onboarding documents</p>
+          ) : null}
+          <h2 className={embedded ? 'text-lg font-semibold' : 'page-title'}>
+            {isFillOnlyDocument ? 'Complete' : 'Sign'} documents for{' '}
+            {preview.clientName}
+          </h2>
+          <p className="helper-text">
+            From {preview.coachName}. Document {signedCount + 1} of {documents.length}
+            {currentDocument ? `: ${currentDocument.document_name}` : ''}
+          </p>
+        </div>
+        {pdfUrl ? (
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-4" />
+              Open in new tab
+            </a>
+          </Button>
         ) : null}
-        <h2 className={embedded ? 'text-lg font-semibold' : 'page-title'}>
-          Sign documents for {preview.clientName}
-        </h2>
-        <p className="helper-text">
-          From {preview.coachName}. Document {signedCount + 1} of {documents.length}
-          {currentDocument ? `: ${currentDocument.document_name}` : ''}
-        </p>
       </div>
 
       <div className={embedded ? 'rounded-lg border p-3' : 'rounded-2xl border bg-card p-4 shadow-card sm:p-6'}>
@@ -252,10 +279,20 @@ export function DocumentSigningFlow({
       <div className={embedded ? 'rounded-lg border p-3' : 'rounded-2xl border bg-card p-4 shadow-card sm:p-6'}>
         <div className="mb-4 flex items-center gap-2">
           <FilePenLine className="size-4" />
-          <h2 className="font-medium">Signature</h2>
+          <h2 className="font-medium">
+            {isFillOnlyDocument ? 'Complete form' : 'Signature'}
+          </h2>
         </div>
 
         <div className="grid gap-4">
+          {isFillOnlyDocument ? (
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Open the PAR-Q in a new tab to fill it out. When you are finished,
+              return here and mark it complete. No signature is required for this
+              form.
+            </p>
+          ) : null}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="signer-name">Full name</Label>
@@ -278,44 +315,61 @@ export function DocumentSigningFlow({
             ) : null}
           </div>
 
-          <div className="grid gap-2">
-            <Label>Draw your signature</Label>
-            <div className="overflow-hidden rounded-md border bg-white">
-              <SignatureCanvas
-                ref={signatureRef}
-                penColor="#111827"
-                canvasProps={{
-                  className: 'h-40 w-full touch-none',
-                }}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="w-fit"
-              onClick={() => signatureRef.current?.clear()}
-            >
-              <Eraser className="size-4" />
-              Clear signature
-            </Button>
-          </div>
+          {!isFillOnlyDocument ? (
+            <>
+              <div className="grid gap-2">
+                <Label>Draw your signature</Label>
+                <div className="overflow-hidden rounded-md border bg-white">
+                  <SignatureCanvas
+                    ref={signatureRef}
+                    penColor="#111827"
+                    canvasProps={{
+                      className: 'h-40 w-full touch-none',
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => signatureRef.current?.clear()}
+                >
+                  <Eraser className="size-4" />
+                  Clear signature
+                </Button>
+              </div>
 
-          <label className="flex items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={consent}
-              onChange={(event) => setConsent(event.target.checked)}
-            />
-            <span>
-              I have read this document and agree to sign it electronically. I
-              understand my signature will be added to the PDF.
-            </span>
-          </label>
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                />
+                <span>
+                  I have read this document and agree to sign it electronically. I
+                  understand my signature will be added to the PDF.
+                </span>
+              </label>
+            </>
+          ) : (
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={consent}
+                onChange={(event) => setConsent(event.target.checked)}
+              />
+              <span>
+                I confirm this PAR-Q has been completed accurately. I understand no
+                signature is required for this form.
+              </span>
+            </label>
+          )}
 
           <Button variant="brand" disabled={pending} onClick={() => void handleSubmit()}>
-            Sign document
+            {isFillOnlyDocument ? 'Mark form complete' : 'Sign document'}
           </Button>
         </div>
       </div>
