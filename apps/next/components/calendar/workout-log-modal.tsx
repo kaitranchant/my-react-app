@@ -116,6 +116,7 @@ import {
   getExerciseDemoVideoPublicUrl,
   getExerciseMediaUrl,
   hasExerciseMedia,
+  hasExerciseDemoVideoLink,
 } from '@/lib/exercise-media'
 import { formatExercisePrescriptionSummary, parseTrackingOptions } from '@/lib/scheduled-exercise'
 import {
@@ -462,7 +463,9 @@ function WorkoutLogExercise({
   const demoVideoUrl = getExerciseDemoVideoPublicUrl(mediaExercise)
   const mediaUrl = getExerciseMediaUrl(mediaExercise)
   const showMedia = hasExerciseMedia(mediaExercise)
-  const showVideoThumbnail = Boolean(demoVideoUrl && !mediaUrl)
+  const showVideoThumbnail = Boolean(
+    (demoVideoUrl || hasExerciseDemoVideoLink(mediaExercise)) && !mediaUrl
+  )
 
   const trackingOptions = parseTrackingOptions(exercise.tracking_options)
   const prTrackingEnabled = !trackingOptions.disablePrTracking
@@ -2393,9 +2396,10 @@ export function WorkoutLogScreen({
       >
         <div
           className={cn(
-            'shrink-0 border-b px-4 sm:px-5',
-            isPage ? 'py-2.5 sm:py-4' : 'py-3 sm:py-4',
-            isPage ? 'pr-4 sm:pr-5' : 'pr-12 sm:pr-14'
+            'shrink-0 border-b',
+            isPage
+              ? 'px-[max(1rem,env(safe-area-inset-left))] py-2.5 pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.625rem,env(safe-area-inset-top))] sm:px-5 sm:py-4'
+              : 'px-4 py-3 pr-12 sm:px-5 sm:py-4 sm:pr-14'
           )}
         >
           {!isPage && (
@@ -2408,12 +2412,12 @@ export function WorkoutLogScreen({
           )}
 
           {isPage && (
-            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <div className="mb-2 grid w-full max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="-ml-2 shrink-0"
+                className="w-fit max-w-full shrink-0 justify-self-start"
                 onClick={handleBack}
               >
                 <ArrowLeft className="size-4" />
@@ -2424,7 +2428,7 @@ export function WorkoutLogScreen({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="shrink-0"
+                  className="size-9 shrink-0 justify-self-end px-0 sm:h-8 sm:w-auto sm:px-3"
                   aria-label={
                     sessionViewMode === 'guided'
                       ? 'Switch to list view'
@@ -2437,7 +2441,7 @@ export function WorkoutLogScreen({
                   }
                 >
                   <LayoutList className="size-4" />
-                  <span className="hidden min-[420px]:inline">
+                  <span className="hidden sm:ml-1.5 sm:inline">
                     {sessionViewMode === 'guided' ? 'List view' : 'Guided'}
                   </span>
                 </Button>
@@ -2760,7 +2764,7 @@ export function WorkoutLogScreen({
   if (isPage) {
     return (
       <>
-        <div className="bg-background flex h-full min-h-0 flex-col pb-[env(safe-area-inset-bottom)] md:static md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border md:pb-0">
+        <div className="bg-background flex h-full min-h-0 flex-col overflow-x-hidden pb-[env(safe-area-inset-bottom)] md:static md:min-h-[calc(100dvh-10rem)] md:rounded-xl md:border md:pb-0">
           {logContent}
         </div>
         {celebrationDialog}
