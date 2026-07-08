@@ -8,6 +8,7 @@ import {
   KeypadSurfaceOverlay,
 } from '@/components/mobile-keyboard/keypad-surface'
 import { useMobileKeyboard } from '@/components/mobile-keyboard/mobile-keyboard-context'
+import { MobileKeyboardPreview } from '@/components/mobile-keyboard/mobile-keyboard-preview'
 
 function MobileKeyboardReserve() {
   const keyboard = useMobileKeyboard()
@@ -50,13 +51,20 @@ export function MobileKeyboardOverlay() {
       onReserveHeightChange={setReserveHeight}
     >
       {activeField ? (
-        <MobileKeyboardLayout
-          mode={activeField.mode}
-          multiline={activeField.multiline}
-          appendChar={keyboard.appendChar}
-          backspace={keyboard.backspace}
-          closeKeyboard={keyboard.closeKeyboard}
-        />
+        <>
+          <MobileKeyboardPreview
+            value={keyboard.activeValue}
+            kind={activeField.kind}
+            onClose={keyboard.closeKeyboard}
+          />
+          <MobileKeyboardLayout
+            mode={activeField.mode}
+            multiline={activeField.multiline}
+            appendChar={keyboard.appendChar}
+            backspace={keyboard.backspace}
+            closeKeyboard={keyboard.closeKeyboard}
+          />
+        </>
       ) : null}
     </KeypadSurfaceOverlay>
   )

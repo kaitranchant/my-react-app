@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 
+import { MobileKeyboardCaret } from '@/components/mobile-keyboard/mobile-keyboard-caret'
 import { useMobileKeyboard } from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { useMobileKeyboardField } from '@/components/mobile-keyboard/use-mobile-keyboard-field'
 import { cn } from '@/lib/utils'
@@ -121,10 +122,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           <span
             className={cn(
               'block w-full whitespace-pre-wrap break-words',
-              !field.currentValue && 'text-muted-foreground'
+              !field.currentValue && !field.isActive && 'text-muted-foreground'
             )}
           >
-            {field.displayValue}
+            {field.isActive
+              ? field.currentValue
+              : field.displayValue}
+            {field.isActive ? <MobileKeyboardCaret className="ml-px" /> : null}
           </span>
         </button>
       </>

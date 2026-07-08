@@ -37,6 +37,8 @@ export type MobileFieldRegistration = {
 type MobileKeyboardContextValue = {
   enabled: boolean
   activeField: ActiveMobileField | null
+  /** Live value for the active field; updates on every keypress. */
+  activeValue: string
   openField: (id: string, element?: HTMLElement | null) => void
   closeKeyboard: () => void
   isFieldActive: (id: string) => boolean
@@ -193,6 +195,7 @@ export function MobileKeyboardProvider({
     () => ({
       enabled,
       activeField,
+      activeValue: editingValue,
       openField,
       closeKeyboard,
       isFieldActive,
@@ -207,6 +210,7 @@ export function MobileKeyboardProvider({
     [
       enabled,
       activeField,
+      editingValue,
       openField,
       closeKeyboard,
       isFieldActive,

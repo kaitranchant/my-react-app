@@ -191,8 +191,8 @@ export function useMobileKeyboardField({
     kind === 'input'
       ? 'file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input bg-background flex h-11 w-full min-w-0 rounded-lg border px-3 py-1 text-base transition-[color,box-shadow,transform] duration-75 outline-none active:scale-[0.99] md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]'
       : 'border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex field-sizing-content min-h-16 w-full rounded-lg border bg-transparent px-3 py-2 text-base transition-[color,box-shadow] outline-none focus-visible:ring-[3px] md:text-sm',
-    isActive && 'border-brand ring-brand/40 ring-2',
-    !currentValue && 'text-muted-foreground',
+    isActive && 'border-brand ring-brand/50 bg-brand/5 ring-2',
+    !currentValue && !isActive && 'text-muted-foreground',
     kind === 'textarea' && 'items-start whitespace-pre-wrap text-left',
     className
   )

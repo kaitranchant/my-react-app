@@ -103,8 +103,14 @@ export function KeypadButton({
   return (
     <button
       type="button"
+      tabIndex={-1}
       aria-label={ariaLabel}
       disabled={disabled}
+      // Keep focus on the active field. Layout switches (123 ↔ ABC) unmount this
+      // button; without this, focus jumps to document.body and Radix closes sheets.
+      onMouseDown={(event) => {
+        event.preventDefault()
+      }}
       onClick={onClick}
       className={cn(
         'flex min-w-0 select-none items-center justify-center rounded-xl text-base font-semibold transition-[transform,opacity,background-color] duration-75 disabled:pointer-events-none disabled:opacity-40 sm:text-lg touch-manipulation [-webkit-tap-highlight-color:transparent] active:scale-[0.96] active:opacity-90',

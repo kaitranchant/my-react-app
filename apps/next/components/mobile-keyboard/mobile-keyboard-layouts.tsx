@@ -202,33 +202,23 @@ function TextGrid({
           ))}
 
       <div className="flex gap-1.5 sm:gap-2">
-        {showNumbers ? (
+        <KeypadButton
+          aria-label={showNumbers ? 'Letters' : 'Numbers'}
+          onClick={showNumbers ? showLetters : showNumberPad}
+          className="h-12 min-h-12 min-w-14 text-sm sm:h-[3.25rem]"
+        >
+          {showNumbers ? 'ABC' : '123'}
+        </KeypadButton>
+        {!showNumbers ? (
           <KeypadButton
-            aria-label="Letters"
-            onClick={showLetters}
-            className="h-12 min-h-12 min-w-14 text-sm sm:h-[3.25rem]"
+            aria-label="Shift"
+            variant={shift ? 'accent' : 'default'}
+            onClick={() => setShift((current) => !current)}
+            className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
           >
-            ABC
+            ⇧
           </KeypadButton>
-        ) : (
-          <>
-            <KeypadButton
-              aria-label="Numbers"
-              onClick={showNumberPad}
-              className="h-12 min-h-12 min-w-14 text-sm sm:h-[3.25rem]"
-            >
-              123
-            </KeypadButton>
-            <KeypadButton
-              aria-label="Shift"
-              variant={shift ? 'accent' : 'default'}
-              onClick={() => setShift((current) => !current)}
-              className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
-            >
-              ⇧
-            </KeypadButton>
-          </>
-        )}
+        ) : null}
         {!showNumbers
           ? extraKeys.map((char) => (
               <KeypadButton
