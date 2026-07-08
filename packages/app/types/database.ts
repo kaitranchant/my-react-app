@@ -1631,6 +1631,7 @@ export type Database = {
           external_id: string | null
           image_url: string | null
           demo_video_path: string | null
+          demo_video_url: string | null
           difficulty: string | null
           category: string | null
           created_at: string
@@ -1648,6 +1649,7 @@ export type Database = {
           external_id?: string | null
           image_url?: string | null
           demo_video_path?: string | null
+          demo_video_url?: string | null
           difficulty?: string | null
           category?: string | null
           created_at?: string
@@ -1665,6 +1667,7 @@ export type Database = {
           external_id?: string | null
           image_url?: string | null
           demo_video_path?: string | null
+          demo_video_url?: string | null
           difficulty?: string | null
           category?: string | null
           created_at?: string
@@ -4509,6 +4512,7 @@ export type ScheduledWorkoutExerciseWithDetails = ScheduledWorkoutExercise & {
     | 'external_id'
     | 'image_url'
     | 'demo_video_path'
+    | 'demo_video_url'
     | 'instructions'
   >
 }
@@ -4566,6 +4570,8 @@ export type ExerciseHistorySession = {
   workoutName: string | null
   sets: ExerciseHistorySet[]
   bestE1rm: number | null
+  coachNotes: string | null
+  clientNotes: string | null
 }
 
 export type ClientCheckIn =
