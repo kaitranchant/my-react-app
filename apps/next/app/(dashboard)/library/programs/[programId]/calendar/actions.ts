@@ -553,7 +553,7 @@ async function fetchProgramWorkoutWithExercises(
     .select(
       `
       *,
-      exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, demo_video_path, instructions)
+      exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, demo_video_path, demo_video_url, instructions)
     `
     )
     .eq('program_scheduled_workout_id', workoutId)
@@ -582,7 +582,7 @@ async function fetchProgramWorkoutWithExercises(
       const exerciseIds = Array.from(new Set(bareRows.map((row) => row.exercise_id)))
       const { data: exerciseDetails } = await supabase
         .from('exercises')
-        .select('id, name, muscle_group, equipment, external_id, image_url, demo_video_path, instructions')
+        .select('id, name, muscle_group, equipment, external_id, image_url, demo_video_path, demo_video_url, instructions')
         .in('id', exerciseIds)
 
       const detailsById = new Map(

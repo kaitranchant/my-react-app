@@ -156,7 +156,7 @@ async function fetchWorkoutWithExercises(
       *,
       exercises:scheduled_workout_exercises(
         *,
-        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, demo_video_path, instructions)
+        exercise:exercises(id, name, muscle_group, equipment, external_id, image_url, demo_video_path, demo_video_url, instructions)
       )
     `
     )
