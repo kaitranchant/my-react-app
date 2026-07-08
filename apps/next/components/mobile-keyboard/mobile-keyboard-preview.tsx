@@ -60,13 +60,14 @@ export function MobileKeyboardPreview({
         </p>
         <div
           ref={previewRef}
+          data-nested-keyboard-scroll=""
           onScroll={handleScroll}
+          onTouchStart={(event) => {
+            event.stopPropagation()
+          }}
           className={cn(
-            'bg-muted/50 text-foreground relative overscroll-contain rounded-lg border px-3 py-2',
-            '[-webkit-overflow-scrolling:touch]',
-            isMultiline
-              ? 'max-h-[4.75rem] min-h-[2.75rem] overflow-y-auto touch-pan-y'
-              : 'min-h-11 overflow-x-auto whitespace-nowrap touch-pan-x'
+            'bg-muted/50 text-foreground relative rounded-lg border px-3 py-2',
+            isMultiline ? 'mobile-keypad-typing-scroll' : 'mobile-keypad-typing-scroll-x'
           )}
         >
           <p
