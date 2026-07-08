@@ -249,23 +249,6 @@ function TextGrid({
       </div>
 
       <div className="flex gap-1.5 sm:gap-2">
-        {multiline ? (
-          <KeypadButton
-            aria-label="New line"
-            onClick={() => appendChar('\n')}
-            className="h-12 min-h-12 min-w-16 sm:h-[3.25rem]"
-          >
-            <CornerDownLeft className="size-5" />
-          </KeypadButton>
-        ) : null}
-        <KeypadButton
-          aria-label="Done"
-          variant="accent"
-          onClick={closeKeyboard}
-          className="h-12 min-h-12 min-w-0 flex-1 text-base font-bold sm:h-[3.25rem] sm:text-lg"
-        >
-          Done
-        </KeypadButton>
         <KeypadButton
           aria-label="Hide keyboard"
           variant="icon"
@@ -274,6 +257,23 @@ function TextGrid({
         >
           <HideKeyboardIcon />
         </KeypadButton>
+        <KeypadButton
+          aria-label="Done"
+          variant="accent"
+          onClick={closeKeyboard}
+          className="h-12 min-h-12 min-w-0 flex-1 text-base font-bold sm:h-[3.25rem] sm:text-lg"
+        >
+          Done
+        </KeypadButton>
+        {multiline ? (
+          <KeypadButton
+            aria-label="New line"
+            onClick={() => appendChar('\n')}
+            className="h-12 min-h-12 min-w-14 sm:h-[3.25rem]"
+          >
+            <CornerDownLeft className="size-5" />
+          </KeypadButton>
+        ) : null}
       </div>
     </div>
   )

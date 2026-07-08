@@ -24,16 +24,33 @@ export function MobileKeyboardPreview({
   const isEmpty = value.length === 0
   const isMultiline = kind === 'textarea'
   const previewRef = React.useRef<HTMLDivElement>(null)
+  const stickToEndRef = React.useRef(true)
 
   React.useEffect(() => {
     const node = previewRef.current
-    if (!node) return
+    if (!node || !stickToEndRef.current) return
     if (isMultiline) {
       node.scrollTop = node.scrollHeight
     } else {
       node.scrollLeft = node.scrollWidth
     }
   }, [value, isMultiline])
+
+  function handleScroll() {
+    const node = previewRef.current
+    if (!node) return
+
+    if (isMultiline) {
+      const distanceFromBottom =
+        node.scrollHeight - node.scrollTop - node.clientHeight
+      stickToEndRef.current = distanceFromBottom < 24
+      return
+    }
+
+    const distanceFromRight =
+      node.scrollWidth - node.scrollLeft - node.clientWidth
+    stickToEndRef.current = distanceFromRight < 24
+  }
 
   return (
     <div className="flex items-end gap-2 border-b px-3 py-2 sm:px-4 sm:py-2.5">
@@ -43,11 +60,13 @@ export function MobileKeyboardPreview({
         </p>
         <div
           ref={previewRef}
+          onScroll={handleScroll}
           className={cn(
-            'bg-muted/50 text-foreground relative rounded-lg border px-3 py-2',
+            'bg-muted/50 text-foreground relative overscroll-contain rounded-lg border px-3 py-2',
+            '[-webkit-overflow-scrolling:touch]',
             isMultiline
-              ? 'max-h-[4.75rem] min-h-[2.75rem] overflow-y-auto'
-              : 'min-h-11 overflow-x-auto whitespace-nowrap'
+              ? 'max-h-36 min-h-[2.75rem] overflow-y-auto touch-pan-y'
+              : 'min-h-11 overflow-x-auto whitespace-nowrap touch-pan-x'
           )}
         >
           <p
@@ -58,7 +77,10 @@ export function MobileKeyboardPreview({
             )}
           >
             {isEmpty ? 'Start typing…' : value}
-            <span aria-hidden className="mobile-keyboard-caret ml-0.5 align-[-0.05em]" />
+            <span
+              aria-hidden
+              className="mobile-keyboard-caret ml-0.5 align-[-0.05em]"
+            />
           </p>
         </div>
       </div>
