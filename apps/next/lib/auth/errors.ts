@@ -112,6 +112,22 @@ export function formatClientInviteLinkError(message: string): string {
   return message
 }
 
+export function formatGymInviteLinkError(message: string): string {
+  if (message.includes('Invalid or expired invite')) {
+    return 'This gym invite link is invalid or has expired. Ask the gym owner for a new link.'
+  }
+
+  if (message.includes('Invite email does not match signup email')) {
+    return 'This invite was sent to a different email address.'
+  }
+
+  if (message.includes('already a member of this gym')) {
+    return 'You are already a member of this gym.'
+  }
+
+  return message
+}
+
 export function normalizeAuthFormError(error: unknown): string | null {
   if (error == null || error === false) {
     return null

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { formatGymInviteLinkError } from '@/lib/auth/errors'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { getAppBaseUrl } from '@/lib/email/config'
 import {
@@ -9,7 +10,6 @@ import {
   requireUser,
 } from '@/lib/gym-access'
 import {
-  buildGymInviteUrl,
   buildGymJoinUrl,
 } from '@/lib/invite'
 import {
@@ -226,7 +226,7 @@ export async function inviteCoachToGym(
   revalidateGym()
   return {
     success: true,
-    inviteUrl: buildGymInviteUrl(invite.invite_token, origin),
+    inviteUrl: buildGymJoinUrl(invite.invite_token, origin),
   }
 }
 
@@ -354,7 +354,7 @@ export async function acceptGymInvite(
   })
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatGymInviteLinkError(error.message) }
   }
 
   revalidateGym()

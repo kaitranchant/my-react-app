@@ -50,10 +50,10 @@ test.describe('Gyms', () => {
       .getByRole('button', { name: 'Create invite link' })
       .click()
 
-    const signupLink = page.getByRole('dialog').getByText(/gym_invite=/)
+    const signupLink = page.getByRole('dialog').getByText(/invite=/)
     await expect(signupLink).toBeVisible({ timeout: 15_000 })
-    const signupUrl = (await signupLink.textContent())?.trim() ?? ''
-    const token = new URL(signupUrl).searchParams.get('gym_invite')
+    const inviteUrlText = (await signupLink.textContent())?.trim() ?? ''
+    const token = new URL(inviteUrlText, 'http://localhost').searchParams.get('invite')
     expect(token).toBeTruthy()
     const inviteUrl = `/gym/join?invite=${token}`
 

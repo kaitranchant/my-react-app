@@ -12,6 +12,7 @@ import {
   registerInvitedClient,
   signInClientAccount,
 } from '@/lib/auth/client-invite-signup'
+import { linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
 
@@ -73,7 +74,7 @@ function signupMetadata(input: {
     pending_invite_token: input.isClientSignup
       ? input.inviteToken || undefined
       : undefined,
-    gym_invite_token: input.gymInviteToken || undefined,
+    pending_gym_invite_token: input.gymInviteToken || undefined,
   }
 }
 
@@ -125,7 +126,11 @@ export async function login(
       if (profile?.role === 'client' && isClientRoute) {
         return { redirectTo }
       }
-      if (profile?.role !== 'client' && (isCoachRoute || redirectTo.startsWith('/book'))) {
+      if (profile?.role !== 'client' && (
+        isCoachRoute ||
+        redirectTo.startsWith('/book') ||
+        redirectTo.startsWith('/gym/join')
+      )) {
         return { redirectTo: redirectTo.startsWith('/book') ? '/scheduling?view=availability' : redirectTo }
       }
     }
@@ -218,6 +223,21 @@ export async function signup(
       }
 
       signedUpUserId = data.user?.id ?? null
+
+      if (gymInviteToken && signedUpUserId) {
+        const linked = await linkGymInviteAsAdmin({
+          inviteToken: gymInviteToken,
+          userId: signedUpUserId,
+          email,
+        })
+
+        if (!linked.ok) {
+          return { error: linked.error }
+        }
+
+        revalidatePath('/', 'layout')
+        return { redirectTo: `/gym?gym=${linked.gymId}` }
+      }
     }
 
     revalidatePath('/', 'layout')

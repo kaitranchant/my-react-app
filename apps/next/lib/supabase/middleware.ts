@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
   '/book',
   '/pricing',
   '/privacy',
+  '/gym/join',
 ]
 const MOBILE_AUTH_API_ROUTES = ['/api/wearables/apple-health/sync']
 const CRON_API_ROUTES = ['/api/cron']
@@ -61,11 +62,36 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && !isPublicRoute && !isMobileAuthApiRoute && !isCronApiRoute && !isPublicApiRoute) {
     const url = request.nextUrl.clone()
+    const returnPath = `${pathname}${request.nextUrl.search}`
     url.pathname = '/login'
+    url.search = ''
+    url.searchParams.set('next', returnPath)
     return NextResponse.redirect(url)
   }
 
+  if (user && pathname === '/signup') {
+    const gymInvite = request.nextUrl.searchParams.get('gym_invite')
+    if (gymInvite) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/gym/join'
+      url.search = ''
+      url.searchParams.set('invite', gymInvite)
+      return NextResponse.redirect(url)
+    }
+  }
+
   if (user && (pathname === '/login' || pathname === '/signup')) {
+    if (pathname === '/login') {
+      const next = request.nextUrl.searchParams.get('next')
+      if (next?.startsWith('/') && !next.startsWith('//')) {
+        const url = request.nextUrl.clone()
+        const [nextPath, nextQuery = ''] = next.split('?')
+        url.pathname = nextPath
+        url.search = nextQuery ? `?${nextQuery}` : ''
+        return NextResponse.redirect(url)
+      }
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -74,6 +100,7 @@ export async function updateSession(request: NextRequest) {
 
     const url = request.nextUrl.clone()
     url.pathname = profile?.role === 'client' ? '/portal' : '/dashboard'
+    url.search = ''
     return NextResponse.redirect(url)
   }
 

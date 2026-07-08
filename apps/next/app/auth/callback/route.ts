@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   ensureClientInviteLinked,
 } from '@/lib/auth/client-invite-signup'
+import { ensureGymInviteLinked } from '@/lib/auth/gym-invite-signup'
 import { createClient } from '@/lib/supabase/server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
       let destination = next
       if (user) {
         await ensureClientInviteLinked(user)
+        await ensureGymInviteLinked(user)
 
         const { data: profile } = await supabase
           .from('profiles')

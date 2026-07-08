@@ -22,6 +22,10 @@ export default async function SignupPage({
   } = await supabase.auth.getUser()
 
   if (user) {
+    if (gymInvite && INVITE_TOKEN_PATTERN.test(gymInvite)) {
+      redirect(`/gym/join?invite=${gymInvite}`)
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
