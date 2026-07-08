@@ -7,6 +7,7 @@ import {
   backspaceKeyboardValue,
   type MobileKeyboardMode,
 } from '@/lib/mobile-keyboard/resolve-keyboard-mode'
+import { clampCaretIndex } from '@/lib/mobile-keyboard/caret'
 import { dismissFloatingLayers } from '@/lib/mobile-keyboard/dismiss-floating-layers'
 import {
   NESTED_KEYBOARD_SCROLL_SELECTOR,
@@ -39,6 +40,8 @@ type MobileKeyboardContextValue = {
   activeField: ActiveMobileField | null
   /** Live value for the active field; updates on every keypress. */
   activeValue: string
+  /** Insertion index within `activeValue`. */
+  caretIndex: number
   openField: (id: string, element?: HTMLElement | null) => void
   closeKeyboard: () => void
   isFieldActive: (id: string) => boolean
@@ -46,6 +49,7 @@ type MobileKeyboardContextValue = {
   unregisterField: (id: string) => void
   appendChar: (char: string) => void
   backspace: () => void
+  setCaretIndex: (index: number) => void
   getActiveValue: () => string
   keypadReserveHeight: number
   setKeypadReserveHeight: (height: number) => void
@@ -74,8 +78,13 @@ export function MobileKeyboardProvider({
   const [activeField, setActiveField] =
     React.useState<ActiveMobileField | null>(null)
   const [editingValue, setEditingValue] = React.useState('')
+  const [caretIndex, setCaretIndexState] = React.useState(0)
   const [keypadReserveHeight, setKeypadReserveHeight] = React.useState(0)
   const fieldsRef = React.useRef(new Map<string, MobileFieldRegistration>())
+  const editingValueRef = React.useRef(editingValue)
+  const caretIndexRef = React.useRef(caretIndex)
+  editingValueRef.current = editingValue
+  caretIndexRef.current = caretIndex
 
   const scrollFieldIntoView = React.useCallback(
     (element?: HTMLElement | null) => {
@@ -116,7 +125,16 @@ export function MobileKeyboardProvider({
 
       dismissFloatingLayers()
 
-      setEditingValue(registration.getValue())
+      const nextValue = registration.getValue()
+      const isSameField = activeField?.id === id
+
+      setEditingValue(nextValue)
+      if (!isSameField) {
+        setCaretIndexState(nextValue.length)
+      } else {
+        setCaretIndexState((current) => clampCaretIndex(nextValue, current))
+      }
+
       setActiveField({
         id,
         kind: registration.kind,
@@ -129,7 +147,7 @@ export function MobileKeyboardProvider({
         requestAnimationFrame(() => scrollFieldIntoView(target))
       }
     },
-    [enabled, scrollFieldIntoView]
+    [activeField?.id, enabled, scrollFieldIntoView]
   )
 
   const closeKeyboard = React.useCallback(() => {
@@ -158,19 +176,25 @@ export function MobileKeyboardProvider({
     setActiveField((current) => (current?.id === id ? null : current))
   }, [])
 
-  const getActiveValue = React.useCallback(() => editingValue, [editingValue])
+  const getActiveValue = React.useCallback(() => editingValueRef.current, [])
 
   const patchActiveValue = React.useCallback(
-    (value: string) => {
+    (value: string, nextCaretIndex: number) => {
       if (!activeField) return
       const registration = fieldsRef.current.get(activeField.id)
       if (!registration) return
+      const caret = clampCaretIndex(value, nextCaretIndex)
       setEditingValue(value)
+      setCaretIndexState(caret)
       registration.setValue(value)
       requestAnimationFrame(() => scrollFieldIntoView(registration.getElement()))
     },
     [activeField, scrollFieldIntoView]
   )
+
+  const setCaretIndex = React.useCallback((index: number) => {
+    setCaretIndexState(clampCaretIndex(editingValueRef.current, index))
+  }, [])
 
   React.useEffect(() => {
     if (!activeField || keypadReserveHeight <= 0) return
@@ -180,22 +204,32 @@ export function MobileKeyboardProvider({
   const appendChar = React.useCallback(
     (char: string) => {
       if (!activeField) return
-      patchActiveValue(
-        appendKeyboardChar(getActiveValue(), char, activeField.mode)
+      const result = appendKeyboardChar(
+        editingValueRef.current,
+        char,
+        activeField.mode,
+        caretIndexRef.current
       )
+      patchActiveValue(result.value, result.caretIndex)
     },
-    [activeField, getActiveValue, patchActiveValue]
+    [activeField, patchActiveValue]
   )
 
   const backspace = React.useCallback(() => {
-    patchActiveValue(backspaceKeyboardValue(getActiveValue()))
-  }, [getActiveValue, patchActiveValue])
+    if (!activeField) return
+    const result = backspaceKeyboardValue(
+      editingValueRef.current,
+      caretIndexRef.current
+    )
+    patchActiveValue(result.value, result.caretIndex)
+  }, [activeField, patchActiveValue])
 
   const value = React.useMemo<MobileKeyboardContextValue>(
     () => ({
       enabled,
       activeField,
       activeValue: editingValue,
+      caretIndex,
       openField,
       closeKeyboard,
       isFieldActive,
@@ -203,6 +237,7 @@ export function MobileKeyboardProvider({
       unregisterField,
       appendChar,
       backspace,
+      setCaretIndex,
       getActiveValue,
       keypadReserveHeight,
       setKeypadReserveHeight,
@@ -211,6 +246,7 @@ export function MobileKeyboardProvider({
       enabled,
       activeField,
       editingValue,
+      caretIndex,
       openField,
       closeKeyboard,
       isFieldActive,
@@ -218,6 +254,7 @@ export function MobileKeyboardProvider({
       unregisterField,
       appendChar,
       backspace,
+      setCaretIndex,
       getActiveValue,
       keypadReserveHeight,
     ]

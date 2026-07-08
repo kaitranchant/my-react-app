@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 
-import { MobileKeyboardCaret } from '@/components/mobile-keyboard/mobile-keyboard-caret'
+import { MobileKeyboardEditableText } from '@/components/mobile-keyboard/mobile-keyboard-editable-text'
 import { useMobileKeyboard } from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { useMobileKeyboardField } from '@/components/mobile-keyboard/use-mobile-keyboard-field'
 import { cn } from '@/lib/utils'
@@ -96,6 +96,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
     )
   }
 
+  const caretIndex =
+    field.isActive && keyboard ? keyboard.caretIndex : field.currentValue.length
+
   return (
     <>
       {name ? (
@@ -125,17 +128,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
           disabled && 'pointer-events-none opacity-50'
         )}
       >
-        <span
-          className={cn(
-            'block w-full truncate',
-            !field.currentValue && !field.isActive && 'text-muted-foreground'
-          )}
-        >
-          {field.isActive
-            ? field.currentValue
-            : field.displayValue}
-          {field.isActive ? <MobileKeyboardCaret className="ml-px" /> : null}
-        </span>
+        <MobileKeyboardEditableText
+          value={field.currentValue}
+          caretIndex={caretIndex}
+          placeholder={placeholder}
+          isActive={Boolean(field.isActive)}
+          onPlaceCaret={(index) => {
+            if (!field.isActive) {
+              field.openKeyboard()
+            }
+            keyboard?.setCaretIndex(index)
+          }}
+        />
       </button>
     </>
   )

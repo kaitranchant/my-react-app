@@ -54,8 +54,10 @@ export function MobileKeyboardOverlay() {
         <>
           <MobileKeyboardPreview
             value={keyboard.activeValue}
+            caretIndex={keyboard.caretIndex}
             kind={activeField.kind}
             onClose={keyboard.closeKeyboard}
+            onPlaceCaret={keyboard.setCaretIndex}
           />
           <MobileKeyboardLayout
             mode={activeField.mode}

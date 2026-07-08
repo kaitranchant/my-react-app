@@ -83,27 +83,52 @@ const TEL_CHARS = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+'
 export function appendKeyboardChar(
   current: string,
   char: string,
-  mode: MobileKeyboardMode
+  mode: MobileKeyboardMode,
+  caretIndex = current.length
 ) {
   if (mode === 'tel' && !TEL_CHARS.has(char)) {
-    return current
+    return { value: current, caretIndex }
   }
 
   if (char === '.' && mode === 'decimal') {
-    if (current.includes('.')) return current
-    return current ? `${current}.` : '0.'
-  }
-
-  if (mode === 'numeric' || mode === 'decimal') {
-    if (char === '.' && mode === 'numeric') return current
-    if (char === '0' && current === '0' && !current.includes('.')) {
-      return current
+    if (current.includes('.')) return { value: current, caretIndex }
+    if (!current) {
+      return { value: '0.', caretIndex: 2 }
+    }
+    const index = Math.max(0, Math.min(current.length, caretIndex))
+    return {
+      value: `${current.slice(0, index)}.${current.slice(index)}`,
+      caretIndex: index + 1,
     }
   }
 
-  return `${current}${char}`
+  if (mode === 'numeric' || mode === 'decimal') {
+    if (char === '.' && mode === 'numeric') {
+      return { value: current, caretIndex }
+    }
+    if (char === '0' && current === '0' && !current.includes('.')) {
+      return { value: current, caretIndex }
+    }
+  }
+
+  const index = Math.max(0, Math.min(current.length, caretIndex))
+  return {
+    value: `${current.slice(0, index)}${char}${current.slice(index)}`,
+    caretIndex: index + char.length,
+  }
 }
 
-export function backspaceKeyboardValue(current: string) {
-  return current.slice(0, -1)
+export function backspaceKeyboardValue(
+  current: string,
+  caretIndex = current.length
+) {
+  const index = Math.max(0, Math.min(current.length, caretIndex))
+  if (index <= 0) {
+    return { value: current, caretIndex: 0 }
+  }
+
+  return {
+    value: `${current.slice(0, index - 1)}${current.slice(index)}`,
+    caretIndex: index - 1,
+  }
 }

@@ -124,6 +124,7 @@ export function KeypadButton({
           'bg-muted/80 text-foreground hover:bg-muted active:bg-muted/70',
         className
       )}
+      style={{ touchAction: 'manipulation' }}
     >
       {children}
     </button>
