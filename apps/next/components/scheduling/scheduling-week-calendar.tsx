@@ -35,7 +35,16 @@ const statusColors: Record<CoachingAppointment['status'], string> = {
 }
 
 const blockedTimeClassName =
-  'bg-zinc-500/20 border-zinc-400/40 text-zinc-200 pointer-events-none z-0 bg-[repeating-linear-gradient(-45deg,transparent,transparent_5px,rgba(161,161,170,0.18)_5px,rgba(161,161,170,0.18)_10px)]'
+  'bg-zinc-500/20 border-zinc-400/40 text-zinc-700 dark:text-zinc-200 z-0 bg-[repeating-linear-gradient(-45deg,transparent,transparent_5px,rgba(161,161,170,0.18)_5px,rgba(161,161,170,0.18)_10px)]'
+
+const blockedTimeStatusColors: Record<
+  NonNullable<GoogleCalendarBlockedTime['status']>,
+  string
+> = {
+  completed: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 z-0',
+  cancelled: 'bg-destructive/10 border-destructive/30 text-destructive z-0',
+  no_show: 'bg-amber-500/15 border-amber-600/40 text-amber-800 dark:text-amber-200 z-0',
+}
 
 type WeekDay = {
   label: string
@@ -50,6 +59,7 @@ type SchedulingWeekCalendarProps = {
   weekKeys: string[]
   clientSessionProgress?: Map<string, ClientSessionProgress>
   onSelectAppointment?: (appointment: CoachingAppointment) => void
+  onSelectBlockedTime?: (blockedTime: GoogleCalendarBlockedTime) => void
 }
 
 function formatHourLabel(hour: number) {
@@ -104,6 +114,13 @@ function getAppointmentBlockClassName(
   return statusColors[appointment.status]
 }
 
+function getBlockedTimeBlockClassName(blockedTime: GoogleCalendarBlockedTime) {
+  if (!blockedTime.status) {
+    return blockedTimeClassName
+  }
+  return blockedTimeStatusColors[blockedTime.status]
+}
+
 function CalendarGrid({
   visibleDays,
   appointmentsByDay,
@@ -111,6 +128,7 @@ function CalendarGrid({
   coachPreferences,
   clientSessionProgress,
   onSelectAppointment,
+  onSelectBlockedTime,
   columnMinWidth,
 }: {
   visibleDays: WeekDay[]
@@ -119,6 +137,7 @@ function CalendarGrid({
   coachPreferences: CoachPreferences
   clientSessionProgress?: Map<string, ClientSessionProgress>
   onSelectAppointment?: (appointment: CoachingAppointment) => void
+  onSelectBlockedTime?: (blockedTime: GoogleCalendarBlockedTime) => void
   columnMinWidth?: string
 }) {
   const hours = Array.from(
@@ -210,19 +229,25 @@ function CalendarGrid({
                 return null
               }
 
+              const statusLabel = blockedTime.status
+                ? appointmentStatusLabels[blockedTime.status]
+                : 'Google Calendar'
+
               return (
-                <div
+                <button
                   key={blockedTime.id}
+                  type="button"
                   title={blockedTime.title}
+                  onClick={() => onSelectBlockedTime?.(blockedTime)}
                   className={cn(
-                    'absolute inset-x-1 overflow-hidden rounded-md border px-2 py-1 text-left text-xs',
-                    blockedTimeClassName
+                    'absolute inset-x-1 overflow-hidden rounded-md border px-2 py-1 text-left text-xs transition hover:brightness-95',
+                    getBlockedTimeBlockClassName(blockedTime)
                   )}
                   style={{ top, height }}
                 >
                   <p className="truncate font-medium">{blockedTime.title}</p>
-                  <p className="truncate opacity-80">Google Calendar</p>
-                </div>
+                  <p className="truncate opacity-80">{statusLabel}</p>
+                </button>
               )
             })}
 
@@ -293,6 +318,7 @@ export function SchedulingWeekCalendar({
   weekKeys,
   clientSessionProgress,
   onSelectAppointment,
+  onSelectBlockedTime,
 }: SchedulingWeekCalendarProps) {
   const isMobile = useIsMobile()
   const [dayWindowStart, setDayWindowStart] = React.useState(0)
@@ -427,6 +453,7 @@ export function SchedulingWeekCalendar({
           coachPreferences={coachPreferences}
           clientSessionProgress={clientSessionProgress}
           onSelectAppointment={onSelectAppointment}
+          onSelectBlockedTime={onSelectBlockedTime}
           columnMinWidth={isMobile ? undefined : '96px'}
         />
       </div>

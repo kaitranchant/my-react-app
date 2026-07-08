@@ -207,3 +207,26 @@ export const clientWeeklySessionDefaultSchema = z.object({
 export type ClientWeeklySessionDefaultValues = z.infer<
   typeof clientWeeklySessionDefaultSchema
 >
+
+export const googleEventMarkerStatusSchema = z.enum([
+  'completed',
+  'cancelled',
+  'no_show',
+])
+
+export const upsertGoogleEventMarkerSchema = z.object({
+  googleEventId: z.string().trim().min(1).max(1024),
+  status: googleEventMarkerStatusSchema,
+})
+
+export type UpsertGoogleEventMarkerValues = z.infer<
+  typeof upsertGoogleEventMarkerSchema
+>
+
+export const clearGoogleEventMarkerSchema = z.object({
+  googleEventId: z.string().trim().min(1).max(1024),
+})
+
+export type ClearGoogleEventMarkerValues = z.infer<
+  typeof clearGoogleEventMarkerSchema
+>

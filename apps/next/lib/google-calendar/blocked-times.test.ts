@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  applyGoogleEventMarkers,
   appointmentOccupiesCalendarSlot,
   filterGoogleCalendarBlockedTimes,
   hideBlockedTimesOverlappingAppointments,
@@ -97,4 +98,27 @@ test('hideBlockedTimesOverlappingAppointments hides busy blocks under completed 
   )
 
   assert.equal(blocked.length, 0)
+})
+
+test('applyGoogleEventMarkers attaches coach visual status onto busy blocks', () => {
+  const blocked = applyGoogleEventMarkers(
+    [
+      {
+        id: 'busy-event',
+        startsAt: '2026-07-06T20:30:00.000Z',
+        endsAt: '2026-07-06T21:30:00.000Z',
+        title: 'Coaching session — Dawn Carter',
+      },
+      {
+        id: 'other-event',
+        startsAt: '2026-07-06T18:00:00.000Z',
+        endsAt: '2026-07-06T19:00:00.000Z',
+        title: 'Dentist',
+      },
+    ],
+    new Map([['busy-event', 'completed']])
+  )
+
+  assert.equal(blocked[0]?.status, 'completed')
+  assert.equal(blocked[1]?.status, undefined)
 })

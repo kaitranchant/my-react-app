@@ -4,7 +4,10 @@ import { BookAppointmentDialog } from '@/components/scheduling/book-appointment-
 import { SchedulingPageTabs } from '@/components/scheduling/scheduling-page-tabs'
 import { ensureCoachAppointmentSeriesHorizon } from '@/app/(dashboard)/scheduling/actions'
 import { getAppBaseUrl } from '@/lib/email/config'
-import { fetchGoogleCalendarBlockedTimes } from '@/lib/google-calendar/blocked-times'
+import {
+  attachGoogleEventMarkers,
+  fetchGoogleCalendarBlockedTimes,
+} from '@/lib/google-calendar/blocked-times'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import { isGoogleCalendarConfigured } from '@/lib/google-calendar/config'
 import { registerGoogleCalendarWatch } from '@/lib/google-calendar/watch'
@@ -115,9 +118,14 @@ export default async function SchedulingPage({
     ),
   ])
 
-  const googleBlockedTimes = googleCalendarConnection
+  const rawGoogleBlockedTimes = googleCalendarConnection
     ? await fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)
     : []
+  const googleBlockedTimes = await attachGoogleEventMarkers(
+    supabase,
+    user.id,
+    rawGoogleBlockedTimes
+  )
 
   const weekStartKey = weekKeys[0]!
   const weekOverrides = settings.weekly_session_targets_enabled

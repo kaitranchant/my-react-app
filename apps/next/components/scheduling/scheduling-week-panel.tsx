@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { fetchSchedulingWeekData } from '@/app/(dashboard)/scheduling/actions'
 import { AppointmentsList } from '@/components/scheduling/appointments-list'
 import { AppointmentManageDialog } from '@/components/scheduling/appointment-manage-dialog'
+import { GoogleEventStatusDialog } from '@/components/scheduling/google-event-status-dialog'
 import { SchedulingWeekCalendar } from '@/components/scheduling/scheduling-week-calendar'
 import { SchedulingWeekStats } from '@/components/scheduling/scheduling-week-stats'
 import { WeeklySessionTargetsDialog } from '@/components/scheduling/weekly-session-targets-dialog'
@@ -27,6 +28,7 @@ import {
 } from '@/lib/calendar'
 import type { CoachPreferences } from '@/lib/coach-preferences'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
+import type { GoogleEventMarkerStatus } from '@/lib/google-calendar/blocked-times-filter'
 import type { ClientSessionPack, CoachingAppointment } from '@/lib/session-booking-types'
 import {
   buildClientSessionProgressMap,
@@ -105,6 +107,9 @@ export function SchedulingWeekPanel({
   const [selectedAppointment, setSelectedAppointment] =
     React.useState<CoachingAppointment | null>(null)
   const [manageOpen, setManageOpen] = React.useState(false)
+  const [selectedBlockedTime, setSelectedBlockedTime] =
+    React.useState<GoogleCalendarBlockedTime | null>(null)
+  const [blockedTimeOpen, setBlockedTimeOpen] = React.useState(false)
   const [targetsOpen, setTargetsOpen] = React.useState(false)
 
   const weekStartKey = weekData.weekKeys[0]!
@@ -291,6 +296,37 @@ export function SchedulingWeekPanel({
     setManageOpen(true)
   }
 
+  function openBlockedTime(blockedTime: GoogleCalendarBlockedTime) {
+    setSelectedBlockedTime(blockedTime)
+    setBlockedTimeOpen(true)
+  }
+
+  function updateBlockedTimeStatus(
+    googleEventId: string,
+    status: GoogleEventMarkerStatus | null
+  ) {
+    setWeekData((current) => {
+      const next: WeekData = {
+        ...current,
+        googleBlockedTimes: current.googleBlockedTimes.map((blockedTime) =>
+          blockedTime.id === googleEventId
+            ? { ...blockedTime, status: status ?? null }
+            : blockedTime
+        ),
+      }
+      const cacheKey = current.weekKeys[0]
+      if (cacheKey) {
+        weekCacheRef.current.set(cacheKey, next)
+      }
+      return next
+    })
+    setSelectedBlockedTime((current) =>
+      current?.id === googleEventId
+        ? { ...current, status: status ?? null }
+        : current
+    )
+  }
+
   function selectView(mode: WeekViewMode) {
     setViewMode(mode)
   }
@@ -396,6 +432,7 @@ export function SchedulingWeekPanel({
               weekKeys={weekData.weekKeys}
               clientSessionProgress={clientSessionProgress}
               onSelectAppointment={openManage}
+              onSelectBlockedTime={openBlockedTime}
             />
           )
         ) : (
@@ -423,6 +460,14 @@ export function SchedulingWeekPanel({
         sessionPacks={sessionPacks}
         clients={clients}
         dateOptions={dateOptions}
+      />
+
+      <GoogleEventStatusDialog
+        blockedTime={selectedBlockedTime}
+        open={blockedTimeOpen}
+        onOpenChange={setBlockedTimeOpen}
+        coachPreferences={coachPreferences}
+        onStatusChanged={updateBlockedTimeStatus}
       />
 
       {weeklyTargetsEnabled ? (

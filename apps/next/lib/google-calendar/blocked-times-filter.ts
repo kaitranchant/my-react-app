@@ -5,11 +5,39 @@ import {
   isLinkedCoachingGoogleEvent,
 } from '@/lib/google-calendar/event-linking'
 
+export const GOOGLE_EVENT_MARKER_STATUSES = [
+  'completed',
+  'cancelled',
+  'no_show',
+] as const
+
+export type GoogleEventMarkerStatus =
+  (typeof GOOGLE_EVENT_MARKER_STATUSES)[number]
+
 export type GoogleCalendarBlockedTime = {
   id: string
   startsAt: string
   endsAt: string
   title: string
+  /** Coach-owned visual marker only; no appointment side effects. */
+  status?: GoogleEventMarkerStatus | null
+}
+
+export function applyGoogleEventMarkers(
+  blockedTimes: GoogleCalendarBlockedTime[],
+  markers: ReadonlyMap<string, GoogleEventMarkerStatus>
+): GoogleCalendarBlockedTime[] {
+  if (markers.size === 0) {
+    return blockedTimes
+  }
+
+  return blockedTimes.map((blockedTime) => {
+    const status = markers.get(blockedTime.id)
+    if (!status) {
+      return blockedTime
+    }
+    return { ...blockedTime, status }
+  })
 }
 
 type ScheduledAppointmentInterval = {

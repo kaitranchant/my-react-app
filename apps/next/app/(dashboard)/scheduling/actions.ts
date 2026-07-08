@@ -18,7 +18,7 @@ import {
 } from '@/lib/appointment-series'
 import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-series-horizon'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import { fetchGoogleCalendarBlockedTimes } from '@/lib/google-calendar/blocked-times'
+import { fetchGoogleCalendarBlockedTimes, attachGoogleEventMarkers } from '@/lib/google-calendar/blocked-times'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
@@ -43,6 +43,7 @@ import {
   availabilityRuleSchema,
   bookAppointmentSchema,
   cancelAppointmentSchema,
+  clearGoogleEventMarkerSchema,
   deleteAppointmentSchema,
   rescheduleAppointmentSchema,
   sessionBookingSettingsSchema,
@@ -50,6 +51,7 @@ import {
   updateAppointmentNotesSchema,
   updateAppointmentSchema,
   updateAppointmentStatusSchema,
+  upsertGoogleEventMarkerSchema,
 } from '@/lib/validations/session-booking'
 import { notifyClientOfCoachMessage } from '@/lib/notifications/notify-client-coach-message'
 import type { CoachingAppointment } from '@/lib/session-booking-types'
@@ -2436,6 +2438,63 @@ export async function updateClientWeeklySessionDefault(
   return { success: true }
 }
 
+export async function upsertGoogleEventMarker(
+  values: import('@/lib/validations/session-booking').UpsertGoogleEventMarkerValues
+): Promise<ActionResult> {
+  const parsed = upsertGoogleEventMarkerSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid Google event marker.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { error } = await ctx.supabase.from('coach_google_event_markers').upsert(
+    {
+      coach_id: ctx.user.id,
+      google_event_id: parsed.data.googleEventId,
+      status: parsed.data.status,
+    },
+    { onConflict: 'coach_id,google_event_id' }
+  )
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/scheduling')
+  return { success: true }
+}
+
+export async function clearGoogleEventMarker(
+  values: import('@/lib/validations/session-booking').ClearGoogleEventMarkerValues
+): Promise<ActionResult> {
+  const parsed = clearGoogleEventMarkerSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid Google event marker.' }
+  }
+
+  const ctx = await requireCoach()
+  if (!ctx) {
+    return { success: false, error: 'You must be signed in.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('coach_google_event_markers')
+    .delete()
+    .eq('coach_id', ctx.user.id)
+    .eq('google_event_id', parsed.data.googleEventId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/scheduling')
+  return { success: true }
+}
+
 export async function fetchSchedulingWeekData(
   weekStartKey: string
 ): Promise<SchedulingWeekDataResult> {
@@ -2464,7 +2523,7 @@ export async function fetchSchedulingWeekData(
     ctx.user.id
   )
 
-  const [appointments, googleBlockedTimes, settings, { data: clients }] =
+  const [appointments, rawGoogleBlockedTimes, settings, { data: clients }] =
     await Promise.all([
       fetchCoachingAppointments(ctx.supabase, ctx.user.id, startIso, endIso),
       connection
@@ -2478,6 +2537,12 @@ export async function fetchSchedulingWeekData(
         .eq('status', 'active')
         .order('full_name'),
     ])
+
+  const googleBlockedTimes = await attachGoogleEventMarkers(
+    ctx.supabase,
+    ctx.user.id,
+    rawGoogleBlockedTimes
+  )
 
   const resolvedWeekStartKey = weekKeys[0]!
   const weekOverrides = settings.weekly_session_targets_enabled
