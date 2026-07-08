@@ -144,6 +144,10 @@ export type CoachingSessionType =
 export type CoachAvailabilityExceptionType = 'blocked' | 'extra_hours'
 export type CoachTaskPriority = 'low' | 'normal' | 'high'
 export type CoachTaskStatus = 'pending' | 'completed'
+export type CoachGoogleEventMarkerStatus =
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
 export type OnboardingDocumentType = 'par_q' | 'liability' | 'other'
 export type OnboardingDeliveryMethod = 'email' | 'in_person'
 export type DocumentSigningStatus = 'pending' | 'signed'
@@ -3673,6 +3677,33 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_google_event_markers: {
+        Row: {
+          id: string
+          coach_id: string
+          google_event_id: string
+          status: CoachGoogleEventMarkerStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          google_event_id: string
+          status: CoachGoogleEventMarkerStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          google_event_id?: string
+          status?: CoachGoogleEventMarkerStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coach_google_calendar_connections: {
         Row: {
           id: string
@@ -4148,6 +4179,7 @@ export type Database = {
       }
     }
     Enums: {
+      coach_google_event_marker_status: CoachGoogleEventMarkerStatus
       client_coaching_type: ClientCoachingType
       client_status: ClientStatus
       user_role: UserRole
