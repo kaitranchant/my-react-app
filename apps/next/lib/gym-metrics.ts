@@ -19,6 +19,9 @@ import {
   getWeekRange,
 } from '@/lib/coach-preferences'
 import type { createClient } from '@/lib/supabase/server'
+import {
+  fetchGymMemberCoachClients,
+} from '@/lib/gym-coach-client'
 import type { GymMemberWithProfile } from 'app/types/database'
 
 export type GymCoachMetrics = {
@@ -52,6 +55,7 @@ export type GymClientListItem = {
   attendanceRate: number | null
   sessionCompletion: { completed: number; planned: number } | null
   issueCount: number
+  isGymCoachMember?: boolean
 }
 
 export type GymOwnerDashboard = {
@@ -75,6 +79,7 @@ type GymClientMetricsContext = {
     string,
     { monthAttended: number; monthTotal: number }
   >
+  coachSelfClientIds: Set<string>
 }
 
 async function fetchGymClientMetricsContext(
@@ -83,6 +88,7 @@ async function fetchGymClientMetricsContext(
     gymId: string
     coachId: string
     coachGymIds: Set<string>
+    members: GymMemberWithProfile[]
     coachPreferences?: typeof defaultCoachPreferences
   }
 ): Promise<GymClientMetricsContext> {
@@ -104,11 +110,17 @@ async function fetchGymClientMetricsContext(
     preferences.defaultCheckInFrequency
   )
 
-  const clients = await fetchAttendanceClients(supabase, {
+  const sharedClients = await fetchAttendanceClients(supabase, {
     scope: { kind: 'gym', gymId: options.gymId },
     coachGymIds: options.coachGymIds,
     userId: options.coachId,
   })
+
+  const { clients, coachSelfClientIds } = await fetchGymMemberCoachClients(
+    supabase,
+    options.members,
+    sharedClients
+  )
 
   if (clients.length === 0) {
     return {
@@ -116,6 +128,7 @@ async function fetchGymClientMetricsContext(
       clientCoachRows: [],
       complianceByClientId: new Map(),
       attendanceStatsByClientId: new Map(),
+      coachSelfClientIds: new Set(),
     }
   }
 
@@ -164,6 +177,7 @@ async function fetchGymClientMetricsContext(
     clientCoachRows,
     complianceByClientId,
     attendanceStatsByClientId,
+    coachSelfClientIds,
   }
 }
 
@@ -188,7 +202,8 @@ export async function fetchGymSharedClientList(
     context.clientCoachRows,
     options.members,
     context.complianceByClientId,
-    context.attendanceStatsByClientId
+    context.attendanceStatsByClientId,
+    context.coachSelfClientIds
   )
 }
 
@@ -408,6 +423,7 @@ export async function fetchGymOwnerDashboard(
     clientCoachRows,
     complianceByClientId,
     attendanceStatsByClientId: fullAttendanceStatsByClientId,
+    coachSelfClientIds,
   } = await fetchGymClientMetricsContext(supabase, options)
 
   if (clients.length === 0) {
@@ -470,7 +486,8 @@ export async function fetchGymOwnerDashboard(
       clientCoachRows,
       options.members,
       complianceByClientId,
-      fullAttendanceStatsByClientId
+      fullAttendanceStatsByClientId,
+      coachSelfClientIds
     ),
     selectedCoachId: options.filterCoachId ?? null,
   }
@@ -504,7 +521,8 @@ export function buildGymClientList(
   attendanceStatsByClientId: Map<
     string,
     { monthAttended: number; monthTotal: number }
-  >
+  >,
+  coachSelfClientIds: Set<string> = new Set()
 ): GymClientListItem[] {
   const coachIdByClientId = new Map(
     clientCoachRows.map((row) => [row.id, row.coach_id])
@@ -537,6 +555,7 @@ export function buildGymClientList(
         attendanceRate,
         sessionCompletion: compliance?.sessionCompliance ?? null,
         issueCount: compliance?.issueCount ?? 0,
+        isGymCoachMember: coachSelfClientIds.has(client.id),
       }
     })
     .sort((left, right) => left.clientName.localeCompare(right.clientName))

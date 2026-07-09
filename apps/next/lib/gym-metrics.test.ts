@@ -311,6 +311,39 @@ describe('buildGymClientList', () => {
     assert.equal(rows[1]?.attendanceRate, 75)
     assert.equal(rows[1]?.issueCount, 2)
   })
+
+  it('marks gym member coach self clients', () => {
+    const rows = buildGymClientList(
+      [
+        ...clients,
+        {
+          id: 'coach-self-a',
+          full_name: 'Alice',
+          avatar_url: null,
+          status: 'active' as const,
+          coaching_type: null,
+          gym_id: 'gym-1',
+          memberships: [],
+        },
+      ],
+      [
+        { id: 'client-1', coach_id: 'coach-a' },
+        { id: 'client-2', coach_id: 'coach-b' },
+        { id: 'coach-self-a', coach_id: 'coach-a' },
+      ],
+      members,
+      new Map(),
+      new Map(),
+      new Set(['coach-self-a'])
+    )
+
+    const coachRow = rows.find((row) => row.clientId === 'coach-self-a')
+    assert.equal(coachRow?.isGymCoachMember, true)
+    assert.equal(
+      rows.find((row) => row.clientId === 'client-1')?.isGymCoachMember,
+      false
+    )
+  })
 })
 
 describe('filterGymDashboardByCoach', () => {

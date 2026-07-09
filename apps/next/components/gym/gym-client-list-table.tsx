@@ -45,11 +45,16 @@ export function GymClientListTable({
         {clients.map((client) => (
           <TableRow key={client.clientId}>
             <TableCell>
-              <PersonRow
-                name={client.clientName}
-                avatarUrl={client.avatarUrl}
-                href={`/clients/${client.clientId}`}
-              />
+              <div className="flex items-center gap-2">
+                <PersonRow
+                  name={client.clientName}
+                  avatarUrl={client.avatarUrl}
+                  href={`/clients/${client.clientId}`}
+                />
+                {client.isGymCoachMember ? (
+                  <Badge variant="secondary">Coach</Badge>
+                ) : null}
+              </div>
             </TableCell>
             {showCoachColumn ? (
               <TableCell className="text-muted-foreground">

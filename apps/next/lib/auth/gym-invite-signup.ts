@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 
 import { formatGymInviteLinkError } from '@/lib/auth/errors'
+import { ensureGymCoachPortalMembershipAsAdmin } from '@/lib/gym-coach-client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const INVITE_TOKEN_PATTERN =
@@ -66,7 +67,10 @@ export async function linkGymInviteAsAdmin(input: {
 
   await clearPendingGymInviteMetadata(input.userId)
 
-  return { ok: true, gymId: data as string }
+  const gymId = data as string
+  await ensureGymCoachPortalMembershipAsAdmin(input.userId, gymId)
+
+  return { ok: true, gymId }
 }
 
 export async function ensureGymInviteLinked(user: User): Promise<boolean> {

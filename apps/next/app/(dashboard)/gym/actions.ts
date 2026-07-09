@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { formatGymInviteLinkError } from '@/lib/auth/errors'
+import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { getAppBaseUrl } from '@/lib/email/config'
 import {
@@ -357,8 +358,11 @@ export async function acceptGymInvite(
     return { success: false, error: formatGymInviteLinkError(error.message) }
   }
 
+  const gymId = data as string
+  await ensureGymCoachPortalMembership(supabase, gymId)
+
   revalidateGym()
-  return { success: true, gymId: data as string }
+  return { success: true, gymId }
 }
 
 export async function getGymInviteLink(

@@ -36,8 +36,6 @@ import {
 
   Watch,
 
-  Dumbbell,
-
   type LucideIcon,
 
 } from 'lucide-react'
@@ -131,8 +129,6 @@ export const navGroups: NavGroup[] = [
     items: [
 
       { label: 'Library', href: '/library', icon: LibraryBig },
-
-      { label: 'My Training', href: '/my-workouts', icon: Dumbbell },
 
       {
         label: 'Prog. Overload',
