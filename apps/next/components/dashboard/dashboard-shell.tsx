@@ -69,13 +69,13 @@ export function DashboardShell({
             <div className="shrink-0 md:hidden">
               <BrandLogo />
             </div>
+            <div className="hidden md:block">
+              <GlobalSearch />
+            </div>
             <AppSurfaceSwitcher
               activeSurface={surfaceContext.activeSurface}
               showSwitcher={surfaceContext.showSwitcher}
             />
-          </div>
-          <div className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-4">
-            <GlobalSearch />
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <CoachNotificationCenter items={notifications} />
