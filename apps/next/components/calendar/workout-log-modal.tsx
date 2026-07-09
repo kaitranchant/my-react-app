@@ -1339,7 +1339,6 @@ function WorkoutLogExercise({
         onOpenChange={setNotesOpen}
         exerciseName={exercise.exercise.name}
         exerciseRowId={exercise.id}
-        libraryExerciseId={exercise.exercise_id}
         clientId={clientId}
         workoutId={workoutId}
         variant={variant}

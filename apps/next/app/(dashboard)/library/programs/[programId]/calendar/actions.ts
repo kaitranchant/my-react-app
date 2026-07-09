@@ -565,6 +565,7 @@ async function fetchProgramWorkoutWithExercises(
     exercises = exerciseRows.map((row) => ({
       ...row,
       scheduled_workout_id: row.program_scheduled_workout_id,
+      coach_session_notes: null,
       client_notes: null,
       perceived_rpe: null,
     }))
@@ -596,6 +597,7 @@ async function fetchProgramWorkoutWithExercises(
           return {
             ...row,
             scheduled_workout_id: row.program_scheduled_workout_id,
+            coach_session_notes: null,
             client_notes: null,
             perceived_rpe: null,
             exercise,
