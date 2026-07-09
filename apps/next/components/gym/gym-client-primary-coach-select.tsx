@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { assignGymClientPrimaryCoach } from '@/app/(dashboard)/gym/actions'
 import { ClientAvatar } from '@/components/clients/client-avatar'
+import type { GymCoachOption } from '@/lib/gym-coach-options'
 import {
   Select,
   SelectContent,
@@ -13,26 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { GymMemberWithProfile } from 'app/types/database'
-
-export type GymCoachOption = {
-  coachId: string
-  coachName: string
-  avatarUrl: string | null
-}
-
-export function gymMembersToCoachOptions(
-  members: GymMemberWithProfile[]
-): GymCoachOption[] {
-  return members.map((member) => ({
-    coachId: member.coach_id,
-    coachName:
-      member.profile?.full_name?.trim() ||
-      member.profile?.business_name?.trim() ||
-      'Coach',
-    avatarUrl: member.profile?.avatar_url ?? null,
-  }))
-}
 
 type GymClientPrimaryCoachCellProps = {
   gymId?: string
@@ -56,7 +37,14 @@ export function GymClientPrimaryCoachCell({
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
 
-  if (!canAssign || !gymId || !clientId || coaches.length <= 1) {
+  if (
+    !canAssign ||
+    !gymId ||
+    !clientId ||
+    coaches.length <= 1 ||
+    !coachId ||
+    !coaches.some((coach) => coach.coachId === coachId)
+  ) {
     return (
       <div className="flex items-center gap-2">
         <ClientAvatar

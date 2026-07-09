@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { PersonRow } from '@/components/ui/person-row'
 import { GymClientPrimaryCoachCell } from '@/components/gym/gym-client-primary-coach-select'
-import type { GymCoachOption } from '@/components/gym/gym-client-primary-coach-select'
+import type { GymCoachOption } from '@/lib/gym-coach-options'
 import {
   Table,
   TableBody,
