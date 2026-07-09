@@ -1,13 +1,15 @@
 import { Suspense } from 'react'
 import { Building2 } from 'lucide-react'
 
-import {
-  FilterPillsSkeleton,
-  ScopeTabsSkeleton,
-} from '@/components/dashboard/async-fallback-skeletons'
+import { FilterPillsSkeleton } from '@/components/dashboard/async-fallback-skeletons'
 
 import { createClient } from '@/lib/supabase/server'
-import { getGymContextForCoach, getGymsForCoach, getCoachGymAccessMode, isGymInvitedOnlyCoach } from '@/lib/gym-access'
+import {
+  getGymContextForCoach,
+  getGymsForCoach,
+  getCoachGymAccessMode,
+  isGymInvitedOnlyCoach,
+} from '@/lib/gym-access'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
 import { fetchGymOwnerDashboard } from '@/lib/gym-metrics'
@@ -22,18 +24,12 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { CreateGymButton, GymFormDialog } from '@/components/gym/gym-form-dialog'
 import { InviteCoachDialog } from '@/components/gym/invite-coach-dialog'
 import { GymManagePanel } from '@/components/gym/gym-manage-panel'
-import { GymScopeTabs } from '@/components/gym/gym-scope-tabs'
 import { GymPageTabs } from '@/components/gym/gym-page-tabs'
-import { GymScopeBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
-import {
-  ClearPageFilters,
-  PageFilterPersistence,
-} from '@/components/filters/page-filter-persistence'
 import { Button } from '@/components/ui/button'
 import type { GymMemberWithProfile } from 'app/types/database'
 
 export const metadata = {
-  title: 'Gyms — Coaching App',
+  title: 'Gym — Coaching App',
 }
 
 function GymManageSkeleton() {
@@ -67,7 +63,7 @@ export default async function GymPage({
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <PageHeader
-          title="Gyms"
+          title="Gym"
           description="Create a gym to invite other coaches and add clients as members."
         />
         <Card>
@@ -97,7 +93,6 @@ export default async function GymPage({
 
   const { gym, membership } = gymContext
   const isOwner = membership.role === 'owner'
-  const gymInvitedOnly = isGymInvitedOnlyCoach(await getCoachGymAccessMode(user.id))
   const coachGymIds = new Set(coachGyms.map((item) => item.id))
   const coachPreferences = await getCoachPreferencesForUser(user.id)
 
@@ -150,14 +145,13 @@ export default async function GymPage({
       className={`mx-auto flex flex-col gap-8 ${isOwner ? 'max-w-7xl' : 'max-w-4xl'}`}
     >
       <PageHeader
-        title="Gyms"
+        title="Gym"
         description={
           isOwner
             ? 'Monitor gym performance and manage coaches, clients, and teams.'
             : 'Manage gym members and invite coaches to collaborate on client programs.'
         }
       >
-        {gymInvitedOnly ? null : <CreateGymButton />}
         {isOwner ? (
           <>
             <GymFormDialog
@@ -168,21 +162,6 @@ export default async function GymPage({
           </>
         ) : null}
       </PageHeader>
-
-      {coachGyms.length > 1 ? (
-        <Suspense fallback={<ScopeTabsSkeleton />}>
-          <PageFilterPersistence pageKey="gym" filterKeys={['gym']} />
-          <GymScopeBreadcrumbs
-            gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
-          />
-          <div className="space-y-3">
-            <GymScopeTabs
-              gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
-            />
-            <ClearPageFilters pageKey="gym" filterKeys={['gym']} />
-          </div>
-        </Suspense>
-      ) : null}
 
       {isOwner && ownerDashboard ? (
         <Suspense fallback={<FilterPillsSkeleton count={3} />}>

@@ -9,7 +9,7 @@ import {
   login,
 } from './fixtures'
 
-test.describe('Gyms', () => {
+test.describe('Gym', () => {
   test('owner can create gym, share a client, and invite a coach who gains access', async ({
     browser,
     coachPage: page,

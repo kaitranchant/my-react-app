@@ -17,6 +17,14 @@ export async function requireUser() {
   return { supabase, user }
 }
 
+export const ONE_GYM_MEMBERSHIP_MESSAGE =
+  'You can only belong to one gym. Leave or delete your current gym before joining another.'
+
+export async function coachHasActiveGymMembership(userId: string): Promise<boolean> {
+  const gyms = await getGymsForCoach(userId)
+  return gyms.length > 0
+}
+
 export async function getGymsForCoach(userId: string): Promise<Gym[]> {
   const supabase = await createClient()
   const { data, error } = await supabase

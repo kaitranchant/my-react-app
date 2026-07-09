@@ -125,6 +125,13 @@ export function formatGymInviteLinkError(message: string): string {
     return 'You are already a member of this gym.'
   }
 
+  if (
+    message.includes('only belong to one gym') ||
+    message.includes('gym_members_one_active_gym_per_coach_idx')
+  ) {
+    return 'You can only belong to one gym. Leave or delete your current gym before joining another.'
+  }
+
   return message
 }
 

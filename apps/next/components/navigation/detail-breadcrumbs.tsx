@@ -109,7 +109,7 @@ export function GymScopeBreadcrumbs({ gyms }: GymScopeBreadcrumbsProps) {
   return (
     <Breadcrumbs
       items={[
-        { label: 'Gyms', href: '/gym' },
+        { label: 'Gym', href: '/gym' },
         { label: selectedGym.name },
       ]}
     />
@@ -124,7 +124,7 @@ export function GymJoinBreadcrumbs({ gymName }: GymJoinBreadcrumbsProps) {
   return (
     <Breadcrumbs
       items={[
-        { label: 'Gyms', href: '/gym' },
+        { label: 'Gym', href: '/gym' },
         { label: gymName ? `Join ${gymName}` : 'Join' },
       ]}
     />

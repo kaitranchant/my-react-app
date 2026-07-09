@@ -7,6 +7,7 @@ import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
 import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { getAppBaseUrl } from '@/lib/email/config'
 import {
+  coachHasActiveGymMembership,
   getGymMembershipForCoach,
   requireUser,
 } from '@/lib/gym-access'
@@ -76,6 +77,14 @@ export async function createGymRecord(
   }
 
   const { supabase, user } = await requireUser()
+
+  if (await coachHasActiveGymMembership(user.id)) {
+    return {
+      success: false,
+      error:
+        'You can only belong to one gym. Delete your current gym before creating another.',
+    }
+  }
 
   const subscriptionContext = await getCoachSubscriptionContext(supabase, user.id)
   const gymAccess = assertCanCreateGym(subscriptionContext)
