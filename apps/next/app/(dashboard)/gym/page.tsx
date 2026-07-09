@@ -9,7 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { getGymContextForCoach, getGymsForCoach } from '@/lib/gym-access'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import { fetchGymOwnerDashboard, parseGymCoachFilter } from '@/lib/gym-metrics'
+import { fetchGymOwnerDashboard } from '@/lib/gym-metrics'
 import {
   Card,
   CardContent,
@@ -20,11 +20,7 @@ import {
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CreateGymButton, GymFormDialog } from '@/components/gym/gym-form-dialog'
 import { InviteCoachDialog } from '@/components/gym/invite-coach-dialog'
-import { GymMembersPanel } from '@/components/gym/gym-members-panel'
-import { GymInvitesPanel } from '@/components/gym/gym-invites-panel'
-import { GymDangerZone } from '@/components/gym/gym-danger-zone'
-import { AddClientsButton } from '@/components/gym/client-gym-share-toggle'
-import { AddTeamsButton } from '@/components/gym/team-gym-share-toggle'
+import { GymManagePanel } from '@/components/gym/gym-manage-panel'
 import { GymScopeTabs } from '@/components/gym/gym-scope-tabs'
 import { GymPageTabs } from '@/components/gym/gym-page-tabs'
 import { GymScopeBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
@@ -33,18 +29,28 @@ import {
   PageFilterPersistence,
 } from '@/components/filters/page-filter-persistence'
 import { Button } from '@/components/ui/button'
-import type { GymInvite, GymMemberWithProfile } from 'app/types/database'
+import type { GymMemberWithProfile } from 'app/types/database'
 
 export const metadata = {
   title: 'Gym — Coaching App',
 }
 
+function GymManageSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div className="bg-muted/40 h-48 animate-pulse rounded-xl border" />
+      <div className="bg-muted/40 h-40 animate-pulse rounded-xl border" />
+      <div className="bg-muted/40 h-32 animate-pulse rounded-xl border" />
+    </div>
+  )
+}
+
 export default async function GymPage({
   searchParams,
 }: {
-  searchParams: Promise<{ gym?: string; tab?: string; coach?: string }>
+  searchParams: Promise<{ gym?: string }>
 }) {
-  const { gym: gymParam, coach: coachParam } = await searchParams
+  const { gym: gymParam } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -93,40 +99,14 @@ export default async function GymPage({
   const coachGymIds = new Set(coachGyms.map((item) => item.id))
   const coachPreferences = await getCoachPreferencesForUser(user.id)
 
-  const [
-    { data: memberRows },
-    { data: inviteRows },
-    { data: clientRows },
-    { data: teamRows },
-  ] = await Promise.all([
-    supabase
-      .from('gym_members')
-      .select(
-        '*, profile:profiles(id, full_name, avatar_url, business_name)'
-      )
-      .eq('gym_id', gym.id)
-      .eq('status', 'active')
-      .order('joined_at', { ascending: true }),
-    isOwner
-      ? supabase
-          .from('gym_invites')
-          .select('*')
-          .eq('gym_id', gym.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] as GymInvite[] }),
-    supabase
-      .from('clients')
-      .select('id, full_name, gym_id')
-      .eq('coach_id', user.id)
-      .eq('is_coach_self', false)
-      .order('full_name', { ascending: true }),
-    supabase
-      .from('teams')
-      .select('id, name, gym_id')
-      .eq('coach_id', user.id)
-      .order('name', { ascending: true }),
-  ])
+  const { data: memberRows } = await supabase
+    .from('gym_members')
+    .select(
+      '*, profile:profiles(id, full_name, avatar_url, business_name)'
+    )
+    .eq('gym_id', gym.id)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
 
   const members = (memberRows ?? []).map((row) => ({
     id: row.id,
@@ -145,93 +125,18 @@ export default async function GymPage({
         coachGymIds,
         members,
         coachPreferences,
-        filterCoachId: parseGymCoachFilter(
-          coachParam,
-          new Set(members.map((member) => member.coach_id))
-        ),
       })
     : null
 
   const manageContent = (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>{gym.name}</CardTitle>
-          <CardDescription>
-            {members.length} coach{members.length === 1 ? '' : 'es'} in this gym
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 pb-2">
-          <GymMembersPanel
-            gymId={gym.id}
-            members={members}
-            currentUserId={user.id}
-            isOwner={isOwner}
-          />
-        </CardContent>
-      </Card>
-
-      {isOwner ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending invites</CardTitle>
-            <CardDescription>
-              Invited coaches can sign up or join with the invite link.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GymInvitesPanel
-              gymId={gym.id}
-              invites={(inviteRows ?? []) as GymInvite[]}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Client membership</CardTitle>
-          <CardDescription>
-            Choose specific clients to add, or add all of your clients at once.
-            You can also add clients individually from each client profile.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AddClientsButton
-            gymId={gym.id}
-            gymName={gym.name}
-            clients={(clientRows ?? []).map((client) => ({
-              id: client.id,
-              full_name: client.full_name,
-              gym_id: client.gym_id,
-            }))}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Team membership</CardTitle>
-          <CardDescription>
-            Choose specific teams to add, or add all of your teams at once.
-            You can also add teams individually from each team page.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AddTeamsButton
-            gymId={gym.id}
-            gymName={gym.name}
-            teams={(teamRows ?? []).map((team) => ({
-              id: team.id,
-              name: team.name,
-              gym_id: team.gym_id,
-            }))}
-          />
-        </CardContent>
-      </Card>
-
-      <GymDangerZone gymId={gym.id} gymName={gym.name} isOwner={isOwner} />
-    </>
+    <Suspense fallback={<GymManageSkeleton />}>
+      <GymManagePanel
+        gym={gym}
+        userId={user.id}
+        isOwner={isOwner}
+        members={members}
+      />
+    </Suspense>
   )
 
   return (
@@ -260,7 +165,7 @@ export default async function GymPage({
 
       {coachGyms.length > 1 ? (
         <Suspense fallback={<ScopeTabsSkeleton />}>
-          <PageFilterPersistence pageKey="gym" filterKeys={['gym', 'tab', 'coach']} />
+          <PageFilterPersistence pageKey="gym" filterKeys={['gym']} />
           <GymScopeBreadcrumbs
             gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
           />
@@ -268,7 +173,7 @@ export default async function GymPage({
             <GymScopeTabs
               gyms={coachGyms.map((item) => ({ id: item.id, name: item.name }))}
             />
-            <ClearPageFilters pageKey="gym" filterKeys={['gym', 'tab', 'coach']} />
+            <ClearPageFilters pageKey="gym" filterKeys={['gym']} />
           </div>
         </Suspense>
       ) : null}

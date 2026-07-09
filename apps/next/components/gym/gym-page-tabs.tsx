@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { GymOverviewPanel } from '@/components/gym/gym-overview-panel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -9,13 +8,6 @@ import type { GymOwnerDashboard } from '@/lib/gym-metrics'
 
 const OWNER_TABS = ['overview', 'manage'] as const
 type OwnerTab = (typeof OWNER_TABS)[number]
-
-function resolveOwnerTab(tab: string | null | undefined): OwnerTab {
-  if (tab && OWNER_TABS.includes(tab as OwnerTab)) {
-    return tab as OwnerTab
-  }
-  return 'overview'
-}
 
 type GymPageTabsProps = {
   gymId: string
@@ -30,20 +22,15 @@ export function GymPageTabs({
   dashboard,
   manageContent,
 }: GymPageTabsProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const activeTab = resolveOwnerTab(searchParams.get('tab'))
+  const [activeTab, setActiveTab] = React.useState<OwnerTab>('overview')
+  const [hasOpenedManage, setHasOpenedManage] = React.useState(false)
 
   function handleTabChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value === 'overview') {
-      params.delete('tab')
-    } else {
-      params.set('tab', value)
+    const nextTab = value as OwnerTab
+    setActiveTab(nextTab)
+    if (nextTab === 'manage') {
+      setHasOpenedManage(true)
     }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   return (
@@ -61,8 +48,8 @@ export function GymPageTabs({
         />
       </TabsContent>
 
-      <TabsContent value="manage" className="mt-0 space-y-8">
-        {manageContent}
+      <TabsContent value="manage" className="mt-0">
+        {hasOpenedManage ? manageContent : null}
       </TabsContent>
     </Tabs>
   )

@@ -210,6 +210,36 @@ export function buildGymOwnerDashboard(
   }
 }
 
+export function filterGymDashboardByCoach(
+  dashboard: GymOwnerDashboard,
+  coachId: string | null
+): GymOwnerDashboard {
+  if (!coachId) {
+    return { ...dashboard, selectedCoachId: null }
+  }
+
+  const selectedCoach = dashboard.coaches.find(
+    (coach) => coach.coachId === coachId
+  )
+  if (!selectedCoach) {
+    return { ...dashboard, selectedCoachId: null }
+  }
+
+  return {
+    ...dashboard,
+    selectedCoachId: coachId,
+    summary: {
+      ...dashboard.summary,
+      totalActiveClients: selectedCoach.activeClients,
+      attendanceRate: selectedCoach.attendanceRate,
+      sessionCompletionRate: selectedCoach.sessionCompletionRate,
+      clientsNeedingAttention: selectedCoach.clientsNeedingAttention,
+      elevatedLoadClients: selectedCoach.elevatedLoadClients,
+      injuryFlagClients: selectedCoach.injuryFlagClients,
+    },
+  }
+}
+
 export async function fetchGymOwnerDashboard(
   supabase: Awaited<ReturnType<typeof createClient>>,
   options: {

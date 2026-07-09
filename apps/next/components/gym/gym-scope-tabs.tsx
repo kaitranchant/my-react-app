@@ -26,7 +26,7 @@ export function GymScopeTabs({ gyms }: { gyms: GymTab[] }) {
       params.set('gym', value)
     }
     const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   if (gyms.length <= 1) {

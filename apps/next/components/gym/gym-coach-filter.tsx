@@ -1,38 +1,21 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-
 import { FilterPills } from '@/components/ui/filter-pills'
 import type { GymCoachMetrics } from '@/lib/gym-metrics'
 
 type GymCoachFilterProps = {
   coaches: GymCoachMetrics[]
   selectedCoachId: string | null
+  onChange: (coachId: string | null) => void
 }
 
 export function GymCoachFilter({
   coaches,
   selectedCoachId,
+  onChange,
 }: GymCoachFilterProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-
   if (coaches.length <= 1) {
     return null
-  }
-
-  function handleChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-
-    if (value === 'all-coaches') {
-      params.delete('coach')
-    } else {
-      params.set('coach', value)
-    }
-
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   const options = [
@@ -48,7 +31,9 @@ export function GymCoachFilter({
     <FilterPills
       label="Filter by coach"
       value={selectedCoachId ?? 'all-coaches'}
-      onChange={handleChange}
+      onChange={(value) =>
+        onChange(value === 'all-coaches' ? null : value)
+      }
       options={options}
     />
   )

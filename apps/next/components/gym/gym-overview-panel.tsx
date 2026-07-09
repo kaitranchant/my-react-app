@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/table'
 import {
   formatGymMetricsCsv,
+  filterGymDashboardByCoach,
   type GymCoachMetrics,
   type GymOwnerDashboard,
 } from '@/lib/gym-metrics'
@@ -95,12 +96,19 @@ export function GymOverviewPanel({
   dashboard,
 }: GymOverviewPanelProps) {
   const [anonymize, setAnonymize] = React.useState(false)
-  const { summary, coaches, hasSharedClients, selectedCoachId } = dashboard
+  const [selectedCoachId, setSelectedCoachId] = React.useState<string | null>(
+    null
+  )
+  const filteredDashboard = React.useMemo(
+    () => filterGymDashboardByCoach(dashboard, selectedCoachId),
+    [dashboard, selectedCoachId]
+  )
+  const { summary, coaches, hasSharedClients } = filteredDashboard
   const selectedCoach = coaches.find((coach) => coach.coachId === selectedCoachId)
   const scopeQuery = `scope=${gymId}`
 
   function handleExportCsv() {
-    const csv = formatGymMetricsCsv(dashboard, { anonymize, gymName })
+    const csv = formatGymMetricsCsv(filteredDashboard, { anonymize, gymName })
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -156,7 +164,11 @@ export function GymOverviewPanel({
         </div>
       </div>
 
-      <GymCoachFilter coaches={coaches} selectedCoachId={selectedCoachId} />
+      <GymCoachFilter
+        coaches={coaches}
+        selectedCoachId={selectedCoachId}
+        onChange={setSelectedCoachId}
+      />
 
       {selectedCoach && summary.totalActiveClients === 0 ? (
         <EmptyState

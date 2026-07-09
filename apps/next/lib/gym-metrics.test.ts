@@ -8,6 +8,7 @@ import {
   buildGymOwnerDashboard,
   filterClientsByCoach,
   formatGymMetricsCsv,
+  filterGymDashboardByCoach,
   parseGymCoachFilter,
 } from './gym-metrics'
 import type { ComplianceClientRow } from './compliance'
@@ -214,6 +215,45 @@ describe('buildCoachMetricsRows', () => {
       elevatedLoadClients: 0,
       injuryFlagClients: 0,
     })
+  })
+})
+
+describe('filterGymDashboardByCoach', () => {
+  it('scopes summary metrics to the selected coach', () => {
+    const dashboard = {
+      ...buildGymOwnerDashboard([], [], [], [], new Map(), 'June 2026'),
+      hasSharedClients: true,
+      coaches: [
+        {
+          coachId: 'coach-a',
+          coachName: 'Alice',
+          activeClients: 3,
+          attendanceRate: 80,
+          sessionCompletionRate: 70,
+          clientsNeedingAttention: 1,
+          elevatedLoadClients: 0,
+          injuryFlagClients: 1,
+        },
+        {
+          coachId: 'coach-b',
+          coachName: 'Bob',
+          activeClients: 1,
+          attendanceRate: 50,
+          sessionCompletionRate: 40,
+          clientsNeedingAttention: 0,
+          elevatedLoadClients: 1,
+          injuryFlagClients: 0,
+        },
+      ],
+    }
+
+    const filtered = filterGymDashboardByCoach(dashboard, 'coach-b')
+
+    assert.equal(filtered.selectedCoachId, 'coach-b')
+    assert.equal(filtered.summary.totalActiveClients, 1)
+    assert.equal(filtered.summary.attendanceRate, 50)
+    assert.equal(filtered.summary.sessionCompletionRate, 40)
+    assert.equal(filtered.coaches.length, 2)
   })
 })
 
