@@ -22,6 +22,7 @@ const appRoot = path.resolve(scriptDir, '..')
 const dataDir = path.join(appRoot, 'data')
 const tmpDir = path.join(appRoot, '.tmp', 'usda')
 const jsonPath = path.join(dataDir, 'foods.json')
+const forceSync = process.env.FOOD_CATALOG_FORCE_SYNC === '1'
 
 const SR_LEGACY_ZIP_URL =
   'https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip'
@@ -64,17 +65,52 @@ const MACRO_NUTRIENT_IDS = {
   fiberG: '1079',
 }
 
-async function downloadFile(url, destination) {
+function readCachedFoodCatalog() {
+  if (!existsSync(jsonPath)) return null
+
+  try {
+    const catalog = JSON.parse(readFileSync(jsonPath, 'utf8'))
+    if (!Array.isArray(catalog) || catalog.length === 0) return null
+    return catalog
+  } catch {
+    return null
+  }
+}
+
+async function downloadFile(url, destination, { maxAttempts = 4 } = {}) {
   console.log(`Downloading ${url}…`)
   mkdirSync(path.dirname(destination), { recursive: true })
-  const response = await fetch(url)
-  if (!response.ok) {
+
+  let lastError
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(url)
+    if (response.ok) {
+      if (!response.body) {
+        throw new Error(`Empty response body for ${url}`)
+      }
+      await pipeline(response.body, createWriteStream(destination))
+      return
+    }
+
+    if (response.status === 429 || response.status >= 500) {
+      const retryAfterHeader = response.headers.get('retry-after')
+      const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN
+      const delayMs = Number.isFinite(retryAfterSeconds)
+        ? retryAfterSeconds * 1000
+        : Math.min(1000 * 2 ** (attempt - 1), 8000)
+
+      console.warn(
+        `Download failed (${response.status}) for ${url}, retrying in ${delayMs}ms (${attempt}/${maxAttempts})…`
+      )
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      lastError = new Error(`Failed to download ${url} (${response.status})`)
+      continue
+    }
+
     throw new Error(`Failed to download ${url} (${response.status})`)
   }
-  if (!response.body) {
-    throw new Error(`Empty response body for ${url}`)
-  }
-  await pipeline(response.body, createWriteStream(destination))
+
+  throw lastError ?? new Error(`Failed to download ${url}`)
 }
 
 function extractZip(zipPath, destinationDir) {
@@ -284,11 +320,31 @@ async function loadFoundationFoods() {
 }
 
 async function main() {
+  const cached = readCachedFoodCatalog()
+  if (!forceSync && cached) {
+    console.log(`Using cached foods.json (${cached.length} foods)`)
+    return
+  }
+
   if (existsSync(tmpDir)) {
     rmSync(tmpDir, { recursive: true, force: true })
   }
   mkdirSync(dataDir, { recursive: true })
 
+  try {
+    await syncFoodCatalog()
+  } catch (error) {
+    if (cached) {
+      console.warn(
+        `Could not refresh foods.json (${error.message}). Using cached copy (${cached.length} foods).`
+      )
+      return
+    }
+    throw error
+  }
+}
+
+async function syncFoodCatalog() {
   const byId = new Map()
 
   for (const record of await loadFoundationFoods()) {
