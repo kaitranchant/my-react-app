@@ -4,13 +4,9 @@ import * as React from 'react'
 import { toast } from 'sonner'
 
 import {
-  getExerciseHistory,
   updateScheduledExerciseCoachNotes,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
-import {
-  getPortalExerciseHistory,
-  updatePortalExerciseClientNotes,
-} from '@/app/portal/workout-log-actions'
+import { updatePortalExerciseClientNotes } from '@/app/portal/workout-log-actions'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,57 +18,21 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDayHeader } from '@/lib/calendar'
+import { formatCoachNotesForExerciseLog } from '@/lib/exercise-log-notes'
 import { exerciseLogNotesSchema } from '@/lib/validations/workout-log'
-import type { ExerciseHistorySession } from 'app/types/database'
 
 type ExerciseLogNotesDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   exerciseName: string
   exerciseRowId: string
-  libraryExerciseId: string
   clientId: string
   workoutId: string
   variant: 'coach' | 'client'
   coachNotes: string | null
+  coachSessionNotes: string | null
   clientNotes: string | null
   onSaved: (notes: string) => void
-}
-
-function PreviousSessionNotes({
-  session,
-  variant,
-}: {
-  session: ExerciseHistorySession
-  variant: 'coach' | 'client'
-}) {
-  const coachNotes = session.coachNotes?.trim()
-  const clientNotes = session.clientNotes?.trim()
-  if (!coachNotes && !clientNotes) return null
-
-  return (
-    <div className="space-y-3 rounded-lg border border-dashed px-3 py-3">
-      <p className="text-muted-foreground text-xs font-medium">
-        From {formatDayHeader(session.date)}
-        {session.workoutName ? ` · ${session.workoutName}` : ''}
-      </p>
-      {coachNotes ? (
-        <div className="space-y-1">
-          <Label className="text-muted-foreground text-xs">Coach notes</Label>
-          <p className="text-sm leading-snug whitespace-pre-wrap">{coachNotes}</p>
-        </div>
-      ) : null}
-      {clientNotes ? (
-        <div className="space-y-1">
-          <Label className="text-muted-foreground text-xs">
-            {variant === 'client' ? 'Your notes' : 'Client notes'}
-          </Label>
-          <p className="text-sm leading-snug whitespace-pre-wrap">{clientNotes}</p>
-        </div>
-      ) : null}
-    </div>
-  )
 }
 
 export function ExerciseLogNotesDialog({
@@ -80,71 +40,29 @@ export function ExerciseLogNotesDialog({
   onOpenChange,
   exerciseName,
   exerciseRowId,
-  libraryExerciseId,
   clientId,
   workoutId,
   variant,
   coachNotes,
+  coachSessionNotes,
   clientNotes,
   onSaved,
 }: ExerciseLogNotesDialogProps) {
   const [editableNotes, setEditableNotes] = React.useState('')
-  const [previousSession, setPreviousSession] =
-    React.useState<ExerciseHistorySession | null>(null)
   const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
     if (!open) return
     setEditableNotes(
       variant === 'coach'
-        ? (coachNotes?.trim() ?? '')
+        ? (coachSessionNotes?.trim() ?? '')
         : (clientNotes?.trim() ?? '')
     )
-  }, [open, variant, coachNotes, clientNotes])
-
-  React.useEffect(() => {
-    if (!open) {
-      setPreviousSession(null)
-      return
-    }
-
-    let cancelled = false
-
-    async function loadPreviousSession() {
-      const result =
-        variant === 'client'
-          ? await getPortalExerciseHistory(libraryExerciseId, {
-              excludeWorkoutId: workoutId,
-              limit: 1,
-            })
-          : await getExerciseHistory(clientId, libraryExerciseId, {
-              excludeWorkoutId: workoutId,
-              limit: 1,
-            })
-
-      if (cancelled || !result.success) return
-
-      const latest = result.sessions[0] ?? null
-      if (
-        latest &&
-        (latest.coachNotes?.trim() || latest.clientNotes?.trim())
-      ) {
-        setPreviousSession(latest)
-      } else {
-        setPreviousSession(null)
-      }
-    }
-
-    void loadPreviousSession()
-
-    return () => {
-      cancelled = true
-    }
-  }, [open, variant, libraryExerciseId, clientId, workoutId])
+  }, [open, variant, coachSessionNotes, clientNotes])
 
   function getPreviousNotes() {
     return variant === 'coach'
-      ? (coachNotes?.trim() ?? '')
+      ? (coachSessionNotes?.trim() ?? '')
       : (clientNotes?.trim() ?? '')
   }
 
@@ -207,8 +125,15 @@ export function ExerciseLogNotesDialog({
     })
   }
 
-  const otherPartyNotes =
-    variant === 'coach' ? clientNotes?.trim() : coachNotes?.trim()
+  const otherPartyCoachNotes =
+    variant === 'client'
+      ? formatCoachNotesForExerciseLog({
+          workout_notes: coachNotes,
+          coach_session_notes: coachSessionNotes,
+        })
+      : null
+  const otherPartyClientNotes =
+    variant === 'coach' ? clientNotes?.trim() : null
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange} modal={false}>
@@ -223,17 +148,20 @@ export function ExerciseLogNotesDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {previousSession ? (
-            <PreviousSessionNotes session={previousSession} variant={variant} />
+          {otherPartyCoachNotes ? (
+            <div className="space-y-2">
+              <Label>Coach notes</Label>
+              <p className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-sm leading-snug whitespace-pre-wrap">
+                {otherPartyCoachNotes}
+              </p>
+            </div>
           ) : null}
 
-          {otherPartyNotes ? (
+          {otherPartyClientNotes ? (
             <div className="space-y-2">
-              <Label>
-                {variant === 'coach' ? 'Client notes' : 'Coach notes'}
-              </Label>
+              <Label>Client notes</Label>
               <p className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-sm leading-snug whitespace-pre-wrap">
-                {otherPartyNotes}
+                {otherPartyClientNotes}
               </p>
             </div>
           ) : null}

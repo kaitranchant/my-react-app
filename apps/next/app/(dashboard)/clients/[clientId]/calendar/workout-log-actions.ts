@@ -426,7 +426,7 @@ export async function updateScheduledExerciseCoachNotes(
   const trimmed = parsed.data.notes
   const { error } = await supabase
     .from('scheduled_workout_exercises')
-    .update({ workout_notes: trimmed ? trimmed : null })
+    .update({ coach_session_notes: trimmed ? trimmed : null })
     .eq('id', exerciseRowId)
 
   if (error) {

@@ -24,6 +24,7 @@ function baseExercise(
     superset_group: null,
     exercise_block: null,
     workout_notes: null,
+    coach_session_notes: null,
     client_notes: null,
     rep_mode: 'reps',
     each_side: false,

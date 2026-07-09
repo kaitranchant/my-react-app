@@ -1872,6 +1872,7 @@ export type Database = {
           superset_group: string | null
           exercise_block: ScheduledExerciseBlock | null
           workout_notes: string | null
+          coach_session_notes: string | null
           client_notes: string | null
           rep_mode: ScheduledExerciseRepMode
           each_side: boolean
@@ -1896,6 +1897,7 @@ export type Database = {
           superset_group?: string | null
           exercise_block?: ScheduledExerciseBlock | null
           workout_notes?: string | null
+          coach_session_notes?: string | null
           client_notes?: string | null
           rep_mode?: ScheduledExerciseRepMode
           each_side?: boolean
@@ -1920,6 +1922,7 @@ export type Database = {
           superset_group?: string | null
           exercise_block?: ScheduledExerciseBlock | null
           workout_notes?: string | null
+          coach_session_notes?: string | null
           client_notes?: string | null
           rep_mode?: ScheduledExerciseRepMode
           each_side?: boolean

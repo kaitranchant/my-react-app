@@ -1,4 +1,5 @@
 import { calculateE1rm } from '@/lib/workout-log'
+import { mergeCoachNotesForHistory } from '@/lib/exercise-log-notes'
 import type { createClient } from '@/lib/supabase/server'
 import type {
   ClientScheduledWorkoutWithExercises,
@@ -183,6 +184,7 @@ type ExerciseHistoryRow = {
   scheduled_workout_exercises: {
     exercise_id: string
     workout_notes: string | null
+    coach_session_notes: string | null
     client_notes: string | null
   }
   client_scheduled_workouts: {
@@ -195,6 +197,7 @@ type ExerciseHistoryRow = {
 
 type ExerciseHistoryNotesRow = {
   workout_notes: string | null
+  coach_session_notes: string | null
   client_notes: string | null
   client_scheduled_workouts: {
     id: string
@@ -208,7 +211,7 @@ function createExerciseHistorySession(
   workout: ExerciseHistoryRow['client_scheduled_workouts'],
   notes?: Pick<
     ExerciseHistoryRow['scheduled_workout_exercises'],
-    'workout_notes' | 'client_notes'
+    'workout_notes' | 'coach_session_notes' | 'client_notes'
   >
 ): ExerciseHistorySession {
   const date = String(workout.scheduled_date ?? '').slice(0, 10)
@@ -218,7 +221,10 @@ function createExerciseHistorySession(
     workoutName: workout.name,
     sets: [],
     bestE1rm: null,
-    coachNotes: notes?.workout_notes?.trim() || null,
+    coachNotes: mergeCoachNotesForHistory(
+      notes?.workout_notes,
+      notes?.coach_session_notes
+    ),
     clientNotes: notes?.client_notes?.trim() || null,
   }
 }
@@ -242,7 +248,7 @@ export async function fetchExerciseHistory(
       distance_meters,
       completed,
       scheduled_workout_id,
-      scheduled_workout_exercises!inner (exercise_id, workout_notes, client_notes),
+      scheduled_workout_exercises!inner (exercise_id, workout_notes, coach_session_notes, client_notes),
       client_scheduled_workouts!inner (id, client_id, scheduled_date, name, status)
     `
     )
@@ -306,6 +312,7 @@ export async function fetchExerciseHistory(
     .select(
       `
       workout_notes,
+      coach_session_notes,
       client_notes,
       client_scheduled_workouts!inner (id, client_id, scheduled_date, name, status)
     `
@@ -313,7 +320,9 @@ export async function fetchExerciseHistory(
     .eq('exercise_id', libraryExerciseId)
     .eq('client_scheduled_workouts.client_id', clientId)
     .eq('client_scheduled_workouts.status', 'completed')
-    .or('workout_notes.not.is.null,client_notes.not.is.null')
+    .or(
+      'workout_notes.not.is.null,coach_session_notes.not.is.null,client_notes.not.is.null'
+    )
     .order('scheduled_date', {
       ascending: false,
       referencedTable: 'client_scheduled_workouts',

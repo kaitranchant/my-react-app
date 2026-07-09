@@ -124,6 +124,10 @@ import {
 } from '@/lib/exercise-media'
 import { formatExercisePrescriptionSummary, parseTrackingOptions } from '@/lib/scheduled-exercise'
 import {
+  formatCoachNotesForExerciseLog,
+  hasVisibleExerciseLogNotes,
+} from '@/lib/exercise-log-notes'
+import {
   applyExerciseSetChanges,
   appendSetDraft,
   buildSetDrafts,
@@ -569,9 +573,8 @@ function WorkoutLogExercise({
     fields.showDuration ||
     fields.showDistance
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
-  const hasExerciseNotes = Boolean(
-    exercise.workout_notes?.trim() || exercise.client_notes?.trim()
-  )
+  const hasExerciseNotes = hasVisibleExerciseLogNotes(exercise)
+  const coachNotesDisplay = formatCoachNotesForExerciseLog(exercise)
   const setGridTemplate = getWorkoutLogSetGridTemplate(fields, false)
 
   const activeSetNumber =
@@ -913,15 +916,15 @@ function WorkoutLogExercise({
             </div>
 
             <div>
-              {(exercise.workout_notes?.trim() || exercise.client_notes?.trim()) && (
+              {(coachNotesDisplay || exercise.client_notes?.trim()) && (
                 <div className="space-y-2">
-                  {exercise.workout_notes?.trim() && (
+                  {coachNotesDisplay && (
                     <div className="bg-muted/40 rounded-lg px-3 py-2">
                       <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
                         Coach notes
                       </p>
-                      <p className="text-sm leading-snug">
-                        {exercise.workout_notes.trim()}
+                      <p className="text-sm leading-snug whitespace-pre-wrap">
+                        {coachNotesDisplay}
                       </p>
                     </div>
                   )}
@@ -930,7 +933,7 @@ function WorkoutLogExercise({
                       <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
                         {variant === 'client' ? 'Your notes' : 'Client notes'}
                       </p>
-                      <p className="text-sm leading-snug">
+                      <p className="text-sm leading-snug whitespace-pre-wrap">
                         {exercise.client_notes.trim()}
                       </p>
                     </div>
@@ -1341,6 +1344,7 @@ function WorkoutLogExercise({
         workoutId={workoutId}
         variant={variant}
         coachNotes={exercise.workout_notes}
+        coachSessionNotes={exercise.coach_session_notes ?? null}
         clientNotes={exercise.client_notes ?? null}
         onSaved={onNotesChanged}
       />
@@ -2423,7 +2427,8 @@ export function WorkoutLogScreen({
 
   const handleExerciseNotesChanged = React.useCallback(
     (exerciseRowId: string, notes: string) => {
-      const notesField = variant === 'coach' ? 'workout_notes' : 'client_notes'
+      const notesField =
+        variant === 'coach' ? 'coach_session_notes' : 'client_notes'
       const trimmed = notes.trim()
       setData((current) => {
         if (!current) return current
