@@ -1,5 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { PersonRow } from '@/components/ui/person-row'
+import { GymClientPrimaryCoachCell } from '@/components/gym/gym-client-primary-coach-select'
+import type { GymCoachOption } from '@/components/gym/gym-client-primary-coach-select'
 import {
   Table,
   TableBody,
@@ -15,12 +17,18 @@ type GymClientListTableProps = {
   clients: GymClientListItem[]
   showCoachColumn?: boolean
   emptyMessage?: string
+  gymId?: string
+  coachOptions?: GymCoachOption[]
+  canAssignPrimaryCoach?: boolean
 }
 
 export function GymClientListTable({
   clients,
   showCoachColumn = true,
   emptyMessage = 'No shared clients yet. Coaches can add clients from the Manage tab or from each client profile.',
+  gymId,
+  coachOptions = [],
+  canAssignPrimaryCoach = false,
 }: GymClientListTableProps) {
   if (clients.length === 0) {
     return (
@@ -35,7 +43,7 @@ export function GymClientListTable({
       <TableHeader>
         <TableRow>
           <TableHead>Client</TableHead>
-          {showCoachColumn ? <TableHead>Coach</TableHead> : null}
+          {showCoachColumn ? <TableHead>Primary coach</TableHead> : null}
           <TableHead className="text-right">Attendance</TableHead>
           <TableHead className="text-right">Completion</TableHead>
           <TableHead className="text-right">Flags</TableHead>
@@ -57,8 +65,18 @@ export function GymClientListTable({
               </div>
             </TableCell>
             {showCoachColumn ? (
-              <TableCell className="text-muted-foreground">
-                {client.coachName}
+              <TableCell>
+                <GymClientPrimaryCoachCell
+                  gymId={gymId}
+                  clientId={client.clientId}
+                  coachId={client.coachId}
+                  coachName={client.coachName}
+                  coachAvatarUrl={client.coachAvatarUrl}
+                  coaches={coachOptions}
+                  canAssign={
+                    canAssignPrimaryCoach && !client.isGymCoachMember
+                  }
+                />
               </TableCell>
             ) : null}
             <TableCell className="text-right tabular-nums">

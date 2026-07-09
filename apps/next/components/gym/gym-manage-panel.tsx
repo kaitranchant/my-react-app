@@ -4,6 +4,7 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchGymSharedClientList } from '@/lib/gym-metrics'
 import { GymMembersPanel } from '@/components/gym/gym-members-panel'
 import { GymClientListTable } from '@/components/gym/gym-client-list-table'
+import { gymMembersToCoachOptions } from '@/components/gym/gym-client-primary-coach-select'
 import { GymInvitesPanel } from '@/components/gym/gym-invites-panel'
 import { GymDangerZone } from '@/components/gym/gym-danger-zone'
 import { AddClientsButton } from '@/components/gym/client-gym-share-toggle'
@@ -108,11 +109,17 @@ export async function GymManagePanel({
         <CardHeader className="border-b bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
           <CardTitle>Gym clients</CardTitle>
           <CardDescription>
-            Clients shared with this gym by member coaches
+            Clients shared with this gym. Assign a primary coach for each
+            client.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 pb-2">
-          <GymClientListTable clients={sharedClients} />
+          <GymClientListTable
+            clients={sharedClients}
+            gymId={gym.id}
+            coachOptions={gymMembersToCoachOptions(members)}
+            canAssignPrimaryCoach={isOwner}
+          />
         </CardContent>
       </Card>
 

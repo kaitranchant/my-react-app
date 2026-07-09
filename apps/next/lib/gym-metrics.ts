@@ -53,6 +53,7 @@ export type GymClientListItem = {
   avatarUrl: string | null
   coachId: string
   coachName: string
+  coachAvatarUrl: string | null
   attendanceRate: number | null
   sessionCompletion: { completed: number; planned: number } | null
   issueCount: number
@@ -538,6 +539,12 @@ export function buildGymClientList(
         'Coach',
     ])
   )
+  const coachAvatarById = new Map(
+    members.map((member) => [
+      member.coach_id,
+      member.profile?.avatar_url ?? null,
+    ])
+  )
 
   return clients
     .map((client) => {
@@ -555,6 +562,7 @@ export function buildGymClientList(
         avatarUrl: client.avatar_url,
         coachId,
         coachName: coachNameById.get(coachId) ?? 'Coach',
+        coachAvatarUrl: coachAvatarById.get(coachId) ?? null,
         attendanceRate,
         sessionCompletion: compliance?.sessionCompliance ?? null,
         issueCount: compliance?.issueCount ?? 0,

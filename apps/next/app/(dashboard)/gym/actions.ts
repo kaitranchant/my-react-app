@@ -403,3 +403,71 @@ export async function getGymInviteLink(
     inviteUrl: buildGymJoinUrl(invite.invite_token, origin),
   }
 }
+
+export async function assignGymClientPrimaryCoach(
+  gymId: string,
+  clientId: string,
+  newCoachId: string
+): Promise<ActionResult> {
+  const { supabase, gymContext, error } = await requireGymOwner(gymId)
+  if (error || !gymContext) {
+    return { success: false, error: error ?? 'Gym not found.' }
+  }
+
+  if (!clientId || !newCoachId) {
+    return { success: false, error: 'Invalid request.' }
+  }
+
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('id, coach_id, gym_id, is_coach_self')
+    .eq('id', clientId)
+    .maybeSingle()
+
+  if (clientError || !client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  if (client.is_coach_self) {
+    return { success: false, error: 'Coach profiles cannot be reassigned.' }
+  }
+
+  if (client.gym_id !== gymContext.gym.id) {
+    return {
+      success: false,
+      error: 'Client is not shared with this gym.',
+    }
+  }
+
+  if (client.coach_id === newCoachId) {
+    return { success: true }
+  }
+
+  const { data: member } = await supabase
+    .from('gym_members')
+    .select('id')
+    .eq('gym_id', gymContext.gym.id)
+    .eq('coach_id', newCoachId)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (!member) {
+    return {
+      success: false,
+      error: 'Selected coach is not an active member of this gym.',
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from('clients')
+    .update({ coach_id: newCoachId })
+    .eq('id', clientId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  revalidateGym()
+  revalidatePath(`/clients/${clientId}`)
+  return { success: true }
+}

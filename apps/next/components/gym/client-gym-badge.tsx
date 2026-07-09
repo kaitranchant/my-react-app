@@ -16,7 +16,7 @@ export function ClientGymBadge({
       </Badge>
       {!isOwnClient && primaryCoachName ? (
         <span className="text-muted-foreground text-xs">
-          {primaryCoachName}
+          Primary coach: {primaryCoachName}
         </span>
       ) : null}
     </div>
