@@ -111,7 +111,7 @@ async function resyncScheduledAppointmentsToGoogle(
 
   for (const appointment of appointments ?? []) {
     const synced = await syncCoachingAppointmentToGoogle(appointment.id)
-    if (synced) {
+    if (synced.ok) {
       resynced += 1
     }
   }

@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   buildExportedCoachingEventSummary,
+  appointmentInstantMatches,
   googleEventMatchesCoachingAppointment,
   shouldRemoveAppointmentAfterGoogleDeletion,
 } from '@/lib/google-calendar/coaching-google-matching'
@@ -20,6 +21,18 @@ test('buildExportedCoachingEventSummary uses session label and client name', () 
   assert.equal(
     buildExportedCoachingEventSummary('coaching', 'Alex Client'),
     'Coaching session — Alex Client'
+  )
+})
+
+test('appointmentInstantMatches treats equivalent instants with different offsets as equal', () => {
+  assert.equal(
+    appointmentInstantMatches(
+      '2026-07-10T15:00:00.000Z',
+      '2026-07-10T16:00:00.000Z',
+      '2026-07-10T11:00:00-04:00',
+      '2026-07-10T12:00:00-04:00'
+    ),
+    true
   )
 })
 

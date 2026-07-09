@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 import {
   createGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
@@ -146,15 +148,49 @@ async function withGoogleCalendarAccessToken<T>(
   }
 }
 
+export type CoachingAppointmentGoogleSyncResult = {
+  ok: boolean
+  googleEventId: string | null
+  googleCalendarUpdatedAt: string | null
+}
+
+const emptyGoogleSyncResult: CoachingAppointmentGoogleSyncResult = {
+  ok: true,
+  googleEventId: null,
+  googleCalendarUpdatedAt: null,
+}
+
+export async function applyGoogleCalendarLinkToAppointment(
+  supabase: SupabaseClient,
+  appointmentId: string,
+  link: { googleEventId: string; googleCalendarUpdatedAt: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from('coaching_appointments')
+    .update({
+      google_calendar_event_id: link.googleEventId,
+      google_calendar_updated_at: link.googleCalendarUpdatedAt,
+    })
+    .eq('id', appointmentId)
+
+  if (error) {
+    console.error('[google-calendar] coach persist event link failed', error)
+  }
+}
+
 export async function syncCoachingAppointmentToGoogle(
   appointmentId: string
-): Promise<boolean> {
+): Promise<CoachingAppointmentGoogleSyncResult> {
   try {
     const appointment = await fetchAppointmentForSync(appointmentId)
-    if (!appointment || appointment.status !== 'scheduled') return true
+    if (!appointment || appointment.status !== 'scheduled') {
+      return emptyGoogleSyncResult
+    }
 
     const connection = await getExportConnection(appointment.coach_id)
-    if (!connection) return true
+    if (!connection) {
+      return emptyGoogleSyncResult
+    }
 
     const payload = buildEventPayload(appointment)
 
@@ -183,7 +219,11 @@ export async function syncCoachingAppointmentToGoogle(
         await persistGoogleEventMetadata(appointment.id, {
           google_calendar_updated_at: result.updated,
         })
-        return true
+        return {
+          ok: true,
+          googleEventId: appointment.google_calendar_event_id,
+          googleCalendarUpdatedAt: result.updated,
+        }
       }
 
       await persistGoogleEventMetadata(appointment.id, {
@@ -200,10 +240,18 @@ export async function syncCoachingAppointmentToGoogle(
       google_calendar_event_id: result.id,
       google_calendar_updated_at: result.updated,
     })
-    return true
+    return {
+      ok: true,
+      googleEventId: result.id,
+      googleCalendarUpdatedAt: result.updated,
+    }
   } catch (error) {
     console.error('[google-calendar] sync appointment failed', error)
-    return false
+    return {
+      ok: false,
+      googleEventId: null,
+      googleCalendarUpdatedAt: null,
+    }
   }
 }
 

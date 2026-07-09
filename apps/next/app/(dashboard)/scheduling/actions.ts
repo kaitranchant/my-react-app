@@ -35,6 +35,7 @@ import {
 } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import {
+  applyGoogleCalendarLinkToAppointment,
   queueCoachingAppointmentGoogleRemoval,
   queueCoachingAppointmentGoogleSync,
   syncCoachingAppointmentToGoogle,
@@ -403,6 +404,19 @@ async function chargeSessionPackForAppointment(
   await incrementSessionPackUsage(supabase, packId)
 }
 
+async function syncNewAppointmentToGoogle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  appointmentId: string
+) {
+  const syncResult = await syncCoachingAppointmentToGoogle(appointmentId)
+  if (syncResult.googleEventId && syncResult.googleCalendarUpdatedAt) {
+    await applyGoogleCalendarLinkToAppointment(supabase, appointmentId, {
+      googleEventId: syncResult.googleEventId,
+      googleCalendarUpdatedAt: syncResult.googleCalendarUpdatedAt,
+    })
+  }
+}
+
 async function insertCoachingAppointment(
   supabase: Awaited<ReturnType<typeof createClient>>,
   values: {
@@ -667,7 +681,7 @@ async function bookWeeklyAppointmentOccurrences(options: {
 
     if (inserted?.id) {
       if (options.weekIndexes.length === 1) {
-        await syncCoachingAppointmentToGoogle(inserted.id)
+        await syncNewAppointmentToGoogle(insertSupabase, inserted.id)
       } else {
         queueCoachingAppointmentGoogleSync(inserted.id)
       }
@@ -1542,7 +1556,7 @@ async function bookCoachAppointmentOccurrences(options: {
 
     if (inserted?.id) {
       if (totalWeeks === 1) {
-        await syncCoachingAppointmentToGoogle(inserted.id)
+        await syncNewAppointmentToGoogle(validation.supabase, inserted.id)
       } else {
         queueCoachingAppointmentGoogleSync(inserted.id)
       }
@@ -2538,6 +2552,7 @@ export async function fetchSchedulingWeekData(
     await reconcileGoogleDeletedAppointmentsForCoach(ctx.user.id, {
       timeMin: startIso,
       timeMax: endIso,
+      supabase: ctx.supabase,
     })
   }
 

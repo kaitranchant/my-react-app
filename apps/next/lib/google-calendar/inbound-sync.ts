@@ -1,4 +1,5 @@
 import { revalidatePath } from 'next/cache'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 import {
   getGoogleCalendarEvent,
@@ -10,6 +11,8 @@ import {
 } from '@/lib/google-calendar/api'
 import {
   shouldRemoveAppointmentAfterGoogleDeletion,
+  isGoogleCoachingEventMissing,
+  appointmentInstantMatches,
   type AppointmentGoogleMatchInput,
 } from '@/lib/google-calendar/coaching-google-matching'
 import {
@@ -208,12 +211,10 @@ export async function validateInboundGoogleReschedule(input: {
 }
 
 async function removeAppointmentDeletedInGoogle(
+  db: SupabaseClient,
   appointmentId: string
 ): Promise<'applied' | 'skipped'> {
-  const admin = createAdminClient()
-  if (!admin) return 'skipped'
-
-  const { data, error } = await admin
+  const { data, error } = await db
     .from('coaching_appointments')
     .delete()
     .eq('id', appointmentId)
@@ -234,15 +235,31 @@ async function removeAppointmentDeletedInGoogle(
   return 'applied'
 }
 
+function padGoogleListRange(timeMin: string, timeMax: string) {
+  const minMs = Date.parse(timeMin)
+  const maxMs = Date.parse(timeMax)
+  const dayMs = 24 * 60 * 60 * 1000
+
+  return {
+    listTimeMin: new Date(minMs - dayMs).toISOString(),
+    listTimeMax: new Date(maxMs + dayMs).toISOString(),
+  }
+}
+
 export async function reconcileGoogleDeletedAppointmentsForCoach(
   coachId: string,
-  options?: { timeMin?: string; timeMax?: string }
+  options?: {
+    timeMin?: string
+    timeMax?: string
+    supabase?: SupabaseClient
+  }
 ): Promise<number> {
   const admin = createAdminClient()
-  if (!admin) return 0
+  const db = options?.supabase ?? admin
+  if (!db) return 0
 
-  const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
-  if (!connection?.sync_export_enabled) return 0
+  const connection = await fetchCoachGoogleCalendarConnection(db, coachId)
+  if (!connection) return 0
 
   let accessToken: string
   try {
@@ -259,7 +276,7 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     options?.timeMax ??
     new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: appointments, error: appointmentError } = await admin
+  let appointmentQuery = db
     .from('coaching_appointments')
     .select(
       `
@@ -274,7 +291,12 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     .eq('coach_id', coachId)
     .eq('status', 'scheduled')
     .gte('starts_at', timeMin)
-    .lte('starts_at', timeMax)
+
+  appointmentQuery = options?.timeMax
+    ? appointmentQuery.lt('starts_at', timeMax)
+    : appointmentQuery.lte('starts_at', timeMax)
+
+  const { data: appointments, error: appointmentError } = await appointmentQuery
 
   if (appointmentError) {
     console.error('[google-calendar] reconcile appointment lookup failed', appointmentError)
@@ -285,18 +307,19 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     return 0
   }
 
-  let googleEvents: GoogleCalendarEvent[]
+  const { listTimeMin, listTimeMax } = padGoogleListRange(timeMin, timeMax)
+
+  let googleEvents: GoogleCalendarEvent[] = []
   try {
     googleEvents = await listGoogleCalendarEventsInRange(
       accessToken,
       connection.calendar_id,
-      timeMin,
-      timeMax,
+      listTimeMin,
+      listTimeMax,
       { showDeleted: true }
     )
   } catch (error) {
     console.error('[google-calendar] reconcile event list failed', error)
-    return 0
   }
 
   let removed = 0
@@ -312,11 +335,35 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
       client: client ?? null,
     }
 
-    if (!shouldRemoveAppointmentAfterGoogleDeletion(appointment, googleEvents)) {
+    let shouldRemove = false
+
+    if (appointment.google_calendar_event_id) {
+      try {
+        const linkedEvent = await getGoogleCalendarEvent(
+          accessToken,
+          connection.calendar_id,
+          appointment.google_calendar_event_id
+        )
+        shouldRemove = isGoogleCoachingEventMissing(linkedEvent)
+      } catch (error) {
+        console.error(
+          '[google-calendar] linked event lookup failed',
+          appointment.google_calendar_event_id,
+          error
+        )
+      }
+    } else {
+      shouldRemove = shouldRemoveAppointmentAfterGoogleDeletion(
+        appointment,
+        googleEvents
+      )
+    }
+
+    if (!shouldRemove) {
       continue
     }
 
-    const result = await removeAppointmentDeletedInGoogle(appointment.id)
+    const result = await removeAppointmentDeletedInGoogle(db, appointment.id)
     if (result === 'applied') {
       removed += 1
     }
@@ -354,10 +401,11 @@ async function applyGoogleEventUpdate(
   connectionId: string,
   calendarId: string,
   appointment: LinkedAppointment,
-  event: GoogleCalendarEvent
+  event: GoogleCalendarEvent,
+  db: SupabaseClient
 ): Promise<'applied' | 'rejected' | 'skipped'> {
   if (event.status === 'cancelled') {
-    return removeAppointmentDeletedInGoogle(appointment.id)
+    return removeAppointmentDeletedInGoogle(db, appointment.id)
   }
 
   if (!shouldApplyGoogleChange(appointment, event.updated)) {
@@ -367,8 +415,12 @@ async function applyGoogleEventUpdate(
   const times = getGoogleCalendarEventTimes(event)
   if (!times) return 'skipped'
 
-  const timeChanged =
-    times.startsAt !== appointment.starts_at || times.endsAt !== appointment.ends_at
+  const timeChanged = !appointmentInstantMatches(
+    appointment.starts_at,
+    appointment.ends_at,
+    times.startsAt,
+    times.endsAt
+  )
 
   if (timeChanged) {
     const validation = await validateInboundGoogleReschedule({
@@ -385,10 +437,7 @@ async function applyGoogleEventUpdate(
     }
   }
 
-  const admin = createAdminClient()
-  if (!admin) return 'skipped'
-
-  await admin
+  await db
     .from('coaching_appointments')
     .update({
       starts_at: times.startsAt,
@@ -407,9 +456,9 @@ async function applyGoogleEventUpdate(
 
 async function applyGoogleEventDeletion(
   appointment: LinkedAppointment,
-  deletedEventUpdatedAt?: string
+  db: SupabaseClient
 ): Promise<'applied' | 'skipped'> {
-  return removeAppointmentDeletedInGoogle(appointment.id)
+  return removeAppointmentDeletedInGoogle(db, appointment.id)
 }
 
 export async function syncCoachCalendarFromGoogle(
@@ -417,6 +466,11 @@ export async function syncCoachCalendarFromGoogle(
 ): Promise<{ applied: number; rejected: number; skipped: number }> {
   const connection = await fetchCoachGoogleCalendarConnectionById(connectionId)
   if (!connection) {
+    return { applied: 0, rejected: 0, skipped: 0 }
+  }
+
+  const admin = createAdminClient()
+  if (!admin) {
     return { applied: 0, rejected: 0, skipped: 0 }
   }
 
@@ -443,7 +497,7 @@ export async function syncCoachCalendarFromGoogle(
     }
 
     if (event.status === 'cancelled') {
-      const result = await applyGoogleEventDeletion(appointment, event.updated)
+      const result = await applyGoogleEventDeletion(appointment, admin)
       if (result === 'applied') applied += 1
       else skipped += 1
       continue
@@ -453,7 +507,8 @@ export async function syncCoachCalendarFromGoogle(
       connection.id,
       connection.calendar_id,
       appointment,
-      event
+      event,
+      admin
     )
 
     if (result === 'applied') applied += 1
@@ -471,6 +526,7 @@ export async function syncCoachCalendarFromGoogle(
     {
       timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
       timeMax: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      supabase: admin,
     }
   )
 
@@ -506,7 +562,7 @@ export async function refreshLinkedGoogleEvent(
   )
 
   if (!event) {
-    await applyGoogleEventDeletion(appointment)
+    await applyGoogleEventDeletion(appointment, admin)
     return
   }
 
@@ -514,6 +570,7 @@ export async function refreshLinkedGoogleEvent(
     connection.id,
     connection.calendar_id,
     appointment,
-    event
+    event,
+    admin
   )
 }

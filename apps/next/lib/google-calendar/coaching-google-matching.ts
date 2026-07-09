@@ -27,6 +27,35 @@ export function buildExportedCoachingEventSummary(
   return `${sessionLabel} — ${name}`
 }
 
+export function appointmentInstantMatches(
+  leftStart: string,
+  leftEnd: string,
+  rightStart: string,
+  rightEnd: string
+): boolean {
+  const leftStartMs = Date.parse(leftStart)
+  const leftEndMs = Date.parse(leftEnd)
+  const rightStartMs = Date.parse(rightStart)
+  const rightEndMs = Date.parse(rightEnd)
+
+  if (
+    !Number.isFinite(leftStartMs) ||
+    !Number.isFinite(leftEndMs) ||
+    !Number.isFinite(rightStartMs) ||
+    !Number.isFinite(rightEndMs)
+  ) {
+    return false
+  }
+
+  return leftStartMs === rightStartMs && leftEndMs === rightEndMs
+}
+
+export function isGoogleCoachingEventMissing(
+  event: GoogleCalendarEvent | null | undefined
+): boolean {
+  return !event || event.status === 'cancelled'
+}
+
 export function googleEventMatchesCoachingAppointment(
   event: GoogleCalendarEvent,
   appointment: AppointmentGoogleMatchInput
@@ -47,8 +76,12 @@ export function googleEventMatchesCoachingAppointment(
   const times = getGoogleCalendarEventTimes(event)
   if (!times) return false
   if (
-    times.startsAt !== appointment.starts_at ||
-    times.endsAt !== appointment.ends_at
+    !appointmentInstantMatches(
+      appointment.starts_at,
+      appointment.ends_at,
+      times.startsAt,
+      times.endsAt
+    )
   ) {
     return false
   }
