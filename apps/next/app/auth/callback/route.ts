@@ -4,6 +4,7 @@ import {
   ensureClientInviteLinked,
 } from '@/lib/auth/client-invite-signup'
 import { ensureGymInviteLinked } from '@/lib/auth/gym-invite-signup'
+import { setActiveSurfaceCookie } from '@/lib/app-surface-server'
 import { createClient } from '@/lib/supabase/server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
@@ -31,9 +32,15 @@ export async function GET(request: Request) {
           .select('role')
           .eq('id', user.id)
           .maybeSingle()
-        destination = profile?.role === 'client' ? '/portal' : next
+
         if (profile?.role === 'client') {
+          destination = '/portal'
           void runOnboardingAutomationForUser(user.id)
+        } else if (next.startsWith('/portal')) {
+          await setActiveSurfaceCookie('client')
+          destination = next
+        } else {
+          destination = next
         }
       }
 

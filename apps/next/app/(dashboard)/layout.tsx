@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
 import { fetchCoachNotificationItems } from '@/lib/coach-notifications'
+import { getAppSurfaceContext } from '@/lib/app-surface-server'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function DashboardLayout({
@@ -29,6 +30,13 @@ export default async function DashboardLayout({
     redirect('/portal')
   }
 
+  const role = profile?.role ?? 'coach'
+  const surfaceContext = await getAppSurfaceContext({
+    supabase,
+    userId: user.id,
+    role,
+  })
+
   const name =
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
@@ -47,6 +55,7 @@ export default async function DashboardLayout({
       userId={user.id}
       navBadges={navBadges}
       notifications={notifications}
+      surfaceContext={surfaceContext}
     >
       {children}
     </DashboardShell>

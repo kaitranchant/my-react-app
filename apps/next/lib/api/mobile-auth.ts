@@ -56,20 +56,6 @@ export async function requirePortalClientForMobileUser(
     }
   | { ok: false; status: number; error: string }
 > {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (profile?.role !== 'client') {
-    return {
-      ok: false,
-      status: 403,
-      error: 'Only client accounts can sync Apple Health.',
-    }
-  }
-
   const { data: client, error } = await supabase
     .from('clients')
     .select('id, coach_id, full_name')

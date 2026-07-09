@@ -9,10 +9,12 @@ import { CoachNotificationCenter } from '@/components/dashboard/coach-notificati
 import { DashboardShortcuts } from '@/components/dashboard/dashboard-shortcuts'
 import { GlobalSearch } from '@/components/dashboard/global-search'
 import { RealtimePushListener } from '@/components/notifications/realtime-push-listener'
+import { AppSurfaceSwitcher } from '@/components/layout/app-surface-switcher'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { UserMenu } from '@/components/dashboard/user-menu'
 import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
 import { MobileKeyboardShell } from '@/components/mobile-keyboard/mobile-keyboard-shell'
+import type { AppSurfaceContext } from '@/lib/app-surface-server'
 import type { CoachNavBadges } from '@/lib/dashboard-queries'
 import type { CoachNotificationItem } from '@/lib/coach-notifications'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,7 @@ type DashboardShellProps = {
   userId: string
   navBadges: CoachNavBadges
   notifications: CoachNotificationItem[]
+  surfaceContext: AppSurfaceContext
 }
 
 export function DashboardShell({
@@ -38,6 +41,7 @@ export function DashboardShell({
   userId,
   navBadges,
   notifications,
+  surfaceContext,
 }: DashboardShellProps) {
   const pathname = usePathname()
   const immersiveLog = COACH_IMMERSIVE_LOG_ROUTE.test(pathname)
@@ -57,23 +61,41 @@ export function DashboardShell({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header
           className={cn(
-            'bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6',
-            immersiveLog && 'hidden md:flex'
+            'bg-background/80 z-10 shrink-0 border-b backdrop-blur-sm',
+            immersiveLog && 'hidden md:block'
           )}
         >
-          <div className="min-w-0 flex-1 md:hidden">
-            <BrandLogo />
-          </div>
-          <div className="hidden min-w-0 flex-1 md:flex md:items-center">
-            <GlobalSearch />
-          </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <CoachNotificationCenter items={notifications} />
-            <div className="md:hidden">
+          <div className="flex h-16 items-center gap-2 px-4 sm:gap-4 sm:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
+              <div className="min-w-0 md:hidden">
+                <BrandLogo />
+              </div>
+              <AppSurfaceSwitcher
+                activeSurface={surfaceContext.activeSurface}
+                showSwitcher={surfaceContext.showSwitcher}
+                className="hidden md:inline-flex"
+              />
+            </div>
+            <div className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-4">
               <GlobalSearch />
             </div>
-            <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+              <CoachNotificationCenter items={notifications} />
+              <div className="md:hidden">
+                <GlobalSearch />
+              </div>
+              <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
+            </div>
           </div>
+          {surfaceContext.showSwitcher ? (
+            <div className="border-t px-4 pb-3 pt-2 md:hidden">
+              <AppSurfaceSwitcher
+                activeSurface={surfaceContext.activeSurface}
+                showSwitcher
+                className="flex w-full"
+              />
+            </div>
+          ) : null}
         </header>
         <main
           id="main-content"

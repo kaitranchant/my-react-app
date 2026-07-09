@@ -1,12 +1,17 @@
 import { redirect } from 'next/navigation'
 
 import { PortalShell } from '@/components/portal/portal-shell'
-import { getPortalClientContext } from '@/lib/portal-client'
+import { coachCanAccessPortal } from '@/lib/app-surface'
+import { getAppSurfaceContext } from '@/lib/app-surface-server'
 import { getPortalDisplayPreferences } from '@/lib/coach-preferences-server'
 import { getPortalNotificationPreferencesForUser } from '@/lib/portal-notification-preferences-server'
 import { fetchPortalNavBadges } from '@/lib/portal-data'
 import { emptyPortalNavBadges } from '@/lib/portal-nav-badges'
 import { clientHasTeamMembership } from '@/lib/portal-teams'
+import {
+  ensureCoachPortalClient,
+  getPortalClientContext,
+} from '@/lib/portal-client'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function PortalLayout({
@@ -29,8 +34,28 @@ export default async function PortalLayout({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'client') {
+  const role = profile?.role ?? 'coach'
+  const surfaceContext = await getAppSurfaceContext({
+    supabase,
+    userId: user.id,
+    role,
+  })
+
+  if (
+    role === 'coach' &&
+    !coachCanAccessPortal({
+      role,
+      activeSurface: surfaceContext.activeSurface,
+    })
+  ) {
     redirect('/dashboard')
+  }
+
+  if (role === 'coach') {
+    const ensured = await ensureCoachPortalClient(supabase)
+    if (!ensured.ok) {
+      redirect('/dashboard')
+    }
   }
 
   const portalCtx = await getPortalClientContext()
@@ -68,6 +93,7 @@ export default async function PortalLayout({
       userId={user.id}
       clientId={portalCtx?.client?.id ?? null}
       notificationPrefs={notificationPrefs}
+      surfaceContext={surfaceContext}
     >
       {children}
     </PortalShell>

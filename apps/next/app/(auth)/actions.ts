@@ -13,6 +13,7 @@ import {
   signInClientAccount,
 } from '@/lib/auth/client-invite-signup'
 import { linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
+import { setActiveSurfaceCookie } from '@/lib/app-surface-server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
 
@@ -129,9 +130,18 @@ export async function login(
       if (profile?.role !== 'client' && (
         isCoachRoute ||
         redirectTo.startsWith('/book') ||
-        redirectTo.startsWith('/gym/join')
+        redirectTo.startsWith('/gym/join') ||
+        redirectTo.startsWith('/portal/join') ||
+        redirectTo.startsWith('/portal')
       )) {
-        return { redirectTo: redirectTo.startsWith('/book') ? '/scheduling?view=availability' : redirectTo }
+        if (redirectTo.startsWith('/portal')) {
+          await setActiveSurfaceCookie('client')
+        }
+        return {
+          redirectTo: redirectTo.startsWith('/book')
+            ? '/scheduling?view=availability'
+            : redirectTo,
+        }
       }
     }
   }

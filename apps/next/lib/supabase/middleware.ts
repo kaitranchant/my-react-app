@@ -2,6 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from 'app/types/database'
 
+import {
+  coachCanAccessPortal,
+  resolveActiveSurface,
+} from '@/lib/app-surface'
+import { readActiveSurfaceCookieValue } from '@/lib/app-surface-server'
+
 const PUBLIC_ROUTES = [
   '/login',
   '/signup',
@@ -11,6 +17,7 @@ const PUBLIC_ROUTES = [
   '/pricing',
   '/privacy',
   '/gym/join',
+  '/portal/join',
 ]
 const MOBILE_AUTH_API_ROUTES = ['/api/wearables/apple-health/sync']
 const CRON_API_ROUTES = ['/api/cron']
@@ -112,7 +119,12 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle()
 
     const role = profile?.role ?? 'coach'
+    const activeSurface = resolveActiveSurface({
+      role,
+      cookieValue: readActiveSurfaceCookieValue(request.headers.get('cookie') ?? undefined),
+    })
     const isPortal = pathname.startsWith('/portal')
+    const isPortalJoin = pathname === '/portal/join' || pathname.startsWith('/portal/join/')
     const isApiRoute = pathname.startsWith('/api/')
     const isCoachArea =
       !isPortal &&
@@ -128,10 +140,17 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    if (role === 'coach' && isPortal) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
+    if (role === 'coach' && isPortal && !isPortalJoin) {
+      if (
+        !coachCanAccessPortal({
+          role,
+          activeSurface,
+        })
+      ) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
     }
   }
 
