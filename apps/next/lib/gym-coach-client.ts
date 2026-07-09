@@ -157,8 +157,13 @@ export async function fetchGymMemberCoachClients(
 
     coachSelfClientIds.add(row.id)
     mergedClients.push({
-      ...(row as AttendanceClientRow),
+      id: row.id,
+      full_name: row.full_name,
       avatar_url: row.avatar_url ?? avatarByCoachId.get(row.coach_id) ?? null,
+      status: row.status,
+      coaching_type: row.coaching_type,
+      gym_id: row.gym_id,
+      memberships: [],
     })
   }
 
