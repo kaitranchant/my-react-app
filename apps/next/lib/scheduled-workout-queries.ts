@@ -180,12 +180,46 @@ type ExerciseHistoryRow = {
   distance_meters: number | null
   completed: boolean
   scheduled_workout_id: string
-  scheduled_workout_exercises: { exercise_id: string }
+  scheduled_workout_exercises: {
+    exercise_id: string
+    workout_notes: string | null
+    client_notes: string | null
+  }
   client_scheduled_workouts: {
     id: string
     scheduled_date: string
     name: string | null
     status: string
+  }
+}
+
+type ExerciseHistoryNotesRow = {
+  workout_notes: string | null
+  client_notes: string | null
+  client_scheduled_workouts: {
+    id: string
+    scheduled_date: string
+    name: string | null
+    status: string
+  }
+}
+
+function createExerciseHistorySession(
+  workout: ExerciseHistoryRow['client_scheduled_workouts'],
+  notes?: Pick<
+    ExerciseHistoryRow['scheduled_workout_exercises'],
+    'workout_notes' | 'client_notes'
+  >
+): ExerciseHistorySession {
+  const date = String(workout.scheduled_date ?? '').slice(0, 10)
+  return {
+    workoutId: workout.id,
+    date,
+    workoutName: workout.name,
+    sets: [],
+    bestE1rm: null,
+    coachNotes: notes?.workout_notes?.trim() || null,
+    clientNotes: notes?.client_notes?.trim() || null,
   }
 }
 
@@ -208,7 +242,7 @@ export async function fetchExerciseHistory(
       distance_meters,
       completed,
       scheduled_workout_id,
-      scheduled_workout_exercises!inner (exercise_id),
+      scheduled_workout_exercises!inner (exercise_id, workout_notes, client_notes),
       client_scheduled_workouts!inner (id, client_id, scheduled_date, name, status)
     `
     )
@@ -242,13 +276,7 @@ export async function fetchExerciseHistory(
 
     let session = sessionsByWorkout.get(workoutId)
     if (!session) {
-      session = {
-        workoutId,
-        date,
-        workoutName: workout.name,
-        sets: [],
-        bestE1rm: null,
-      }
+      session = createExerciseHistorySession(workout, row.scheduled_workout_exercises)
       sessionsByWorkout.set(workoutId, session)
     }
 
@@ -271,6 +299,44 @@ export async function fetchExerciseHistory(
     if (e1rm != null && (session.bestE1rm == null || e1rm > session.bestE1rm)) {
       session.bestE1rm = e1rm
     }
+  }
+
+  let notesQuery = supabase
+    .from('scheduled_workout_exercises')
+    .select(
+      `
+      workout_notes,
+      client_notes,
+      client_scheduled_workouts!inner (id, client_id, scheduled_date, name, status)
+    `
+    )
+    .eq('exercise_id', libraryExerciseId)
+    .eq('client_scheduled_workouts.client_id', clientId)
+    .eq('client_scheduled_workouts.status', 'completed')
+    .or('workout_notes.not.is.null,client_notes.not.is.null')
+    .order('scheduled_date', {
+      ascending: false,
+      referencedTable: 'client_scheduled_workouts',
+    })
+
+  if (options?.excludeWorkoutId) {
+    notesQuery = notesQuery.neq('scheduled_workout_id', options.excludeWorkoutId)
+  }
+
+  const { data: noteRows } = await notesQuery
+
+  for (const row of (noteRows ?? []) as ExerciseHistoryNotesRow[]) {
+    const workout = row.client_scheduled_workouts
+    const workoutId = workout.id
+    if (sessionsByWorkout.has(workoutId)) continue
+
+    const date = String(workout.scheduled_date ?? '').slice(0, 10)
+    if (!date) continue
+
+    sessionsByWorkout.set(
+      workoutId,
+      createExerciseHistorySession(workout, row)
+    )
   }
 
   return Array.from(sessionsByWorkout.values())
