@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { GymCoachFilter } from '@/components/gym/gym-coach-filter'
+import { GymClientListTable } from '@/components/gym/gym-client-list-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +24,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { PersonRow } from '@/components/ui/person-row'
 import {
   Table,
   TableBody,
@@ -35,11 +35,9 @@ import {
 import {
   formatGymMetricsCsv,
   filterGymDashboardByCoach,
-  type GymClientListItem,
   type GymCoachMetrics,
   type GymOwnerDashboard,
 } from '@/lib/gym-metrics'
-import { formatSessionCompliance } from '@/lib/compliance'
 import { cn } from '@/lib/utils'
 
 type GymOverviewPanelProps = {
@@ -313,72 +311,6 @@ export function GymOverviewPanel({
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function GymClientListTable({
-  clients,
-  showCoachColumn,
-}: {
-  clients: GymClientListItem[]
-  showCoachColumn: boolean
-}) {
-  if (clients.length === 0) {
-    return (
-      <p className="text-muted-foreground px-4 py-5 text-sm sm:px-5">
-        No shared clients yet. Coaches can add clients from the Manage tab or
-        from each client profile.
-      </p>
-    )
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Client</TableHead>
-          {showCoachColumn ? <TableHead>Coach</TableHead> : null}
-          <TableHead className="text-right">Attendance</TableHead>
-          <TableHead className="text-right">Completion</TableHead>
-          <TableHead className="text-right">Flags</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {clients.map((client) => (
-          <TableRow key={client.clientId}>
-            <TableCell>
-              <PersonRow
-                name={client.clientName}
-                avatarUrl={client.avatarUrl}
-                href={`/clients/${client.clientId}`}
-              />
-            </TableCell>
-            {showCoachColumn ? (
-              <TableCell className="text-muted-foreground">
-                {client.coachName}
-              </TableCell>
-            ) : null}
-            <TableCell className="text-right tabular-nums">
-              {client.attendanceRate === null
-                ? '—'
-                : `${client.attendanceRate}%`}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatSessionCompliance(client.sessionCompletion)}
-            </TableCell>
-            <TableCell className="text-right">
-              {client.issueCount > 0 ? (
-                <Badge variant="warning" className="tabular-nums">
-                  {client.issueCount}
-                </Badge>
-              ) : (
-                <span className="text-muted-foreground">0</span>
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   )
 }
 

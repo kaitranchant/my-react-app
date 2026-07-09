@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button'
 import type { GymMemberWithProfile } from 'app/types/database'
 
 export const metadata = {
-  title: 'Gym — Coaching App',
+  title: 'Gyms — Coaching App',
 }
 
 function GymManageSkeleton() {
@@ -66,7 +66,7 @@ export default async function GymPage({
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <PageHeader
-          title="Gym"
+          title="Gyms"
           description="Create a gym to invite other coaches and add clients as members."
         />
         <Card>
@@ -144,7 +144,7 @@ export default async function GymPage({
       className={`mx-auto flex flex-col gap-8 ${isOwner ? 'max-w-7xl' : 'max-w-4xl'}`}
     >
       <PageHeader
-        title={coachGyms.length > 1 ? 'Gyms' : gym.name}
+        title="Gyms"
         description={
           isOwner
             ? 'Monitor gym performance and manage coaches, clients, and teams.'

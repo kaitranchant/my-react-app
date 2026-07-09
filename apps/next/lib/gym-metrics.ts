@@ -67,6 +67,131 @@ type ClientCoachRow = {
   coach_id: string
 }
 
+type GymClientMetricsContext = {
+  clients: AttendanceClientRow[]
+  clientCoachRows: ClientCoachRow[]
+  complianceByClientId: Map<string, ComplianceClientRow>
+  attendanceStatsByClientId: Map<
+    string,
+    { monthAttended: number; monthTotal: number }
+  >
+}
+
+async function fetchGymClientMetricsContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  options: {
+    gymId: string
+    coachId: string
+    coachGymIds: Set<string>
+    coachPreferences?: typeof defaultCoachPreferences
+  }
+): Promise<GymClientMetricsContext> {
+  const preferences = options.coachPreferences ?? defaultCoachPreferences
+  const todayKey = getCoachDateKey(preferences.timezone)
+  const monthStart = `${todayKey.slice(0, 7)}-01`
+
+  const { start: weekStart, end: weekEnd } = getWeekRange(
+    preferences.weekStartsOn,
+    preferences.timezone
+  )
+  const { start: checkInPeriodStart, end: checkInPeriodEnd } =
+    getCheckInPeriodBounds(
+      preferences.defaultCheckInFrequency,
+      preferences.weekStartsOn,
+      preferences.timezone
+    )
+  const checkInPeriodLabel = getCheckInPeriodLabel(
+    preferences.defaultCheckInFrequency
+  )
+
+  const clients = await fetchAttendanceClients(supabase, {
+    scope: { kind: 'gym', gymId: options.gymId },
+    coachGymIds: options.coachGymIds,
+    userId: options.coachId,
+  })
+
+  if (clients.length === 0) {
+    return {
+      clients: [],
+      clientCoachRows: [],
+      complianceByClientId: new Map(),
+      attendanceStatsByClientId: new Map(),
+    }
+  }
+
+  const clientIds = clients.map((client) => client.id)
+
+  const [clientCoachResult, complianceRows, attendanceHistory] =
+    await Promise.all([
+      supabase.from('clients').select('id, coach_id').in('id', clientIds),
+      fetchComplianceDashboardRows(supabase, clients, {
+        coachId: options.coachId,
+        todayKey,
+        weekStart,
+        weekEnd,
+        checkInPeriodStart,
+        checkInPeriodEnd,
+        checkInPeriodLabel,
+      }),
+      fetchClientAttendanceHistory(
+        supabase,
+        clientIds,
+        monthStart,
+        todayKey
+      ),
+    ])
+
+  const clientCoachRows = (clientCoachResult.data ?? []) as ClientCoachRow[]
+  const complianceByClientId = new Map(
+    complianceRows.map((row) => [row.clientId, row])
+  )
+  const attendanceStatsByClientId = new Map<
+    string,
+    { monthAttended: number; monthTotal: number }
+  >()
+
+  for (const client of clients) {
+    const recordsByDate = attendanceHistory.get(client.id) ?? new Map()
+    const stats = computeClientAttendanceStats(recordsByDate, todayKey)
+    attendanceStatsByClientId.set(client.id, {
+      monthAttended: stats.monthAttended,
+      monthTotal: stats.monthTotal,
+    })
+  }
+
+  return {
+    clients,
+    clientCoachRows,
+    complianceByClientId,
+    attendanceStatsByClientId,
+  }
+}
+
+export async function fetchGymSharedClientList(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  options: {
+    gymId: string
+    coachId: string
+    coachGymIds: Set<string>
+    members: GymMemberWithProfile[]
+    coachPreferences?: typeof defaultCoachPreferences
+  }
+): Promise<GymClientListItem[]> {
+  const context = await fetchGymClientMetricsContext(supabase, options)
+
+  if (context.clients.length === 0) {
+    return []
+  }
+
+  return buildGymClientList(
+    context.clients,
+    context.clientCoachRows,
+    options.members,
+    context.complianceByClientId,
+    context.attendanceStatsByClientId
+  )
+}
+
 export function parseGymCoachFilter(
   coachParam: string | undefined,
   memberCoachIds: Set<string>
@@ -273,31 +398,17 @@ export async function fetchGymOwnerDashboard(
 ): Promise<GymOwnerDashboard> {
   const preferences = options.coachPreferences ?? defaultCoachPreferences
   const todayKey = getCoachDateKey(preferences.timezone)
-  const monthStart = `${todayKey.slice(0, 7)}-01`
   const monthLabel = new Date(`${todayKey}T12:00:00`).toLocaleString(undefined, {
     month: 'long',
     year: 'numeric',
   })
 
-  const { start: weekStart, end: weekEnd } = getWeekRange(
-    preferences.weekStartsOn,
-    preferences.timezone
-  )
-  const { start: checkInPeriodStart, end: checkInPeriodEnd } =
-    getCheckInPeriodBounds(
-      preferences.defaultCheckInFrequency,
-      preferences.weekStartsOn,
-      preferences.timezone
-    )
-  const checkInPeriodLabel = getCheckInPeriodLabel(
-    preferences.defaultCheckInFrequency
-  )
-
-  const clients = await fetchAttendanceClients(supabase, {
-    scope: { kind: 'gym', gymId: options.gymId },
-    coachGymIds: options.coachGymIds,
-    userId: options.coachId,
-  })
+  const {
+    clients,
+    clientCoachRows,
+    complianceByClientId,
+    attendanceStatsByClientId: fullAttendanceStatsByClientId,
+  } = await fetchGymClientMetricsContext(supabase, options)
 
   if (clients.length === 0) {
     return {
@@ -314,47 +425,8 @@ export async function fetchGymOwnerDashboard(
     }
   }
 
-  const clientIds = clients.map((client) => client.id)
-
-  const [clientCoachResult, complianceRows, attendanceHistory] =
-    await Promise.all([
-      supabase.from('clients').select('id, coach_id').in('id', clientIds),
-      fetchComplianceDashboardRows(supabase, clients, {
-        coachId: options.coachId,
-        todayKey,
-        weekStart,
-        weekEnd,
-        checkInPeriodStart,
-        checkInPeriodEnd,
-        checkInPeriodLabel,
-      }),
-      fetchClientAttendanceHistory(
-        supabase,
-        clientIds,
-        monthStart,
-        todayKey
-      ),
-    ])
-
-  const clientCoachRows = (clientCoachResult.data ?? []) as ClientCoachRow[]
+  const complianceRows = Array.from(complianceByClientId.values())
   const clientsByCoachId = groupClientsByCoach(clients, clientCoachRows)
-  const complianceByClientId = new Map(
-    complianceRows.map((row) => [row.clientId, row])
-  )
-
-  const fullAttendanceStatsByClientId = new Map<
-    string,
-    { monthAttended: number; monthTotal: number }
-  >()
-
-  for (const client of clients) {
-    const recordsByDate = attendanceHistory.get(client.id) ?? new Map()
-    const stats = computeClientAttendanceStats(recordsByDate, todayKey)
-    fullAttendanceStatsByClientId.set(client.id, {
-      monthAttended: stats.monthAttended,
-      monthTotal: stats.monthTotal,
-    })
-  }
 
   const scopedClients = filterClientsByCoach(
     clients,

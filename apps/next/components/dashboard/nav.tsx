@@ -102,7 +102,7 @@ export const navGroups: NavGroup[] = [
 
       { label: 'Users', href: '/clients', icon: Users },
 
-      { label: 'Gym', href: '/gym', icon: Building2 },
+      { label: 'Gyms', href: '/gym', icon: Building2 },
 
       { label: 'Team', href: '/teams', icon: Flag },
 
