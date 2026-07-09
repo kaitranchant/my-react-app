@@ -34,7 +34,7 @@ export async function ensureGymCoachPortalMembershipForUser(
 > {
   const { data: existingSelfClient } = await supabase
     .from('clients')
-    .select('id, gym_id, user_id')
+    .select('id, gym_id, user_id, avatar_url, full_name')
     .eq('coach_id', userId)
     .eq('is_coach_self', true)
     .maybeSingle()
@@ -42,7 +42,7 @@ export async function ensureGymCoachPortalMembershipForUser(
   if (!existingSelfClient) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, avatar_url')
       .eq('id', userId)
       .maybeSingle()
 
@@ -52,6 +52,7 @@ export async function ensureGymCoachPortalMembershipForUser(
       .insert({
         coach_id: userId,
         full_name: coachName,
+        avatar_url: profile?.avatar_url ?? null,
         status: 'active',
         is_coach_self: true,
         gym_id: gymId,
@@ -71,9 +72,21 @@ export async function ensureGymCoachPortalMembershipForUser(
   }
 
   const clientId = existingSelfClient.id
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const coachName = profile?.full_name?.trim() || 'Coach'
+  const profileAvatarUrl = profile?.avatar_url ?? null
+
   const updates: {
     gym_id?: string
     user_id?: string
+    full_name?: string
+    avatar_url?: string | null
   } = {}
 
   if (existingSelfClient.gym_id !== gymId) {
@@ -82,6 +95,14 @@ export async function ensureGymCoachPortalMembershipForUser(
 
   if (existingSelfClient.user_id !== userId) {
     updates.user_id = userId
+  }
+
+  if (existingSelfClient.full_name !== coachName) {
+    updates.full_name = coachName
+  }
+
+  if (existingSelfClient.avatar_url !== profileAvatarUrl) {
+    updates.avatar_url = profileAvatarUrl
   }
 
   if (Object.keys(updates).length > 0) {

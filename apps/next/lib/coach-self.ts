@@ -53,11 +53,12 @@ export async function getOrCreateCoachSelfClient(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('full_name, avatar_url')
     .eq('id', user.id)
     .maybeSingle()
 
   const coachName = profile?.full_name?.trim() || 'Coach'
+  const profileAvatarUrl = profile?.avatar_url ?? null
 
   const { data: existing, error: findError } = await supabase
     .from('clients')
@@ -78,10 +79,23 @@ export async function getOrCreateCoachSelfClient(
   }
 
   if (existing) {
+    const profileUpdates: {
+      full_name?: string
+      avatar_url?: string | null
+    } = {}
+
     if (existing.full_name !== coachName) {
+      profileUpdates.full_name = coachName
+    }
+
+    if (existing.avatar_url !== profileAvatarUrl) {
+      profileUpdates.avatar_url = profileAvatarUrl
+    }
+
+    if (Object.keys(profileUpdates).length > 0) {
       const { data: updated } = await supabase
         .from('clients')
-        .update({ full_name: coachName })
+        .update(profileUpdates)
         .eq('id', existing.id)
         .select('*')
         .single()
@@ -103,6 +117,7 @@ export async function getOrCreateCoachSelfClient(
     .insert({
       coach_id: user.id,
       full_name: coachName,
+      avatar_url: profileAvatarUrl,
       status: 'active',
       is_coach_self: true,
     })
