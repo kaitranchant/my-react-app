@@ -9,6 +9,7 @@ import {
   fetchGoogleCalendarBlockedTimes,
 } from '@/lib/google-calendar/blocked-times'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import { reconcileGoogleDeletedAppointmentsForCoach } from '@/lib/google-calendar/inbound-sync'
 import { isGoogleCalendarConfigured } from '@/lib/google-calendar/config'
 import { registerGoogleCalendarWatch } from '@/lib/google-calendar/watch'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -85,7 +86,6 @@ export default async function SchedulingPage({
   const [
     settings,
     rules,
-    appointments,
     sessionPacks,
     coachTasks,
     { data: clients },
@@ -95,7 +95,6 @@ export default async function SchedulingPage({
   ] = await Promise.all([
     fetchCoachSessionBookingSettings(supabase, user.id),
     fetchCoachAvailabilityRules(supabase, user.id),
-    fetchCoachingAppointments(supabase, user.id, startIso, endIso),
     fetchCoachSessionPacks(supabase, user.id),
     fetchCoachTasks(supabase, user.id),
     supabase
@@ -117,6 +116,21 @@ export default async function SchedulingPage({
       exceptionHorizonKey
     ),
   ])
+
+  if (googleCalendarConnection) {
+    await reconcileGoogleDeletedAppointmentsForCoach(user.id, {
+      timeMin: startIso,
+      timeMax: endIso,
+      supabase,
+    })
+  }
+
+  const appointments = await fetchCoachingAppointments(
+    supabase,
+    user.id,
+    startIso,
+    endIso
+  )
 
   const googleBlockedTimesFetch = googleCalendarConnection
     ? await fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)

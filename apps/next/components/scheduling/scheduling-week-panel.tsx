@@ -293,14 +293,27 @@ export function SchedulingWeekPanel({
       refreshWeek()
     }
 
+    function onVisibilityChange() {
+      if (document.visibilityState !== 'visible') return
+      weekCacheRef.current.delete(weekStartKey)
+      void loadWeek(weekStartKey)
+    }
+
     window.addEventListener('scheduling:appointments-changed', onAppointmentsChanged)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener(
         'scheduling:appointments-changed',
         onAppointmentsChanged
       )
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [refreshWeek])
+  }, [loadWeek, refreshWeek, weekStartKey])
+
+  React.useEffect(() => {
+    weekCacheRef.current.delete(weekStartKey)
+    void loadWeek(weekStartKey)
+  }, [loadWeek, weekStartKey])
 
   function openManage(appointment: CoachingAppointment) {
     setSelectedAppointment(appointment)

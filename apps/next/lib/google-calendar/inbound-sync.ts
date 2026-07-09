@@ -10,9 +10,8 @@ import {
   type GoogleCalendarEvent,
 } from '@/lib/google-calendar/api'
 import {
-  shouldRemoveAppointmentAfterGoogleDeletion,
-  isGoogleCoachingEventMissing,
   appointmentInstantMatches,
+  resolveGoogleAppointmentReconcileAction,
   type AppointmentGoogleMatchInput,
 } from '@/lib/google-calendar/coaching-google-matching'
 import {
@@ -335,16 +334,14 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
       client: client ?? null,
     }
 
-    let shouldRemove = false
-
+    let linkedEvent: GoogleCalendarEvent | null = null
     if (appointment.google_calendar_event_id) {
       try {
-        const linkedEvent = await getGoogleCalendarEvent(
+        linkedEvent = await getGoogleCalendarEvent(
           accessToken,
           connection.calendar_id,
           appointment.google_calendar_event_id
         )
-        shouldRemove = isGoogleCoachingEventMissing(linkedEvent)
       } catch (error) {
         console.error(
           '[google-calendar] linked event lookup failed',
@@ -352,14 +349,31 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
           error
         )
       }
-    } else {
-      shouldRemove = shouldRemoveAppointmentAfterGoogleDeletion(
-        appointment,
-        googleEvents
-      )
     }
 
-    if (!shouldRemove) {
+    const action = resolveGoogleAppointmentReconcileAction(
+      appointment,
+      googleEvents,
+      linkedEvent
+    )
+
+    if (action.type === 'keep') {
+      continue
+    }
+
+    if (action.type === 'link') {
+      const { error } = await db
+        .from('coaching_appointments')
+        .update({
+          google_calendar_event_id: action.googleEventId,
+          google_calendar_updated_at: action.googleCalendarUpdatedAt,
+        })
+        .eq('id', appointment.id)
+        .eq('status', 'scheduled')
+
+      if (error) {
+        console.error('[google-calendar] link appointment to google event failed', error)
+      }
       continue
     }
 

@@ -5,6 +5,7 @@ import {
   buildExportedCoachingEventSummary,
   appointmentInstantMatches,
   googleEventMatchesCoachingAppointment,
+  resolveGoogleAppointmentReconcileAction,
   shouldRemoveAppointmentAfterGoogleDeletion,
 } from '@/lib/google-calendar/coaching-google-matching'
 
@@ -50,6 +51,35 @@ test('googleEventMatchesCoachingAppointment matches linked recurring instance id
     ),
     true
   )
+})
+
+test('resolveGoogleAppointmentReconcileAction removes linked appointments when Google event is missing', () => {
+  assert.deepEqual(
+    resolveGoogleAppointmentReconcileAction(appointment, [], null),
+    { type: 'remove' }
+  )
+})
+
+test('resolveGoogleAppointmentReconcileAction links unlinked appointments to active exported events', () => {
+  const action = resolveGoogleAppointmentReconcileAction(
+    { ...appointment, google_calendar_event_id: null },
+    [
+      {
+        id: 'google-event-2',
+        status: 'confirmed',
+        summary: 'Coaching session — Alex Client',
+        updated: '2026-07-10T12:00:00.000Z',
+        start: { dateTime: appointment.starts_at },
+        end: { dateTime: appointment.ends_at },
+      },
+    ],
+    null
+  )
+
+  assert.equal(action.type, 'link')
+  if (action.type === 'link') {
+    assert.equal(action.googleEventId, 'google-event-2')
+  }
 })
 
 test('shouldRemoveAppointmentAfterGoogleDeletion removes linked appointments with cancelled Google events', () => {

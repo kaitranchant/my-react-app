@@ -50,12 +50,6 @@ export function appointmentInstantMatches(
   return leftStartMs === rightStartMs && leftEndMs === rightEndMs
 }
 
-export function isGoogleCoachingEventMissing(
-  event: GoogleCalendarEvent | null | undefined
-): boolean {
-  return !event || event.status === 'cancelled'
-}
-
 export function googleEventMatchesCoachingAppointment(
   event: GoogleCalendarEvent,
   appointment: AppointmentGoogleMatchInput
@@ -101,6 +95,55 @@ export function googleEventMatchesCoachingAppointment(
   }
 
   return event.summary?.includes(clientName) ?? false
+}
+
+export function isGoogleCoachingEventMissing(
+  event: GoogleCalendarEvent | null | undefined
+): boolean {
+  return !event || event.status === 'cancelled'
+}
+
+export type GoogleAppointmentReconcileAction =
+  | { type: 'keep' }
+  | { type: 'remove' }
+  | {
+      type: 'link'
+      googleEventId: string
+      googleCalendarUpdatedAt: string
+    }
+
+export function resolveGoogleAppointmentReconcileAction(
+  appointment: AppointmentGoogleMatchInput,
+  googleEvents: GoogleCalendarEvent[],
+  linkedEvent: GoogleCalendarEvent | null | undefined
+): GoogleAppointmentReconcileAction {
+  if (appointment.google_calendar_event_id) {
+    if (isGoogleCoachingEventMissing(linkedEvent)) {
+      return { type: 'remove' }
+    }
+    return { type: 'keep' }
+  }
+
+  const matches = googleEvents.filter((event) =>
+    googleEventMatchesCoachingAppointment(event, appointment)
+  )
+  const activeMatches = matches.filter((event) => event.status !== 'cancelled')
+  const cancelledMatches = matches.filter((event) => event.status === 'cancelled')
+
+  if (activeMatches.length > 0) {
+    const active = activeMatches[0]!
+    return {
+      type: 'link',
+      googleEventId: active.id,
+      googleCalendarUpdatedAt: active.updated ?? new Date().toISOString(),
+    }
+  }
+
+  if (cancelledMatches.length > 0) {
+    return { type: 'remove' }
+  }
+
+  return { type: 'keep' }
 }
 
 export function shouldRemoveAppointmentAfterGoogleDeletion(
