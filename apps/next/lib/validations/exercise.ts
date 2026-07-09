@@ -32,6 +32,27 @@ export function parseExerciseLibraryMuscleFilter(
   )
 }
 
+const optionalHttpUrl = z
+  .string()
+  .trim()
+  .max(2048, 'Video link is too long')
+  .optional()
+  .refine(
+    (value) => {
+      if (!value) return true
+      try {
+        const withProtocol = /^https?:\/\//i.test(value)
+          ? value
+          : `https://${value}`
+        const parsed = new URL(withProtocol)
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+      } catch {
+        return false
+      }
+    },
+    { message: 'Enter a valid video URL' }
+  )
+
 export const exerciseFormSchema = z.object({
   name: z
     .string()
@@ -41,6 +62,7 @@ export const exerciseFormSchema = z.object({
   instructions: z.string().trim().max(2000, 'Instructions are too long').optional(),
   muscleGroup: z.string().trim().max(80, 'Muscle group is too long').optional(),
   equipment: z.string().trim().max(80, 'Equipment is too long').optional(),
+  demoVideoUrl: optionalHttpUrl,
   status: z.enum(exerciseStatuses),
 })
 
@@ -51,5 +73,6 @@ export const exerciseFormDefaults: ExerciseFormValues = {
   instructions: '',
   muscleGroup: '',
   equipment: '',
+  demoVideoUrl: '',
   status: 'active',
 }

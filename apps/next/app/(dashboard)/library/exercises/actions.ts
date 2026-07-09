@@ -32,11 +32,19 @@ async function requireUser() {
 }
 
 function toExerciseRow(values: ExerciseFormValues) {
+  const demoVideoUrl = values.demoVideoUrl?.trim()
+  const normalizedDemoUrl = demoVideoUrl
+    ? /^https?:\/\//i.test(demoVideoUrl)
+      ? demoVideoUrl
+      : `https://${demoVideoUrl}`
+    : null
+
   return {
     name: values.name,
     instructions: values.instructions ? values.instructions : null,
     muscle_group: values.muscleGroup ? values.muscleGroup : null,
     equipment: values.equipment ? values.equipment : null,
+    demo_video_url: normalizedDemoUrl,
     status: values.status,
     source: 'custom' as const,
   }

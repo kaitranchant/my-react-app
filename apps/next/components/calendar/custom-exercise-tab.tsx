@@ -15,12 +15,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { exerciseFormSchema } from '@/lib/validations/exercise'
 
 export const customExerciseQuickSchema = z.object({
   name: z.string().trim().min(1, 'Exercise name is required.').max(120),
   muscleGroup: z.string().trim().max(80).optional(),
   equipment: z.string().trim().max(80).optional(),
   instructions: z.string().trim().max(2000).optional(),
+  demoVideoUrl: exerciseFormSchema.shape.demoVideoUrl,
   saveToLibrary: z.boolean(),
 })
 
@@ -31,6 +33,7 @@ export const customExerciseQuickDefaults: CustomExerciseQuickValues = {
   muscleGroup: '',
   equipment: '',
   instructions: '',
+  demoVideoUrl: '',
   saveToLibrary: true,
 }
 
@@ -105,6 +108,28 @@ export function CustomExerciseTab({ form }: CustomExerciseTabProps) {
                 {...field}
               />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="demoVideoUrl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Form video link (optional)</FormLabel>
+            <FormControl>
+              <Input
+                type="url"
+                inputMode="url"
+                placeholder="https://youtu.be/… or Vimeo / direct video URL"
+                {...field}
+              />
+            </FormControl>
+            <FormDescription>
+              Clients can open this link to check form when logging the workout.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

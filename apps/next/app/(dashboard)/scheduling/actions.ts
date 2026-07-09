@@ -2340,6 +2340,7 @@ export type SchedulingWeekDataResult =
       appointments: CoachingAppointment[]
       weekKeys: string[]
       googleBlockedTimes: GoogleCalendarBlockedTime[]
+      googleAuthExpired: boolean
       weeklyTargetsEnabled: boolean
       clientDefaults: Array<{
         id: string
@@ -2523,12 +2524,12 @@ export async function fetchSchedulingWeekData(
     ctx.user.id
   )
 
-  const [appointments, rawGoogleBlockedTimes, settings, { data: clients }] =
+  const [appointments, blockedTimesResult, settings, { data: clients }] =
     await Promise.all([
       fetchCoachingAppointments(ctx.supabase, ctx.user.id, startIso, endIso),
       connection
         ? fetchGoogleCalendarBlockedTimes(ctx.user.id, startIso, endIso)
-        : Promise.resolve([] as GoogleCalendarBlockedTime[]),
+        : Promise.resolve({ blockedTimes: [], authExpired: false }),
       fetchCoachSessionBookingSettings(ctx.supabase, ctx.user.id),
       ctx.supabase
         .from('clients')
@@ -2541,7 +2542,7 @@ export async function fetchSchedulingWeekData(
   const googleBlockedTimes = await attachGoogleEventMarkers(
     ctx.supabase,
     ctx.user.id,
-    rawGoogleBlockedTimes
+    blockedTimesResult.blockedTimes
   )
 
   const resolvedWeekStartKey = weekKeys[0]!
@@ -2558,6 +2559,7 @@ export async function fetchSchedulingWeekData(
     appointments,
     weekKeys,
     googleBlockedTimes,
+    googleAuthExpired: blockedTimesResult.authExpired,
     weeklyTargetsEnabled: settings.weekly_session_targets_enabled,
     clientDefaults: clients ?? [],
     weekOverrides,

@@ -84,8 +84,12 @@ export function ExerciseHistoryDialog({
   ])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(85vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+      <DialogContent
+        className="flex max-h-[min(85vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+        onInteractOutside={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
           <DialogTitle className="flex items-center gap-2 text-left">
             <History className="text-brand size-5" />
@@ -112,7 +116,11 @@ export function ExerciseHistoryDialog({
           ) : (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <HistorySessionCard key={session.workoutId} session={session} />
+                <HistorySessionCard
+                  key={session.workoutId}
+                  session={session}
+                  variant={variant}
+                />
               ))}
             </div>
           )}
@@ -122,8 +130,17 @@ export function ExerciseHistoryDialog({
   )
 }
 
-function HistorySessionCard({ session }: { session: ExerciseHistorySession }) {
+function HistorySessionCard({
+  session,
+  variant,
+}: {
+  session: ExerciseHistorySession
+  variant: 'coach' | 'client'
+}) {
   const bestE1rm = session.bestE1rm
+  const coachNotes = session.coachNotes?.trim()
+  const clientNotes = session.clientNotes?.trim()
+  const hasNotes = Boolean(coachNotes || clientNotes)
 
   return (
     <div className="bg-muted/30 overflow-hidden rounded-xl border">
@@ -143,45 +160,76 @@ function HistorySessionCard({ session }: { session: ExerciseHistorySession }) {
         )}
       </div>
 
-      <div className="px-4 py-2">
-        <div className="text-muted-foreground grid grid-cols-[2rem_1fr_4rem] gap-2 text-xs font-medium">
-          <span>Set</span>
-          <span>Weight × reps</span>
-          <span className="text-right">e1RM</span>
-        </div>
-
-        {session.sets.map((set) => {
-          const isBest = set.e1rm != null && set.e1rm === bestE1rm
-          const performance =
-            set.weight != null && set.reps != null
-              ? formatPreviousPerformance(set.weight, set.reps)
-              : set.durationSeconds != null
-                ? `${set.durationSeconds}s`
-                : set.distanceMeters != null
-                  ? formatDistanceMeters(set.distanceMeters)
-                  : '—'
-
-          return (
-            <div
-              key={set.setNumber}
-              className="grid grid-cols-[2rem_1fr_4rem] items-center gap-2 border-t py-2 text-sm first:border-t-0"
-            >
-              <span className="text-muted-foreground text-xs font-semibold">
-                {set.setNumber}
-              </span>
-              <span>{performance}</span>
-              <span
-                className={cn(
-                  'text-right text-xs font-medium tabular-nums',
-                  isBest ? 'text-brand' : 'text-muted-foreground'
-                )}
-              >
-                {set.e1rm != null ? `${set.e1rm}` : '—'}
-              </span>
+      {hasNotes ? (
+        <div className="space-y-2 border-b px-4 py-3">
+          {coachNotes ? (
+            <div>
+              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                Coach notes
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-snug">
+                {coachNotes}
+              </p>
             </div>
-          )
-        })}
-      </div>
+          ) : null}
+          {clientNotes ? (
+            <div>
+              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                {variant === 'client' ? 'Your notes' : 'Client notes'}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-snug">
+                {clientNotes}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {session.sets.length > 0 ? (
+        <div className="px-4 py-2">
+          <div className="text-muted-foreground grid grid-cols-[2rem_1fr_4rem] gap-2 text-xs font-medium">
+            <span>Set</span>
+            <span>Weight × reps</span>
+            <span className="text-right">e1RM</span>
+          </div>
+
+          {session.sets.map((set) => {
+            const isBest = set.e1rm != null && set.e1rm === bestE1rm
+            const performance =
+              set.weight != null && set.reps != null
+                ? formatPreviousPerformance(set.weight, set.reps)
+                : set.durationSeconds != null
+                  ? `${set.durationSeconds}s`
+                  : set.distanceMeters != null
+                    ? formatDistanceMeters(set.distanceMeters)
+                    : '—'
+
+            return (
+              <div
+                key={set.setNumber}
+                className="grid grid-cols-[2rem_1fr_4rem] items-center gap-2 border-t py-2 text-sm first:border-t-0"
+              >
+                <span className="text-muted-foreground text-xs font-semibold">
+                  {set.setNumber}
+                </span>
+                <span>{performance}</span>
+                <span
+                  className={cn(
+                    'text-right text-xs font-medium tabular-nums',
+                    isBest ? 'text-brand' : 'text-muted-foreground'
+                  )}
+                >
+                  {set.e1rm != null ? `${set.e1rm}` : '—'}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="text-muted-foreground px-4 py-3 text-sm">
+          Notes only — no logged sets for this session.
+        </p>
+      )}
     </div>
   )
 }

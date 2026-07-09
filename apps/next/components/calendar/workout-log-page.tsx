@@ -38,6 +38,7 @@ export function WorkoutLogPage({
 
   return (
     <WorkoutLogScreen
+      key={workoutId}
       presentation="page"
       active
       clientId={clientId}

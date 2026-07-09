@@ -138,6 +138,7 @@ export function ClientDetailOverflowMenu({
               clientId={client.id}
               clientName={clientName}
               initialNotes={initialAssessmentNotes}
+              onCancel={() => setAssessmentNotesOpen(false)}
             />
             <MobileKeyboardReserve />
           </div>

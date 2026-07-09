@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 
 import type { ActionResult } from '@/app/(dashboard)/attendance/actions'
 import { deleteCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import { formatGoogleCalendarActionError } from '@/lib/google-calendar/auth-errors'
+import { withTimeout } from '@/lib/google-calendar/fetch-timeout'
 import { deleteGoogleCalendarTokens } from '@/lib/google-calendar/token-store'
 import {
   type RepairRecurringSeriesSyncResult,
@@ -44,7 +46,15 @@ export async function disconnectGoogleCalendar(): Promise<ActionResult> {
     .maybeSingle()
 
   if (connection) {
-    await stopGoogleCalendarWatch(connection)
+    try {
+      await withTimeout(
+        stopGoogleCalendarWatch(connection),
+        8_000,
+        'Timed out stopping Google Calendar watch.'
+      )
+    } catch {
+      // Always clear local connection even if Google is unreachable.
+    }
     await deleteGoogleCalendarTokens(connection.id)
   }
 
@@ -75,7 +85,11 @@ export async function updateGoogleCalendarSyncSettings(values: {
 }
 
 export type RepairRecurringSeriesCalendarSyncResult =
-  | { success: true; summary: RepairRecurringSeriesSyncResult }
+  | {
+      success: true
+      summary: RepairRecurringSeriesSyncResult
+      reconnectRequired?: boolean
+    }
   | { success: false; error: string }
 
 export async function repairRecurringSeriesCalendarSync(): Promise<RepairRecurringSeriesCalendarSyncResult> {
@@ -87,14 +101,15 @@ export async function repairRecurringSeriesCalendarSync(): Promise<RepairRecurri
   try {
     const summary = await repairCoachRecurringSeriesGoogleSync(ctx.user.id)
     revalidateScheduling()
-    return { success: true, summary }
+    return {
+      success: true,
+      summary,
+      reconnectRequired: summary.reconnectRequired,
+    }
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Could not repair recurring session calendar sync.',
+      error: formatGoogleCalendarActionError(error),
     }
   }
 }

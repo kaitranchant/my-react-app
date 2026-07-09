@@ -1,11 +1,15 @@
 import { parseCoachPreferences } from '@/lib/coach-preferences'
+import { toGoogleCalendarAuthError } from '@/lib/google-calendar/auth-errors'
 import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-series-horizon'
 import { getGoogleCalendarEvent } from '@/lib/google-calendar/api'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import {
   syncCoachingAppointmentToGoogle,
 } from '@/lib/google-calendar/sync'
-import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
+import {
+  getValidGoogleCalendarAccessToken,
+  hasGoogleCalendarTokens,
+} from '@/lib/google-calendar/token-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const GOOGLE_SYNC_CANCELLATION_REASONS = [
@@ -18,6 +22,7 @@ export type RepairRecurringSeriesSyncResult = {
   dedupedAppointments: number
   resyncedAppointments: number
   horizonExtended: boolean
+  reconnectRequired?: boolean
 }
 
 type ScheduledAppointmentRow = {
@@ -195,6 +200,27 @@ async function resyncStaleGoogleCalendarLinks(coachId: string) {
   return resynced
 }
 
+async function canUseGoogleCalendarExport(
+  coachId: string
+): Promise<boolean> {
+  const admin = createAdminClient()
+  if (!admin) return false
+
+  const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
+  if (!connection?.sync_export_enabled) return false
+  if (!(await hasGoogleCalendarTokens(connection.id))) return false
+
+  try {
+    await getValidGoogleCalendarAccessToken(connection.id)
+    return true
+  } catch (error) {
+    if (toGoogleCalendarAuthError(error)) {
+      return false
+    }
+    throw error
+  }
+}
+
 export async function repairCoachRecurringSeriesGoogleSync(
   coachId: string
 ): Promise<RepairRecurringSeriesSyncResult> {
@@ -207,32 +233,48 @@ export async function repairCoachRecurringSeriesGoogleSync(
     await restoreAppointmentsCancelledByGoogleSync(coachId)
   const dedupedAppointments = await dedupeScheduledSeriesAppointments(coachId)
 
-  const { data: profile } = await admin
-    .from('profiles')
-    .select(
-      'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
-    )
-    .eq('id', coachId)
-    .maybeSingle()
-  const coachPreferences = parseCoachPreferences(profile)
-  await extendCoachRecurringSeriesHorizon(
-    admin,
-    coachId,
-    { timezone: coachPreferences.timezone },
-    { awaitGoogleSync: true }
-  )
+  let horizonExtended = false
+  let resyncedAppointments = 0
+  let reconnectRequired = !(await canUseGoogleCalendarExport(coachId))
 
-  const resyncedAppointments =
-    (await resyncStaleGoogleCalendarLinks(coachId)) +
-    (await resyncScheduledAppointmentsToGoogle(coachId, {
-      onlyMissing: true,
-    }))
+  if (!reconnectRequired) {
+    try {
+      const { data: profile } = await admin
+        .from('profiles')
+        .select(
+          'weight_unit, week_starts_on, coach_timezone, default_check_in_frequency'
+        )
+        .eq('id', coachId)
+        .maybeSingle()
+      const coachPreferences = parseCoachPreferences(profile)
+      await extendCoachRecurringSeriesHorizon(
+        admin,
+        coachId,
+        { timezone: coachPreferences.timezone },
+        { awaitGoogleSync: false }
+      )
+      horizonExtended = true
+
+      resyncedAppointments =
+        (await resyncStaleGoogleCalendarLinks(coachId)) +
+        (await resyncScheduledAppointmentsToGoogle(coachId, {
+          onlyMissing: true,
+        }))
+    } catch (error) {
+      if (toGoogleCalendarAuthError(error)) {
+        reconnectRequired = true
+      } else {
+        throw error
+      }
+    }
+  }
 
   return {
     restoredAppointments,
     dedupedAppointments,
     resyncedAppointments,
-    horizonExtended: true,
+    horizonExtended,
+    reconnectRequired,
   }
 }
 

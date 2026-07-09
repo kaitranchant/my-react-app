@@ -7,6 +7,7 @@ type WorkoutLogSetRef = {
 
 export async function syncWorkoutLogSetsForExercises(
   supabase: SupabaseClient,
+  workoutId: string,
   sets: WorkoutLogSetRef[],
   validExerciseIds: ReadonlySet<string>
 ): Promise<{ success: true } | { success: false; error: string }> {
@@ -29,6 +30,7 @@ export async function syncWorkoutLogSetsForExercises(
     const { error: trailingDeleteError } = await supabase
       .from('workout_log_sets')
       .delete()
+      .eq('scheduled_workout_id', workoutId)
       .eq('scheduled_exercise_id', exerciseId)
       .gt('set_number', maxSetNumber)
 
@@ -39,6 +41,7 @@ export async function syncWorkoutLogSetsForExercises(
     const { error } = await supabase
       .from('workout_log_sets')
       .delete()
+      .eq('scheduled_workout_id', workoutId)
       .eq('scheduled_exercise_id', exerciseId)
       .not('set_number', 'in', `(${keptSetNumbers.join(',')})`)
 

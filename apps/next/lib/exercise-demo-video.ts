@@ -13,7 +13,7 @@ export const EXERCISE_DEMO_FILE_ACCEPT =
   'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
 
 export const EXERCISE_DEMO_UPLOAD_HINT =
-  'MP4, WebM, or MOV · up to 50 MB. Clients see your video instead of the catalog GIF.'
+  'MP4, WebM, or MOV · up to 50 MB. Uploaded clips override form video links and catalog GIFs for clients.'
 
 const MIME_TO_EXTENSION: Record<ExerciseDemoMimeType, string> = {
   'video/mp4': '.mp4',

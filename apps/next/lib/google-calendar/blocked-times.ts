@@ -10,22 +10,32 @@ import {
   type GoogleCalendarBlockedTime,
 } from '@/lib/google-calendar/blocked-times-filter'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import { toGoogleCalendarAuthError } from '@/lib/google-calendar/auth-errors'
 import { fetchCoachGoogleEventMarkers } from '@/lib/google-calendar/event-markers'
 import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times-filter'
 
+export type GoogleCalendarBlockedTimesResult = {
+  blockedTimes: GoogleCalendarBlockedTime[]
+  authExpired: boolean
+}
+
 export async function fetchGoogleCalendarBlockedTimes(
   coachId: string,
   timeMin: string,
   timeMax: string
-): Promise<GoogleCalendarBlockedTime[]> {
+): Promise<GoogleCalendarBlockedTimesResult> {
   const admin = createAdminClient()
-  if (!admin) return []
+  if (!admin) {
+    return { blockedTimes: [], authExpired: false }
+  }
 
   const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
-  if (!connection) return []
+  if (!connection) {
+    return { blockedTimes: [], authExpired: false }
+  }
 
   try {
     const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
@@ -49,13 +59,21 @@ export async function fetchGoogleCalendarBlockedTimes(
       throw new Error(appointmentsResult.error.message)
     }
 
-    return filterGoogleCalendarBlockedTimes(
-      events,
-      appointmentsResult.data ?? []
-    )
+    return {
+      blockedTimes: filterGoogleCalendarBlockedTimes(
+        events,
+        appointmentsResult.data ?? []
+      ),
+      authExpired: false,
+    }
   } catch (error) {
+    const authError = toGoogleCalendarAuthError(error)
+    if (authError) {
+      return { blockedTimes: [], authExpired: true }
+    }
+
     console.error('[google-calendar] blocked times fetch failed', error)
-    return []
+    return { blockedTimes: [], authExpired: false }
   }
 }
 

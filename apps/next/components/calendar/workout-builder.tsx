@@ -201,6 +201,7 @@ export function WorkoutBuilder({
           instructions: parsedCustom.data.instructions ?? '',
           muscleGroup: parsedCustom.data.muscleGroup ?? '',
           equipment: parsedCustom.data.equipment ?? '',
+          demoVideoUrl: parsedCustom.data.demoVideoUrl ?? '',
           status: parsedCustom.data.saveToLibrary ? 'active' : 'archived',
         },
         catalogClientId ? { clientId: catalogClientId } : undefined

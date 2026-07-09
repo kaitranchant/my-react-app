@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { toGoogleCalendarAuthError } from '@/lib/google-calendar/auth-errors'
 import {
   refreshGoogleCalendarAccessToken,
   tokenResponseToGoogleTokens,
@@ -64,6 +65,19 @@ export async function deleteGoogleCalendarTokens(
     .eq('connection_id', connectionId)
 }
 
+export async function hasGoogleCalendarTokens(
+  connectionId: string
+): Promise<boolean> {
+  const stored = await getGoogleCalendarTokens(connectionId)
+  return stored != null
+}
+
+async function clearRevokedGoogleCalendarTokens(
+  connectionId: string
+): Promise<void> {
+  await deleteGoogleCalendarTokens(connectionId)
+}
+
 export async function getGoogleCalendarTokens(
   connectionId: string
 ): Promise<StoredGoogleCalendarTokens | null> {
@@ -109,12 +123,21 @@ export async function getValidGoogleCalendarAccessToken(
     return stored.accessToken
   }
 
-  const refreshed = await refreshGoogleCalendarAccessToken(stored.refreshToken)
-  const tokens = tokensFromRefreshResponse(refreshed, stored.refreshToken)
-  await saveGoogleCalendarTokens(connectionId, tokens, {
-    preserveRefreshToken: !refreshed.refresh_token,
-  })
-  return tokens.accessToken
+  try {
+    const refreshed = await refreshGoogleCalendarAccessToken(stored.refreshToken)
+    const tokens = tokensFromRefreshResponse(refreshed, stored.refreshToken)
+    await saveGoogleCalendarTokens(connectionId, tokens, {
+      preserveRefreshToken: !refreshed.refresh_token,
+    })
+    return tokens.accessToken
+  } catch (error) {
+    const authError = toGoogleCalendarAuthError(error)
+    if (authError) {
+      await clearRevokedGoogleCalendarTokens(connectionId)
+      throw authError
+    }
+    throw error
+  }
 }
 
 function tokensFromRefreshResponse(
@@ -130,3 +153,17 @@ function tokensFromRefreshResponse(
 }
 
 export { tokenResponseToGoogleTokens }
+
+export async function probeGoogleCalendarConnectionAuth(
+  connectionId: string
+): Promise<'ok' | 'revoked'> {
+  try {
+    await getValidGoogleCalendarAccessToken(connectionId)
+    return 'ok'
+  } catch (error) {
+    if (toGoogleCalendarAuthError(error)) {
+      return 'revoked'
+    }
+    return 'ok'
+  }
+}

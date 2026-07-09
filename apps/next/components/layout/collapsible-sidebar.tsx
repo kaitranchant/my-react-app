@@ -1,7 +1,12 @@
 'use client'
 
-import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 
+import {
+  burstStabilizeViewportScroll,
+  resetWindowScroll,
+} from '@/lib/visual-viewport/app-viewport'
+import { installMainContentFreeze } from '@/lib/visual-viewport/freeze-main-content'
 import { cn } from '@/lib/utils'
 import {
   SidebarExpandProvider,
@@ -24,6 +29,31 @@ function CollapsibleSidebarAside({
   const { expanded, touchPinned, setExpanded, expandFromTouch, collapse } =
     useSidebarExpand()
 
+  useEffect(() => {
+    if (!expanded || !touchPinned) return
+
+    resetWindowScroll()
+    const releaseMain = installMainContentFreeze()
+    const root = document.documentElement
+    root.setAttribute('data-touch-sidebar-open', '')
+
+    const main = document.getElementById('main-content')
+    const previousMainOverflow = main?.style.overflow ?? ''
+    if (main) {
+      main.style.overflow = 'hidden'
+    }
+
+    return () => {
+      releaseMain()
+      root.removeAttribute('data-touch-sidebar-open')
+      if (main) {
+        main.style.overflow = previousMainOverflow
+      }
+      resetWindowScroll()
+      burstStabilizeViewportScroll(400)
+    }
+  }, [expanded, touchPinned])
+
   function handleAsidePointerUp(event: ReactPointerEvent<HTMLElement>) {
     if (event.pointerType !== 'touch') return
     if (expanded) return
@@ -41,7 +71,7 @@ function CollapsibleSidebarAside({
         <button
           type="button"
           aria-label="Close navigation menu"
-          className="fixed inset-0 z-30 bg-black/20"
+          className="fixed inset-0 z-30 bg-black/20 touch-none"
           onPointerUp={(event) => {
             if (event.pointerType === 'touch') {
               collapse()

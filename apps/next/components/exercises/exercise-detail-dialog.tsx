@@ -5,6 +5,7 @@ import { Loader2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { getExerciseRecord } from '@/app/(dashboard)/library/exercises/actions'
+import { ExerciseDemoLinkPlayer } from '@/components/exercises/exercise-demo-link-player'
 import { ExerciseDemoVideoUpload } from '@/components/exercises/exercise-demo-video-upload'
 import { ExerciseFormDialog } from '@/components/exercises/exercise-form-dialog'
 import { ExerciseSourceBadge } from '@/components/exercises/exercise-source-badge'
@@ -22,6 +23,7 @@ import {
   getExerciseDemoVideoPublicUrl,
   getExerciseMediaUrl,
   hasExerciseDemoVideo,
+  hasExerciseDemoVideoLink,
 } from '@/lib/exercise-media'
 import type { Exercise } from 'app/types/database'
 
@@ -102,8 +104,9 @@ export function ExerciseDetailDialog({
   if (!exerciseId) return null
 
   const demoVideoUrl = exercise ? getExerciseDemoVideoPublicUrl(exercise) : null
+  const hasLink = exercise ? hasExerciseDemoVideoLink(exercise) : false
   const imageUrl =
-    exercise && !hasExerciseDemoVideo(exercise)
+    exercise && !hasExerciseDemoVideo(exercise) && !hasLink
       ? getExerciseMediaUrl(exercise)
       : null
   const secondImageUrl =
@@ -178,6 +181,15 @@ export function ExerciseDetailDialog({
                       />
                     </div>
                   </div>
+                ) : hasLink ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Form video</p>
+                    <ExerciseDemoLinkPlayer
+                      url={exercise.demo_video_url}
+                      title={exercise.name}
+                      videoClassName="mx-auto max-h-[min(45vh,320px)] w-full object-contain"
+                    />
+                  </div>
                 ) : imageUrl ? (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Demonstration</p>
@@ -240,7 +252,8 @@ export function ExerciseDetailDialog({
                 <div className="space-y-2 border-t pt-5">
                   <p className="text-sm font-medium">Coach demo video</p>
                   <p className="text-muted-foreground text-xs">
-                    Upload your own demonstration clip for this exercise.
+                    Upload your own clip, or set a form video link when editing
+                    this exercise.
                   </p>
                   <ExerciseDemoVideoUpload
                     exerciseId={exercise.id}

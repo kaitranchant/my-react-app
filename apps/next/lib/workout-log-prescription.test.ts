@@ -54,6 +54,7 @@ function baseExercise(
       external_id: null,
       image_url: null,
       demo_video_path: null,
+      demo_video_url: null,
       instructions: null,
     },
     ...overrides,

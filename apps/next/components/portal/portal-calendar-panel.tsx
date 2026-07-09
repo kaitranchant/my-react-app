@@ -190,6 +190,10 @@ export function PortalCalendarPanel({
   }
 
   async function handleSelectDate(dateKey: string) {
+    if (logOpen && workout && workout.scheduled_date !== dateKey) {
+      setLogOpen(false)
+    }
+
     setSelectedDate(dateKey)
 
     const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)

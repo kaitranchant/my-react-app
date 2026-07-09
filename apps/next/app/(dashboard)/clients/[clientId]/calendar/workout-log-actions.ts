@@ -166,7 +166,7 @@ export async function stopWorkoutLog(
   const { supabase } = ctx
   const { data: workout, error: workoutError } = await supabase
     .from('client_scheduled_workouts')
-    .select('id, status')
+    .select('id, status, completed_at')
     .eq('id', workoutId)
     .eq('client_id', clientId)
     .maybeSingle()
@@ -175,7 +175,7 @@ export async function stopWorkoutLog(
     return { success: false, error: 'Workout not found.' }
   }
 
-  if (workout.status !== 'in_progress') {
+  if (workout.status !== 'in_progress' || workout.completed_at) {
     return { success: true }
   }
 
@@ -201,6 +201,7 @@ export async function saveWorkoutLogSets(
   options?: {
     revalidate?: boolean
     exerciseMeta?: WorkoutLogExerciseMetaValues[]
+    syncSetDeletions?: boolean
   }
 ): Promise<ActionResult> {
   const parsed = saveWorkoutLogSetsSchema.safeParse({
@@ -275,13 +276,16 @@ export async function saveWorkoutLogSets(
     }
   }
 
-  const syncResult = await syncWorkoutLogSetsForExercises(
-    supabase,
-    parsed.data.sets,
-    exerciseIds
-  )
-  if (!syncResult.success) {
-    return syncResult
+  if (options?.syncSetDeletions) {
+    const syncResult = await syncWorkoutLogSetsForExercises(
+      supabase,
+      workoutId,
+      parsed.data.sets,
+      exerciseIds
+    )
+    if (!syncResult.success) {
+      return syncResult
+    }
   }
 
   if (options?.revalidate !== false) {

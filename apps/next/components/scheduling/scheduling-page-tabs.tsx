@@ -53,6 +53,7 @@ type SchedulingPageTabsProps = {
   appBaseUrl: string
   googleCalendarConfigured: boolean
   googleCalendarConnection: CoachGoogleCalendarConnection | null
+  googleCalendarAuthExpired?: boolean
   connectError: string | null
   connectSuccess: boolean
   googleBlockedTimes: GoogleCalendarBlockedTime[]
@@ -86,6 +87,7 @@ export function SchedulingPageTabs({
   appBaseUrl,
   googleCalendarConfigured,
   googleCalendarConnection,
+  googleCalendarAuthExpired = false,
   connectError,
   connectSuccess,
   googleBlockedTimes,
@@ -158,6 +160,7 @@ export function SchedulingPageTabs({
             <SchedulingWeekPanel
               appointments={appointments}
               googleBlockedTimes={googleBlockedTimes}
+              googleAuthExpired={googleCalendarAuthExpired}
               coachPreferences={coachPreferences}
               sessionPacks={sessionPacks}
               weekKeys={weekKeys}
@@ -201,6 +204,7 @@ export function SchedulingPageTabs({
             <GoogleCalendarConnectCard
               configured={googleCalendarConfigured}
               connection={googleCalendarConnection}
+              authExpired={googleCalendarAuthExpired}
               connectError={connectError}
               connectSuccess={connectSuccess}
             />

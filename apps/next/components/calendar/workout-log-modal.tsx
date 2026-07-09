@@ -61,6 +61,11 @@ import {
   WorkoutLogKeypadProvider,
   useWorkoutLogKeypad,
 } from '@/components/workout/workout-log-keypad-context'
+import { MobileKeyboardOverlay } from '@/components/mobile-keyboard/mobile-keyboard'
+import {
+  MobileKeyboardProvider,
+  useMobileKeyboard,
+} from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { WorkoutLogSetField } from '@/components/workout/workout-log-set-field'
 import { WorkoutLogSwipeableSetRow } from '@/components/workout/workout-log-swipeable-set-row'
 import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
@@ -81,6 +86,7 @@ import {
   stabilizeViewportScroll,
 } from '@/lib/visual-viewport/app-viewport'
 import { usePreferWorkoutLogKeypad } from '@/lib/hooks/use-prefer-workout-log-keypad'
+import { useGuidedExerciseSwipeNavigation } from '@/lib/hooks/use-guided-exercise-swipe-navigation'
 import { getPreviousSessionCopyValuesForSet } from '@/lib/workout-log-keypad'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -322,6 +328,26 @@ function normalizeExerciseState(state: ExerciseLogState): ExerciseLogState {
   )
 }
 
+function exerciseSetCountsDecreased(
+  current: ExerciseLogState,
+  lastPersistedSerialized: string
+): boolean {
+  if (!lastPersistedSerialized) return false
+
+  const persisted = parseSerializedWorkoutLog(lastPersistedSerialized)
+
+  for (const exerciseId of Object.keys(persisted.sets)) {
+    if (!(exerciseId in current)) return true
+  }
+
+  for (const [exerciseId, sets] of Object.entries(current)) {
+    const prevCount = persisted.sets[exerciseId]?.length ?? 0
+    if (sets.length < prevCount) return true
+  }
+
+  return false
+}
+
 function parseSerializedWorkoutLog(serialized: string): {
   sets: ExerciseLogState
   meta: ExerciseMetaState
@@ -417,6 +443,7 @@ type WorkoutLogExerciseProps = {
   onReplace: () => void
   onDelete: () => void
   onNotesChanged: (notes: string) => void
+  onNestedOverlayChange?: (key: string, open: boolean) => void
   perceivedRpe?: string
   onPerceivedRpeChange?: (value: string) => void
   allowPrescriptionEdits?: boolean
@@ -444,6 +471,7 @@ function WorkoutLogExercise({
   onReplace,
   onDelete,
   onNotesChanged,
+  onNestedOverlayChange,
   perceivedRpe = '',
   onPerceivedRpeChange,
   allowPrescriptionEdits = true,
@@ -457,6 +485,26 @@ function WorkoutLogExercise({
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [openSwipeDraftId, setOpenSwipeDraftId] =
     React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(`${exercise.id}:notes`, notesOpen)
+    return () => onNestedOverlayChange?.(`${exercise.id}:notes`, false)
+  }, [exercise.id, notesOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(`${exercise.id}:media`, mediaOpen)
+    return () => onNestedOverlayChange?.(`${exercise.id}:media`, false)
+  }, [exercise.id, mediaOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(`${exercise.id}:history`, historyOpen)
+    return () => onNestedOverlayChange?.(`${exercise.id}:history`, false)
+  }, [exercise.id, historyOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(`${exercise.id}:form-review`, formReviewOpen)
+    return () => onNestedOverlayChange?.(`${exercise.id}:form-review`, false)
+  }, [exercise.id, formReviewOpen, onNestedOverlayChange])
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -471,6 +519,11 @@ function WorkoutLogExercise({
   const prTrackingEnabled = !trackingOptions.disablePrTracking
   const fields = getLogFieldsForExercise(exercise)
   const keypad = useWorkoutLogKeypad()
+
+  React.useEffect(() => {
+    if (!notesOpen) return
+    keypad?.closeKeypad()
+  }, [keypad, notesOpen])
 
   const summary = formatExercisePrescriptionSummary(exercise)
   const showRpeInput = exerciseHasRpeTarget(exercise)
@@ -777,7 +830,12 @@ function WorkoutLogExercise({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => setNotesOpen(true)}>
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault()
+                          setNotesOpen(true)
+                        }}
+                      >
                         <StickyNote className="size-4" />
                         {hasExerciseNotes ? 'Edit notes' : 'Add notes'}
                       </DropdownMenuItem>
@@ -1283,6 +1341,7 @@ function WorkoutLogExercise({
         onOpenChange={setNotesOpen}
         exerciseName={exercise.exercise.name}
         exerciseRowId={exercise.id}
+        libraryExerciseId={exercise.exercise_id}
         clientId={clientId}
         workoutId={workoutId}
         variant={variant}
@@ -1292,6 +1351,27 @@ function WorkoutLogExercise({
       />
     </Card>
   )
+}
+
+function WorkoutLogKeyboardCoordinator() {
+  const mobileKeyboard = useMobileKeyboard()
+  const workoutKeypad = useWorkoutLogKeypad()
+
+  React.useEffect(() => {
+    if (!mobileKeyboard?.activeField || !workoutKeypad?.activeTarget) {
+      return
+    }
+    workoutKeypad.closeKeypad()
+  }, [mobileKeyboard?.activeField, workoutKeypad])
+
+  React.useEffect(() => {
+    if (!workoutKeypad?.activeTarget || !mobileKeyboard?.activeField) {
+      return
+    }
+    mobileKeyboard.closeKeyboard()
+  }, [mobileKeyboard, workoutKeypad?.activeTarget])
+
+  return null
 }
 
 function WorkoutLogScrollArea({
@@ -1366,6 +1446,23 @@ export function WorkoutLogScreen({
   const [exerciseToRemove, setExerciseToRemove] =
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  const nestedOverlaysRef = React.useRef(new Set<string>())
+
+  const handleNestedOverlayChange = React.useCallback(
+    (key: string, open: boolean) => {
+      if (open) {
+        nestedOverlaysRef.current.add(key)
+      } else {
+        nestedOverlaysRef.current.delete(key)
+      }
+    },
+    []
+  )
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('exercise-nav', exerciseNavOpen)
+    return () => handleNestedOverlayChange('exercise-nav', false)
+  }, [exerciseNavOpen, handleNestedOverlayChange])
 
   const removeExerciseConfirm = useConfirmDialog({
     title: exerciseToRemove
@@ -1471,7 +1568,10 @@ export function WorkoutLogScreen({
   const autoSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveInFlightRef = React.useRef(false)
   const queuedSaveRef = React.useRef(false)
+  const loadGenerationRef = React.useRef(0)
+  const loadingRef = React.useRef(false)
   const autoCompletingRef = React.useRef(false)
+  const completionFinalizedRef = React.useRef(false)
   const wasLoggingActiveRef = React.useRef(false)
   const leavingPageRef = React.useRef(false)
   const navigatingBackRef = React.useRef(false)
@@ -1480,6 +1580,21 @@ export function WorkoutLogScreen({
 
   const dataRef = React.useRef(data)
   dataRef.current = data
+
+  const workoutIdRef = React.useRef(workoutId)
+  workoutIdRef.current = workoutId
+
+  const previousWorkoutIdRef = React.useRef(workoutId)
+  React.useEffect(() => {
+    if (previousWorkoutIdRef.current === workoutId) return
+
+    previousWorkoutIdRef.current = workoutId
+    completionFinalizedRef.current = false
+    skipAutoSaveRef.current = true
+    setData(null)
+    setExerciseState({})
+    setExerciseMetaState({})
+  }, [workoutId])
 
   const readOnly =
     data?.status === 'skipped' || data?.status === 'completed'
@@ -1534,34 +1649,48 @@ export function WorkoutLogScreen({
   }, [pendingCelebrationPrs, revealCelebration])
 
   const loadData = React.useCallback(async () => {
+    const generation = ++loadGenerationRef.current
     setLoading(true)
+    loadingRef.current = true
     setSchemaError(null)
-    const result = isClientPortal
-      ? await getPortalWorkoutLogData(workoutId)
-      : await getWorkoutLogData(clientId, workoutId)
-    setLoading(false)
 
-    if (!result.success) {
-      if (isWorkoutLogSchemaError(result.error)) {
-        setSchemaError(result.error)
+    try {
+      const result = isClientPortal
+        ? await getPortalWorkoutLogData(workoutId)
+        : await getWorkoutLogData(clientId, workoutId)
+
+      if (generation !== loadGenerationRef.current) return
+
+      if (!result.success) {
+        if (isWorkoutLogSchemaError(result.error)) {
+          setSchemaError(result.error)
+          return
+        }
+        toast.error(result.error)
         return
       }
-      toast.error(result.error)
-      return
-    }
 
-    setData(result.data)
-    skipAutoSaveRef.current = true
-    setExerciseState(
-      buildExerciseState(
-        result.data.exercises,
-        result.data.logSets,
-        result.data.previousSetsByExerciseId,
-        result.data.personalBestsByExerciseId,
-        result.data.progressiveOverloadEnabled
+      completionFinalizedRef.current =
+        result.data.status === 'completed' || result.data.status === 'skipped'
+
+      setData(result.data)
+      skipAutoSaveRef.current = true
+      setExerciseState(
+        buildExerciseState(
+          result.data.exercises,
+          result.data.logSets,
+          result.data.previousSetsByExerciseId,
+          result.data.personalBestsByExerciseId,
+          result.data.progressiveOverloadEnabled
+        )
       )
-    )
-    setExerciseMetaState(buildExerciseMetaState(result.data.exercises))
+      setExerciseMetaState(buildExerciseMetaState(result.data.exercises))
+    } finally {
+      if (generation === loadGenerationRef.current) {
+        loadingRef.current = false
+        setLoading(false)
+      }
+    }
   }, [clientId, isClientPortal, workoutId])
 
   const buildSetsPayload = React.useCallback(
@@ -1592,35 +1721,34 @@ export function WorkoutLogScreen({
         notifyParent?: boolean
         blockUi?: boolean
         revalidate?: boolean
+        syncSetDeletions?: boolean
       }
     ): Promise<boolean> => {
-      if (!data) return false
+      const snapshot = dataRef.current
+      if (!snapshot || snapshot.id !== workoutIdRef.current) return false
 
       if (options?.blockUi) setPending(true)
 
+      const saveOptions = {
+        revalidate: options?.revalidate ?? true,
+        exerciseMeta: buildExerciseMetaPayload(
+          exerciseMetaStateRef.current,
+          snapshot.exercises
+        ),
+        syncSetDeletions: options?.syncSetDeletions ?? false,
+      }
+
       const result = isClientPortal
         ? await savePortalWorkoutLogSets(
-            workoutId,
-            buildSetsPayload(state, data.exercises),
-            {
-              revalidate: options?.revalidate ?? true,
-              exerciseMeta: buildExerciseMetaPayload(
-                exerciseMetaStateRef.current,
-                data.exercises
-              ),
-            }
+            workoutIdRef.current,
+            buildSetsPayload(state, snapshot.exercises),
+            saveOptions
           )
         : await saveWorkoutLogSets(
             clientId,
-            workoutId,
-            buildSetsPayload(state, data.exercises),
-            {
-              revalidate: options?.revalidate ?? true,
-              exerciseMeta: buildExerciseMetaPayload(
-                exerciseMetaStateRef.current,
-                data.exercises
-              ),
-            }
+            workoutIdRef.current,
+            buildSetsPayload(state, snapshot.exercises),
+            saveOptions
           )
 
       if (options?.blockUi) setPending(false)
@@ -1651,7 +1779,7 @@ export function WorkoutLogScreen({
 
       return false
     },
-    [buildSetsPayload, clientId, data, isClientPortal, loadData, workoutId]
+    [buildSetsPayload, clientId, isClientPortal, loadData]
   )
 
   const persistSetsRef = React.useRef(persistSets)
@@ -1661,8 +1789,16 @@ export function WorkoutLogScreen({
     notifyParent?: boolean
     revalidate?: boolean
   }) => {
-    if (autoCompletingRef.current) return
-    if (dataRef.current?.status !== 'in_progress') return
+    if (autoCompletingRef.current || completionFinalizedRef.current) return
+
+    const snapshot = dataRef.current
+    if (
+      !snapshot ||
+      snapshot.id !== workoutId ||
+      snapshot.status !== 'in_progress'
+    ) {
+      return
+    }
 
     const stopOptions = { revalidate: options?.revalidate ?? true }
     const result = isClientPortal
@@ -1738,6 +1874,10 @@ export function WorkoutLogScreen({
           notifyParent: false,
           blockUi: false,
           revalidate: false,
+          syncSetDeletions: exerciseSetCountsDecreased(
+            currentState,
+            lastPersistedStateRef.current
+          ),
         })
 
         if (!saved) {
@@ -1755,6 +1895,7 @@ export function WorkoutLogScreen({
         : await completeWorkoutLog(clientId, workoutId)
 
       if (result.success) {
+        completionFinalizedRef.current = true
         setData((current) =>
           current ? { ...current, status: 'completed' } : current
         )
@@ -1799,10 +1940,13 @@ export function WorkoutLogScreen({
   )
 
   const runAutoSave = React.useCallback(async () => {
-    if (autoCompletingRef.current) return
+    if (autoCompletingRef.current || completionFinalizedRef.current) return
+    const snapshot = dataRef.current
     if (
-      dataRef.current?.status === 'completed' ||
-      dataRef.current?.status === 'skipped'
+      !snapshot ||
+      snapshot.id !== workoutIdRef.current ||
+      snapshot.status === 'completed' ||
+      snapshot.status === 'skipped'
     ) {
       return
     }
@@ -1828,6 +1972,10 @@ export function WorkoutLogScreen({
       notifyParent: false,
       blockUi: false,
       revalidate: false,
+      syncSetDeletions: exerciseSetCountsDecreased(
+        state,
+        lastPersistedStateRef.current
+      ),
     })
     saveInFlightRef.current = false
 
@@ -1934,6 +2082,30 @@ export function WorkoutLogScreen({
       ? getSectionLabelForExercise(activeExercise, sections)
       : null
 
+  const goToExerciseIndex = React.useCallback((index: number) => {
+    setActiveExerciseIndex(index)
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const goToPreviousExercise = React.useCallback(() => {
+    goToExerciseIndex(Math.max(0, activeExerciseIndex - 1))
+  }, [activeExerciseIndex, goToExerciseIndex])
+
+  const goToNextExercise = React.useCallback(() => {
+    goToExerciseIndex(
+      Math.min(orderedExercises.length - 1, activeExerciseIndex + 1)
+    )
+  }, [activeExerciseIndex, goToExerciseIndex, orderedExercises.length])
+
+  const { swipeProps: guidedExerciseSwipeProps } =
+    useGuidedExerciseSwipeNavigation({
+      enabled: showGuidedSession,
+      canGoPrevious: activeExerciseIndex > 0,
+      canGoNext: activeExerciseIndex < orderedExercises.length - 1,
+      onPrevious: goToPreviousExercise,
+      onNext: goToNextExercise,
+    })
+
   React.useEffect(() => {
     guidedWorkoutInitRef.current = null
   }, [workoutId])
@@ -1991,8 +2163,8 @@ export function WorkoutLogScreen({
 
     guidedAutoAdvanceRef.current = true
     const timer = setTimeout(() => {
-      setActiveExerciseIndex((current) =>
-        Math.min(current + 1, orderedExercises.length - 1)
+      goToExerciseIndex(
+        Math.min(activeExerciseIndex + 1, orderedExercises.length - 1)
       )
       guidedAutoAdvanceRef.current = false
     }, 500)
@@ -2002,6 +2174,7 @@ export function WorkoutLogScreen({
     activeExercise,
     activeExerciseIndex,
     exerciseState,
+    goToExerciseIndex,
     orderedExercises.length,
     showGuidedSession,
     data,
@@ -2058,10 +2231,16 @@ export function WorkoutLogScreen({
     notifyParent?: boolean
     revalidate?: boolean
   }) {
-    if (autoCompletingRef.current) return
+    if (autoCompletingRef.current || completionFinalizedRef.current) return
 
-    const status = dataRef.current?.status
-    if (status === 'completed' || status === 'skipped') {
+    const snapshot = dataRef.current
+    const status = snapshot?.status
+    if (
+      !snapshot ||
+      snapshot.id !== workoutIdRef.current ||
+      status === 'completed' ||
+      status === 'skipped'
+    ) {
       return
     }
 
@@ -2078,11 +2257,12 @@ export function WorkoutLogScreen({
     const revalidate = options?.revalidate ?? true
     const tasks: Promise<unknown>[] = []
 
-    if (active && !readOnly && data) {
+    if (status === 'in_progress' || status === 'scheduled') {
       const state = exerciseStateRef.current
       if (
+        !loadingRef.current &&
         serializeWorkoutLogForSave(state, exerciseMetaStateRef.current) !==
-        lastPersistedStateRef.current
+          lastPersistedStateRef.current
       ) {
         tasks.push(
           persistSetsRef.current(state, {
@@ -2091,6 +2271,7 @@ export function WorkoutLogScreen({
             notifyParent: false,
             blockUi: false,
             revalidate: false,
+            syncSetDeletions: false,
           })
         )
       }
@@ -2111,6 +2292,10 @@ export function WorkoutLogScreen({
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen && nestedOverlaysRef.current.size > 0) {
+      return
+    }
+
     if (!nextOpen) {
       onClose?.()
       scheduleFlushOnClose()
@@ -2328,6 +2513,7 @@ export function WorkoutLogScreen({
         onNotesChanged={(notes) =>
           handleExerciseNotesChanged(exercise.id, notes)
         }
+        onNestedOverlayChange={handleNestedOverlayChange}
         perceivedRpe={exerciseMetaState[exercise.id] ?? ''}
         onPerceivedRpeChange={(value) =>
           handleExercisePerceivedRpeChanged(exercise.id, value)
@@ -2382,11 +2568,13 @@ export function WorkoutLogScreen({
   }
 
   const logContent = (
+    <MobileKeyboardProvider enabled={useCustomKeypad}>
     <WorkoutLogKeypadProvider
       enabled={useCustomKeypad}
       weightUnit={weightUnit}
       scrollContainerRef={scrollContainerRef}
     >
+      <WorkoutLogKeyboardCoordinator />
       <RestTimerProvider>
       <div
         className={cn(
@@ -2577,7 +2765,10 @@ export function WorkoutLogScreen({
               )}
             </div>
           ) : showGuidedSession && activeExercise ? (
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className="flex min-h-0 flex-1 touch-pan-y flex-col"
+              {...guidedExerciseSwipeProps}
+            >
               {activeExerciseSectionLabel && sections.length > 1 ? (
                 <div className="border-b py-3">
                   <p className="text-muted-foreground text-xs font-medium">
@@ -2639,9 +2830,7 @@ export function WorkoutLogScreen({
                 size="sm"
                 className="shrink-0"
                 disabled={activeExerciseIndex === 0}
-                onClick={() =>
-                  setActiveExerciseIndex((current) => Math.max(0, current - 1))
-                }
+                onClick={goToPreviousExercise}
               >
                 <ChevronLeft className="size-4" />
                 <span className="hidden sm:inline">Prev</span>
@@ -2669,11 +2858,7 @@ export function WorkoutLogScreen({
                 size="sm"
                 className="shrink-0"
                 disabled={activeExerciseIndex >= orderedExercises.length - 1}
-                onClick={() =>
-                  setActiveExerciseIndex((current) =>
-                    Math.min(orderedExercises.length - 1, current + 1)
-                  )
-                }
+                onClick={goToNextExercise}
               >
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="size-4" />
@@ -2691,8 +2876,7 @@ export function WorkoutLogScreen({
             exerciseState={exerciseState}
             activeExerciseIndex={activeExerciseIndex}
             onSelectExercise={(index) => {
-              setActiveExerciseIndex(index)
-              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+              goToExerciseIndex(index)
             }}
           />
         ) : null}
@@ -2735,6 +2919,8 @@ export function WorkoutLogScreen({
       </div>
     </RestTimerProvider>
     </WorkoutLogKeypadProvider>
+    {useCustomKeypad ? <MobileKeyboardOverlay /> : null}
+    </MobileKeyboardProvider>
   )
 
   const celebrationDialog = (

@@ -6,6 +6,11 @@ import {
   GOOGLE_CALENDAR_AUTH_URL,
   GOOGLE_CALENDAR_TOKEN_URL,
 } from '@/lib/google-calendar/config'
+import {
+  GoogleCalendarAuthError,
+  isGoogleCalendarTokenRevokedMessage,
+} from '@/lib/google-calendar/auth-errors'
+import { fetchWithTimeout } from '@/lib/google-calendar/fetch-timeout'
 
 export type GoogleCalendarOAuthState = {
   state: string
@@ -31,12 +36,27 @@ async function parseTokenResponse(response: Response): Promise<GoogleTokenRespon
     | null
 
   if (!response.ok || !body || !('access_token' in body)) {
+    const errorCode =
+      body && 'error' in body && typeof body.error === 'string'
+        ? body.error
+        : undefined
     const message =
       body && 'error_description' in body && body.error_description
         ? body.error_description
-        : body && 'error' in body && body.error
-          ? body.error
+        : errorCode
+          ? errorCode
           : `Google token exchange failed (${response.status})`
+
+    if (
+      errorCode === 'invalid_grant' ||
+      isGoogleCalendarTokenRevokedMessage(message)
+    ) {
+      throw new GoogleCalendarAuthError(
+        errorCode ?? 'invalid_grant',
+        message
+      )
+    }
+
     throw new Error(message)
   }
 
@@ -104,7 +124,7 @@ export async function exchangeGoogleCalendarAuthorizationCode(
     throw new Error('Google Calendar is not configured.')
   }
 
-  const response = await fetch(GOOGLE_CALENDAR_TOKEN_URL, {
+  const response = await fetchWithTimeout(GOOGLE_CALENDAR_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: encodeFormBody({
@@ -129,7 +149,7 @@ export async function refreshGoogleCalendarAccessToken(
     throw new Error('Google Calendar is not configured.')
   }
 
-  const response = await fetch(GOOGLE_CALENDAR_TOKEN_URL, {
+  const response = await fetchWithTimeout(GOOGLE_CALENDAR_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: encodeFormBody({

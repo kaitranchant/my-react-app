@@ -33,7 +33,7 @@ export const metadata = {
 }
 
 const LIST_COLUMNS =
-  'id, coach_id, name, muscle_group, equipment, status, source, external_id, image_url, demo_video_path, category, difficulty, created_at, updated_at'
+  'id, coach_id, name, muscle_group, equipment, status, source, external_id, image_url, demo_video_path, demo_video_url, category, difficulty, created_at, updated_at'
 
 function isStatus(value: string): value is ExerciseStatus {
   return (exerciseStatuses as readonly string[]).includes(value)

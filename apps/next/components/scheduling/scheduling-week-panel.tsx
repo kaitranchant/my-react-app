@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils'
 type SchedulingWeekPanelProps = {
   appointments: CoachingAppointment[]
   googleBlockedTimes?: GoogleCalendarBlockedTime[]
+  googleAuthExpired?: boolean
   coachPreferences: CoachPreferences
   sessionPacks: ClientSessionPack[]
   weekKeys: string[]
@@ -80,6 +81,7 @@ function buildWeekData(
 export function SchedulingWeekPanel({
   appointments: initialAppointments,
   googleBlockedTimes: initialGoogleBlockedTimes = [],
+  googleAuthExpired: initialGoogleAuthExpired = false,
   coachPreferences,
   sessionPacks,
   weekKeys: initialWeekKeys,
@@ -111,6 +113,13 @@ export function SchedulingWeekPanel({
     React.useState<GoogleCalendarBlockedTime | null>(null)
   const [blockedTimeOpen, setBlockedTimeOpen] = React.useState(false)
   const [targetsOpen, setTargetsOpen] = React.useState(false)
+  const [googleAuthExpired, setGoogleAuthExpired] = React.useState(
+    initialGoogleAuthExpired
+  )
+
+  React.useEffect(() => {
+    setGoogleAuthExpired(initialGoogleAuthExpired)
+  }, [initialGoogleAuthExpired])
 
   const weekStartKey = weekData.weekKeys[0]!
   const weekEndKey = weekData.weekKeys[weekData.weekKeys.length - 1]!
@@ -186,6 +195,7 @@ export function SchedulingWeekPanel({
     try {
       const result = await fetchSchedulingWeekData(targetWeekStart)
       if (result.success) {
+        setGoogleAuthExpired(result.googleAuthExpired)
         weekCacheRef.current.set(
           targetWeekStart,
           buildWeekData(
@@ -223,6 +233,7 @@ export function SchedulingWeekPanel({
           return
         }
 
+        setGoogleAuthExpired(result.googleAuthExpired)
         const next = buildWeekData(
           result.appointments,
           result.weekKeys,
@@ -405,6 +416,22 @@ export function SchedulingWeekPanel({
           </div>
         </div>
       </div>
+
+      {googleAuthExpired ? (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm">
+          <p className="font-medium text-amber-950 dark:text-amber-100">
+            Google Calendar events are hidden
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            SwiftCoach loads Google Calendar events live. Your connection expired,
+            so personal calendar blocks are not showing. Reconnect in Availability
+            settings — your events are still in Google Calendar.
+          </p>
+          <Button type="button" className="mt-3" size="sm" asChild>
+            <a href="/scheduling?view=availability">Reconnect Google Calendar</a>
+          </Button>
+        </div>
+      ) : null}
 
       <div
         className={cn(

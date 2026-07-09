@@ -178,7 +178,11 @@ export function WorkoutLogSwipeableSetRow({
       )}
       style={{ gridTemplateRows: exiting ? '0fr' : '1fr' }}
     >
-      <div ref={containerRef} className="relative min-h-0 overflow-hidden">
+      <div
+        ref={containerRef}
+        className="relative min-h-0 overflow-hidden"
+        data-workout-log-swipeable-set-row=""
+      >
         <div
           className="bg-destructive absolute inset-y-0 right-0 flex items-center justify-end"
           style={{ width: Math.max(contentOffset, 0) }}

@@ -32,6 +32,17 @@ export function isKeyboardOpen() {
 
   const visualViewport = window.visualViewport
   if (!visualViewport) return false
+
+  const active = document.activeElement
+  const hasFocusedEditable =
+    active instanceof HTMLElement &&
+    (active.isContentEditable ||
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA' ||
+      active.tagName === 'SELECT')
+
+  if (!hasFocusedEditable) return false
+
   return visualViewport.height < window.innerHeight - KEYBOARD_OPEN_HEIGHT_DELTA_PX
 }
 
@@ -238,9 +249,11 @@ export function installAppViewportSync() {
     const nested = isInNestedKeyboardScrollContainer()
     const appShell = isFixedAppShellLayout()
 
-    if (event.type === 'scroll' && nested) {
+    if (event.type === 'scroll') {
       if (appShell) resetWindowScroll()
-      return
+      if (nested || !keyboardOpen) {
+        return
+      }
     }
 
     syncAppViewportCssVars()

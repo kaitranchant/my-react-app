@@ -7,19 +7,23 @@ import { toast } from 'sonner'
 import { updateClientOnboardingAssessmentNotes } from '@/app/(dashboard)/clients/actions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useMobileKeyboardOptional } from '@/components/mobile-keyboard/mobile-keyboard-context'
 
 type ClientAssessmentNotesPanelProps = {
   clientId: string
   clientName: string
   initialNotes: string | null
+  onCancel?: () => void
 }
 
 export function ClientAssessmentNotesPanel({
   clientId,
   clientName,
   initialNotes,
+  onCancel,
 }: ClientAssessmentNotesPanelProps) {
   const router = useRouter()
+  const keyboard = useMobileKeyboardOptional()
   const [notes, setNotes] = React.useState(initialNotes ?? '')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -30,6 +34,12 @@ export function ClientAssessmentNotesPanel({
     setNotes(initialNotes ?? '')
   }, [initialNotes])
 
+  function handleCancel() {
+    setNotes(savedNotes)
+    keyboard?.closeKeyboard()
+    onCancel?.()
+  }
+
   async function handleSave() {
     setIsSubmitting(true)
     const result = await updateClientOnboardingAssessmentNotes(clientId, notes)
@@ -37,7 +47,9 @@ export function ClientAssessmentNotesPanel({
 
     if (result.success) {
       toast.success('Assessment notes saved')
+      keyboard?.closeKeyboard()
       router.refresh()
+      onCancel?.()
     } else {
       toast.error(result.error)
     }
@@ -59,8 +71,8 @@ export function ClientAssessmentNotesPanel({
         <Button
           type="button"
           variant="outline"
-          onClick={() => setNotes(savedNotes)}
-          disabled={!isDirty || isSubmitting}
+          onClick={handleCancel}
+          disabled={isSubmitting}
         >
           Cancel
         </Button>

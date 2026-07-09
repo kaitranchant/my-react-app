@@ -24,6 +24,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -78,6 +79,7 @@ export function ExerciseFormDialog({
           instructions: exercise.instructions ?? '',
           muscleGroup: exercise.muscle_group ?? '',
           equipment: exercise.equipment ?? '',
+          demoVideoUrl: exercise.demo_video_url ?? '',
           status: exercise.status,
         }
       : exerciseFormDefaults,
@@ -92,6 +94,7 @@ export function ExerciseFormDialog({
               instructions: exercise.instructions ?? '',
               muscleGroup: exercise.muscle_group ?? '',
               equipment: exercise.equipment ?? '',
+              demoVideoUrl: exercise.demo_video_url ?? '',
               status: exercise.status,
             }
           : exerciseFormDefaults
@@ -183,6 +186,28 @@ export function ExerciseFormDialog({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="demoVideoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Form video link</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://youtu.be/… or Vimeo / direct video URL"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Paste a YouTube, Vimeo, or direct video link so clients can
+                    check form when this exercise is assigned.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

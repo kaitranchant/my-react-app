@@ -118,9 +118,11 @@ export default async function SchedulingPage({
     ),
   ])
 
-  const rawGoogleBlockedTimes = googleCalendarConnection
+  const googleBlockedTimesFetch = googleCalendarConnection
     ? await fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)
-    : []
+    : null
+  const googleCalendarAuthExpired = googleBlockedTimesFetch?.authExpired ?? false
+  const rawGoogleBlockedTimes = googleBlockedTimesFetch?.blockedTimes ?? []
   const googleBlockedTimes = await attachGoogleEventMarkers(
     supabase,
     user.id,
@@ -142,6 +144,7 @@ export default async function SchedulingPage({
 
   if (
     googleCalendarConnection &&
+    !googleCalendarAuthExpired &&
     isGoogleCalendarConfigured() &&
     (!googleCalendarConnection.watch_channel_id ||
       (googleCalendarConnection.watch_expiration &&
@@ -184,6 +187,7 @@ export default async function SchedulingPage({
         appBaseUrl={getAppBaseUrl()}
         googleCalendarConfigured={isGoogleCalendarConfigured()}
         googleCalendarConnection={googleCalendarConnection}
+        googleCalendarAuthExpired={googleCalendarAuthExpired}
         connectError={connectError ?? null}
         connectSuccess={connected === 'google_calendar'}
         googleBlockedTimes={googleBlockedTimes}

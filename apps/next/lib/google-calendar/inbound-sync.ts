@@ -201,22 +201,7 @@ export async function validateInboundGoogleReschedule(input: {
   return { ok: true }
 }
 
-async function isActiveSeriesAppointment(appointment: LinkedAppointment) {
-  if (!appointment.series_id) return false
-
-  const admin = createAdminClient()
-  if (!admin) return false
-
-  const { data: series } = await admin
-    .from('coaching_appointment_series')
-    .select('status')
-    .eq('id', appointment.series_id)
-    .maybeSingle()
-
-  return series?.status === 'active'
-}
-
-async function clearGoogleLinkForSeriesAppointment(
+async function clearGoogleExportLink(
   appointment: LinkedAppointment,
   googleUpdatedAt?: string
 ): Promise<'applied' | 'skipped'> {
@@ -232,6 +217,8 @@ async function clearGoogleLinkForSeriesAppointment(
     })
     .eq('id', appointment.id)
 
+  revalidatePath('/scheduling')
+  revalidatePath('/portal/sessions')
   return 'applied'
 }
 
@@ -271,26 +258,7 @@ async function applyGoogleEventUpdate(
   }
 
   if (event.status === 'cancelled') {
-    if (await isActiveSeriesAppointment(appointment)) {
-      return clearGoogleLinkForSeriesAppointment(appointment, event.updated)
-    }
-
-    const admin = createAdminClient()
-    if (!admin) return 'skipped'
-
-    await admin
-      .from('coaching_appointments')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: 'Cancelled in Google Calendar',
-        google_calendar_updated_at: event.updated ?? new Date().toISOString(),
-      })
-      .eq('id', appointment.id)
-
-    revalidatePath('/scheduling')
-    revalidatePath('/portal/sessions')
-    return 'applied'
+    return clearGoogleExportLink(appointment, event.updated)
   }
 
   const times = getGoogleCalendarEventTimes(event)
@@ -342,30 +310,7 @@ async function applyGoogleEventDeletion(
     return 'skipped'
   }
 
-  if (await isActiveSeriesAppointment(appointment)) {
-    return clearGoogleLinkForSeriesAppointment(
-      appointment,
-      deletedEventUpdatedAt
-    )
-  }
-
-  const admin = createAdminClient()
-  if (!admin) return 'skipped'
-
-  await admin
-    .from('coaching_appointments')
-    .update({
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
-      cancellation_reason: 'Removed from Google Calendar',
-      google_calendar_updated_at:
-        deletedEventUpdatedAt ?? new Date().toISOString(),
-    })
-    .eq('id', appointment.id)
-
-  revalidatePath('/scheduling')
-  revalidatePath('/portal/sessions')
-  return 'applied'
+  return clearGoogleExportLink(appointment, deletedEventUpdatedAt)
 }
 
 export async function syncCoachCalendarFromGoogle(
