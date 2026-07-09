@@ -5,6 +5,7 @@ import {
   aggregateAttendanceRate,
   aggregateSessionCompletionRate,
   buildCoachMetricsRows,
+  buildGymClientList,
   buildGymOwnerDashboard,
   filterClientsByCoach,
   formatGymMetricsCsv,
@@ -218,6 +219,100 @@ describe('buildCoachMetricsRows', () => {
   })
 })
 
+describe('buildGymClientList', () => {
+  const members = [
+    {
+      id: 'member-a',
+      gym_id: 'gym-1',
+      coach_id: 'coach-a',
+      role: 'coach' as const,
+      status: 'active' as const,
+      joined_at: '2026-01-01T00:00:00Z',
+      profile: {
+        id: 'coach-a',
+        full_name: 'Alice',
+        avatar_url: null,
+        business_name: null,
+      },
+    },
+    {
+      id: 'member-b',
+      gym_id: 'gym-1',
+      coach_id: 'coach-b',
+      role: 'coach' as const,
+      status: 'active' as const,
+      joined_at: '2026-01-01T00:00:00Z',
+      profile: {
+        id: 'coach-b',
+        full_name: 'Bob',
+        avatar_url: null,
+        business_name: null,
+      },
+    },
+  ]
+
+  const clients = [
+    {
+      id: 'client-1',
+      full_name: 'Zara',
+      avatar_url: null,
+      status: 'active' as const,
+      coaching_type: null,
+      gym_id: 'gym-1',
+      memberships: [],
+    },
+    {
+      id: 'client-2',
+      full_name: 'Amy',
+      avatar_url: null,
+      status: 'active' as const,
+      coaching_type: null,
+      gym_id: 'gym-1',
+      memberships: [],
+    },
+  ]
+
+  it('builds per-client rows sorted by name', () => {
+    const rows = buildGymClientList(
+      clients,
+      [
+        { id: 'client-1', coach_id: 'coach-a' },
+        { id: 'client-2', coach_id: 'coach-b' },
+      ],
+      members,
+      new Map([
+        [
+          'client-1',
+          complianceRow('client-1', {
+            issueCount: 2,
+            sessionCompliance: { completed: 1, planned: 3 },
+          }),
+        ],
+        [
+          'client-2',
+          complianceRow('client-2', {
+            issueCount: 0,
+            sessionCompliance: { completed: 4, planned: 4 },
+          }),
+        ],
+      ]),
+      new Map([
+        ['client-1', { monthAttended: 3, monthTotal: 4 }],
+        ['client-2', { monthAttended: 0, monthTotal: 0 }],
+      ])
+    )
+
+    assert.equal(rows.length, 2)
+    assert.equal(rows[0]?.clientName, 'Amy')
+    assert.equal(rows[0]?.coachName, 'Bob')
+    assert.equal(rows[0]?.attendanceRate, null)
+    assert.equal(rows[1]?.clientName, 'Zara')
+    assert.equal(rows[1]?.coachName, 'Alice')
+    assert.equal(rows[1]?.attendanceRate, 75)
+    assert.equal(rows[1]?.issueCount, 2)
+  })
+})
+
 describe('filterGymDashboardByCoach', () => {
   it('scopes summary metrics to the selected coach', () => {
     const dashboard = {
@@ -245,6 +340,28 @@ describe('filterGymDashboardByCoach', () => {
           injuryFlagClients: 0,
         },
       ],
+      clients: [
+        {
+          clientId: 'client-1',
+          clientName: 'One',
+          avatarUrl: null,
+          coachId: 'coach-a',
+          coachName: 'Alice',
+          attendanceRate: 80,
+          sessionCompletion: { completed: 2, planned: 4 },
+          issueCount: 1,
+        },
+        {
+          clientId: 'client-2',
+          clientName: 'Two',
+          avatarUrl: null,
+          coachId: 'coach-b',
+          coachName: 'Bob',
+          attendanceRate: 50,
+          sessionCompletion: { completed: 1, planned: 4 },
+          issueCount: 0,
+        },
+      ],
     }
 
     const filtered = filterGymDashboardByCoach(dashboard, 'coach-b')
@@ -254,6 +371,8 @@ describe('filterGymDashboardByCoach', () => {
     assert.equal(filtered.summary.attendanceRate, 50)
     assert.equal(filtered.summary.sessionCompletionRate, 40)
     assert.equal(filtered.coaches.length, 2)
+    assert.equal(filtered.clients.length, 1)
+    assert.equal(filtered.clients[0]?.clientId, 'client-2')
   })
 })
 

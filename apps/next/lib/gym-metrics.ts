@@ -43,9 +43,21 @@ export type GymOwnerDashboardSummary = {
   monthLabel: string
 }
 
+export type GymClientListItem = {
+  clientId: string
+  clientName: string
+  avatarUrl: string | null
+  coachId: string
+  coachName: string
+  attendanceRate: number | null
+  sessionCompletion: { completed: number; planned: number } | null
+  issueCount: number
+}
+
 export type GymOwnerDashboard = {
   summary: GymOwnerDashboardSummary
   coaches: GymCoachMetrics[]
+  clients: GymClientListItem[]
   hasSharedClients: boolean
   selectedCoachId: string | null
 }
@@ -207,6 +219,13 @@ export function buildGymOwnerDashboard(
       complianceByClientId,
       attendanceStatsByClientId
     ),
+    clients: buildGymClientList(
+      clients,
+      clientCoachRows,
+      members,
+      complianceByClientId,
+      attendanceStatsByClientId
+    ),
   }
 }
 
@@ -228,6 +247,7 @@ export function filterGymDashboardByCoach(
   return {
     ...dashboard,
     selectedCoachId: coachId,
+    clients: dashboard.clients.filter((client) => client.coachId === coachId),
     summary: {
       ...dashboard.summary,
       totalActiveClients: selectedCoach.activeClients,
@@ -289,6 +309,7 @@ export async function fetchGymOwnerDashboard(
         new Map(),
         monthLabel
       ),
+      clients: [],
       selectedCoachId: options.filterCoachId ?? null,
     }
   }
@@ -372,6 +393,13 @@ export async function fetchGymOwnerDashboard(
       complianceByClientId,
       fullAttendanceStatsByClientId
     ),
+    clients: buildGymClientList(
+      clients,
+      clientCoachRows,
+      options.members,
+      complianceByClientId,
+      fullAttendanceStatsByClientId
+    ),
     selectedCoachId: options.filterCoachId ?? null,
   }
 }
@@ -394,6 +422,52 @@ function groupClientsByCoach(
   }
 
   return clientsByCoachId
+}
+
+export function buildGymClientList(
+  clients: AttendanceClientRow[],
+  clientCoachRows: ClientCoachRow[],
+  members: GymMemberWithProfile[],
+  complianceByClientId: Map<string, ComplianceClientRow>,
+  attendanceStatsByClientId: Map<
+    string,
+    { monthAttended: number; monthTotal: number }
+  >
+): GymClientListItem[] {
+  const coachIdByClientId = new Map(
+    clientCoachRows.map((row) => [row.id, row.coach_id])
+  )
+  const coachNameById = new Map(
+    members.map((member) => [
+      member.coach_id,
+      member.profile?.full_name?.trim() ||
+        member.profile?.business_name?.trim() ||
+        'Coach',
+    ])
+  )
+
+  return clients
+    .map((client) => {
+      const coachId = coachIdByClientId.get(client.id) ?? ''
+      const compliance = complianceByClientId.get(client.id)
+      const attendance = attendanceStatsByClientId.get(client.id)
+      const attendanceRate =
+        attendance && attendance.monthTotal > 0
+          ? Math.round((attendance.monthAttended / attendance.monthTotal) * 100)
+          : null
+
+      return {
+        clientId: client.id,
+        clientName: client.full_name,
+        avatarUrl: client.avatar_url,
+        coachId,
+        coachName: coachNameById.get(coachId) ?? 'Coach',
+        attendanceRate,
+        sessionCompletion: compliance?.sessionCompliance ?? null,
+        issueCount: compliance?.issueCount ?? 0,
+      }
+    })
+    .sort((left, right) => left.clientName.localeCompare(right.clientName))
 }
 
 export function formatGymMetricsCsv(
