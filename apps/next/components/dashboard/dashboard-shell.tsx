@@ -61,41 +61,29 @@ export function DashboardShell({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header
           className={cn(
-            'bg-background/80 z-10 shrink-0 border-b backdrop-blur-sm',
-            immersiveLog && 'hidden md:block'
+            'bg-background/80 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-sm sm:gap-4 sm:px-6',
+            immersiveLog && 'hidden md:flex'
           )}
         >
-          <div className="flex h-16 items-center gap-2 px-4 sm:gap-4 sm:px-6">
-            <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
-              <div className="min-w-0 md:hidden">
-                <BrandLogo />
-              </div>
-              <AppSurfaceSwitcher
-                activeSurface={surfaceContext.activeSurface}
-                showSwitcher={surfaceContext.showSwitcher}
-                className="hidden md:inline-flex"
-              />
+          <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
+            <div className="shrink-0 md:hidden">
+              <BrandLogo />
             </div>
-            <div className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-4">
+            <AppSurfaceSwitcher
+              activeSurface={surfaceContext.activeSurface}
+              showSwitcher={surfaceContext.showSwitcher}
+            />
+          </div>
+          <div className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-4">
+            <GlobalSearch />
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            <CoachNotificationCenter items={notifications} />
+            <div className="md:hidden">
               <GlobalSearch />
             </div>
-            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-              <CoachNotificationCenter items={notifications} />
-              <div className="md:hidden">
-                <GlobalSearch />
-              </div>
-              <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
-            </div>
+            <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
           </div>
-          {surfaceContext.showSwitcher ? (
-            <div className="border-t px-4 pb-3 pt-2 md:hidden">
-              <AppSurfaceSwitcher
-                activeSurface={surfaceContext.activeSurface}
-                showSwitcher
-                className="flex w-full"
-              />
-            </div>
-          ) : null}
         </header>
         <main
           id="main-content"

@@ -56,7 +56,7 @@ export function AppSurfaceSwitcher({
         size="sm"
         variant="ghost"
         className={cn(
-          'h-8 flex-1 rounded-md px-3 text-xs font-medium sm:text-sm',
+          'h-8 rounded-md px-2.5 text-xs font-medium sm:px-3 sm:text-sm',
           activeSurface === 'coach' && 'bg-background shadow-sm'
         )}
         disabled={pending !== null}
@@ -70,7 +70,7 @@ export function AppSurfaceSwitcher({
         size="sm"
         variant="ghost"
         className={cn(
-          'h-8 flex-1 rounded-md px-3 text-xs font-medium sm:text-sm',
+          'h-8 rounded-md px-2.5 text-xs font-medium sm:px-3 sm:text-sm',
           activeSurface === 'client' && 'bg-background shadow-sm'
         )}
         disabled={pending !== null}
