@@ -809,11 +809,7 @@ export function ClientCalendarPanel({
                   ? 'View log'
                   : displayWorkout.status === 'skipped'
                     ? 'View workout'
-                    : displayWorkout.status === 'in_progress'
-                      ? 'Continue log'
-                      : displayWorkout.started_at
-                        ? 'Resume workout'
-                        : 'Log workout'}
+                    : 'Log workout'}
               </Button>
               <Button
                 type="button"

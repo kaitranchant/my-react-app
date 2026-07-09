@@ -43,7 +43,7 @@ test.describe('Mobile smoke — client portal', () => {
 
   test('immersive workout log hides bottom nav', async ({ clientPage: page }) => {
     await page.goto('/portal/workouts')
-    const startLink = page.getByRole('link', { name: /Start workout|Continue workout/i }).first()
+    const startLink = page.getByRole('link', { name: /Start workout|View session/i }).first()
     const hasWorkout = await startLink.isVisible().catch(() => false)
     if (!hasWorkout) {
       test.skip(true, 'No actionable workout for immersive log test')

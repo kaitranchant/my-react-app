@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  PlayCircle,
   SkipForward,
   Video,
   Zap,
@@ -32,9 +31,9 @@ import { cn } from '@/lib/utils'
 
 const workoutStatusIcons = {
   completed: CheckCircle2,
-  in_progress: PlayCircle,
   skipped: SkipForward,
   scheduled: Zap,
+  in_progress: Zap,
 } as const
 
 function getActivityIcon(item: ActivityItem) {

@@ -7,7 +7,6 @@ import {
   Flame,
   Minus,
   Moon,
-  PlayCircle,
   SkipForward,
   TrendingUp,
   UtensilsCrossed,
@@ -217,9 +216,9 @@ function MetricRow({
 
 const activityIcons = {
   completed: CheckCircle2,
-  in_progress: PlayCircle,
   skipped: SkipForward,
   scheduled: Zap,
+  in_progress: Zap,
 } as const
 
 type ClientOverviewProps = {
@@ -913,7 +912,7 @@ export function ClientOverview({
             {activityItems.length === 0 ? (
               <p className="text-muted-foreground py-4 text-sm leading-relaxed">
                 No logged sessions yet. Activity appears here when workouts are
-                started or completed.
+                completed.
               </p>
             ) : (
               <ul>
@@ -926,9 +925,9 @@ export function ClientOverview({
                     string
                   > = {
                     completed: 'completed',
-                    in_progress: 'started',
                     skipped: 'skipped',
                     scheduled: 'scheduled',
+                    in_progress: 'scheduled',
                   }
 
                   return (

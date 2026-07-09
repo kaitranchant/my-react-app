@@ -229,10 +229,10 @@ export async function openPortalWorkoutForLogging(page: Page) {
   await page.goto(`/portal/workouts?date=${today}`)
   await expect(
     page.getByRole('button', {
-      name: /Log workout|Continue log|View log|Resume workout/i,
+      name: /Log workout|View log/i,
     }).or(
       page.getByRole('link', {
-        name: /Start workout|Continue workout|Resume workout/i,
+        name: /Start workout|View session/i,
       })
     )
   ).toBeVisible({ timeout: 15_000 })
@@ -243,7 +243,7 @@ export async function openPortalImmersiveWorkoutLog(page: Page) {
   await page.goto(`/portal/workouts?date=${today}`)
   const link = page
     .getByRole('link', {
-      name: /Start workout|Continue workout|Resume workout/i,
+      name: /Start workout|View session/i,
     })
     .first()
   await expect(link).toBeVisible({ timeout: 15_000 })
@@ -256,7 +256,7 @@ export async function openPortalImmersiveWorkoutLog(page: Page) {
 export async function clickWorkoutLogButton(page: Page) {
   await page
     .getByRole('button', {
-      name: /Log workout|Continue log|View log|Resume workout/i,
+      name: /Log workout|View log/i,
     })
     .click()
 }

@@ -249,8 +249,6 @@ export function PortalCalendarPanel({
     if (!displayWorkout) return 'Log workout'
     if (displayWorkout.status === 'completed') return 'View log'
     if (displayWorkout.status === 'skipped') return 'View workout'
-    if (displayWorkout.status === 'in_progress') return 'Continue log'
-    if (displayWorkout.started_at) return 'Resume workout'
     return 'Log workout'
   }
 

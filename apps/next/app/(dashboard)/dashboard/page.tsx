@@ -134,7 +134,7 @@ export default async function DashboardPage() {
           'id, name, status, completed_at, started_at, updated_at, client_id, clients!inner(full_name, is_coach_self)'
         )
         .eq('clients.is_coach_self', false)
-        .in('status', ['completed', 'in_progress', 'skipped'])
+        .in('status', ['completed', 'skipped'])
         .order('updated_at', { ascending: false })
         .limit(12),
       supabase
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
 
   const activeClientIdsWithWorkout = new Set(
     weekWorkoutList
-      .filter((w) => w.status === 'completed' || w.status === 'in_progress')
+      .filter((w) => w.status === 'completed')
       .map((w) => w.client_id)
   )
   const clientsWithoutWorkoutThisWeek = activeClients.filter(

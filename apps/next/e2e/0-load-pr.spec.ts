@@ -51,7 +51,7 @@ test.describe('PR tracking', () => {
     await expect(dialog).toBeVisible()
 
     const startButton = dialog.getByRole('button', {
-      name: /Start workout|Resume workout/i,
+      name: /Start workout|View session/i,
     })
     if (await startButton.isVisible()) {
       await startButton.click()

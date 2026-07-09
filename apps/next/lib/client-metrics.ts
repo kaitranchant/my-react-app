@@ -66,7 +66,7 @@ export function calcWorkoutStreak(
 
 export function getLastActiveLabel(workouts: ClientWorkoutActivity[]): string {
   const timestamps = workouts
-    .filter((w) => w.status === 'completed' || w.status === 'in_progress')
+    .filter((w) => w.status === 'completed')
     .map((w) => w.completed_at ?? w.started_at ?? w.updated_at)
     .filter(Boolean) as string[]
 

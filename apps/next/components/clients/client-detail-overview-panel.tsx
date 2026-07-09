@@ -73,7 +73,7 @@ export async function ClientDetailOverviewPanel({
         'id, name, status, scheduled_date, started_at, completed_at, updated_at'
       )
       .eq('client_id', clientId)
-      .in('status', ['completed', 'in_progress', 'skipped'])
+      .in('status', ['completed', 'skipped'])
       .order('updated_at', { ascending: false })
       .limit(12),
     supabase

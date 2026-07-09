@@ -547,14 +547,13 @@ function hasSuggestedLogValues(
 
 export function getWorkoutStatusLabel(status: ScheduledWorkoutStatus): string {
   switch (status) {
-    case 'scheduled':
-      return 'Not started'
-    case 'in_progress':
-      return 'In progress'
     case 'completed':
       return 'Completed'
     case 'skipped':
       return 'Skipped'
+    case 'scheduled':
+    case 'in_progress':
+      return 'Incomplete'
     default:
       return status
   }
@@ -569,12 +568,8 @@ export function workoutHasProgress(
 
 export function getWorkoutDisplayStatus(
   status: ScheduledWorkoutStatus,
-  hasProgress: boolean
+  _hasProgress?: boolean
 ): { label: string; tone: 'muted' | 'active' | 'success' | 'warning' } {
-  if (status === 'scheduled' && hasProgress) {
-    return { label: 'Paused', tone: 'active' }
-  }
-
   return {
     label: getWorkoutStatusLabel(status),
     tone: getWorkoutStatusTone(status),
@@ -585,8 +580,6 @@ export function getWorkoutStatusTone(
   status: ScheduledWorkoutStatus
 ): 'muted' | 'active' | 'success' | 'warning' {
   switch (status) {
-    case 'in_progress':
-      return 'active'
     case 'completed':
       return 'success'
     case 'skipped':

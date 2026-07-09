@@ -58,7 +58,7 @@ test.describe('Client portal logging', () => {
     await expect(dialog).toBeVisible()
 
     const startButton = dialog.getByRole('button', {
-      name: /Start workout|Resume workout/i,
+      name: /Start workout|View session/i,
     })
     if (await startButton.isVisible()) {
       await startButton.click()
@@ -80,7 +80,7 @@ test.describe('Client portal logging', () => {
 
     await expect(
       page.getByRole('button', {
-        name: /Log workout|Resume workout|Continue log|View log/i,
+        name: /Log workout|View log/i,
       })
     ).toBeVisible({ timeout: 15_000 })
   })

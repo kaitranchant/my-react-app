@@ -28,9 +28,6 @@ function getWorkoutSubtext(
   if (workoutStatus?.label === 'Completed') {
     return 'Nice work finishing today\u2019s session.'
   }
-  if (workoutStatus?.label === 'Paused') {
-    return 'Pick up where you left off.'
-  }
   return 'Your coach planned this session for today.'
 }
 
@@ -52,9 +49,6 @@ function statusBadgeVariant(
 function workoutActionLabel(status: WorkoutStatus | null) {
   if (!status) return 'View calendar'
   if (status.label === 'Completed') return 'View session'
-  if (status.label === 'In progress' || status.label === 'Paused') {
-    return 'Continue workout'
-  }
   if (status.label === 'Skipped') return 'View session'
   return 'Start workout'
 }

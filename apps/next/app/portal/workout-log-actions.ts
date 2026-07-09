@@ -122,22 +122,18 @@ export async function startPortalWorkoutLog(
   }
 
   if (workout.status === 'in_progress') {
-    return { success: true }
+    const { error } = await supabase
+      .from('client_scheduled_workouts')
+      .update({ status: 'scheduled' })
+      .eq('id', workout.id)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    revalidatePortal()
   }
 
-  const { error } = await supabase
-    .from('client_scheduled_workouts')
-    .update({
-      status: 'in_progress',
-      started_at: workout.started_at ?? new Date().toISOString(),
-    })
-    .eq('id', workout.id)
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
-  revalidatePortal()
   return { success: true }
 }
 
@@ -163,22 +159,21 @@ export async function stopPortalWorkoutLog(
     return { success: false, error: 'Workout not found.' }
   }
 
-  if (workout.status !== 'in_progress' || workout.completed_at) {
-    return { success: true }
+  if (workout.status === 'in_progress' && !workout.completed_at) {
+    const { error } = await supabase
+      .from('client_scheduled_workouts')
+      .update({ status: 'scheduled' })
+      .eq('id', workout.id)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    if (options?.revalidate !== false) {
+      revalidatePortal()
+    }
   }
 
-  const { error } = await supabase
-    .from('client_scheduled_workouts')
-    .update({ status: 'scheduled' })
-    .eq('id', workout.id)
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
-  if (options?.revalidate !== false) {
-    revalidatePortal()
-  }
   return { success: true }
 }
 

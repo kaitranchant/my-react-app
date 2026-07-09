@@ -18,9 +18,8 @@ type PortalWeekStripProps = {
 
 const STATUS_LEGEND = [
   { label: 'Completed', tone: 'success' as const },
-  { label: 'In progress', tone: 'active' as const },
+  { label: 'Incomplete', tone: 'muted' as const },
   { label: 'Skipped', tone: 'warning' as const },
-  { label: 'Scheduled', tone: 'muted' as const },
 ]
 
 function getSessionBoxClass(

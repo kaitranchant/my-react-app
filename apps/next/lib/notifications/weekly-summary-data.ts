@@ -143,7 +143,7 @@ export async function buildWeeklySummaryForCoach(
       )
       .eq('clients.coach_id', coachId)
       .eq('clients.is_coach_self', false)
-      .in('status', ['completed', 'in_progress', 'skipped'])
+      .in('status', ['completed', 'skipped'])
       .order('updated_at', { ascending: false })
       .limit(12),
     admin
@@ -195,7 +195,7 @@ export async function buildWeeklySummaryForCoach(
     weekWorkoutList
       .filter(
         (workout) =>
-          workout.status === 'completed' || workout.status === 'in_progress'
+          workout.status === 'completed'
       )
       .map((workout) => workout.client_id)
   )

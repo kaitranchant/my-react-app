@@ -17,7 +17,7 @@ describe('countMissedWorkouts', () => {
     const missed = countMissedWorkouts(
       [
         { scheduled_date: '2026-06-20', status: 'scheduled', completed_at: null },
-        { scheduled_date: '2026-06-21', status: 'in_progress', completed_at: null },
+        { scheduled_date: '2026-06-21', status: 'scheduled', completed_at: null },
         { scheduled_date: '2026-06-22', status: 'completed', completed_at: '2026-06-22T12:00:00Z' },
         { scheduled_date: '2026-06-23', status: 'scheduled', completed_at: null },
       ],

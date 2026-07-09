@@ -405,8 +405,6 @@ export function formatActivityMessage(item: ActivityItem): string {
       switch (item.status) {
         case 'completed':
           return `completed ${groupedCount} workouts`
-        case 'in_progress':
-          return `started ${groupedCount} workouts`
         case 'skipped':
           return `skipped ${groupedCount} workouts`
         default:
@@ -417,8 +415,6 @@ export function formatActivityMessage(item: ActivityItem): string {
     switch (item.status) {
       case 'completed':
         return 'each completed a workout'
-      case 'in_progress':
-        return 'each started a workout'
       case 'skipped':
         return 'each skipped a workout'
       default:
@@ -429,8 +425,6 @@ export function formatActivityMessage(item: ActivityItem): string {
   switch (item.status) {
     case 'completed':
       return `completed ${item.workoutName}`
-    case 'in_progress':
-      return `started ${item.workoutName}`
     case 'skipped':
       return `skipped ${item.workoutName}`
     default:

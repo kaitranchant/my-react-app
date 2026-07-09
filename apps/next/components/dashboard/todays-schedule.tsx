@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Calendar, CheckCircle2, Circle, PlayCircle, SkipForward } from 'lucide-react'
+import { Calendar, CheckCircle2, Circle, SkipForward } from 'lucide-react'
 
 import {
   Card,
@@ -17,15 +17,15 @@ import { cn } from '@/lib/utils'
 const statusConfig = {
   scheduled: {
     icon: Circle,
-    label: 'Scheduled',
+    label: 'Incomplete',
     dotClass: statusDotClass.neutral,
     iconClass: statusIconClass.neutral,
   },
   in_progress: {
-    icon: PlayCircle,
-    label: 'In progress',
-    dotClass: statusDotClass.warning,
-    iconClass: statusIconClass.warning,
+    icon: Circle,
+    label: 'Incomplete',
+    dotClass: statusDotClass.neutral,
+    iconClass: statusIconClass.neutral,
   },
   completed: {
     icon: CheckCircle2,

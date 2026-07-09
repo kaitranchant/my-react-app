@@ -8,12 +8,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Circle,
-  CircleDot,
   Dumbbell,
   LayoutList,
   Loader2,
   MoreVertical,
-  PanelLeft,
   PlayCircle,
   Plus,
   StickyNote,
@@ -164,7 +162,6 @@ import {
   parseRestSeconds,
   removeSetDraft,
   ensureSetDraftIds,
-  workoutHasProgress,
   type WorkoutLogSetDraft,
 } from '@/lib/workout-log'
 import { getWorkoutToneBadgeClass } from '@/lib/status-colors'
@@ -395,14 +392,12 @@ function metaWithoutExercise(
 
 function WorkoutStatusBadge({
   status,
-  hasProgress,
 }: {
   status: ScheduledWorkoutStatus
-  hasProgress: boolean
+  hasProgress?: boolean
 }) {
-  const display = getWorkoutDisplayStatus(status, hasProgress)
+  const display = getWorkoutDisplayStatus(status)
   const tone = display.tone
-  const isPaused = status === 'scheduled' && hasProgress
 
   return (
     <Badge
@@ -411,8 +406,8 @@ function WorkoutStatusBadge({
     >
       {status === 'completed' ? (
         <Check className="size-3" />
-      ) : status === 'in_progress' || isPaused ? (
-        <CircleDot className="size-3" />
+      ) : status === 'skipped' ? (
+        <Circle className="size-3" />
       ) : (
         <Circle className="size-3" />
       )}
@@ -1602,7 +1597,8 @@ export function WorkoutLogScreen({
   const isCompleted = data?.status === 'completed'
   const canEditPrescription = allowPrescriptionEdits && !isCompleted && !readOnly
   const canSkip =
-    data?.status === 'scheduled' || data?.status === 'in_progress'
+    data?.status === 'scheduled' ||
+    data?.status === 'in_progress'
 
   const AUTO_SAVE_DELAY_MS = 600
 
@@ -1993,11 +1989,11 @@ export function WorkoutLogScreen({
   React.useEffect(() => {
     if (!active || readOnly || !data) return
     if (data.status === 'completed' || data.status === 'skipped') return
-    if (data.status === 'in_progress') return
+    if (data.status !== 'in_progress') return
 
     let cancelled = false
 
-    async function autoStart() {
+    async function normalizeLegacyStatus() {
       const result = isClientPortal
         ? await startPortalWorkoutLog(workoutId)
         : await startWorkoutLog(clientId, workoutId)
@@ -2018,7 +2014,7 @@ export function WorkoutLogScreen({
       toast.error(result.error)
     }
 
-    void autoStart()
+    void normalizeLegacyStatus()
 
     return () => {
       cancelled = true
@@ -2255,7 +2251,6 @@ export function WorkoutLogScreen({
 
     const notifyParent = options?.notifyParent ?? true
     const revalidate = options?.revalidate ?? true
-    const tasks: Promise<unknown>[] = []
 
     if (status === 'in_progress' || status === 'scheduled') {
       const state = exerciseStateRef.current
@@ -2264,22 +2259,18 @@ export function WorkoutLogScreen({
         serializeWorkoutLogForSave(state, exerciseMetaStateRef.current) !==
           lastPersistedStateRef.current
       ) {
-        tasks.push(
-          persistSetsRef.current(state, {
-            silent: true,
-            reload: false,
-            notifyParent: false,
-            blockUi: false,
-            revalidate: false,
-            syncSetDeletions: false,
-          })
-        )
+        await persistSetsRef.current(state, {
+          silent: true,
+          reload: false,
+          notifyParent: false,
+          blockUi: false,
+          revalidate: false,
+          syncSetDeletions: false,
+        })
       }
     }
 
-    tasks.push(pauseWorkout({ notifyParent, revalidate }))
-
-    await Promise.all(tasks)
+    await pauseWorkout({ notifyParent, revalidate })
   }
 
   function scheduleFlushOnClose(options?: {
@@ -2471,10 +2462,7 @@ export function WorkoutLogScreen({
   )
 
   const status = data?.status ?? initialStatus
-  const hasProgress = data
-    ? workoutHasProgress(data, data.logSets)
-    : false
-  const isLoggingActive = active && data?.status === 'in_progress'
+  const isLoggingActive = active && !readOnly
 
   function renderWorkoutLogExercise(
     exercise: ScheduledWorkoutExerciseWithDetails,
@@ -2649,7 +2637,7 @@ export function WorkoutLogScreen({
                   {data?.name ?? 'Workout'}
                 </h2>
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5 sm:gap-2 sm:pt-1">
-                  <WorkoutStatusBadge status={status} hasProgress={hasProgress} />
+                  <WorkoutStatusBadge status={status} />
                   <WorkoutElapsedTimer
                     startedAt={data?.started_at ?? null}
                     active={isLoggingActive}
@@ -2814,16 +2802,6 @@ export function WorkoutLogScreen({
         {showGuidedSession && activeExercise && !loading ? (
           <div className="bg-card shrink-0 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="size-8 shrink-0 px-0"
-                aria-label="Browse exercises"
-                onClick={() => setExerciseNavOpen(true)}
-              >
-                <PanelLeft className="size-4" />
-              </Button>
               <Button
                 type="button"
                 variant="outline"

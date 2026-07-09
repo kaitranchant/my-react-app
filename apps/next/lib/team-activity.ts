@@ -18,7 +18,7 @@ export async function fetchTeamActivityFeed(
       .from('client_scheduled_workouts')
       .select('id, client_id, name, status, completed_at, updated_at')
       .in('client_id', clientIds)
-      .in('status', ['completed', 'in_progress'])
+      .in('status', ['completed'])
       .order('updated_at', { ascending: false })
       .limit(limit),
     supabase
@@ -47,7 +47,7 @@ export async function fetchTeamActivityFeed(
       label:
         workout.status === 'completed'
           ? `Completed ${workout.name}`
-          : `Started ${workout.name}`,
+          : `Updated ${workout.name}`,
       timestamp,
     })
   }
@@ -96,7 +96,7 @@ export async function fetchMemberLastActiveLabels(
     .from('client_scheduled_workouts')
     .select('id, name, client_id, status, scheduled_date, started_at, completed_at, updated_at')
     .in('client_id', clientIds)
-    .in('status', ['completed', 'in_progress', 'skipped'])
+    .in('status', ['completed', 'skipped'])
     .order('updated_at', { ascending: false })
 
   const byClient = new Map<string, typeof data>()

@@ -62,7 +62,7 @@ export function workoutActivityStatusLevel(
   switch (status) {
     case 'completed':
       return 'success'
-    case 'in_progress':
+    case 'skipped':
       return 'warning'
     default:
       return 'neutral'
