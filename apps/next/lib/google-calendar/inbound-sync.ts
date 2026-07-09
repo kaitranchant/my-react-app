@@ -203,7 +203,7 @@ export async function validateInboundGoogleReschedule(input: {
 }
 
 async function cancelAppointmentFromGoogleDeletion(
-  appointment: LinkedAppointment,
+  appointment: Pick<LinkedAppointment, 'id'>,
   googleUpdatedAt?: string
 ): Promise<'applied' | 'skipped'> {
   const admin = createAdminClient()
@@ -211,7 +211,7 @@ async function cancelAppointmentFromGoogleDeletion(
 
   const nowIso = new Date().toISOString()
 
-  const { error } = await admin
+  const { data, error } = await admin
     .from('coaching_appointments')
     .update({
       status: 'cancelled',
@@ -222,15 +222,86 @@ async function cancelAppointmentFromGoogleDeletion(
     })
     .eq('id', appointment.id)
     .eq('status', 'scheduled')
+    .select('id')
 
   if (error) {
     console.error('[google-calendar] cancel appointment from deletion failed', error)
     return 'skipped'
   }
 
+  if (!data?.length) {
+    return 'skipped'
+  }
+
   revalidatePath('/scheduling')
   revalidatePath('/portal/sessions')
   return 'applied'
+}
+
+export async function reconcileGoogleDeletedAppointmentsForCoach(
+  coachId: string,
+  options?: { timeMin?: string; timeMax?: string }
+): Promise<number> {
+  const admin = createAdminClient()
+  if (!admin) return 0
+
+  const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
+  if (!connection) return 0
+
+  let accessToken: string
+  try {
+    accessToken = await getValidGoogleCalendarAccessToken(connection.id)
+  } catch (error) {
+    console.warn('[google-calendar] reconcile skipped — auth unavailable', error)
+    return 0
+  }
+
+  let query = admin
+    .from('coaching_appointments')
+    .select('id, google_calendar_event_id')
+    .eq('coach_id', coachId)
+    .eq('status', 'scheduled')
+    .not('google_calendar_event_id', 'is', null)
+
+  if (options?.timeMin) {
+    query = query.gte('starts_at', options.timeMin)
+  }
+  if (options?.timeMax) {
+    query = query.lte('starts_at', options.timeMax)
+  }
+
+  const { data: appointments, error } = await query
+
+  if (error) {
+    console.error('[google-calendar] reconcile appointment lookup failed', error)
+    return 0
+  }
+
+  let cancelled = 0
+
+  for (const appointment of appointments ?? []) {
+    if (!appointment.google_calendar_event_id) continue
+
+    const event = await getGoogleCalendarEvent(
+      accessToken,
+      connection.calendar_id,
+      appointment.google_calendar_event_id
+    )
+
+    if (event && event.status !== 'cancelled') {
+      continue
+    }
+
+    const result = await cancelAppointmentFromGoogleDeletion(
+      appointment,
+      event?.updated
+    )
+    if (result === 'applied') {
+      cancelled += 1
+    }
+  }
+
+  return cancelled
 }
 
 async function revertGoogleEventToAppointment(
@@ -264,12 +335,12 @@ async function applyGoogleEventUpdate(
   appointment: LinkedAppointment,
   event: GoogleCalendarEvent
 ): Promise<'applied' | 'rejected' | 'skipped'> {
-  if (!shouldApplyGoogleChange(appointment, event.updated)) {
-    return 'skipped'
-  }
-
   if (event.status === 'cancelled') {
     return cancelAppointmentFromGoogleDeletion(appointment, event.updated)
+  }
+
+  if (!shouldApplyGoogleChange(appointment, event.updated)) {
+    return 'skipped'
   }
 
   const times = getGoogleCalendarEventTimes(event)
@@ -317,10 +388,6 @@ async function applyGoogleEventDeletion(
   appointment: LinkedAppointment,
   deletedEventUpdatedAt?: string
 ): Promise<'applied' | 'skipped'> {
-  if (!shouldApplyGoogleChange(appointment, deletedEventUpdatedAt)) {
-    return 'skipped'
-  }
-
   return cancelAppointmentFromGoogleDeletion(
     appointment,
     deletedEventUpdatedAt
@@ -381,7 +448,15 @@ export async function syncCoachCalendarFromGoogle(
     last_calendar_sync_at: new Date().toISOString(),
   })
 
-  return { applied, rejected, skipped }
+  const reconciled = await reconcileGoogleDeletedAppointmentsForCoach(
+    connection.coach_id,
+    {
+      timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      timeMax: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+  )
+
+  return { applied: applied + reconciled, rejected, skipped }
 }
 
 export async function refreshLinkedGoogleEvent(

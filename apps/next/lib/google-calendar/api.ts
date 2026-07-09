@@ -226,41 +226,59 @@ export async function listGoogleCalendarEventChanges(
   calendarId: string,
   options: { syncToken?: string | null; timeMin?: string }
 ): Promise<{ events: GoogleCalendarEvent[]; nextSyncToken: string | null }> {
-  const url = new URL(
-    `${GOOGLE_CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`
-  )
-  url.searchParams.set('singleEvents', 'true')
-  url.searchParams.set('showDeleted', 'true')
+  const events: GoogleCalendarEvent[] = []
+  let pageToken: string | undefined
+  let nextSyncToken: string | null = null
 
-  if (options.syncToken) {
-    url.searchParams.set('syncToken', options.syncToken)
-  } else {
-    url.searchParams.set(
-      'timeMin',
-      options.timeMin ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  do {
+    const url = new URL(
+      `${GOOGLE_CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`
     )
-  }
+    url.searchParams.set('singleEvents', 'true')
+    url.searchParams.set('showDeleted', 'true')
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: 'no-store',
-  })
+    if (options.syncToken) {
+      url.searchParams.set('syncToken', options.syncToken)
+    } else {
+      url.searchParams.set(
+        'timeMin',
+        options.timeMin ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      )
+    }
 
-  if (response.status === 410) {
-    return listGoogleCalendarEventChanges(accessToken, calendarId, {
-      syncToken: null,
-      timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    if (pageToken) {
+      url.searchParams.set('pageToken', pageToken)
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
     })
-  }
 
-  if (!response.ok) {
-    throw new Error(`Google Calendar incremental sync failed (${response.status}).`)
-  }
+    if (response.status === 410) {
+      return listGoogleCalendarEventChanges(accessToken, calendarId, {
+        syncToken: null,
+        timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+    }
 
-  const body = (await response.json()) as GoogleEventListResponse
+    if (!response.ok) {
+      throw new Error(`Google Calendar incremental sync failed (${response.status}).`)
+    }
+
+    const body = (await response.json()) as GoogleEventListResponse & {
+      nextPageToken?: string
+    }
+    events.push(...(body.items ?? []))
+    pageToken = body.nextPageToken
+    if (body.nextSyncToken) {
+      nextSyncToken = body.nextSyncToken
+    }
+  } while (pageToken)
+
   return {
-    events: body.items ?? [],
-    nextSyncToken: body.nextSyncToken ?? null,
+    events,
+    nextSyncToken,
   }
 }
 

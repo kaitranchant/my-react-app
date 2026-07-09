@@ -1,7 +1,7 @@
 import { parseCoachPreferences } from '@/lib/coach-preferences'
 import { toGoogleCalendarAuthError } from '@/lib/google-calendar/auth-errors'
+import { reconcileGoogleDeletedAppointmentsForCoach } from '@/lib/google-calendar/inbound-sync'
 import { extendCoachRecurringSeriesHorizon } from '@/lib/scheduling/extend-series-horizon'
-import { getGoogleCalendarEvent } from '@/lib/google-calendar/api'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
 import {
   syncCoachingAppointmentToGoogle,
@@ -11,11 +11,6 @@ import {
   hasGoogleCalendarTokens,
 } from '@/lib/google-calendar/token-store'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-const GOOGLE_SYNC_CANCELLATION_REASONS = [
-  'Removed from Google Calendar',
-  'Cancelled in Google Calendar',
-] as const
 
 export type RepairRecurringSeriesSyncResult = {
   restoredAppointments: number
@@ -30,31 +25,6 @@ type ScheduledAppointmentRow = {
   starts_at: string
   google_calendar_event_id: string | null
   series_id: string | null
-}
-
-async function restoreAppointmentsCancelledByGoogleSync(coachId: string) {
-  const admin = createAdminClient()
-  if (!admin) return 0
-
-  const { data: restoredRows, error } = await admin
-    .from('coaching_appointments')
-    .update({
-      status: 'scheduled',
-      cancelled_at: null,
-      cancellation_reason: null,
-      google_calendar_event_id: null,
-      google_calendar_updated_at: null,
-    })
-    .eq('coach_id', coachId)
-    .eq('status', 'cancelled')
-    .in('cancellation_reason', [...GOOGLE_SYNC_CANCELLATION_REASONS])
-    .select('id')
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return restoredRows?.length ?? 0
 }
 
 async function dedupeScheduledSeriesAppointments(coachId: string) {
@@ -155,49 +125,11 @@ export async function resyncAllScheduledAppointmentsToGoogle(
   return resyncScheduledAppointmentsToGoogle(coachId)
 }
 
-async function resyncStaleGoogleCalendarLinks(coachId: string) {
-  const admin = createAdminClient()
-  if (!admin) return 0
-
-  const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
-  if (!connection?.sync_export_enabled) return 0
-
-  const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
-
-  const { data: appointments, error } = await admin
-    .from('coaching_appointments')
-    .select('id, google_calendar_event_id')
-    .eq('coach_id', coachId)
-    .eq('status', 'scheduled')
-    .not('google_calendar_event_id', 'is', null)
-    .order('starts_at', { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  let resynced = 0
-
-  for (const appointment of appointments ?? []) {
-    if (!appointment.google_calendar_event_id) continue
-
-    const existingEvent = await getGoogleCalendarEvent(
-      accessToken,
-      connection.calendar_id,
-      appointment.google_calendar_event_id
-    )
-
-    if (existingEvent && existingEvent.status !== 'cancelled') {
-      continue
-    }
-
-    const synced = await syncCoachingAppointmentToGoogle(appointment.id)
-    if (synced) {
-      resynced += 1
-    }
-  }
-
-  return resynced
+async function cancelAppointmentsDeletedInGoogle(coachId: string) {
+  return reconcileGoogleDeletedAppointmentsForCoach(coachId, {
+    timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    timeMax: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  })
 }
 
 async function canUseGoogleCalendarExport(
@@ -229,8 +161,7 @@ export async function repairCoachRecurringSeriesGoogleSync(
     throw new Error('Calendar repair is unavailable.')
   }
 
-  const restoredAppointments =
-    await restoreAppointmentsCancelledByGoogleSync(coachId)
+  const restoredAppointments = 0
   const dedupedAppointments = await dedupeScheduledSeriesAppointments(coachId)
 
   let horizonExtended = false
@@ -256,7 +187,7 @@ export async function repairCoachRecurringSeriesGoogleSync(
       horizonExtended = true
 
       resyncedAppointments =
-        (await resyncStaleGoogleCalendarLinks(coachId)) +
+        (await cancelAppointmentsDeletedInGoogle(coachId)) +
         (await resyncScheduledAppointmentsToGoogle(coachId, {
           onlyMissing: true,
         }))
@@ -303,7 +234,7 @@ export async function maintainCoachRecurringSeriesHorizon(
   )
 
   const resyncedAppointments =
-    (await resyncStaleGoogleCalendarLinks(coachId)) +
+    (await cancelAppointmentsDeletedInGoogle(coachId)) +
     (await resyncScheduledAppointmentsToGoogle(coachId, {
       onlyMissing: true,
     }))

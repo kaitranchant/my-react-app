@@ -21,6 +21,7 @@ import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchGoogleCalendarBlockedTimes, attachGoogleEventMarkers } from '@/lib/google-calendar/blocked-times'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import { fetchCoachGoogleCalendarConnection } from '@/lib/google-calendar/connection'
+import { reconcileGoogleDeletedAppointmentsForCoach } from '@/lib/google-calendar/inbound-sync'
 import { fetchGoogleBusyAppointments } from '@/lib/google-calendar/sync'
 import { requireClientAccess } from '@/lib/gym-access'
 import { requirePortalClientContext } from '@/lib/portal-client'
@@ -2523,6 +2524,13 @@ export async function fetchSchedulingWeekData(
     ctx.supabase,
     ctx.user.id
   )
+
+  if (connection) {
+    await reconcileGoogleDeletedAppointmentsForCoach(ctx.user.id, {
+      timeMin: startIso,
+      timeMax: endIso,
+    })
+  }
 
   const [appointments, blockedTimesResult, settings, { data: clients }] =
     await Promise.all([
