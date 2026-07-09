@@ -11,6 +11,7 @@ import {
   createGymRecord,
   updateGymRecord,
 } from '@/app/(dashboard)/gym/actions'
+import { DeleteGymDialog } from '@/components/gym/delete-gym-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -118,15 +119,29 @@ export function GymFormDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting
-                  ? 'Saving…'
-                  : isEdit
-                    ? 'Save changes'
-                    : 'Create gym'}
-              </Button>
-            </DialogFooter>
+            {isEdit ? (
+              <DialogFooter className="gap-2 sm:justify-between">
+                <DeleteGymDialog
+                  gymId={gym!.id}
+                  gymName={gym!.name}
+                  onDeleted={() => setOpen(false)}
+                  trigger={
+                    <Button type="button" variant="destructive">
+                      Delete gym
+                    </Button>
+                  }
+                />
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Saving…' : 'Save changes'}
+                </Button>
+              </DialogFooter>
+            ) : (
+              <DialogFooter>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Creating…' : 'Create gym'}
+                </Button>
+              </DialogFooter>
+            )}
           </form>
         </Form>
       </DialogContent>
