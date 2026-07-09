@@ -1,44 +1,4 @@
--- Let gym peers view each other's coach-self profiles and backfill missing records.
-
-create or replace function public.can_coach_access_client(target_client_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.clients c
-    where c.id = target_client_id
-      and (
-        (
-          c.coach_id = auth.uid()
-          and (
-            c.gym_id is not null
-            or not public.is_gym_invited_only_coach()
-          )
-        )
-        or (
-          c.gym_id is not null
-          and public.is_gym_member(c.gym_id)
-        )
-        or (
-          c.is_coach_self = true
-          and exists (
-            select 1
-            from public.gym_members viewer
-            join public.gym_members peer
-              on peer.gym_id = viewer.gym_id
-            where viewer.coach_id = auth.uid()
-              and viewer.status = 'active'
-              and peer.coach_id = c.coach_id
-              and peer.status = 'active'
-          )
-        )
-      )
-  );
-$$;
+-- Allow coach-self gym_id sync and finish backfill blocked by clients_gym_share_guard.
 
 create or replace function public.clients_gym_share_guard()
 returns trigger
