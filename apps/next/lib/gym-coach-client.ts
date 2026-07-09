@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { createClient } from '@/lib/supabase/server'
-import type { Database, GymMemberWithProfile } from 'app/types/database'
+import type { Database, GymMemberWithProfile, ClientStatus } from 'app/types/database'
 import type { AttendanceClientRow } from '@/lib/attendance'
 
 const gymMemberCoachClientColumns =
@@ -76,7 +76,7 @@ export async function ensureGymCoachPortalMembershipForUser(
     user_id?: string
   } = {}
 
-  if (existingSelfClient.gym_id === null) {
+  if (existingSelfClient.gym_id !== gymId) {
     updates.gym_id = gymId
   }
 
@@ -173,4 +173,49 @@ export async function fetchGymMemberCoachClients(
     ),
     coachSelfClientIds,
   }
+}
+
+export async function fetchGymMemberCoachSelfNameRows(
+  supabase: SupabaseClient<Database>,
+  gymId: string,
+  filters?: {
+    q?: string
+    status?: ClientStatus
+  }
+): Promise<Array<{ id: string; full_name: string }>> {
+  const { data: members, error: membersError } = await supabase
+    .from('gym_members')
+    .select('coach_id')
+    .eq('gym_id', gymId)
+    .eq('status', 'active')
+
+  if (membersError || !members?.length) {
+    return []
+  }
+
+  let query = supabase
+    .from('clients')
+    .select('id, full_name')
+    .in(
+      'coach_id',
+      members.map((member) => member.coach_id)
+    )
+    .eq('is_coach_self', true)
+
+  if (filters?.q?.trim()) {
+    const term = `%${filters.q.trim()}%`
+    query = query.or(`full_name.ilike.${term},email.ilike.${term}`)
+  }
+
+  if (filters?.status) {
+    query = query.eq('status', filters.status)
+  }
+
+  const { data, error } = await query
+
+  if (error || !data?.length) {
+    return []
+  }
+
+  return data
 }

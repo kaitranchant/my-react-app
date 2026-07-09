@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
+import { fetchGymMemberCoachSelfNameRows, ensureGymCoachPortalMembershipForUser } from '@/lib/gym-coach-client'
 import { sortByLastName } from '@/lib/person-name'
 import { fetchPendingOnboardingCountsByClientId } from '@/lib/onboarding-data'
 import { clientStatuses } from '@/lib/validations/client'
@@ -88,6 +89,10 @@ export async function fetchClientsForListPage(
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
   const scope = resolveClientsScope(scopeParam, coachGyms, { gymInvitedOnly })
 
+  if (userId && coachGymIds.has(scope)) {
+    await ensureGymCoachPortalMembershipForUser(supabase, userId, scope)
+  }
+
   let queryBuilder = supabase
     .from('clients')
     .select('id, full_name', { count: 'exact' })
@@ -117,7 +122,26 @@ export async function fetchClientsForListPage(
   const to = from + CLIENTS_PAGE_SIZE - 1
 
   const { data: nameRows, error, count } = await queryBuilder
-  const totalCount = count ?? 0
+  let mergedNameRows = nameRows ?? []
+
+  if (userId && coachGymIds.has(scope)) {
+    const coachSelfRows = await fetchGymMemberCoachSelfNameRows(supabase, scope, {
+      q,
+      status: status && isStatus(status) ? status : undefined,
+    })
+    const existingIds = new Set(mergedNameRows.map((row) => row.id))
+    for (const row of coachSelfRows) {
+      if (!existingIds.has(row.id)) {
+        mergedNameRows.push(row)
+        existingIds.add(row.id)
+      }
+    }
+  }
+
+  const totalCount =
+    userId && coachGymIds.has(scope)
+      ? mergedNameRows.length
+      : (count ?? 0)
   const totalPages = Math.max(1, Math.ceil(totalCount / CLIENTS_PAGE_SIZE))
   const page = Math.min(requestedPage, totalPages)
 
@@ -138,7 +162,7 @@ export async function fetchClientsForListPage(
     }
   }
 
-  const sortedIds = sortByLastName(nameRows ?? [], (row) => row.full_name)
+  const sortedIds = sortByLastName(mergedNameRows, (row) => row.full_name)
     .slice(from, to + 1)
     .map((row) => row.id)
 

@@ -117,6 +117,8 @@ export async function createGymRecord(
     return { success: false, error: memberError.message }
   }
 
+  await ensureGymCoachPortalMembership(supabase, gym.id)
+
   if (subscriptionContext.personalPlan === 'facility') {
     const { data: billingProfile } = await supabase
       .from('profiles')
