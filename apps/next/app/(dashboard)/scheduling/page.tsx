@@ -118,11 +118,16 @@ export default async function SchedulingPage({
   ])
 
   if (googleCalendarConnection) {
-    await reconcileGoogleDeletedAppointmentsForCoach(user.id, {
-      timeMin: startIso,
-      timeMax: endIso,
-      supabase,
-    })
+    try {
+      await reconcileGoogleDeletedAppointmentsForCoach(user.id, {
+        timeMin: startIso,
+        timeMax: endIso,
+        supabase,
+        revalidate: false,
+      })
+    } catch (error) {
+      console.error('[google-calendar] scheduling page reconcile failed', error)
+    }
   }
 
   const appointments = await fetchCoachingAppointments(

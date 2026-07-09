@@ -212,7 +212,8 @@ export async function validateInboundGoogleReschedule(input: {
 
 async function removeAppointmentDeletedInGoogle(
   db: SupabaseClient,
-  appointmentId: string
+  appointmentId: string,
+  options?: { revalidate?: boolean }
 ): Promise<'applied' | 'skipped'> {
   const { data, error } = await db
     .from('coaching_appointments')
@@ -230,8 +231,10 @@ async function removeAppointmentDeletedInGoogle(
     return 'skipped'
   }
 
-  revalidatePath('/scheduling')
-  revalidatePath('/portal/sessions')
+  if (options?.revalidate !== false) {
+    revalidatePath('/scheduling')
+    revalidatePath('/portal/sessions')
+  }
   return 'applied'
 }
 
@@ -252,10 +255,12 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     timeMin?: string
     timeMax?: string
     supabase?: SupabaseClient
+    revalidate?: boolean
   }
 ): Promise<number> {
   const admin = createAdminClient()
   const db = options?.supabase ?? admin
+  const writeDb = admin ?? db
   if (!db) return 0
 
   const connection = await fetchCoachGoogleCalendarConnection(db, coachId)
@@ -378,22 +383,31 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
         appointment.google_calendar_event_id &&
         linkedGoogleEventNeedsTimeReconcile(appointment, linkedEvent)
       ) {
-        const result = await applyGoogleEventUpdate(
-          connection.id,
-          connection.calendar_id,
-          linkedAppointment,
-          linkedEvent,
-          db
-        )
-        if (result === 'applied') {
-          updated += 1
+        try {
+          const result = await applyGoogleEventUpdate(
+            connection.id,
+            connection.calendar_id,
+            linkedAppointment,
+            linkedEvent,
+            writeDb,
+            { revalidate: options?.revalidate }
+          )
+          if (result === 'applied') {
+            updated += 1
+          }
+        } catch (error) {
+          console.error(
+            '[google-calendar] reconcile time update failed',
+            appointment.id,
+            error
+          )
         }
       }
       continue
     }
 
     if (action.type === 'link') {
-      const { error } = await db
+      const { error } = await writeDb
         .from('coaching_appointments')
         .update({
           google_calendar_event_id: action.googleEventId,
@@ -408,7 +422,11 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
       continue
     }
 
-    const result = await removeAppointmentDeletedInGoogle(db, appointment.id)
+    const result = await removeAppointmentDeletedInGoogle(
+      writeDb,
+      appointment.id,
+      { revalidate: options?.revalidate }
+    )
     if (result === 'applied') {
       removed += 1
     }
@@ -447,10 +465,11 @@ async function applyGoogleEventUpdate(
   calendarId: string,
   appointment: LinkedAppointment,
   event: GoogleCalendarEvent,
-  db: SupabaseClient
+  db: SupabaseClient,
+  options?: { revalidate?: boolean }
 ): Promise<'applied' | 'rejected' | 'skipped'> {
   if (event.status === 'cancelled') {
-    return removeAppointmentDeletedInGoogle(db, appointment.id)
+    return removeAppointmentDeletedInGoogle(db, appointment.id, options)
   }
 
   if (!shouldApplyGoogleChange(appointment, event.updated)) {
@@ -477,12 +496,20 @@ async function applyGoogleEventUpdate(
     })
 
     if (!validation.ok) {
-      await revertGoogleEventToAppointment(connectionId, calendarId, appointment)
+      try {
+        await revertGoogleEventToAppointment(connectionId, calendarId, appointment)
+      } catch (error) {
+        console.error(
+          '[google-calendar] revert google event after conflict failed',
+          appointment.id,
+          error
+        )
+      }
       return 'rejected'
     }
   }
 
-  await db
+  const { error } = await db
     .from('coaching_appointments')
     .update({
       starts_at: times.startsAt,
@@ -494,8 +521,15 @@ async function applyGoogleEventUpdate(
     })
     .eq('id', appointment.id)
 
-  revalidatePath('/scheduling')
-  revalidatePath('/portal/sessions')
+  if (error) {
+    console.error('[google-calendar] apply event update failed', appointment.id, error)
+    return 'skipped'
+  }
+
+  if (options?.revalidate !== false) {
+    revalidatePath('/scheduling')
+    revalidatePath('/portal/sessions')
+  }
   return 'applied'
 }
 

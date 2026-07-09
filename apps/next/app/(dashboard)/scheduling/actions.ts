@@ -2549,11 +2549,16 @@ export async function fetchSchedulingWeekData(
   )
 
   if (connection) {
-    await reconcileGoogleDeletedAppointmentsForCoach(ctx.user.id, {
-      timeMin: startIso,
-      timeMax: endIso,
-      supabase: ctx.supabase,
-    })
+    try {
+      await reconcileGoogleDeletedAppointmentsForCoach(ctx.user.id, {
+        timeMin: startIso,
+        timeMax: endIso,
+        supabase: ctx.supabase,
+        revalidate: false,
+      })
+    } catch (error) {
+      console.error('[google-calendar] week fetch reconcile failed', error)
+    }
   }
 
   const [appointments, blockedTimesResult, settings, { data: clients }] =
