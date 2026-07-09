@@ -30,6 +30,7 @@ type TeamsListCardProps = {
   searchParams: { q?: string; scope?: string }
   userId?: string
   coachGyms: CoachGymTab[]
+  gymInvitedOnly?: boolean
 }
 
 function TeamsListContent({
@@ -185,6 +186,7 @@ export async function TeamsListCard({
   searchParams,
   userId,
   coachGyms,
+  gymInvitedOnly = false,
 }: TeamsListCardProps) {
   const supabase = await createClient()
   const { q } = searchParams
@@ -193,6 +195,7 @@ export async function TeamsListCard({
     coachGyms,
     q,
     scopeParam: searchParams.scope,
+    gymInvitedOnly,
   })
 
   return (

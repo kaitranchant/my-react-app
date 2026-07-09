@@ -45,6 +45,7 @@ type SharedFetchOptions = {
   coachTeams: CoachTeam[]
   scopeParam?: string
   teamParam?: string
+  gymInvitedOnly?: boolean
 }
 
 export async function fetchAttendanceScopeData({
@@ -54,6 +55,7 @@ export async function fetchAttendanceScopeData({
   coachTeams,
   scopeParam,
   teamParam,
+  gymInvitedOnly = false,
 }: SharedFetchOptions): Promise<AttendanceScopeData> {
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
   const scope = parseAttendanceScope(
@@ -61,7 +63,8 @@ export async function fetchAttendanceScopeData({
     teamParam,
     coachGymIds,
     coachGyms,
-    coachTeams
+    coachTeams,
+    { gymInvitedOnly }
   )
   const selectedTeamName = scope.teamId
     ? coachTeams.find((team) => team.id === scope.teamId)?.name

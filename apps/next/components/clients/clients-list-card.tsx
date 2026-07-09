@@ -26,12 +26,14 @@ type ClientsListCardProps = {
   }
   userId?: string
   coachGyms: CoachGymTab[]
+  gymInvitedOnly?: boolean
 }
 
 export async function ClientsListCard({
   searchParams,
   userId,
   coachGyms,
+  gymInvitedOnly = false,
 }: ClientsListCardProps) {
   const supabase = await createClient()
   const { q, status, page: pageParam, scope: scopeParam } = searchParams
@@ -43,6 +45,7 @@ export async function ClientsListCard({
     status,
     scopeParam,
     pageParam,
+    gymInvitedOnly,
   })
 
   const requestedPage = Math.max(

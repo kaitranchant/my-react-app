@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache'
 
 import { toDateKey } from '@/lib/calendar'
 import {
+  getCoachGymAccessMode,
   getGymMembershipForCoach,
+  isGymInvitedOnlyCoach,
   requireTeamAccess,
   requireUser,
 } from '@/lib/gym-access'
@@ -122,7 +124,14 @@ async function resolveGymIdForTeam(
   userId: string,
   gymId?: string
 ): Promise<{ gymId: string | null } | { error: string }> {
+  const gymInvitedOnly = isGymInvitedOnlyCoach(await getCoachGymAccessMode(userId))
+
   if (!gymId || gymId === 'none') {
+    if (gymInvitedOnly) {
+      return {
+        error: 'Invited gym coaches must create teams under a gym roster.',
+      }
+    }
     return { gymId: null }
   }
 

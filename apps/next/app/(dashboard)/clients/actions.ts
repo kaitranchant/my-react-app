@@ -7,7 +7,7 @@ import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { sendClientInviteEmail } from '@/lib/email/client-invite'
 import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 import { getAppBaseUrl } from '@/lib/email/config'
-import { getGymMembershipForCoach, getGymIdsForCoach } from '@/lib/gym-access'
+import { getCoachGymAccessMode, getGymMembershipForCoach, getGymIdsForCoach, isGymInvitedOnlyCoach } from '@/lib/gym-access'
 import { buildClientInviteUrl } from '@/lib/invite'
 import {
   clientFormSchema,
@@ -86,7 +86,14 @@ async function resolveGymIdForCreate(
   userId: string,
   gymId?: string
 ): Promise<{ gymId: string | null } | { error: string }> {
+  const gymInvitedOnly = isGymInvitedOnlyCoach(await getCoachGymAccessMode(userId))
+
   if (!gymId || gymId === 'none') {
+    if (gymInvitedOnly) {
+      return {
+        error: 'Invited gym coaches must add clients to a gym roster.',
+      }
+    }
     return { gymId: null }
   }
 

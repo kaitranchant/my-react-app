@@ -80,6 +80,7 @@ import {
 type OnboardClientDialogProps = {
   trigger?: React.ReactNode
   gyms?: { id: string; name: string }[]
+  requireGymMembership?: boolean
 }
 
 type ClientOption = {
@@ -130,9 +131,22 @@ const checklistSteps: Array<{
 export function OnboardClientDialog({
   trigger,
   gyms = [],
+  requireGymMembership = false,
 }: OnboardClientDialogProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const scopeParam = searchParams.get('scope')
+  const initialFormDefaults = React.useMemo(() => {
+    if (!requireGymMembership || gyms.length === 0) {
+      return onboardClientDefaults
+    }
+
+    const gymIds = new Set(gyms.map((gym) => gym.id))
+    const gymId =
+      scopeParam && gymIds.has(scopeParam) ? scopeParam : gyms[0]?.id ?? 'none'
+
+    return { ...onboardClientDefaults, gymId }
+  }, [gyms, requireGymMembership, scopeParam])
   const handledShortcutRef = React.useRef(false)
   const prefillClientIdRef = React.useRef<string | null>(null)
   const [open, setOpen] = React.useState(false)
@@ -173,7 +187,7 @@ export function OnboardClientDialog({
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: onboardClientDefaults,
+    defaultValues: initialFormDefaults,
   })
 
   const selectedClient = clients.find((client) => client.id === existingClientId)
@@ -223,7 +237,7 @@ export function OnboardClientDialog({
       setInPersonSigning(false)
       setAssessmentNotes('')
       setSavedAssessmentNotes('')
-      form.reset(onboardClientDefaults)
+      form.reset(initialFormDefaults)
       return
     }
 
@@ -752,7 +766,12 @@ export function OnboardClientDialog({
                         control={form.control}
                         name="coachingType"
                       />
-                      <ClientGymField control={form.control} name="gymId" gyms={gyms} />
+                      <ClientGymField
+                        control={form.control}
+                        name="gymId"
+                        gyms={gyms}
+                        requireGymMembership={requireGymMembership}
+                      />
                       <FormField
                         control={form.control}
                         name="goal"

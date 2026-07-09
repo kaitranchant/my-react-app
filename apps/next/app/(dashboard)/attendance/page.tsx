@@ -14,7 +14,7 @@ import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { fetchCoachTeams, isValidAttendanceDate } from '@/lib/attendance'
 import { getCoachDateKey } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import { getGymsForCoach } from '@/lib/gym-access'
+import { getCoachGymAccessMode, getGymsForCoach, isGymInvitedOnlyCoach } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
 import { getSubscriptionGate } from '@/lib/subscription-server'
 import { parseAttendanceViewMode } from '@/lib/validations/attendance'
@@ -68,6 +68,7 @@ export default async function AttendancePage({
     getGymsForCoach(user.id),
     fetchCoachTeams(supabase, user.id),
   ])
+  const gymInvitedOnly = isGymInvitedOnlyCoach(await getCoachGymAccessMode(user.id))
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -88,7 +89,11 @@ export default async function AttendancePage({
         filterKeys={['scope', 'team', 'view']}
       />
       <div className="space-y-3">
-        <AttendanceScopeTabs gyms={coachGyms} teams={coachTeams} />
+        <AttendanceScopeTabs
+          gyms={coachGyms}
+          teams={coachTeams}
+          gymInvitedOnly={gymInvitedOnly}
+        />
         <ClearPageFilters
           pageKey="attendance"
           filterKeys={['scope', 'team']}
@@ -104,6 +109,7 @@ export default async function AttendancePage({
           userId={user.id}
           coachGyms={coachGyms}
           coachTeams={coachTeams}
+          gymInvitedOnly={gymInvitedOnly}
           date={date}
           view={view}
           weekStartsOn={weekStartsOn}

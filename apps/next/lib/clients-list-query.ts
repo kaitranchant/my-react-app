@@ -22,10 +22,23 @@ function isStatus(value: string): value is ClientStatus {
 
 export function resolveClientsScope(
   scopeParam: string | undefined,
-  coachGyms: CoachGymTab[]
+  coachGyms: CoachGymTab[],
+  options?: { gymInvitedOnly?: boolean }
 ): 'all' | 'personal' | string {
-  const rawScope = scopeParam ?? 'all'
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
+
+  if (options?.gymInvitedOnly && coachGyms.length > 0) {
+    const rawScope = scopeParam ?? coachGyms[0].id
+    if (coachGymIds.has(rawScope)) {
+      return rawScope
+    }
+    if (rawScope === 'gym' && coachGyms.length === 1) {
+      return coachGyms[0].id
+    }
+    return coachGyms[0].id
+  }
+
+  const rawScope = scopeParam ?? 'all'
 
   if (rawScope === 'personal') {
     return 'personal'
@@ -61,6 +74,7 @@ export async function fetchClientsForListPage(
     status,
     scopeParam,
     pageParam,
+    gymInvitedOnly = false,
   }: {
     userId: string | undefined
     coachGyms: CoachGymTab[]
@@ -68,10 +82,11 @@ export async function fetchClientsForListPage(
     status?: string
     scopeParam?: string
     pageParam?: string
+    gymInvitedOnly?: boolean
   }
 ): Promise<ClientsListPageData> {
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
-  const scope = resolveClientsScope(scopeParam, coachGyms)
+  const scope = resolveClientsScope(scopeParam, coachGyms, { gymInvitedOnly })
 
   let queryBuilder = supabase
     .from('clients')

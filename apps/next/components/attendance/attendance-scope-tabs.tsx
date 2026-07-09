@@ -33,11 +33,13 @@ export function AttendanceScopeTabs({
   teams,
   scope: controlledScope,
   onScopeChange,
+  gymInvitedOnly = false,
 }: {
   gyms: GymTab[]
   teams: CoachTeam[]
   scope?: AttendanceScope
   onScopeChange?: (scope: AttendanceScope) => void
+  gymInvitedOnly?: boolean
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -48,7 +50,8 @@ export function AttendanceScopeTabs({
     searchParams.get('team') ?? undefined,
     new Set(gymIds),
     gyms,
-    teams
+    teams,
+    { gymInvitedOnly }
   )
   const scope = controlledScope ?? scopeFromUrl
   const baseValue = baseScopeValue(scope)
@@ -115,15 +118,21 @@ export function AttendanceScopeTabs({
   }
 
   const locationOptions = useMemo(() => {
-    const options = [
-      { value: 'all', label: 'All' },
-      { value: 'personal', label: 'Personal' },
-      ...gyms.map((gym) => ({
-        value: gym.id,
-        label: gym.name,
-        title: gym.name,
-      })),
-    ]
+    const options = gymInvitedOnly
+      ? gyms.map((gym) => ({
+          value: gym.id,
+          label: gym.name,
+          title: gym.name,
+        }))
+      : [
+          { value: 'all', label: 'All' },
+          { value: 'personal', label: 'Personal' },
+          ...gyms.map((gym) => ({
+            value: gym.id,
+            label: gym.name,
+            title: gym.name,
+          })),
+        ]
 
     if (onScopeChange) {
       return options
@@ -151,7 +160,7 @@ export function AttendanceScopeTabs({
         active: baseValue === option.value,
       }
     })
-  }, [baseValue, gyms, onScopeChange, scope.teamId, teams])
+  }, [baseValue, gymInvitedOnly, gyms, onScopeChange, scope.teamId, teams])
 
   const teamOptions = useMemo(() => {
     const options = [

@@ -96,11 +96,46 @@ export async function getActiveGymForCoach(
   return getGymContextForCoach(userId)
 }
 
+export type CoachGymAccessMode = 'independent' | 'gym_invited_only'
+
+export async function getCoachGymAccessMode(
+  userId: string
+): Promise<CoachGymAccessMode> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('gym_members')
+    .select('role')
+    .eq('coach_id', userId)
+    .eq('status', 'active')
+
+  if (error || !data || data.length === 0) {
+    return 'independent'
+  }
+
+  return data.some((membership) => membership.role === 'owner')
+    ? 'independent'
+    : 'gym_invited_only'
+}
+
+export function isGymInvitedOnlyCoach(
+  accessMode: CoachGymAccessMode
+): accessMode is 'gym_invited_only' {
+  return accessMode === 'gym_invited_only'
+}
+
 export function canCoachAccessClient(
   userId: string,
   client: Pick<Client, 'coach_id' | 'gym_id'>,
-  coachGymIds: readonly string[]
+  coachGymIds: readonly string[],
+  options?: { gymInvitedOnly?: boolean }
 ): boolean {
+  if (options?.gymInvitedOnly) {
+    if (!client.gym_id) {
+      return false
+    }
+    return coachGymIds.includes(client.gym_id)
+  }
+
   if (client.coach_id === userId) {
     return true
   }
@@ -127,8 +162,16 @@ export function isPrimaryTeamCoach(
 export function canCoachAccessTeam(
   userId: string,
   team: Pick<Team, 'coach_id' | 'gym_id'>,
-  coachGymIds: readonly string[]
+  coachGymIds: readonly string[],
+  options?: { gymInvitedOnly?: boolean }
 ): boolean {
+  if (options?.gymInvitedOnly) {
+    if (!team.gym_id) {
+      return false
+    }
+    return coachGymIds.includes(team.gym_id)
+  }
+
   if (team.coach_id === userId) {
     return true
   }
@@ -141,6 +184,9 @@ export function canCoachAccessTeam(
 export async function requireTeamAccess(teamId: string) {
   const { supabase, user } = await requireUser()
   const coachGymIds = await getGymIdsForCoach(user.id)
+  const gymInvitedOnly = isGymInvitedOnlyCoach(
+    await getCoachGymAccessMode(user.id)
+  )
 
   const { data: team, error } = await supabase
     .from('teams')
@@ -152,7 +198,11 @@ export async function requireTeamAccess(teamId: string) {
     return null
   }
 
-  if (!canCoachAccessTeam(user.id, team, coachGymIds)) {
+  if (
+    !canCoachAccessTeam(user.id, team, coachGymIds, {
+      gymInvitedOnly,
+    })
+  ) {
     return null
   }
 
@@ -167,6 +217,9 @@ export async function requireTeamAccess(teamId: string) {
 export async function requireClientAccess(clientId: string) {
   const { supabase, user } = await requireUser()
   const coachGymIds = await getGymIdsForCoach(user.id)
+  const gymInvitedOnly = isGymInvitedOnlyCoach(
+    await getCoachGymAccessMode(user.id)
+  )
 
   const { data: client, error } = await supabase
     .from('clients')
@@ -178,7 +231,11 @@ export async function requireClientAccess(clientId: string) {
     return null
   }
 
-  if (!canCoachAccessClient(user.id, client, coachGymIds)) {
+  if (
+    !canCoachAccessClient(user.id, client, coachGymIds, {
+      gymInvitedOnly,
+    })
+  ) {
     return null
   }
 

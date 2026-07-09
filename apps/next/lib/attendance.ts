@@ -627,8 +627,19 @@ export function attendanceScopeToParams(scope: AttendanceScope): {
 function parseAttendanceBaseScope(
   rawScope: string,
   coachGymIds: Set<string>,
-  coachGyms: { id: string }[]
+  coachGyms: { id: string }[],
+  options?: { gymInvitedOnly?: boolean }
 ): AttendanceBaseScope {
+  if (options?.gymInvitedOnly && coachGyms.length > 0) {
+    if (coachGymIds.has(rawScope)) {
+      return { kind: 'gym', gymId: rawScope }
+    }
+    if (rawScope === 'gym' && coachGyms.length === 1) {
+      return { kind: 'gym', gymId: coachGyms[0].id }
+    }
+    return { kind: 'gym', gymId: coachGyms[0].id }
+  }
+
   if (rawScope === 'all') {
     return { kind: 'all' }
   }
@@ -649,18 +660,19 @@ export function parseAttendanceScope(
   teamParam: string | undefined,
   coachGymIds: Set<string>,
   coachGyms: { id: string }[],
-  coachTeams: CoachTeam[]
+  coachTeams: CoachTeam[],
+  options?: { gymInvitedOnly?: boolean }
 ): AttendanceScope {
   const coachTeamIds = new Set(coachTeams.map((team) => team.id))
-  let rawScope = scopeParam ?? 'all'
+  let rawScope = scopeParam ?? (options?.gymInvitedOnly ? coachGyms[0]?.id ?? 'all' : 'all')
   let rawTeamId = teamParam ?? undefined
 
   if (rawScope.startsWith('team:')) {
     rawTeamId = rawScope.slice(5)
-    rawScope = 'all'
+    rawScope = options?.gymInvitedOnly ? coachGyms[0]?.id ?? 'all' : 'all'
   }
 
-  let baseScope = parseAttendanceBaseScope(rawScope, coachGymIds, coachGyms)
+  let baseScope = parseAttendanceBaseScope(rawScope, coachGymIds, coachGyms, options)
 
   if (rawTeamId && coachTeamIds.has(rawTeamId)) {
     const team = coachTeams.find((entry) => entry.id === rawTeamId)

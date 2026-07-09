@@ -25,10 +25,12 @@ export function ClientGymField<T extends FieldValues>({
   control,
   name,
   gyms,
+  requireGymMembership = false,
 }: {
   control: Control<T>
   name: FieldPath<T>
   gyms: GymOption[]
+  requireGymMembership?: boolean
 }) {
   if (gyms.length === 0) {
     return null
@@ -41,14 +43,23 @@ export function ClientGymField<T extends FieldValues>({
       render={({ field }) => (
         <FormItem>
           <FormLabel>Gym membership</FormLabel>
-          <Select onValueChange={field.onChange} value={field.value ?? 'none'}>
+          <Select
+            onValueChange={field.onChange}
+            value={field.value ?? (requireGymMembership ? gyms[0]?.id : 'none')}
+          >
             <FormControl>
               <SelectTrigger>
-                <SelectValue placeholder="Personal only" />
+                <SelectValue
+                  placeholder={
+                    requireGymMembership ? 'Select a gym' : 'Personal only'
+                  }
+                />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              <SelectItem value="none">Personal only</SelectItem>
+              {requireGymMembership ? null : (
+                <SelectItem value="none">Personal only</SelectItem>
+              )}
               {gyms.map((gym) => (
                 <SelectItem key={gym.id} value={gym.id}>
                   Add to {gym.name}

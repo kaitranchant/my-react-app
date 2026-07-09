@@ -21,15 +21,17 @@ export async function fetchTeamsForListPage(
     coachGyms,
     q,
     scopeParam,
+    gymInvitedOnly = false,
   }: {
     userId: string | undefined
     coachGyms: CoachGymTab[]
     q?: string
     scopeParam?: string
+    gymInvitedOnly?: boolean
   }
 ): Promise<TeamsListPageData> {
   const coachGymIds = new Set(coachGyms.map((gym) => gym.id))
-  const scope = resolveClientsScope(scopeParam, coachGyms)
+  const scope = resolveClientsScope(scopeParam, coachGyms, { gymInvitedOnly })
   const gymNamesById = new Map(coachGyms.map((gym) => [gym.id, gym.name]))
 
   let queryBuilder = supabase.from('teams').select('*').order('name', {

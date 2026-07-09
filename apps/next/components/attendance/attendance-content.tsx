@@ -17,6 +17,7 @@ type AttendanceContentProps = {
   userId: string
   coachGyms: { id: string; name: string }[]
   coachTeams: CoachTeam[]
+  gymInvitedOnly?: boolean
   date: string
   view: AttendanceViewMode
   weekStartsOn: WeekStartsOn
@@ -28,6 +29,7 @@ export async function AttendanceContent({
   userId,
   coachGyms,
   coachTeams,
+  gymInvitedOnly = false,
   date,
   view,
   weekStartsOn,
@@ -41,6 +43,7 @@ export async function AttendanceContent({
     coachTeams,
     scopeParam: searchParams.scope,
     teamParam: searchParams.team,
+    gymInvitedOnly,
   })
   const dateData = await fetchAttendanceDateData({
     supabase,

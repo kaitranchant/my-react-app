@@ -11,38 +11,53 @@ type GymTab = {
   name: string
 }
 
-export function ClientsScopeTabs({ gyms }: { gyms: GymTab[] }) {
+export function ClientsScopeTabs({
+  gyms,
+  gymInvitedOnly = false,
+}: {
+  gyms: GymTab[]
+  gymInvitedOnly?: boolean
+}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const scope = resolveClientsScope(searchParams.get('scope') ?? undefined, gyms)
+  const scope = resolveClientsScope(searchParams.get('scope') ?? undefined, gyms, {
+    gymInvitedOnly,
+  })
 
   const options = useMemo(() => {
     function buildHref(value: string) {
       const params = new URLSearchParams(searchParams.toString())
-      if (value === 'all') {
-        params.delete('scope')
-      } else {
+      if (gymInvitedOnly || value !== 'all') {
         params.set('scope', value)
+      } else {
+        params.delete('scope')
       }
       params.delete('page')
       const query = params.toString()
       return query ? `${pathname}?${query}` : pathname
     }
 
-    return [
-      { value: 'all', label: 'All' },
-      { value: 'personal', label: 'Personal' },
-      ...gyms.map((gym) => ({
-        value: gym.id,
-        label: gym.name,
-      })),
-    ].map((option) => ({
+    const scopeOptions = gymInvitedOnly
+      ? gyms.map((gym) => ({
+          value: gym.id,
+          label: gym.name,
+        }))
+      : [
+          { value: 'all', label: 'All' },
+          { value: 'personal', label: 'Personal' },
+          ...gyms.map((gym) => ({
+            value: gym.id,
+            label: gym.name,
+          })),
+        ]
+
+    return scopeOptions.map((option) => ({
       href: buildHref(option.value),
       label: option.label,
       active: scope === option.value,
     }))
-  }, [gyms, pathname, scope, searchParams])
+  }, [gymInvitedOnly, gyms, pathname, scope, searchParams])
 
   return <FilterPillLinks options={options} />
 }

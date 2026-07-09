@@ -7,7 +7,7 @@ import {
 } from '@/components/dashboard/async-fallback-skeletons'
 
 import { createClient } from '@/lib/supabase/server'
-import { getGymContextForCoach, getGymsForCoach } from '@/lib/gym-access'
+import { getGymContextForCoach, getGymsForCoach, getCoachGymAccessMode, isGymInvitedOnlyCoach } from '@/lib/gym-access'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
 import { fetchGymOwnerDashboard } from '@/lib/gym-metrics'
 import {
@@ -96,6 +96,7 @@ export default async function GymPage({
 
   const { gym, membership } = gymContext
   const isOwner = membership.role === 'owner'
+  const gymInvitedOnly = isGymInvitedOnlyCoach(await getCoachGymAccessMode(user.id))
   const coachGymIds = new Set(coachGyms.map((item) => item.id))
   const coachPreferences = await getCoachPreferencesForUser(user.id)
 
@@ -151,7 +152,7 @@ export default async function GymPage({
             : 'Manage gym members and invite coaches to collaborate on client programs.'
         }
       >
-        <CreateGymButton />
+        {gymInvitedOnly ? null : <CreateGymButton />}
         {isOwner ? (
           <>
             <GymFormDialog

@@ -57,6 +57,7 @@ function teamToFormValues(team: Team): TeamFormValues {
 type TeamFormDialogProps = {
   team?: Team
   gyms?: GymOption[]
+  requireGymMembership?: boolean
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -65,6 +66,7 @@ type TeamFormDialogProps = {
 export function TeamFormDialog({
   team,
   gyms = [],
+  requireGymMembership = false,
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -73,16 +75,26 @@ export function TeamFormDialog({
   const [internalOpen, setInternalOpen] = React.useState(false)
   const open = controlledOpen ?? internalOpen
   const setOpen = onOpenChange ?? setInternalOpen
+  const createDefaults = React.useMemo<TeamFormValues>(
+    () => ({
+      ...teamFormDefaults,
+      gymId:
+        requireGymMembership && gyms.length > 0
+          ? gyms[0].id
+          : teamFormDefaults.gymId,
+    }),
+    [gyms, requireGymMembership]
+  )
 
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamFormSchema),
-    defaultValues: team ? teamToFormValues(team) : teamFormDefaults,
+    defaultValues: team ? teamToFormValues(team) : createDefaults,
   })
 
   React.useEffect(() => {
     if (!open) return
-    form.reset(team ? teamToFormValues(team) : teamFormDefaults)
-  }, [form, open, team])
+    form.reset(team ? teamToFormValues(team) : createDefaults)
+  }, [createDefaults, form, open, team])
 
   async function onSubmit(values: TeamFormValues) {
     try {
@@ -164,7 +176,12 @@ export function TeamFormDialog({
                 </FormItem>
               )}
             />
-            <ClientGymField control={form.control} name="gymId" gyms={gyms} />
+            <ClientGymField
+              control={form.control}
+              name="gymId"
+              gyms={gyms}
+              requireGymMembership={requireGymMembership}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}

@@ -57,8 +57,31 @@ import {
 type AddClientDialogProps = {
   trigger?: React.ReactNode
   gyms?: { id: string; name: string }[]
+  requireGymMembership?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
+}
+
+function clientDialogDefaults(
+  gyms: { id: string; name: string }[],
+  requireGymMembership: boolean,
+  scopeParam: string | null
+) {
+  if (!requireGymMembership || gyms.length === 0) {
+    return {
+      invite: inviteClientDefaults,
+      manual: clientFormDefaults,
+    }
+  }
+
+  const gymIds = new Set(gyms.map((gym) => gym.id))
+  const gymId =
+    scopeParam && gymIds.has(scopeParam) ? scopeParam : gyms[0]?.id ?? 'none'
+
+  return {
+    invite: { ...inviteClientDefaults, gymId },
+    manual: { ...clientFormDefaults, gymId },
+  }
 }
 
 async function copyInviteUrl(url: string) {
@@ -68,11 +91,17 @@ async function copyInviteUrl(url: string) {
 export function AddClientDialog({
   trigger,
   gyms = [],
+  requireGymMembership = false,
   open: controlledOpen,
   onOpenChange,
 }: AddClientDialogProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const scopeParam = searchParams.get('scope')
+  const formDefaults = React.useMemo(
+    () => clientDialogDefaults(gyms, requireGymMembership, scopeParam),
+    [gyms, requireGymMembership, scopeParam]
+  )
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : uncontrolledOpen
@@ -88,12 +117,12 @@ export function AddClientDialog({
 
   const inviteForm = useForm<InviteClientValues>({
     resolver: zodResolver(inviteClientSchema),
-    defaultValues: inviteClientDefaults,
+    defaultValues: formDefaults.invite,
   })
 
   const manualForm = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: clientFormDefaults,
+    defaultValues: formDefaults.manual,
   })
 
   React.useEffect(() => {
@@ -114,8 +143,8 @@ export function AddClientDialog({
       setLastInviteUrl(null)
       setPendingAvatar(null)
       setPendingPresetId(null)
-      inviteForm.reset(inviteClientDefaults)
-      manualForm.reset(clientFormDefaults)
+      inviteForm.reset(formDefaults.invite)
+      manualForm.reset(formDefaults.manual)
       setMode('invite')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -291,6 +320,7 @@ export function AddClientDialog({
                     control={inviteForm.control}
                     name="gymId"
                     gyms={gyms}
+                    requireGymMembership={requireGymMembership}
                   />
                   <FormField
                     control={inviteForm.control}
@@ -436,6 +466,7 @@ export function AddClientDialog({
                   control={manualForm.control}
                   name="gymId"
                   gyms={gyms}
+                  requireGymMembership={requireGymMembership}
                 />
                 <FormField
                   control={manualForm.control}

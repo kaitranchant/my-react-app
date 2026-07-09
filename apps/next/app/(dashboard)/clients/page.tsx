@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { ClipboardCheck, Plus } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
-import { getGymsForCoach } from '@/lib/gym-access'
+import { getCoachGymAccessMode, getGymsForCoach, isGymInvitedOnlyCoach } from '@/lib/gym-access'
 import { AddClientDialog } from '@/components/clients/add-client-dialog'
 import { OnboardClientDialog } from '@/components/clients/onboard-client-dialog'
 import {
@@ -39,16 +39,23 @@ export default async function ClientsPage({
   } = await supabase.auth.getUser()
   const coachGyms = user ? await getGymsForCoach(user.id) : []
   const gymTabs = coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))
+  const accessMode = user ? await getCoachGymAccessMode(user.id) : 'independent'
+  const gymInvitedOnly = isGymInvitedOnlyCoach(accessMode)
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <PageHeader
         title="Users"
-        description="Manage your clients, their programs, and progress in one place."
+        description={
+          gymInvitedOnly
+            ? 'Manage clients shared with your gym rosters.'
+            : 'Manage your clients, their programs, and progress in one place.'
+        }
       >
         <Suspense fallback={<AddClientButtonSkeleton />}>
           <OnboardClientDialog
             gyms={gymTabs}
+            requireGymMembership={gymInvitedOnly}
             trigger={
               <Button variant="secondary">
                 <ClipboardCheck className="size-4" />
@@ -58,6 +65,7 @@ export default async function ClientsPage({
           />
           <AddClientDialog
             gyms={gymTabs}
+            requireGymMembership={gymInvitedOnly}
             trigger={
               <Button variant="brand">
                 <Plus className="size-4" />
@@ -72,7 +80,7 @@ export default async function ClientsPage({
         <Suspense fallback={<ScopeTabsSkeleton />}>
           <PageFilterPersistence pageKey="clients" filterKeys={['scope']} />
           <div className="space-y-3">
-            <ClientsScopeTabs gyms={gymTabs} />
+            <ClientsScopeTabs gyms={gymTabs} gymInvitedOnly={gymInvitedOnly} />
             <ClearPageFilters pageKey="clients" filterKeys={['scope']} />
           </div>
         </Suspense>
@@ -90,6 +98,7 @@ export default async function ClientsPage({
           searchParams={resolvedSearchParams}
           userId={user?.id}
           coachGyms={gymTabs}
+          gymInvitedOnly={gymInvitedOnly}
         />
       </Suspense>
     </div>
