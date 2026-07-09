@@ -35,6 +35,7 @@ export async function getPortalCalendarMonthSummaries(
     .gte('scheduled_date', start)
     .lte('scheduled_date', end)
     .order('scheduled_date', { ascending: true })
+    .order('created_at', { ascending: true })
 
   if (daysError) {
     return { success: false, error: daysError.message }

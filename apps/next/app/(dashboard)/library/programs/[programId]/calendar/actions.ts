@@ -1237,30 +1237,10 @@ export async function materializeProgramToClientCalendar(
     return { scheduledCount: 0, skippedCount: 0 }
   }
 
-  const targetDates = programWorkouts.map((workout) =>
-    addDaysToDateKey(startDate, workout.day_offset)
-  )
-
-  const { data: existingRows } = await supabase
-    .from('client_scheduled_workouts')
-    .select('scheduled_date')
-    .eq('client_id', clientId)
-    .in('scheduled_date', targetDates)
-
-  const existingDates = new Set(
-    (existingRows ?? []).map((row) => row.scheduled_date)
-  )
-
   let scheduledCount = 0
-  let skippedCount = 0
 
   for (const programWorkout of programWorkouts) {
     const scheduledDate = addDaysToDateKey(startDate, programWorkout.day_offset)
-
-    if (existingDates.has(scheduledDate)) {
-      skippedCount += 1
-      continue
-    }
 
     const { data: clientWorkout, error: insertError } = await supabase
       .from('client_scheduled_workouts')
@@ -1326,7 +1306,7 @@ export async function materializeProgramToClientCalendar(
 
   return {
     scheduledCount,
-    skippedCount,
+    skippedCount: 0,
   }
 }
 

@@ -32,6 +32,7 @@ import {
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
 import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
+import { SelectWorkoutDialog } from '@/components/calendar/select-workout-dialog'
 import { WorkoutBuilderModal } from '@/components/calendar/workout-builder-modal'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
@@ -78,6 +79,10 @@ import {
   WEEKDAY_OPTIONS,
 } from '@/lib/calendar'
 import { getWorkoutDisplayStatus, workoutHasProgress } from '@/lib/workout-log'
+import {
+  getSummariesForDate,
+  pickSummaryForDate,
+} from '@/lib/calendar-workouts'
 import {
   scheduledWorkoutFormSchema,
   type ScheduledWorkoutFormValues,
@@ -138,6 +143,11 @@ export function ClientCalendarPanel({
   const [scheduledDays, setScheduledDays] = React.useState(initialDays)
   const [workout, setWorkout] =
     React.useState<ClientScheduledWorkoutWithExercises | null>(initialWorkout)
+  const [selectedWorkoutId, setSelectedWorkoutId] = React.useState<string | null>(
+    initialWorkout?.id ?? null
+  )
+  const [activeLogWorkout, setActiveLogWorkout] =
+    React.useState<ClientScheduledWorkoutWithExercises | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [workoutLoading, setWorkoutLoading] = React.useState(false)
   const monthCacheRef = React.useRef(
@@ -151,6 +161,7 @@ export function ClientCalendarPanel({
     string | null
   >(null)
   const [logOpen, setLogOpen] = React.useState(false)
+  const [logPickerOpen, setLogPickerOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createDialogDate, setCreateDialogDate] = React.useState(initialSelectedDate)
   const [copyOpen, setCopyOpen] = React.useState(false)
@@ -201,11 +212,21 @@ export function ClientCalendarPanel({
   const [templatesError, setTemplatesError] = React.useState<string | null>(null)
   const handledActionRef = React.useRef<string | null>(null)
 
-  function openLogWorkout(
-    workoutToLog: ClientScheduledWorkoutWithExercises | null = workout
-  ) {
+  async function beginLogWorkout(workoutId: string) {
+    let workoutToLog =
+      workout?.id === workoutId && workout.scheduled_date === selectedDate
+        ? workout
+        : activeLogWorkout?.id === workoutId
+          ? activeLogWorkout
+          : null
+
+    if (!workoutToLog) {
+      workoutToLog = await loadSelectedDayWorkout(selectedDate, workoutId)
+    }
+
     if (!workoutToLog) return
 
+    setActiveLogWorkout(workoutToLog)
     openWorkoutLog({
       router,
       isMobile,
@@ -214,6 +235,24 @@ export function ClientCalendarPanel({
       context: { variant: 'coach', clientId },
       openModal: () => setLogOpen(true),
     })
+  }
+
+  function openLogWorkout(
+    workoutToLog: ClientScheduledWorkoutWithExercises | null = workout
+  ) {
+    if (!workoutToLog) return
+    void beginLogWorkout(workoutToLog.id)
+  }
+
+  function handleLogWorkoutClick() {
+    if (selectedDaySummaries.length > 1) {
+      setLogPickerOpen(true)
+      return
+    }
+
+    const summary = selectedDaySummaries[0]
+    if (!summary) return
+    void beginLogWorkout(summary.id)
   }
 
   const defaultWorkoutName = personalMode
@@ -289,13 +328,21 @@ export function ClientCalendarPanel({
     setSchedulableTemplates(result.templates)
   }, [])
 
-  const selectedDaySummary = React.useMemo(
-    () => scheduledDays.find((day) => day.scheduled_date === selectedDate),
+  const selectedDaySummaries = React.useMemo(
+    () => getSummariesForDate(scheduledDays, selectedDate),
     [scheduledDays, selectedDate]
   )
 
+  const activeDaySummary = React.useMemo(
+    () => pickSummaryForDate(selectedDaySummaries, selectedWorkoutId),
+    [selectedDaySummaries, selectedWorkoutId]
+  )
+
   const displayWorkout =
-    workout?.scheduled_date === selectedDate ? workout : null
+    workout?.scheduled_date === selectedDate &&
+    workout.id === activeDaySummary?.id
+      ? workout
+      : null
 
   function invalidateMonthCache(targetYear?: number, targetMonth?: number) {
     if (targetYear !== undefined && targetMonth !== undefined) {
@@ -422,7 +469,10 @@ export function ClientCalendarPanel({
     nextYear = year,
     nextMonth = month,
     nextSelectedDate = selectedDate
-  ) {
+  ): Promise<{
+    workout: ClientScheduledWorkoutWithExercises | null
+    summaries: CalendarDaySummary[]
+  } | null> {
     invalidateMonthCache(nextYear, nextMonth)
     const days = await ensureMonthDays(nextYear, nextMonth, { force: true })
     if (!days) {
@@ -431,13 +481,20 @@ export function ClientCalendarPanel({
 
     setScheduledDays(days)
 
-    const summary = days.find((day) => day.scheduled_date === nextSelectedDate)
-    if (!summary) {
+    const summaries = getSummariesForDate(days, nextSelectedDate)
+    if (summaries.length === 0) {
+      setSelectedWorkoutId(null)
       setWorkout(null)
-      return null
+      return { workout: null, summaries }
     }
 
-    return loadSelectedDayWorkout(nextSelectedDate, summary.id)
+    const summary = pickSummaryForDate(summaries, selectedWorkoutId)
+    setSelectedWorkoutId(summary!.id)
+    const loadedWorkout = await loadSelectedDayWorkout(
+      nextSelectedDate,
+      summary!.id
+    )
+    return { workout: loadedWorkout, summaries }
   }
 
   async function handleMonthChange(nextYear: number, nextMonth: number) {
@@ -447,10 +504,11 @@ export function ClientCalendarPanel({
     const days = (await ensureMonthDays(nextYear, nextMonth)) ?? []
     setScheduledDays(days)
 
-    const summary = days.find((day) => day.scheduled_date === selectedDate)
-    if (summary) {
-      if (workout?.scheduled_date !== selectedDate) {
-        void loadSelectedDayWorkout(selectedDate, summary.id)
+    const summaries = getSummariesForDate(days, selectedDate)
+    if (summaries.length > 0) {
+      const summary = pickSummaryForDate(summaries, selectedWorkoutId)
+      if (workout?.scheduled_date !== selectedDate || workout.id !== summary?.id) {
+        void loadSelectedDayWorkout(selectedDate, summary!.id)
       }
       return
     }
@@ -460,6 +518,11 @@ export function ClientCalendarPanel({
     }
   }
 
+  async function selectWorkout(workoutId: string) {
+    setSelectedWorkoutId(workoutId)
+    await loadSelectedDayWorkout(selectedDate, workoutId)
+  }
+
   async function handleSelectDate(dateKey: string) {
     if (logOpen && workout && workout.scheduled_date !== dateKey) {
       setLogOpen(false)
@@ -467,31 +530,37 @@ export function ClientCalendarPanel({
 
     setSelectedDate(dateKey)
 
-    const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)
-    if (!summary) {
+    const summaries = getSummariesForDate(scheduledDays, dateKey)
+    if (summaries.length === 0) {
+      setSelectedWorkoutId(null)
       setWorkout(null)
       return
     }
 
-    await loadSelectedDayWorkout(dateKey, summary.id)
+    const summary = pickSummaryForDate(summaries, selectedWorkoutId)
+    setSelectedWorkoutId(summary!.id)
+    await loadSelectedDayWorkout(dateKey, summary!.id)
   }
 
   async function handleDayDoubleClick(dateKey: string) {
     setSelectedDate(dateKey)
 
-    const summary = scheduledDays.find((day) => day.scheduled_date === dateKey)
-    if (!summary) {
+    const summaries = getSummariesForDate(scheduledDays, dateKey)
+    if (summaries.length === 0) {
       openCreateDialog(dateKey)
       return
     }
 
-    if (workout?.scheduled_date === dateKey) {
+    const summary = pickSummaryForDate(summaries, selectedWorkoutId)
+    setSelectedWorkoutId(summary!.id)
+
+    if (workout?.scheduled_date === dateKey && workout.id === summary?.id) {
       setBuilderOpen(true)
       return
     }
 
     setOpenBuilderForDate(dateKey)
-    const loaded = await loadSelectedDayWorkout(dateKey, summary.id)
+    const loaded = await loadSelectedDayWorkout(dateKey, summary!.id)
     if (!loaded) {
       setOpenBuilderForDate(null)
     }
@@ -543,7 +612,7 @@ export function ClientCalendarPanel({
         setMonth(targetMonth)
       }
 
-      const loadedWorkout = await refreshCalendar(
+      const calendarResult = await refreshCalendar(
         targetYear,
         targetMonth,
         dateKey
@@ -552,8 +621,11 @@ export function ClientCalendarPanel({
       if (cancelled) return
 
       if (initialAction === 'log') {
-        if (loadedWorkout) {
-          openLogWorkout(loadedWorkout)
+        const summaries = calendarResult?.summaries ?? []
+        if (summaries.length > 1) {
+          setLogPickerOpen(true)
+        } else if (calendarResult?.workout) {
+          openLogWorkout(calendarResult.workout)
         } else {
           toast.error(
             `No workout scheduled for ${formatDayHeader(dateKey)}.`
@@ -773,20 +845,43 @@ export function ClientCalendarPanel({
             Selected day
           </p>
           <p className="font-semibold">{formatDayHeader(selectedDate)}</p>
-          {displayWorkout || selectedDaySummary ? (
+          {selectedDaySummaries.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selectedDaySummaries.map((summary) => (
+                <Button
+                  key={summary.id}
+                  type="button"
+                  size="sm"
+                  variant={
+                    activeDaySummary?.id === summary.id ? 'default' : 'outline'
+                  }
+                  className="h-7 max-w-full px-2 text-xs"
+                  onClick={() => void selectWorkout(summary.id)}
+                >
+                  <span className="truncate">{summary.name}</span>
+                </Button>
+              ))}
+            </div>
+          )}
+          {displayWorkout || activeDaySummary ? (
             <p className="text-muted-foreground truncate text-sm">
-              {displayWorkout?.name ?? selectedDaySummary?.name}
+              {displayWorkout?.name ?? activeDaySummary?.name}
               {displayWorkout && displayWorkout.exercises.length > 0 &&
                 ` · ${displayWorkout.exercises.length} exercise${
                   displayWorkout.exercises.length === 1 ? '' : 's'
                 }`}
               {' · '}
               {getWorkoutDisplayStatus(
-                displayWorkout?.status ?? selectedDaySummary!.status,
+                displayWorkout?.status ?? activeDaySummary!.status,
                 displayWorkout
                   ? workoutHasProgress(displayWorkout, [])
-                  : workoutHasProgress(selectedDaySummary!, [])
+                  : workoutHasProgress(activeDaySummary!, [])
               ).label}
+              {selectedDaySummaries.length > 1 && (
+                <span className="ml-1">
+                  · {selectedDaySummaries.length} workouts
+                </span>
+              )}
               {workoutLoading && !displayWorkout && (
                 <Loader2 className="ml-1 inline size-3 animate-spin" />
               )}
@@ -797,53 +892,68 @@ export function ClientCalendarPanel({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {displayWorkout ? (
+          {selectedDaySummaries.length > 0 ? (
             <>
               <Button
                 type="button"
                 size="sm"
-                onClick={() => openLogWorkout()}
+                onClick={handleLogWorkoutClick}
               >
                 <ClipboardList className="size-4" />
-                {displayWorkout.status === 'completed'
+                {displayWorkout?.status === 'completed' ||
+                activeDaySummary?.status === 'completed'
                   ? 'View log'
-                  : displayWorkout.status === 'skipped'
+                  : displayWorkout?.status === 'skipped' ||
+                      activeDaySummary?.status === 'skipped'
                     ? 'View workout'
                     : 'Log workout'}
               </Button>
+              {displayWorkout && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBuilderOpen(true)}
+                  >
+                    <Pencil className="size-4" />
+                    Edit workout
+                  </Button>
+                  <PrintWorkoutButton
+                    workout={displayWorkout}
+                    selectedDate={selectedDate}
+                    subtitle={personalMode ? 'Personal training' : clientName}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={openCopyDialog}
+                  >
+                    <Copy className="size-4" />
+                    Copy
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                    disabled={pending}
+                    onClick={handleDeleteWorkout}
+                  >
+                    <Trash2 className="size-4" />
+                    Remove workout
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setBuilderOpen(true)}
+                onClick={() => openCreateDialog()}
               >
-                <Pencil className="size-4" />
-                Edit workout
-              </Button>
-              <PrintWorkoutButton
-                workout={displayWorkout}
-                selectedDate={selectedDate}
-                subtitle={personalMode ? 'Personal training' : clientName}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={openCopyDialog}
-              >
-                <Copy className="size-4" />
-                Copy
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-destructive"
-                disabled={pending}
-                onClick={handleDeleteWorkout}
-              >
-                <Trash2 className="size-4" />
-                Clear day
+                <Plus className="size-4" />
+                Add workout
               </Button>
             </>
           ) : (
@@ -879,43 +989,54 @@ export function ClientCalendarPanel({
       />
 
       {workout && (
-        <>
-          <WorkoutBuilderModal
-            open={builderOpen}
-            onOpenChange={(open) => {
-              setBuilderOpen(open)
-              if (!open) {
-                void refreshCalendar()
-              }
-            }}
-            clientId={clientId}
-            selectedDate={selectedDate}
-            workout={workout}
-            exercises={exercises}
-            onChanged={async (nextWorkout) => {
-              if (nextWorkout) {
-                setWorkout(nextWorkout)
-                return
-              }
-              await refreshCalendar()
-            }}
-            onCopy={openCopyDialog}
-          />
-          {!isMobile && (
-            <WorkoutLogModal
-              open={logOpen}
-              onOpenChange={setLogOpen}
-              clientId={clientId}
-              selectedDate={selectedDate}
-              workoutId={workout.id}
-              initialStatus={workout.status}
-              exercises={exercises}
-              onChanged={() => refreshCalendar()}
-              weightUnit={weightUnit}
-            />
-          )}
-        </>
+        <WorkoutBuilderModal
+          open={builderOpen}
+          onOpenChange={(open) => {
+            setBuilderOpen(open)
+            if (!open) {
+              void refreshCalendar()
+            }
+          }}
+          clientId={clientId}
+          selectedDate={selectedDate}
+          workout={workout}
+          exercises={exercises}
+          onChanged={async (nextWorkout) => {
+            if (nextWorkout) {
+              setWorkout(nextWorkout)
+              return
+            }
+            await refreshCalendar()
+          }}
+          onCopy={openCopyDialog}
+        />
       )}
+
+      {!isMobile && (activeLogWorkout ?? workout) && (
+        <WorkoutLogModal
+          open={logOpen}
+          onOpenChange={(open) => {
+            setLogOpen(open)
+            if (!open) {
+              setActiveLogWorkout(null)
+            }
+          }}
+          clientId={clientId}
+          selectedDate={selectedDate}
+          workoutId={(activeLogWorkout ?? workout)!.id}
+          initialStatus={(activeLogWorkout ?? workout)!.status}
+          exercises={exercises}
+          onChanged={() => refreshCalendar()}
+          weightUnit={weightUnit}
+        />
+      )}
+
+      <SelectWorkoutDialog
+        open={logPickerOpen}
+        onOpenChange={setLogPickerOpen}
+        workouts={selectedDaySummaries}
+        onSelect={(workoutId) => void beginLogWorkout(workoutId)}
+      />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
@@ -1102,7 +1223,7 @@ export function ClientCalendarPanel({
                       &apos;s calendar
                     </>
                   ) : null}
-                  . If that day already has a workout, the copy will be blocked.
+                  . Additional workouts can be scheduled on the same day.
                 </p>
               )}
 

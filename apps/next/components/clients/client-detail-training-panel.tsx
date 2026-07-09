@@ -64,7 +64,8 @@ export async function ClientDetailTrainingPanel({
       .eq('client_id', clientId)
       .gte('scheduled_date', monthStart)
       .lte('scheduled_date', monthEnd)
-      .order('scheduled_date', { ascending: true }),
+      .order('scheduled_date', { ascending: true })
+      .order('created_at', { ascending: true }),
     supabase
       .from('client_scheduled_workouts')
       .select(
@@ -78,6 +79,8 @@ export async function ClientDetailTrainingPanel({
       )
       .eq('client_id', clientId)
       .eq('scheduled_date', selectedDate)
+      .order('created_at', { ascending: true })
+      .limit(1)
       .maybeSingle(),
     supabase
       .from('exercises')

@@ -26,8 +26,7 @@ create table if not exists public.client_scheduled_workouts (
   library_workout_id uuid references public.workouts (id) on delete set null,
   status public.scheduled_workout_status not null default 'scheduled',
   created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
-  constraint client_scheduled_workouts_client_date_key unique (client_id, scheduled_date)
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
 create index if not exists client_scheduled_workouts_coach_id_idx

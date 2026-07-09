@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Dumbbell, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatMonthYear, getMonthGrid } from '@/lib/calendar'
+import { groupSummariesByDate } from '@/lib/calendar-workouts'
 import {
   getWorkoutToneContainerClass,
   getWorkoutToneDotClass,
@@ -28,6 +29,7 @@ type CalendarMonthGridProps = {
 
 const WEEKDAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 const WEEKDAY_HEADERS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
+const MAX_VISIBLE_WORKOUTS = 2
 
 function getScheduledDayStyles(
   scheduled: CalendarDaySummary,
@@ -58,9 +60,37 @@ type CalendarDayCellProps = {
   day: number
   isSelected: boolean
   isToday: boolean
-  scheduled?: CalendarDaySummary
+  scheduledWorkouts: CalendarDaySummary[]
   onSelectDate: (dateKey: string) => void
   onDayDoubleClick?: (dateKey: string) => void
+}
+
+function ScheduledWorkoutBadge({
+  scheduled,
+  isSelected,
+}: {
+  scheduled: CalendarDaySummary
+  isSelected: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
+        getScheduledDayStyles(scheduled, isSelected)
+      )}
+    >
+      <p className="line-clamp-1 text-xs leading-snug font-semibold">
+        {scheduled.name}
+      </p>
+      <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
+        <Dumbbell className="size-2.5 shrink-0" />
+        {getWorkoutDisplayStatus(
+          scheduled.status,
+          workoutHasProgress(scheduled, [])
+        ).label}
+      </p>
+    </div>
+  )
 }
 
 function CalendarDayCell({
@@ -68,10 +98,14 @@ function CalendarDayCell({
   day,
   isSelected,
   isToday,
-  scheduled,
+  scheduledWorkouts,
   onSelectDate,
   onDayDoubleClick,
 }: CalendarDayCellProps) {
+  const hasWorkouts = scheduledWorkouts.length > 0
+  const visibleWorkouts = scheduledWorkouts.slice(0, MAX_VISIBLE_WORKOUTS)
+  const hiddenCount = scheduledWorkouts.length - visibleWorkouts.length
+
   return (
     <div
       role="button"
@@ -93,7 +127,7 @@ function CalendarDayCell({
       }}
       title={
         onDayDoubleClick
-          ? scheduled
+          ? hasWorkouts
             ? 'Double-click to edit workout'
             : 'Double-click to schedule workout'
           : undefined
@@ -116,23 +150,20 @@ function CalendarDayCell({
         {day}
       </span>
 
-      {scheduled ? (
-        <div
-          className={cn(
-            'mt-2 flex flex-1 flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
-            getScheduledDayStyles(scheduled, isSelected)
+      {hasWorkouts ? (
+        <div className="mt-2 flex flex-1 flex-col gap-1">
+          {visibleWorkouts.map((scheduled) => (
+            <ScheduledWorkoutBadge
+              key={scheduled.id}
+              scheduled={scheduled}
+              isSelected={isSelected}
+            />
+          ))}
+          {hiddenCount > 0 && (
+            <p className="text-muted-foreground px-1 text-[10px] font-medium">
+              +{hiddenCount} more
+            </p>
           )}
-        >
-          <p className="line-clamp-2 text-xs leading-snug font-semibold">
-            {scheduled.name}
-          </p>
-          <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
-            <Dumbbell className="size-2.5 shrink-0" />
-            {getWorkoutDisplayStatus(
-              scheduled.status,
-              workoutHasProgress(scheduled, [])
-            ).label}
-          </p>
         </div>
       ) : (
         <div className="mt-auto flex justify-center pb-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -150,7 +181,7 @@ type CompactMonthPickerProps = {
   year: number
   month: number
   selectedDate: string
-  scheduledByDate: Map<string, CalendarDaySummary>
+  scheduledByDate: Map<string, CalendarDaySummary[]>
   onSelectDate: (dateKey: string) => void
   loading?: boolean
   weekdayHeaders?: readonly string[]
@@ -187,7 +218,7 @@ function CompactMonthPicker({
             return <div key={`empty-${index}`} className="min-h-11" />
           }
 
-          const scheduled = scheduledByDate.get(cell.dateKey)
+          const scheduledWorkouts = scheduledByDate.get(cell.dateKey) ?? []
           const isSelected = cell.dateKey === selectedDate
 
           return (
@@ -195,8 +226,8 @@ function CompactMonthPicker({
               key={cell.dateKey}
               type="button"
               title={
-                scheduled
-                  ? `${cell.day} — ${scheduled.name}`
+                scheduledWorkouts.length > 0
+                  ? `${cell.day} — ${scheduledWorkouts.map((workout) => workout.name).join(', ')}`
                   : String(cell.day)
               }
               onClick={() => onSelectDate(cell.dateKey!)}
@@ -210,14 +241,19 @@ function CompactMonthPicker({
               )}
             >
               <span>{cell.day}</span>
-              {scheduled && (
-                <span
-                  className={cn(
-                    'absolute bottom-1.5 size-1.5 rounded-full',
-                    getScheduledDotClass(scheduled, isSelected)
-                  )}
-                  aria-hidden
-                />
+              {scheduledWorkouts.length > 0 && (
+                <span className="absolute bottom-1 flex items-center gap-0.5">
+                  {scheduledWorkouts.slice(0, 3).map((scheduled) => (
+                    <span
+                      key={scheduled.id}
+                      className={cn(
+                        'size-1.5 rounded-full',
+                        getScheduledDotClass(scheduled, isSelected)
+                      )}
+                      aria-hidden
+                    />
+                  ))}
+                </span>
               )}
             </button>
           )
@@ -285,9 +321,7 @@ export function CalendarMonthGrid({
   loading = false,
 }: CalendarMonthGridProps) {
   const cells = getMonthGrid(year, month)
-  const scheduledByDate = new Map(
-    scheduledDays.map((day) => [day.scheduled_date, day])
-  )
+  const scheduledByDate = groupSummariesByDate(scheduledDays)
   const isFull = variant === 'full'
 
   function goToPreviousMonth() {
@@ -351,7 +385,7 @@ export function CalendarMonthGrid({
                   )
                 }
 
-                const scheduled = scheduledByDate.get(cell.dateKey)
+                const scheduledWorkouts = scheduledByDate.get(cell.dateKey) ?? []
                 const isSelected = cell.dateKey === selectedDate
 
                 return (
@@ -361,7 +395,7 @@ export function CalendarMonthGrid({
                     day={cell.day}
                     isSelected={isSelected}
                     isToday={cell.isToday}
-                    scheduled={scheduled}
+                    scheduledWorkouts={scheduledWorkouts}
                     onSelectDate={onSelectDate}
                     onDayDoubleClick={onDayDoubleClick}
                   />

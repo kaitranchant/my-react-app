@@ -229,6 +229,7 @@ export async function getCalendarMonthSummaries(
     .gte('scheduled_date', start)
     .lte('scheduled_date', end)
     .order('scheduled_date', { ascending: true })
+    .order('created_at', { ascending: true })
 
   if (daysError) {
     return { success: false, error: daysError.message }
@@ -558,12 +559,6 @@ export async function scheduleProgramWorkoutTemplateToDate(
     .single()
 
   if (createError || !created) {
-    if (createError?.code === '23505') {
-      return {
-        success: false,
-        error: 'This client already has a workout on that date.',
-      }
-    }
     return {
       success: false,
       error: createError?.message ?? 'Could not schedule workout.',
@@ -632,12 +627,6 @@ export async function createScheduledWorkout(
     .single()
 
   if (error) {
-    if (error.code === '23505') {
-      return {
-        success: false,
-        error: 'This client already has a workout on that date.',
-      }
-    }
     return { success: false, error: error.message }
   }
 
@@ -1331,12 +1320,6 @@ export async function copyScheduledWorkoutToDate(
     .single()
 
   if (createError) {
-    if (createError.code === '23505') {
-      return {
-        success: false,
-        error: 'This client already has a workout on that date.',
-      }
-    }
     return { success: false, error: createError.message }
   }
 
@@ -1417,29 +1400,7 @@ export async function copyScheduledWorkoutToDateRange(
     }
   }
 
-  const { data: existingRows, error: existingError } = await supabase
-    .from('client_scheduled_workouts')
-    .select('scheduled_date')
-    .eq('client_id', resolvedTargetId)
-    .gte('scheduled_date', parsed.data.startDate)
-    .lte('scheduled_date', parsed.data.endDate)
-
-  if (existingError) {
-    return { success: false, error: existingError.message }
-  }
-
-  const occupiedDates = new Set(
-    (existingRows ?? []).map((row) => row.scheduled_date as string)
-  )
-  const targetDates = candidateDates.filter((date) => !occupiedDates.has(date))
-  const skippedCount = candidateDates.length - targetDates.length
-
-  if (targetDates.length === 0) {
-    return {
-      success: false,
-      error: 'Every matching date already has a workout scheduled.',
-    }
-  }
+  const targetDates = candidateDates
 
   const { data: createdWorkouts, error: createError } = await supabase
     .from('client_scheduled_workouts')
@@ -1484,6 +1445,6 @@ export async function copyScheduledWorkoutToDateRange(
   return {
     success: true,
     copiedCount: targetDates.length,
-    skippedCount,
+    skippedCount: 0,
   }
 }
