@@ -116,6 +116,31 @@ export async function ensureGymCoachPortalMembershipAsAdmin(
   return ensureGymCoachPortalMembershipForUser(admin, userId, gymId)
 }
 
+export async function ensureGymMemberCoachProfiles(
+  gymId: string
+): Promise<void> {
+  const admin = createAdminClient()
+  if (!admin) {
+    return
+  }
+
+  const { data: members, error } = await admin
+    .from('gym_members')
+    .select('coach_id')
+    .eq('gym_id', gymId)
+    .eq('status', 'active')
+
+  if (error || !members?.length) {
+    return
+  }
+
+  await Promise.all(
+    members.map((member) =>
+      ensureGymCoachPortalMembershipForUser(admin, member.coach_id, gymId)
+    )
+  )
+}
+
 export async function fetchGymMemberCoachClients(
   supabase: SupabaseClient<Database>,
   members: GymMemberWithProfile[],

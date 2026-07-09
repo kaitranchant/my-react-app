@@ -11,7 +11,7 @@ import {
   isGymInvitedOnlyCoach,
 } from '@/lib/gym-access'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
-import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
+import { ensureGymMemberCoachProfiles } from '@/lib/gym-coach-client'
 import { fetchGymOwnerDashboard } from '@/lib/gym-metrics'
 import {
   Card,
@@ -116,7 +116,7 @@ export default async function GymPage({
   })) as GymMemberWithProfile[]
 
   if (members.some((member) => member.coach_id === user.id)) {
-    await ensureGymCoachPortalMembership(supabase, gym.id)
+    await ensureGymMemberCoachProfiles(gym.id)
   }
 
   const ownerDashboard = isOwner

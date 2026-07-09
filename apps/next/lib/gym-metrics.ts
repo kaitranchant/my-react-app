@@ -20,6 +20,7 @@ import {
 } from '@/lib/coach-preferences'
 import type { createClient } from '@/lib/supabase/server'
 import {
+  ensureGymMemberCoachProfiles,
   fetchGymMemberCoachClients,
 } from '@/lib/gym-coach-client'
 import type { GymMemberWithProfile } from 'app/types/database'
@@ -115,6 +116,8 @@ async function fetchGymClientMetricsContext(
     coachGymIds: options.coachGymIds,
     userId: options.coachId,
   })
+
+  await ensureGymMemberCoachProfiles(options.gymId)
 
   const { clients, coachSelfClientIds } = await fetchGymMemberCoachClients(
     supabase,

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
-import { fetchGymMemberCoachSelfNameRows, ensureGymCoachPortalMembershipForUser } from '@/lib/gym-coach-client'
+import { fetchGymMemberCoachSelfNameRows, ensureGymMemberCoachProfiles } from '@/lib/gym-coach-client'
 import { sortByLastName } from '@/lib/person-name'
 import { fetchPendingOnboardingCountsByClientId } from '@/lib/onboarding-data'
 import { clientStatuses } from '@/lib/validations/client'
@@ -90,7 +90,7 @@ export async function fetchClientsForListPage(
   const scope = resolveClientsScope(scopeParam, coachGyms, { gymInvitedOnly })
 
   if (userId && coachGymIds.has(scope)) {
-    await ensureGymCoachPortalMembershipForUser(supabase, userId, scope)
+    await ensureGymMemberCoachProfiles(scope)
   }
 
   let queryBuilder = supabase
