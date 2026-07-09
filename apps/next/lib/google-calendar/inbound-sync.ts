@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from 'app/types/database'
 
 import {
   getGoogleCalendarEvent,
@@ -23,6 +24,8 @@ import {
 import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
 import { fetchCoachSessionBookingSettings } from '@/lib/session-booking-queries'
 import { createAdminClient } from '@/lib/supabase/admin'
+
+type AppSupabaseClient = SupabaseClient<Database>
 
 const GOOGLE_ECHO_SKEW_MS = 2_000
 
@@ -211,7 +214,7 @@ export async function validateInboundGoogleReschedule(input: {
 }
 
 async function removeAppointmentDeletedInGoogle(
-  db: SupabaseClient,
+  db: AppSupabaseClient,
   appointmentId: string,
   options?: { revalidate?: boolean }
 ): Promise<'applied' | 'skipped'> {
@@ -254,14 +257,14 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
   options?: {
     timeMin?: string
     timeMax?: string
-    supabase?: SupabaseClient
+    supabase?: AppSupabaseClient
     revalidate?: boolean
   }
 ): Promise<number> {
   const admin = createAdminClient()
   const db = options?.supabase ?? admin
-  const writeDb = admin ?? db
   if (!db) return 0
+  const writeDb: AppSupabaseClient = admin ?? db
 
   const connection = await fetchCoachGoogleCalendarConnection(db, coachId)
   if (!connection) return 0
@@ -465,7 +468,7 @@ async function applyGoogleEventUpdate(
   calendarId: string,
   appointment: LinkedAppointment,
   event: GoogleCalendarEvent,
-  db: SupabaseClient,
+  db: AppSupabaseClient,
   options?: { revalidate?: boolean }
 ): Promise<'applied' | 'rejected' | 'skipped'> {
   if (event.status === 'cancelled') {
@@ -535,7 +538,7 @@ async function applyGoogleEventUpdate(
 
 async function applyGoogleEventDeletion(
   appointment: LinkedAppointment,
-  db: SupabaseClient
+  db: AppSupabaseClient
 ): Promise<'applied' | 'skipped'> {
   return removeAppointmentDeletedInGoogle(db, appointment.id)
 }
