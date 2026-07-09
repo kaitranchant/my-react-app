@@ -62,7 +62,7 @@ export function GymClientListTable({
                 : `${client.attendanceRate}%`}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatSessionCompliance(client.sessionCompliance)}
+              {formatSessionCompliance(client.sessionCompletion)}
             </TableCell>
             <TableCell className="text-right">
               {client.issueCount > 0 ? (
