@@ -18,6 +18,7 @@ import { fetchCoachSessionBookingSettings } from '@/lib/session-booking-queries'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const GOOGLE_ECHO_SKEW_MS = 2_000
+const GOOGLE_DELETION_CANCELLATION_REASON = 'Deleted in Google Calendar'
 
 type LinkedAppointment = {
   id: string
@@ -201,21 +202,31 @@ export async function validateInboundGoogleReschedule(input: {
   return { ok: true }
 }
 
-async function clearGoogleExportLink(
+async function cancelAppointmentFromGoogleDeletion(
   appointment: LinkedAppointment,
   googleUpdatedAt?: string
 ): Promise<'applied' | 'skipped'> {
   const admin = createAdminClient()
   if (!admin) return 'skipped'
 
-  await admin
+  const nowIso = new Date().toISOString()
+
+  const { error } = await admin
     .from('coaching_appointments')
     .update({
+      status: 'cancelled',
+      cancelled_at: nowIso,
+      cancellation_reason: GOOGLE_DELETION_CANCELLATION_REASON,
       google_calendar_event_id: null,
-      google_calendar_updated_at:
-        googleUpdatedAt ?? new Date().toISOString(),
+      google_calendar_updated_at: googleUpdatedAt ?? nowIso,
     })
     .eq('id', appointment.id)
+    .eq('status', 'scheduled')
+
+  if (error) {
+    console.error('[google-calendar] cancel appointment from deletion failed', error)
+    return 'skipped'
+  }
 
   revalidatePath('/scheduling')
   revalidatePath('/portal/sessions')
@@ -258,7 +269,7 @@ async function applyGoogleEventUpdate(
   }
 
   if (event.status === 'cancelled') {
-    return clearGoogleExportLink(appointment, event.updated)
+    return cancelAppointmentFromGoogleDeletion(appointment, event.updated)
   }
 
   const times = getGoogleCalendarEventTimes(event)
@@ -310,7 +321,10 @@ async function applyGoogleEventDeletion(
     return 'skipped'
   }
 
-  return clearGoogleExportLink(appointment, deletedEventUpdatedAt)
+  return cancelAppointmentFromGoogleDeletion(
+    appointment,
+    deletedEventUpdatedAt
+  )
 }
 
 export async function syncCoachCalendarFromGoogle(
