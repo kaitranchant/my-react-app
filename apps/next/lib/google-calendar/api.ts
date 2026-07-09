@@ -185,7 +185,8 @@ export async function listGoogleCalendarEventsInRange(
   accessToken: string,
   calendarId: string,
   timeMin: string,
-  timeMax: string
+  timeMax: string,
+  options?: { showDeleted?: boolean }
 ): Promise<GoogleCalendarEvent[]> {
   const events: GoogleCalendarEvent[] = []
   let pageToken: string | undefined
@@ -197,7 +198,7 @@ export async function listGoogleCalendarEventsInRange(
     url.searchParams.set('timeMin', timeMin)
     url.searchParams.set('timeMax', timeMax)
     url.searchParams.set('singleEvents', 'true')
-    url.searchParams.set('showDeleted', 'false')
+    url.searchParams.set('showDeleted', options?.showDeleted ? 'true' : 'false')
     if (pageToken) {
       url.searchParams.set('pageToken', pageToken)
     }

@@ -37,6 +37,7 @@ import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import {
   queueCoachingAppointmentGoogleRemoval,
   queueCoachingAppointmentGoogleSync,
+  syncCoachingAppointmentToGoogle,
 } from '@/lib/google-calendar/sync'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -665,7 +666,11 @@ async function bookWeeklyAppointmentOccurrences(options: {
     }
 
     if (inserted?.id) {
-      queueCoachingAppointmentGoogleSync(inserted.id)
+      if (options.weekIndexes.length === 1) {
+        await syncCoachingAppointmentToGoogle(inserted.id)
+      } else {
+        queueCoachingAppointmentGoogleSync(inserted.id)
+      }
       bookedCount += 1
     }
   }
@@ -1536,7 +1541,11 @@ async function bookCoachAppointmentOccurrences(options: {
     }
 
     if (inserted?.id) {
-      queueCoachingAppointmentGoogleSync(inserted.id)
+      if (totalWeeks === 1) {
+        await syncCoachingAppointmentToGoogle(inserted.id)
+      } else {
+        queueCoachingAppointmentGoogleSync(inserted.id)
+      }
     }
   }
 

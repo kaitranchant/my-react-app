@@ -103,12 +103,21 @@ async function persistGoogleEventMetadata(
   }
 ) {
   const admin = createAdminClient()
-  if (!admin) return
+  if (!admin) {
+    console.error(
+      '[google-calendar] cannot persist event metadata — service role unavailable'
+    )
+    return
+  }
 
-  await admin
+  const { error } = await admin
     .from('coaching_appointments')
     .update(values)
     .eq('id', appointmentId)
+
+  if (error) {
+    console.error('[google-calendar] persist event metadata failed', error)
+  }
 }
 
 function isGoogleCalendarAuthError(error: unknown) {
