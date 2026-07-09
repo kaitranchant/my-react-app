@@ -39,9 +39,7 @@ export async function ensureGymCoachPortalMembershipForUser(
     .eq('is_coach_self', true)
     .maybeSingle()
 
-  let clientId = existingSelfClient?.id
-
-  if (!clientId) {
+  if (!existingSelfClient) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')
@@ -72,6 +70,7 @@ export async function ensureGymCoachPortalMembershipForUser(
     return { success: true, clientId: created.id }
   }
 
+  const clientId = existingSelfClient.id
   const updates: {
     gym_id?: string
     user_id?: string
