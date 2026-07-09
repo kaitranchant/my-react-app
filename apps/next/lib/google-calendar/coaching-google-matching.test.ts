@@ -5,6 +5,7 @@ import {
   buildExportedCoachingEventSummary,
   appointmentInstantMatches,
   googleEventMatchesCoachingAppointment,
+  linkedGoogleEventNeedsTimeReconcile,
   resolveGoogleAppointmentReconcileAction,
   shouldRemoveAppointmentAfterGoogleDeletion,
 } from '@/lib/google-calendar/coaching-google-matching'
@@ -80,6 +81,28 @@ test('resolveGoogleAppointmentReconcileAction links unlinked appointments to act
   if (action.type === 'link') {
     assert.equal(action.googleEventId, 'google-event-2')
   }
+})
+
+test('linkedGoogleEventNeedsTimeReconcile detects moved Google events', () => {
+  assert.equal(
+    linkedGoogleEventNeedsTimeReconcile(appointment, {
+      id: 'google-event-1',
+      status: 'confirmed',
+      start: { dateTime: '2026-07-10T17:00:00.000Z' },
+      end: { dateTime: '2026-07-10T18:00:00.000Z' },
+    }),
+    true
+  )
+
+  assert.equal(
+    linkedGoogleEventNeedsTimeReconcile(appointment, {
+      id: 'google-event-1',
+      status: 'confirmed',
+      start: { dateTime: appointment.starts_at },
+      end: { dateTime: appointment.ends_at },
+    }),
+    false
+  )
 })
 
 test('shouldRemoveAppointmentAfterGoogleDeletion removes linked appointments with cancelled Google events', () => {

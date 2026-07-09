@@ -112,6 +112,27 @@ export type GoogleAppointmentReconcileAction =
       googleCalendarUpdatedAt: string
     }
 
+export function linkedGoogleEventNeedsTimeReconcile(
+  appointment: Pick<AppointmentGoogleMatchInput, 'starts_at' | 'ends_at'>,
+  linkedEvent: GoogleCalendarEvent
+): boolean {
+  if (linkedEvent.status === 'cancelled') {
+    return false
+  }
+
+  const times = getGoogleCalendarEventTimes(linkedEvent)
+  if (!times) {
+    return false
+  }
+
+  return !appointmentInstantMatches(
+    appointment.starts_at,
+    appointment.ends_at,
+    times.startsAt,
+    times.endsAt
+  )
+}
+
 export function resolveGoogleAppointmentReconcileAction(
   appointment: AppointmentGoogleMatchInput,
   googleEvents: GoogleCalendarEvent[],

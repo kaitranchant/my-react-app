@@ -11,6 +11,7 @@ import {
 } from '@/lib/google-calendar/api'
 import {
   appointmentInstantMatches,
+  linkedGoogleEventNeedsTimeReconcile,
   resolveGoogleAppointmentReconcileAction,
   type AppointmentGoogleMatchInput,
 } from '@/lib/google-calendar/coaching-google-matching'
@@ -280,11 +281,20 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     .select(
       `
       id,
+      coach_id,
+      client_id,
       starts_at,
       ends_at,
+      status,
+      location,
+      pre_session_notes,
+      notes,
       google_calendar_event_id,
+      google_calendar_updated_at,
+      updated_at,
+      series_id,
       session_type,
-      client:clients(full_name)
+      client:clients(full_name, email)
     `
     )
     .eq('coach_id', coachId)
@@ -322,6 +332,7 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
   }
 
   let removed = 0
+  let updated = 0
 
   for (const row of appointments) {
     const client = Array.isArray(row.client) ? row.client[0] : row.client
@@ -333,6 +344,10 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
       session_type: row.session_type,
       client: client ?? null,
     }
+    const linkedAppointment = {
+      ...row,
+      client: client ?? null,
+    } as LinkedAppointment
 
     let linkedEvent: GoogleCalendarEvent | null = null
     if (appointment.google_calendar_event_id) {
@@ -358,6 +373,22 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     )
 
     if (action.type === 'keep') {
+      if (
+        linkedEvent &&
+        appointment.google_calendar_event_id &&
+        linkedGoogleEventNeedsTimeReconcile(appointment, linkedEvent)
+      ) {
+        const result = await applyGoogleEventUpdate(
+          connection.id,
+          connection.calendar_id,
+          linkedAppointment,
+          linkedEvent,
+          db
+        )
+        if (result === 'applied') {
+          updated += 1
+        }
+      }
       continue
     }
 
@@ -383,7 +414,7 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     }
   }
 
-  return removed
+  return removed + updated
 }
 
 async function revertGoogleEventToAppointment(
