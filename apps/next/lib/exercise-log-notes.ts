@@ -20,12 +20,36 @@ export function getCoachNotesForExerciseLog(exercise: {
   }
 }
 
-export function formatCoachNotesForExerciseLog(exercise: {
-  workout_notes?: string | null
-  coach_session_notes?: string | null
-}): string | null {
-  const { prescriptionNotes, sessionNotes } = getCoachNotesForExerciseLog(exercise)
+export function formatCoachNotesForExerciseLog(
+  exercise: {
+    workout_notes?: string | null
+    coach_session_notes?: string | null
+  },
+  options?: {
+    previousSessionCoachNotes?: string | null
+  }
+): string | null {
+  const { prescriptionNotes: rawPrescriptionNotes, sessionNotes } =
+    getCoachNotesForExerciseLog(exercise)
+  const prescriptionNotes = suppressStalePrescriptionNotes(
+    rawPrescriptionNotes,
+    options?.previousSessionCoachNotes
+  )
   return mergeCoachNotesForHistory(prescriptionNotes, sessionNotes)
+}
+
+function suppressStalePrescriptionNotes(
+  prescriptionNotes: string | null,
+  previousSessionCoachNotes?: string | null
+): string | null {
+  if (!prescriptionNotes) return null
+
+  const previous = previousSessionCoachNotes?.trim()
+  if (previous && prescriptionNotes === previous) {
+    return null
+  }
+
+  return prescriptionNotes
 }
 
 export function hasVisibleExerciseLogNotes(exercise: {

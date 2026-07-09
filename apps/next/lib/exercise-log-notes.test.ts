@@ -31,6 +31,19 @@ describe('formatCoachNotesForExerciseLog', () => {
     )
   })
 
+  it('hides prescription notes that match the previous session', () => {
+    assert.equal(
+      formatCoachNotesForExerciseLog(
+        {
+          workout_notes: 'test',
+          coach_session_notes: null,
+        },
+        { previousSessionCoachNotes: 'test' }
+      ),
+      null
+    )
+  })
+
   it('includes only session notes added while logging', () => {
     assert.equal(
       formatCoachNotesForExerciseLog({

@@ -426,6 +426,7 @@ type WorkoutLogExerciseProps = {
   sets: WorkoutLogSetDraft[]
   previousSets: ExercisePreviousSets
   previousSessionDate: string | null
+  previousSessionCoachNotes: string | null
   personalBest: ExercisePersonalBest | null
   readOnly: boolean
   isWorkoutActive: boolean
@@ -457,6 +458,7 @@ function WorkoutLogExercise({
   sets,
   previousSets,
   previousSessionDate,
+  previousSessionCoachNotes,
   personalBest,
   readOnly,
   isWorkoutActive,
@@ -574,7 +576,9 @@ function WorkoutLogExercise({
     fields.showDistance
   const canRemoveSet = !readOnly && sets.length > MIN_LOG_SETS
   const hasExerciseNotes = hasVisibleExerciseLogNotes(exercise)
-  const coachNotesDisplay = formatCoachNotesForExerciseLog(exercise)
+  const coachNotesDisplay = formatCoachNotesForExerciseLog(exercise, {
+    previousSessionCoachNotes,
+  })
   const setGridTemplate = getWorkoutLogSetGridTemplate(fields, false)
 
   const activeSetNumber =
@@ -1344,6 +1348,7 @@ function WorkoutLogExercise({
         variant={variant}
         coachNotes={exercise.workout_notes}
         coachSessionNotes={exercise.coach_session_notes ?? null}
+        previousSessionCoachNotes={previousSessionCoachNotes}
         clientNotes={exercise.client_notes ?? null}
         onSaved={onNotesChanged}
       />
@@ -2485,6 +2490,10 @@ export function WorkoutLogScreen({
         }
         previousSessionDate={
           data.previousSessionDateByExerciseId[exercise.exercise_id] ?? null
+        }
+        previousSessionCoachNotes={
+          data.previousSessionCoachNotesByExerciseId[exercise.exercise_id] ??
+          null
         }
         personalBest={
           data.personalBestsByExerciseId[exercise.exercise_id] ?? null

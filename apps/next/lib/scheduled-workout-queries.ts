@@ -97,12 +97,19 @@ export async function fetchPreviousSetsForExercises(
 ): Promise<{
   previousSetsByExerciseId: Record<string, ExercisePreviousSets>
   previousSessionDateByExerciseId: Record<string, string | null>
+  previousSessionCoachNotesByExerciseId: Record<string, string | null>
 }> {
   const previousSetsByExerciseId: Record<string, ExercisePreviousSets> = {}
   const previousSessionDateByExerciseId: Record<string, string | null> = {}
+  const previousSessionCoachNotesByExerciseId: Record<string, string | null> =
+    {}
 
   if (libraryExerciseIds.length === 0) {
-    return { previousSetsByExerciseId, previousSessionDateByExerciseId }
+    return {
+      previousSetsByExerciseId,
+      previousSessionDateByExerciseId,
+      previousSessionCoachNotesByExerciseId,
+    }
   }
 
   const { data, error } = await supabase
@@ -126,7 +133,11 @@ export async function fetchPreviousSetsForExercises(
     .in('scheduled_workout_exercises.exercise_id', libraryExerciseIds)
 
   if (error || !data) {
-    return { previousSetsByExerciseId, previousSessionDateByExerciseId }
+    return {
+      previousSetsByExerciseId,
+      previousSessionDateByExerciseId,
+      previousSessionCoachNotesByExerciseId,
+    }
   }
 
   const rows = (data as HistoricalLogRow[]).filter(isUsablePreviousSet)
@@ -170,7 +181,37 @@ export async function fetchPreviousSetsForExercises(
     }
   }
 
-  return { previousSetsByExerciseId, previousSessionDateByExerciseId }
+  if (latestWorkoutIdByExercise.size > 0) {
+    const workoutIds = Array.from(new Set(latestWorkoutIdByExercise.values()))
+    const { data: noteRows } = await supabase
+      .from('scheduled_workout_exercises')
+      .select(
+        'exercise_id, scheduled_workout_id, workout_notes, coach_session_notes'
+      )
+      .in('scheduled_workout_id', workoutIds)
+      .in('exercise_id', libraryExerciseIds)
+
+    for (const row of noteRows ?? []) {
+      const latestWorkoutId = latestWorkoutIdByExercise.get(row.exercise_id)
+      if (!latestWorkoutId || row.scheduled_workout_id !== latestWorkoutId) {
+        continue
+      }
+
+      const coachNotes = mergeCoachNotesForHistory(
+        row.workout_notes,
+        row.coach_session_notes
+      )
+      if (coachNotes) {
+        previousSessionCoachNotesByExerciseId[row.exercise_id] = coachNotes
+      }
+    }
+  }
+
+  return {
+    previousSetsByExerciseId,
+    previousSessionDateByExerciseId,
+    previousSessionCoachNotesByExerciseId,
+  }
 }
 
 type ExerciseHistoryRow = {

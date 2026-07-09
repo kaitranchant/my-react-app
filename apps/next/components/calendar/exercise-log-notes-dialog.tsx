@@ -31,6 +31,7 @@ type ExerciseLogNotesDialogProps = {
   variant: 'coach' | 'client'
   coachNotes: string | null
   coachSessionNotes: string | null
+  previousSessionCoachNotes?: string | null
   clientNotes: string | null
   onSaved: (notes: string) => void
 }
@@ -45,6 +46,7 @@ export function ExerciseLogNotesDialog({
   variant,
   coachNotes,
   coachSessionNotes,
+  previousSessionCoachNotes,
   clientNotes,
   onSaved,
 }: ExerciseLogNotesDialogProps) {
@@ -127,10 +129,13 @@ export function ExerciseLogNotesDialog({
 
   const otherPartyCoachNotes =
     variant === 'client'
-      ? formatCoachNotesForExerciseLog({
-          workout_notes: coachNotes,
-          coach_session_notes: coachSessionNotes,
-        })
+      ? formatCoachNotesForExerciseLog(
+          {
+            workout_notes: coachNotes,
+            coach_session_notes: coachSessionNotes,
+          },
+          { previousSessionCoachNotes }
+        )
       : null
   const otherPartyClientNotes =
     variant === 'coach' ? clientNotes?.trim() : null

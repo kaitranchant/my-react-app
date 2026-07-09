@@ -82,7 +82,11 @@ export async function getPortalWorkoutLogData(
     new Set(workout.exercises.map((row) => row.exercise_id))
   )
   const [
-    { previousSetsByExerciseId, previousSessionDateByExerciseId },
+    {
+      previousSetsByExerciseId,
+      previousSessionDateByExerciseId,
+      previousSessionCoachNotesByExerciseId,
+    },
     personalBestsByExerciseId,
   ] = await Promise.all([
     fetchPreviousSetsForExercises(
@@ -101,6 +105,7 @@ export async function getPortalWorkoutLogData(
       logSets,
       previousSetsByExerciseId,
       previousSessionDateByExerciseId,
+      previousSessionCoachNotesByExerciseId,
       personalBestsByExerciseId,
       progressiveOverloadEnabled: client.progressive_overload_enabled ?? false,
     },

@@ -4554,6 +4554,7 @@ export type WorkoutLogData = ClientScheduledWorkoutWithExercises & {
   logSets: WorkoutLogSet[]
   previousSetsByExerciseId: Record<string, ExercisePreviousSets>
   previousSessionDateByExerciseId: Record<string, string | null>
+  previousSessionCoachNotesByExerciseId: Record<string, string | null>
   personalBestsByExerciseId: Record<string, ExercisePersonalBest>
   progressiveOverloadEnabled: boolean
 }

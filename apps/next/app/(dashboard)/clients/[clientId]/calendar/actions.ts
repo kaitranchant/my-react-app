@@ -1152,9 +1152,32 @@ export async function moveScheduledExercise(
 
 type CopyExerciseRow = ClientScheduledWorkoutWithExercises['exercises'][number]
 
+function shouldCopyExercisePrescriptionNotes(
+  sourceWorkout: Pick<ClientScheduledWorkoutWithExercises, 'status' | 'started_at'>,
+  row: CopyExerciseRow
+): boolean {
+  if (
+    sourceWorkout.status === 'completed' ||
+    sourceWorkout.status === 'skipped'
+  ) {
+    return false
+  }
+
+  if (row.coach_session_notes?.trim()) {
+    return false
+  }
+
+  if (sourceWorkout.started_at != null && row.workout_notes?.trim()) {
+    return false
+  }
+
+  return true
+}
+
 function mapCopiedExerciseRows(
   scheduledWorkoutId: string,
-  exercises: CopyExerciseRow[]
+  exercises: CopyExerciseRow[],
+  sourceWorkout: Pick<ClientScheduledWorkoutWithExercises, 'status' | 'started_at'>
 ) {
   return exercises.map((row) => ({
     scheduled_workout_id: scheduledWorkoutId,
@@ -1165,7 +1188,9 @@ function mapCopiedExerciseRows(
     prescription: row.prescription,
     superset_group: row.superset_group,
     exercise_block: row.exercise_block,
-    workout_notes: row.workout_notes,
+    workout_notes: shouldCopyExercisePrescriptionNotes(sourceWorkout, row)
+      ? row.workout_notes
+      : null,
     rep_mode: row.rep_mode,
     each_side: row.each_side,
     tempo: row.tempo,
@@ -1318,7 +1343,7 @@ export async function copyScheduledWorkoutToDate(
   if (source.exercises.length > 0) {
     const { error: exercisesError } = await supabase
       .from('scheduled_workout_exercises')
-      .insert(mapCopiedExerciseRows(created.id, source.exercises))
+      .insert(mapCopiedExerciseRows(created.id, source.exercises, source))
 
     if (exercisesError) {
       await supabase
@@ -1436,7 +1461,7 @@ export async function copyScheduledWorkoutToDateRange(
 
   if (source.exercises.length > 0) {
     const exerciseRows = createdWorkouts.flatMap((created) =>
-      mapCopiedExerciseRows(created.id, source.exercises)
+      mapCopiedExerciseRows(created.id, source.exercises, source)
     )
 
     const { error: exercisesError } = await supabase
