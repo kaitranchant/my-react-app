@@ -13,7 +13,6 @@ import { CoachAdherenceLogCard } from '@/components/nutrition/coach-adherence-lo
 import { CoachNutritionNotesCard } from '@/components/nutrition/coach-nutrition-notes-card'
 import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
-import { ShoppingListCard } from '@/components/nutrition/shopping-list-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { ClientNutritionNotesCard } from '@/components/nutrition/client-nutrition-notes-card'
 import { toDateKey } from '@/lib/calendar'
@@ -83,13 +82,6 @@ export function ClientNutritionTrackingPanel({
         days={planDays}
         todayKey={todayKey}
         profile={profile}
-        audience="coach"
-      />
-
-      <ShoppingListCard
-        assignment={assignment}
-        days={planDays}
-        planName={assignment?.meal_plan?.name}
         audience="coach"
       />
 
