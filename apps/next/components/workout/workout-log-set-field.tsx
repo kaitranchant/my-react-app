@@ -57,10 +57,8 @@ export function WorkoutLogSetField({
 
     return (
       <Input
-        type="number"
+        type="text"
         inputMode={inputMode}
-        min={0}
-        step={field === 'weight' ? '0.5' : field === 'barSpeed' ? '0.01' : undefined}
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}

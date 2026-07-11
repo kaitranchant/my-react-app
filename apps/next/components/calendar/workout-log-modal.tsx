@@ -90,8 +90,6 @@ import { GuidedExerciseCarousel } from '@/components/workout/guided-exercise-car
 import { getPreviousSessionCopyValuesForSet } from '@/lib/workout-log-keypad'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -137,7 +135,6 @@ import {
   countCompletedSets,
   countTotalSetsForWorkout,
   countTotalSetsFromDrafts,
-  exerciseHasRpeTarget,
   findResumeExerciseIndex,
   formatPreviousPerformance,
   getPreviousDistanceMeters,
@@ -218,7 +215,6 @@ type WorkoutLogModalProps = WorkoutLogBaseProps & {
 }
 
 type ExerciseLogState = Record<string, WorkoutLogSetDraft[]>
-type ExerciseMetaState = Record<string, string>
 
 function buildExerciseState(
   exercises: ScheduledWorkoutExerciseWithDetails[],
@@ -269,36 +265,7 @@ function resolveExerciseMediaFields(
   }
 }
 
-function buildExerciseMetaState(
-  exercises: ScheduledWorkoutExerciseWithDetails[]
-): ExerciseMetaState {
-  const meta: ExerciseMetaState = {}
-
-  for (const exercise of exercises) {
-    if (exerciseHasRpeTarget(exercise)) {
-      meta[exercise.id] = exercise.perceived_rpe ?? ''
-    }
-  }
-
-  return meta
-}
-
-function buildExerciseMetaPayload(
-  meta: ExerciseMetaState,
-  exercises: ScheduledWorkoutExerciseWithDetails[]
-) {
-  return exercises
-    .filter((exercise) => exerciseHasRpeTarget(exercise))
-    .map((exercise) => ({
-      scheduledExerciseId: exercise.id,
-      perceivedRpe: meta[exercise.id]?.trim() ? meta[exercise.id]!.trim() : null,
-    }))
-}
-
-function serializeWorkoutLogForSave(
-  state: ExerciseLogState,
-  meta: ExerciseMetaState
-): string {
+function serializeWorkoutLogForSave(state: ExerciseLogState): string {
   return JSON.stringify({
     sets: Object.entries(state)
       .sort(([left], [right]) => left.localeCompare(right))
@@ -312,13 +279,11 @@ function serializeWorkoutLogForSave(
           distanceMeters: set.distanceMeters,
           barSpeed: set.barSpeed,
           peakPower: set.peakPower,
+          rpe: set.rpe,
           completed: set.completed,
           notes: set.notes,
         })),
       ]),
-    meta: Object.entries(meta)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([exerciseId, perceivedRpe]) => [exerciseId, perceivedRpe]),
   })
 }
 
@@ -339,44 +304,37 @@ function exerciseSetCountsDecreased(
 
   const persisted = parseSerializedWorkoutLog(lastPersistedSerialized)
 
-  for (const exerciseId of Object.keys(persisted.sets)) {
+  for (const exerciseId of Object.keys(persisted)) {
     if (!(exerciseId in current)) return true
   }
 
   for (const [exerciseId, sets] of Object.entries(current)) {
-    const prevCount = persisted.sets[exerciseId]?.length ?? 0
+    const prevCount = persisted[exerciseId]?.length ?? 0
     if (sets.length < prevCount) return true
   }
 
   return false
 }
 
-function parseSerializedWorkoutLog(serialized: string): {
-  sets: ExerciseLogState
-  meta: ExerciseMetaState
-} {
+function parseSerializedWorkoutLog(serialized: string): ExerciseLogState {
   if (!serialized) {
-    return { sets: {}, meta: {} }
+    return {}
   }
 
   try {
     const parsed = JSON.parse(serialized) as
       | {
           sets: [string, WorkoutLogSetDraft[]][]
-          meta?: [string, string][]
         }
       | [string, WorkoutLogSetDraft[]][]
 
     if (Array.isArray(parsed)) {
-      return { sets: normalizeExerciseState(Object.fromEntries(parsed)), meta: {} }
+      return normalizeExerciseState(Object.fromEntries(parsed))
     }
 
-    return {
-      sets: normalizeExerciseState(Object.fromEntries(parsed.sets ?? [])),
-      meta: Object.fromEntries(parsed.meta ?? []),
-    }
+    return normalizeExerciseState(Object.fromEntries(parsed.sets ?? []))
   } catch {
-    return { sets: {}, meta: {} }
+    return {}
   }
 }
 
@@ -385,14 +343,6 @@ function stateWithoutExercise(
   exerciseId: string
 ): ExerciseLogState {
   const { [exerciseId]: _, ...rest } = state
-  return rest
-}
-
-function metaWithoutExercise(
-  meta: ExerciseMetaState,
-  exerciseId: string
-): ExerciseMetaState {
-  const { [exerciseId]: _, ...rest } = meta
   return rest
 }
 
@@ -446,8 +396,6 @@ type WorkoutLogExerciseProps = {
   onDelete: () => void
   onNotesChanged: (notes: string) => void
   onNestedOverlayChange?: (key: string, open: boolean) => void
-  perceivedRpe?: string
-  onPerceivedRpeChange?: (value: string) => void
   allowPrescriptionEdits?: boolean
   weightUnit?: WeightUnit
   className?: string
@@ -475,8 +423,6 @@ function WorkoutLogExercise({
   onDelete,
   onNotesChanged,
   onNestedOverlayChange,
-  perceivedRpe = '',
-  onPerceivedRpeChange,
   allowPrescriptionEdits = true,
   weightUnit = 'lbs',
   className,
@@ -529,7 +475,6 @@ function WorkoutLogExercise({
   }, [keypad, notesOpen])
 
   const summary = formatExercisePrescriptionSummary(exercise)
-  const showRpeInput = exerciseHasRpeTarget(exercise)
   const currentE1rm =
     prTrackingEnabled && fields.showWeight && fields.showReps
       ? getBestE1rmFromDrafts(sets)
@@ -970,53 +915,36 @@ function WorkoutLogExercise({
           </div>
         </div>
 
-        {showRpeInput ? (
-          <div className="mt-3 grid gap-1.5 sm:max-w-xs">
-            <Label htmlFor={`${exercise.id}-perceived-rpe`}>
-              Perceived RPE
-              {exercise.rpe_target?.trim() ? (
-                <span className="text-muted-foreground font-normal">
-                  {' '}
-                  (target {exercise.rpe_target.trim()})
-                </span>
-              ) : null}
-            </Label>
-            {readOnly ? (
-              <p className="text-sm font-medium tabular-nums">
-                {perceivedRpe.trim() || '—'}
-              </p>
-            ) : (
-              <Input
-                id={`${exercise.id}-perceived-rpe`}
-                value={perceivedRpe}
-                onChange={(event) => onPerceivedRpeChange?.(event.target.value)}
-                placeholder="e.g. 8"
-                maxLength={20}
-                className="h-9"
-                inputMode="decimal"
-                aria-label={`Perceived RPE for ${exercise.exercise.name}`}
-              />
-            )}
-          </div>
-        ) : null}
-
         <div className="mt-3 space-y-3">
             {showSetTable ? (
               <div className="bg-muted/25 overflow-hidden rounded-xl border">
                     <div
-                      className="text-muted-foreground grid gap-1.5 border-b px-2 py-2 text-[11px] font-semibold tracking-wide uppercase sm:gap-2 sm:px-3"
+                      className="text-muted-foreground grid gap-1.5 border-b px-2 py-2 text-[11px] font-semibold uppercase sm:gap-2 sm:px-3"
                       style={{ gridTemplateColumns: setGridTemplate }}
                     >
-                      <span>Set</span>
+                      <span className="text-center">Set</span>
                       {fields.completionOnly ? (
                         <span>Target</span>
                       ) : (
                         <>
-                          <span>Prev</span>
-                          {fields.showWeight && <span>{weightUnitLabel(weightUnit)}</span>}
-                          {fields.showReps && <span>Reps</span>}
-                          {fields.showDistance && <span>m</span>}
-                          {fields.showDuration && <span>Sec</span>}
+                          <span className="text-center">Prev</span>
+                          {fields.showWeight && (
+                            <span className="text-center">
+                              {weightUnitLabel(weightUnit)}
+                            </span>
+                          )}
+                          {fields.showReps && (
+                            <span className="text-center">Reps</span>
+                          )}
+                          {fields.showDistance && (
+                            <span className="text-center">m</span>
+                          )}
+                          {fields.showDuration && (
+                            <span className="text-center">Sec</span>
+                          )}
+                          {fields.showRpe && (
+                            <span className="text-center">RPE</span>
+                          )}
                         </>
                       )}
                       <span className="sr-only">Done</span>
@@ -1067,7 +995,7 @@ function WorkoutLogExercise({
 
                           <span
                             className={cn(
-                              'pl-1 text-xs font-bold tabular-nums',
+                              'text-center text-xs font-bold tabular-nums',
                               isActive ? 'text-brand' : 'text-muted-foreground'
                             )}
                           >
@@ -1193,6 +1121,23 @@ function WorkoutLogExercise({
                                   ? `Set ${set.setNumber} completion time`
                                   : `Set ${set.setNumber} duration`
                               }
+                            />
+                          )}
+
+                          {fields.showRpe && (
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="rpe"
+                              value={set.rpe}
+                              disabled={readOnly}
+                              predicted={showPredictedValues}
+                              onChange={(value) =>
+                                handleLocalSetChange(set.setNumber, { rpe: value })
+                              }
+                              placeholder={exercise.rpe_target?.trim() || '—'}
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
+                              ariaLabel={`Set ${set.setNumber} perceived RPE`}
                             />
                           )}
 
@@ -1426,8 +1371,6 @@ export function WorkoutLogScreen({
   const [schemaError, setSchemaError] = React.useState<string | null>(null)
   const [data, setData] = React.useState<WorkoutLogData | null>(null)
   const [exerciseState, setExerciseState] = React.useState<ExerciseLogState>({})
-  const [exerciseMetaState, setExerciseMetaState] =
-    React.useState<ExerciseMetaState>({})
   const [activeSectionIndex, setActiveSectionIndex] = React.useState(0)
   const [activeExerciseIndex, setActiveExerciseIndex] = React.useState(0)
   const [slideDirection, setSlideDirection] =
@@ -1491,16 +1434,11 @@ export function WorkoutLogScreen({
         exerciseStateRef.current,
         exercise.id
       )
-      const metaToSave = metaWithoutExercise(
-        exerciseMetaStateRef.current,
-        exercise.id
-      )
       const persisted = parseSerializedWorkoutLog(lastPersistedStateRef.current)
       const needsSaveOtherExercises =
-        serializeWorkoutLogForSave(stateToSave, metaToSave) !==
+        serializeWorkoutLogForSave(stateToSave) !==
         serializeWorkoutLogForSave(
-          stateWithoutExercise(persisted.sets, exercise.id),
-          metaWithoutExercise(persisted.meta, exercise.id)
+          stateWithoutExercise(persisted, exercise.id)
         )
 
       if (needsSaveOtherExercises) {
@@ -1526,7 +1464,6 @@ export function WorkoutLogScreen({
 
       skipAutoSaveRef.current = true
       setExerciseState(stateToSave)
-      setExerciseMetaState(metaToSave)
       setData((current) => {
         if (!current) return current
         return {
@@ -1571,8 +1508,6 @@ export function WorkoutLogScreen({
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
-  const exerciseMetaStateRef = React.useRef(exerciseMetaState)
-  exerciseMetaStateRef.current = exerciseMetaState
 
   const skipAutoSaveRef = React.useRef(true)
   const prevSetLengthsRef = React.useRef('')
@@ -1605,7 +1540,6 @@ export function WorkoutLogScreen({
     skipAutoSaveRef.current = true
     setData(null)
     setExerciseState({})
-    setExerciseMetaState({})
   }, [workoutId])
 
   const readOnly =
@@ -1697,7 +1631,6 @@ export function WorkoutLogScreen({
           result.data.progressiveOverloadEnabled
         )
       )
-      setExerciseMetaState(buildExerciseMetaState(result.data.exercises))
     } finally {
       if (generation === loadGenerationRef.current) {
         loadingRef.current = false
@@ -1718,6 +1651,7 @@ export function WorkoutLogScreen({
           distanceMeters: parseOptionalInt(set.distanceMeters),
           barSpeed: parseOptionalNumber(set.barSpeed),
           peakPower: parseOptionalNumber(set.peakPower),
+          rpe: set.rpe.trim() ? set.rpe.trim() : null,
           completed: set.completed,
           notes: set.notes.trim() ? set.notes.trim() : null,
         }))
@@ -1744,10 +1678,6 @@ export function WorkoutLogScreen({
 
       const saveOptions = {
         revalidate: options?.revalidate ?? true,
-        exerciseMeta: buildExerciseMetaPayload(
-          exerciseMetaStateRef.current,
-          snapshot.exercises
-        ),
         syncSetDeletions: options?.syncSetDeletions ?? false,
       }
 
@@ -1767,10 +1697,7 @@ export function WorkoutLogScreen({
       if (options?.blockUi) setPending(false)
 
       if (result.success) {
-        lastPersistedStateRef.current = serializeWorkoutLogForSave(
-          state,
-          exerciseMetaStateRef.current
-        )
+        lastPersistedStateRef.current = serializeWorkoutLogForSave(state)
         if (options?.reload) {
           skipAutoSaveRef.current = true
           await loadData()
@@ -1872,10 +1799,7 @@ export function WorkoutLogScreen({
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
 
-      const payloadKey = serializeWorkoutLogForSave(
-        currentState,
-        exerciseMetaStateRef.current
-      )
+      const payloadKey = serializeWorkoutLogForSave(currentState)
       const needsSave = payloadKey !== lastPersistedStateRef.current
 
       saveInFlightRef.current = true
@@ -1970,10 +1894,7 @@ export function WorkoutLogScreen({
     }
 
     const state = exerciseStateRef.current
-    const payloadKey = serializeWorkoutLogForSave(
-      state,
-      exerciseMetaStateRef.current
-    )
+    const payloadKey = serializeWorkoutLogForSave(state)
     if (payloadKey === lastPersistedStateRef.current) {
       return
     }
@@ -2231,14 +2152,11 @@ export function WorkoutLogScreen({
           Object.entries(exerciseState).map(([id, sets]) => [id, sets.length])
         )
       )
-      lastPersistedStateRef.current = serializeWorkoutLogForSave(
-        exerciseState,
-        exerciseMetaState
-      )
+      lastPersistedStateRef.current = serializeWorkoutLogForSave(exerciseState)
       return
     }
 
-    const payloadKey = serializeWorkoutLogForSave(exerciseState, exerciseMetaState)
+    const payloadKey = serializeWorkoutLogForSave(exerciseState)
     if (payloadKey === lastPersistedStateRef.current) {
       return
     }
@@ -2264,7 +2182,7 @@ export function WorkoutLogScreen({
         clearTimeout(autoSaveTimerRef.current)
       }
     }
-  }, [exerciseState, exerciseMetaState, active, readOnly, data])
+  }, [exerciseState, active, readOnly, data])
 
   async function flushOnClose(options?: {
     notifyParent?: boolean
@@ -2299,7 +2217,7 @@ export function WorkoutLogScreen({
       const state = exerciseStateRef.current
       if (
         !loadingRef.current &&
-        serializeWorkoutLogForSave(state, exerciseMetaStateRef.current) !==
+        serializeWorkoutLogForSave(state) !==
           lastPersistedStateRef.current
       ) {
         await persistSetsRef.current(state, {
@@ -2484,27 +2402,6 @@ export function WorkoutLogScreen({
     [variant]
   )
 
-  const handleExercisePerceivedRpeChanged = React.useCallback(
-    (exerciseRowId: string, value: string) => {
-      setExerciseMetaState((current) => ({
-        ...current,
-        [exerciseRowId]: value,
-      }))
-      setData((current) => {
-        if (!current) return current
-        return {
-          ...current,
-          exercises: current.exercises.map((exercise) =>
-            exercise.id === exerciseRowId
-              ? { ...exercise, perceived_rpe: value.trim() ? value.trim() : null }
-              : exercise
-          ),
-        }
-      })
-    },
-    []
-  )
-
   const status = data?.status ?? initialStatus
   const isLoggingActive = active && !readOnly
 
@@ -2550,10 +2447,6 @@ export function WorkoutLogScreen({
           handleExerciseNotesChanged(exercise.id, notes)
         }
         onNestedOverlayChange={handleNestedOverlayChange}
-        perceivedRpe={exerciseMetaState[exercise.id] ?? ''}
-        onPerceivedRpeChange={(value) =>
-          handleExercisePerceivedRpeChanged(exercise.id, value)
-        }
         allowPrescriptionEdits={canEditPrescription}
         weightUnit={weightUnit}
         className={options?.className}

@@ -30,6 +30,7 @@ function makeSet(
     distanceMeters: '',
     barSpeed: '',
     peakPower: '',
+    rpe: '',
     completed: false,
     predicted: false,
     notes: '',

@@ -1966,6 +1966,7 @@ export type Database = {
           distance_meters: number | null
           bar_speed: number | null
           peak_power: number | null
+          rpe: string | null
           completed: boolean
           notes: string | null
           created_at: string
@@ -1982,6 +1983,7 @@ export type Database = {
           distance_meters?: number | null
           bar_speed?: number | null
           peak_power?: number | null
+          rpe?: string | null
           completed?: boolean
           notes?: string | null
           created_at?: string
@@ -1998,6 +2000,7 @@ export type Database = {
           distance_meters?: number | null
           bar_speed?: number | null
           peak_power?: number | null
+          rpe?: string | null
           completed?: boolean
           notes?: string | null
           created_at?: string

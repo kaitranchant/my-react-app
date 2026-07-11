@@ -19,6 +19,7 @@ const completedSet: WorkoutLogSetDraft = {
   distanceMeters: '',
   barSpeed: '',
   peakPower: '',
+  rpe: '',
   completed: true,
   predicted: false,
   notes: '',

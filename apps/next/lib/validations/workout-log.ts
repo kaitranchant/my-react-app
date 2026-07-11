@@ -9,25 +9,16 @@ export const workoutLogSetSchema = z.object({
   distanceMeters: z.number().int().min(0).max(1_000_000).nullable(),
   barSpeed: z.number().min(0).max(99).nullable(),
   peakPower: z.number().min(0).max(99999).nullable(),
+  rpe: z.string().trim().max(20).nullable(),
   completed: z.boolean(),
   notes: z.string().trim().max(500).nullable(),
 })
 
 export type WorkoutLogSetValues = z.infer<typeof workoutLogSetSchema>
 
-export const workoutLogExerciseMetaSchema = z.object({
-  scheduledExerciseId: z.string().uuid(),
-  perceivedRpe: z.string().trim().max(20).nullable(),
-})
-
-export type WorkoutLogExerciseMetaValues = z.infer<
-  typeof workoutLogExerciseMetaSchema
->
-
 export const saveWorkoutLogSetsSchema = z.object({
   workoutId: z.string().uuid(),
   sets: z.array(workoutLogSetSchema),
-  exerciseMeta: z.array(workoutLogExerciseMetaSchema).optional(),
 })
 
 export type SaveWorkoutLogSetsValues = z.infer<typeof saveWorkoutLogSetsSchema>

@@ -14,6 +14,7 @@ export type WorkoutLogKeypadField =
   | 'reps'
   | 'durationSeconds'
   | 'distanceMeters'
+  | 'rpe'
   | 'barSpeed'
   | 'peakPower'
 
@@ -28,6 +29,7 @@ const KEYPAD_FIELD_LABELS: Record<WorkoutLogKeypadField, string> = {
   reps: 'Reps',
   durationSeconds: 'Time',
   distanceMeters: 'Distance',
+  rpe: 'RPE',
   barSpeed: 'Bar speed',
   peakPower: 'Peak power',
 }
@@ -38,6 +40,7 @@ export function getKeypadFieldLabel(field: WorkoutLogKeypadField): string {
 
 const DECIMAL_FIELDS = new Set<WorkoutLogKeypadField>([
   'weight',
+  'rpe',
   'barSpeed',
   'peakPower',
 ])
@@ -131,6 +134,7 @@ export function getVisibleKeypadFields(
   if (fields.showReps) visible.push('reps')
   if (fields.showDistance) visible.push('distanceMeters')
   if (fields.showDuration) visible.push('durationSeconds')
+  if (fields.showRpe) visible.push('rpe')
   if (fields.showBarSpeed) visible.push('barSpeed')
   if (fields.showPeakPower) visible.push('peakPower')
   return visible
@@ -260,6 +264,7 @@ export function getCopyValuesForSet(
       if (fields.showReps) patch.reps = prior.reps
       if (fields.showDuration) patch.durationSeconds = prior.durationSeconds
       if (fields.showDistance) patch.distanceMeters = prior.distanceMeters
+      if (fields.showRpe) patch.rpe = prior.rpe
       if (fields.showBarSpeed) patch.barSpeed = prior.barSpeed
       if (fields.showPeakPower) patch.peakPower = prior.peakPower
       return patch

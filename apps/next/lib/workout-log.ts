@@ -32,6 +32,7 @@ export type WorkoutLogSetDraft = {
   distanceMeters: string
   barSpeed: string
   peakPower: string
+  rpe: string
   completed: boolean
   predicted: boolean
   notes: string
@@ -654,6 +655,7 @@ function buildSetDraft(
       distanceMeters: suggested.distanceMeters,
       barSpeed: '',
       peakPower: '',
+      rpe: '',
       completed: false,
       predicted: hasSuggestedLogValues(suggested),
       notes: '',
@@ -687,6 +689,7 @@ function buildSetDraft(
     distanceMeters,
     barSpeed: existing.bar_speed != null ? String(existing.bar_speed) : '',
     peakPower: existing.peak_power != null ? String(existing.peak_power) : '',
+    rpe: existing.rpe?.trim() ? existing.rpe.trim() : '',
     completed: existing.completed ?? false,
     predicted: usedSuggestion && !(existing.completed ?? false),
     notes: existing.notes ?? '',
@@ -740,6 +743,7 @@ export function getLogFieldsForExercise(
     showDistance,
     showHoldTimer: showHoldDuration,
     durationOptional: showCompletionTime,
+    showRpe: exerciseHasRpeTarget(exercise),
     showBarSpeed: options.trackBarSpeed,
     showPeakPower: options.trackPeakPower,
     completionOnly: options.completionLift,
@@ -768,16 +772,18 @@ export function getWorkoutLogSetGridTemplate(
     Number(fields.showWeight) +
     Number(fields.showReps) +
     Number(fields.showDuration) +
-    Number(fields.showDistance)
+    Number(fields.showDistance) +
+    Number(fields.showRpe)
 
   const parts = ['1.5rem', '3.25rem']
 
-  if (inputCount === 1) {
-    parts.push('minmax(4rem, 1fr)')
-  } else if (inputCount === 2) {
-    parts.push('minmax(3rem, 1fr)', 'minmax(3rem, 1fr)')
+  if (inputCount <= 0) {
+    parts.push('minmax(0, 1fr)')
   } else {
-    parts.push('3.5rem', '3.5rem', '3.5rem')
+    const minWidth = inputCount >= 3 ? '2.75rem' : inputCount === 2 ? '3rem' : '4rem'
+    for (let index = 0; index < inputCount; index += 1) {
+      parts.push(`minmax(${minWidth}, 1fr)`)
+    }
   }
 
   parts.push('2rem')
@@ -907,6 +913,7 @@ export function appendSetDraft(
   let reps = suggested.reps
   let durationSeconds = suggested.durationSeconds
   let distanceMeters = suggested.distanceMeters
+  let rpe = ''
   let predicted = hasSuggestedLogValues(suggested)
 
   if (lastSet) {
@@ -956,6 +963,10 @@ export function appendSetDraft(
       durationSeconds = lastSet.durationSeconds
       predicted = true
     }
+
+    if (fields.showRpe && lastSet.rpe.trim() !== '') {
+      rpe = lastSet.rpe
+    }
   }
 
   return [
@@ -970,6 +981,7 @@ export function appendSetDraft(
       distanceMeters,
       barSpeed: '',
       peakPower: '',
+      rpe,
       completed: false,
       predicted,
       notes: '',
@@ -1131,6 +1143,7 @@ export function applySetPatchWithCompletion(
     'reps' in patch ||
     'durationSeconds' in patch ||
     'distanceMeters' in patch ||
+    'rpe' in patch ||
     'barSpeed' in patch ||
     'peakPower' in patch
 
