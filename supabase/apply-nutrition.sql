@@ -409,7 +409,6 @@ create table if not exists public.meal_plan_assignments (
   client_id uuid not null references public.clients (id) on delete cascade,
   meal_plan_id uuid not null references public.meal_plans (id) on delete cascade,
   status public.meal_plan_assignment_status not null default 'active',
-  start_date date not null,
   team_id uuid references public.teams (id) on delete set null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -510,4 +509,4 @@ create policy "Clients can view assigned meal plan meals"
   );
 
 comment on table public.meal_plan_assignments is
-  'Links a client to an active meal plan template with a start date.';
+  'Links a client to an active meal plan template. Days on the plan are labels for sorting meals, not calendar dates.';

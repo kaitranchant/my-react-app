@@ -26,6 +26,8 @@ const weightRepsFields = {
   showReps: true,
   showDuration: false,
   showDistance: false,
+  showHoldTimer: false,
+  durationOptional: false,
   showBarSpeed: false,
   showPeakPower: false,
   completionOnly: false,
@@ -104,8 +106,20 @@ describe('workout-log-keypad', () => {
         ...weightRepsFields,
         showReps: false,
         showDuration: true,
+        showHoldTimer: true,
       }),
       ['weight', 'durationSeconds']
+    )
+    assert.deepEqual(
+      getVisibleKeypadFields({
+        ...weightRepsFields,
+        showReps: false,
+        showWeight: false,
+        showDistance: true,
+        showDuration: true,
+        durationOptional: true,
+      }),
+      ['distanceMeters', 'durationSeconds']
     )
   })
 

@@ -129,8 +129,8 @@ export function getVisibleKeypadFields(
   const visible: WorkoutLogKeypadField[] = []
   if (fields.showWeight) visible.push('weight')
   if (fields.showReps) visible.push('reps')
-  if (fields.showDuration) visible.push('durationSeconds')
   if (fields.showDistance) visible.push('distanceMeters')
+  if (fields.showDuration) visible.push('durationSeconds')
   if (fields.showBarSpeed) visible.push('barSpeed')
   if (fields.showPeakPower) visible.push('peakPower')
   return visible

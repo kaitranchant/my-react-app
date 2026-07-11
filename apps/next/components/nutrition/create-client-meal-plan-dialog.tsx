@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { toDateKey } from '@/lib/calendar'
 import {
   clientMealPlanFormSchema,
   type ClientMealPlanFormValues,
@@ -54,7 +53,6 @@ export function CreateClientMealPlanDialog({
     defaultValues: {
       name: `${clientName} — Meal plan`,
       description: '',
-      startDate: toDateKey(new Date()),
     },
   })
 
@@ -63,7 +61,6 @@ export function CreateClientMealPlanDialog({
     form.reset({
       name: `${clientName} — Meal plan`,
       description: '',
-      startDate: toDateKey(new Date()),
     })
   }, [open, clientName, form])
 
@@ -129,19 +126,6 @@ export function CreateClientMealPlanDialog({
                       placeholder="Notes about this client's plan"
                       {...field}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -4,14 +4,13 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle, Copy, UserPlus, UtensilsCrossed } from 'lucide-react'
+import { AlertTriangle, UserPlus, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
 import {
   assignMealPlanToClient,
   cancelMealPlanAssignment,
-  extendMealPlanAssignment,
 } from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { MealPlanStatusBadge } from '@/components/meal-plans/meal-plan-status-badge'
 import { CreateClientMealPlanDialog } from '@/components/nutrition/create-client-meal-plan-dialog'
@@ -42,7 +41,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -50,12 +48,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { toDateKey } from '@/lib/calendar'
 import {
   assessMealPlanTargetAlignment,
   formatMealPlanTargetWarning,
 } from '@/lib/meal-plan-target-alignment'
-import { getTodayMealPlanDay } from '@/lib/nutrition'
 import {
   computeMealPlanSummary,
 } from '@/lib/meal-plan-stats'
@@ -92,7 +88,6 @@ export function AssignMealPlanDialog({
     resolver: zodResolver(mealPlanAssignmentFormSchema),
     defaultValues: {
       mealPlanId: '',
-      startDate: toDateKey(new Date()),
     },
   })
 
@@ -100,7 +95,6 @@ export function AssignMealPlanDialog({
     if (!open) return
     form.reset({
       mealPlanId: '',
-      startDate: toDateKey(new Date()),
     })
   }, [open, form])
 
@@ -133,7 +127,7 @@ export function AssignMealPlanDialog({
         <DialogHeader>
           <DialogTitle>Assign meal plan</DialogTitle>
           <DialogDescription>
-            Choose a reusable library template and start date for this client.
+            Choose a reusable library template for this client.
           </DialogDescription>
         </DialogHeader>
         {assignablePlans.length === 0 ? (
@@ -174,19 +168,6 @@ export function AssignMealPlanDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -237,20 +218,6 @@ export function ClientMealPlanAssignmentCard({
     null
   )
 
-  async function handleExtendPlan() {
-    setPending(true)
-    const result = await extendMealPlanAssignment(clientId)
-    setPending(false)
-
-    if (!result.success) {
-      toast.error(result.error)
-      return
-    }
-
-    toast.success('Meal plan extended with another cycle.')
-    router.refresh()
-  }
-
   const removeConfirm = useConfirmDialog({
     title: 'Remove meal plan assignment?',
     description:
@@ -277,10 +244,6 @@ export function ClientMealPlanAssignmentCard({
     summary,
     profile?.calories_kcal
   )
-  const todayKey = toDateKey(new Date())
-  const planComplete = assignment
-    ? getTodayMealPlanDay(assignment, planDays, todayKey).planComplete
-    : false
 
   const otherClientPlans = clientMealPlans.filter(
     (plan) => plan.id !== assignment?.meal_plan_id
@@ -297,7 +260,6 @@ export function ClientMealPlanAssignmentCard({
     setActivatingPlanId(planId)
     const result = await assignMealPlanToClient(clientId, {
       mealPlanId: planId,
-      startDate: todayKey,
     })
     setActivatingPlanId(null)
 
@@ -351,16 +313,11 @@ export function ClientMealPlanAssignmentCard({
           <div className="grid gap-4">
             <div className="grid gap-2">
               <p className="font-medium">{assignment.meal_plan.name}</p>
-              <p className="text-muted-foreground text-sm">
-                {summary.dayCount > 0
-                  ? `${summary.dayCount}-day`
-                  : 'Plan'}{' '}
-                · Started{' '}
-                {new Date(`${assignment.start_date}T12:00:00`).toLocaleDateString(
-                  undefined,
-                  { month: 'short', day: 'numeric', year: 'numeric' }
-                )}
-              </p>
+              {summary.dayCount > 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  {summary.dayCount}-day plan
+                </p>
+              ) : null}
               {summary.avgDailyMacros ? (
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="secondary" className="tabular-nums">
@@ -381,27 +338,6 @@ export function ClientMealPlanAssignmentCard({
                 <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                   <p>{formatMealPlanTargetWarning(targetAlignment)}</p>
-                </div>
-              ) : null}
-              {planComplete ? (
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-800 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex gap-2">
-                    <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                    <p>
-                      This client has reached the end of the plan. Extend the
-                      current cycle or assign a different plan.
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 border-amber-500/40 bg-background"
-                    disabled={pending || summary.dayCount === 0}
-                    onClick={handleExtendPlan}
-                  >
-                    <Copy className="size-4" />
-                    {pending ? 'Extending…' : 'Extend plan'}
-                  </Button>
                 </div>
               ) : null}
             </div>

@@ -227,13 +227,31 @@ export const mealPlanMealFormSchema = z.object({
 
 export const mealPlanAssignmentFormSchema = z.object({
   mealPlanId: z.string().uuid('Select a meal plan'),
-  startDate: z.string().trim().min(1, 'Start date is required'),
 })
 
 export const clientMealPlanFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120, 'Name is too long'),
   description: z.string().trim().max(2000, 'Description is too long').optional(),
-  startDate: z.string().trim().min(1, 'Start date is required'),
+})
+
+export const shoppingListCheckToggleSchema = z.object({
+  assignmentId: z.string().uuid(),
+  foodKey: z
+    .string()
+    .trim()
+    .min(1, 'Food is required')
+    .max(200, 'Food name is too long')
+    .transform((value) => value.toLowerCase()),
+  checked: z.boolean(),
+})
+
+export const shoppingListCyclesSchema = z.object({
+  assignmentId: z.string().uuid(),
+  cycles: z.coerce
+    .number()
+    .int()
+    .min(1, 'At least 1 cycle')
+    .max(12, 'At most 12 cycles'),
 })
 
 export type NutritionProfileFormValues = z.infer<typeof nutritionProfileFormSchema>
@@ -255,3 +273,7 @@ export type MealPlanAssignmentFormValues = z.infer<
   typeof mealPlanAssignmentFormSchema
 >
 export type ClientMealPlanFormValues = z.infer<typeof clientMealPlanFormSchema>
+export type ShoppingListCheckToggleValues = z.infer<
+  typeof shoppingListCheckToggleSchema
+>
+export type ShoppingListCyclesValues = z.infer<typeof shoppingListCyclesSchema>

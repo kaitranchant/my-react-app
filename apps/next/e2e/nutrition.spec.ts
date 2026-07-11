@@ -16,7 +16,6 @@ import {
   dismissPortalWelcomeDialog,
   preparePortalHome,
   clearE2EClientNutritionLogs,
-  resetE2EMealPlanTemplate,
 } from './fixtures'
 
 async function loginAsCoach(page: import('@playwright/test').Page) {
@@ -44,23 +43,11 @@ async function coachNutritionSetupPage(page: import('@playwright/test').Page) {
   })
 }
 
-function dateKeyDaysAgo(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 function mealPlanCard(page: import('@playwright/test').Page) {
   return page.locator('[data-slot="card"]').filter({ hasText: 'Meal plan' })
 }
 
-async function assignMealPlanWithStartDate(
-  page: import('@playwright/test').Page,
-  startDateKey: string
-) {
+async function assignMealPlan(page: import('@playwright/test').Page) {
   const changePlan = page.getByRole('button', { name: 'Change plan' })
   if (await changePlan.isVisible()) {
     await changePlan.click()
@@ -70,7 +57,6 @@ async function assignMealPlanWithStartDate(
 
   await page.getByRole('combobox', { name: 'Meal plan' }).click()
   await page.getByRole('option', { name: E2E_MEAL_PLAN_NAME }).click()
-  await page.getByLabel('Start date').fill(startDateKey)
   await page.getByRole('button', { name: 'Assign plan' }).click()
   await expect(page.getByText('Meal plan assigned.')).toBeVisible({
     timeout: 10_000,
@@ -78,12 +64,6 @@ async function assignMealPlanWithStartDate(
   await expect(page.getByRole('dialog', { name: 'Assign meal plan' })).toBeHidden(
     { timeout: 10_000 }
   )
-}
-
-async function readMealPlanDayCount(page: import('@playwright/test').Page) {
-  const card = mealPlanCard(page)
-  const text = await card.getByText(/\d+-day/).textContent()
-  return Number(text?.match(/(\d+)-day/)?.[1] ?? 0)
 }
 
 test.describe('Nutrition', () => {
@@ -268,7 +248,7 @@ test.describe('Nutrition', () => {
     await loginAsCoach(page)
 
     await coachNutritionSetupPage(page)
-    await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
+    await assignMealPlan(page)
     await expect(mealPlanCard(page).getByText(E2E_MEAL_PLAN_NAME)).toBeVisible({
       timeout: 15_000,
     })
@@ -360,62 +340,6 @@ test.describe('Nutrition', () => {
     await expect(page.getByText('E2E builder breakfast')).toBeVisible({
       timeout: 15_000,
     })
-  })
-
-  test('coach extends meal plan when client reaches end of cycle', async ({
-    page,
-  }) => {
-    test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(120_000)
-
-    resetE2EMealPlanTemplate()
-
-    await loginAsCoach(page)
-
-    await coachNutritionSetupPage(page)
-    await assignMealPlanWithStartDate(page, dateKeyDaysAgo(0))
-
-    const dayCount = await readMealPlanDayCount(page)
-    expect(dayCount).toBeGreaterThan(0)
-
-    await assignMealPlanWithStartDate(page, dateKeyDaysAgo(dayCount))
-
-    const card = mealPlanCard(page)
-    await page.reload()
-    await expect(card.getByText(/reached the end of the plan/i)).toBeVisible({
-      timeout: 15_000,
-    })
-
-    await card.getByRole('button', { name: 'Extend plan' }).click()
-
-    await expect
-      .poll(
-        async () => {
-          const count = await readMealPlanDayCount(page)
-          if (count >= dayCount * 2) return count
-          await page.reload()
-          return readMealPlanDayCount(page)
-        },
-        { timeout: 30_000 }
-      )
-      .toBe(dayCount * 2)
-
-    await expect(card.getByText(/reached the end of the plan/i)).toBeHidden({
-      timeout: 15_000,
-    })
-
-    await signOutFromApp(page, 'E2E Coach')
-
-    await loginAsClient(page)
-
-    await page.goto('/portal/nutrition')
-    await expect(page.getByText('Meal plan', { exact: true })).toBeVisible()
-    await expect(page.getByText(E2E_MEAL_PLAN_MEAL_NAME)).toBeVisible({
-      timeout: 10_000,
-    })
-    await expect(
-      page.getByText(/reached the end of your current meal plan/i)
-    ).toBeHidden()
   })
 
   test('coach nutrition tracking shows coach-appropriate empty state', async ({

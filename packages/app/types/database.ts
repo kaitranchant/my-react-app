@@ -188,6 +188,7 @@ export type ScheduledExerciseTrackingOptions = {
   forcePrUpdate: boolean
   trackBarSpeed: boolean
   trackPeakPower: boolean
+  trackTime: boolean
   trackReps: boolean
   trackVolume: boolean
   autoProgressLoad: boolean
@@ -2831,7 +2832,7 @@ export type Database = {
           client_id: string
           meal_plan_id: string
           status: MealPlanAssignmentStatus
-          start_date: string
+          shopping_list_cycles: number
           team_id: string | null
           created_at: string
           updated_at: string
@@ -2842,7 +2843,7 @@ export type Database = {
           client_id: string
           meal_plan_id: string
           status?: MealPlanAssignmentStatus
-          start_date: string
+          shopping_list_cycles?: number
           team_id?: string | null
           created_at?: string
           updated_at?: string
@@ -2853,7 +2854,7 @@ export type Database = {
           client_id?: string
           meal_plan_id?: string
           status?: MealPlanAssignmentStatus
-          start_date?: string
+          shopping_list_cycles?: number
           team_id?: string | null
           created_at?: string
           updated_at?: string
@@ -3456,6 +3457,58 @@ export type Database = {
           {
             foreignKeyName: 'client_nutrition_profiles_coach_id_fkey'
             columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_shopping_list_checks: {
+        Row: {
+          id: string
+          client_id: string
+          meal_plan_assignment_id: string
+          food_key: string
+          checked_at: string
+          checked_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          meal_plan_assignment_id: string
+          food_key: string
+          checked_at?: string
+          checked_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          meal_plan_assignment_id?: string
+          food_key?: string
+          checked_at?: string
+          checked_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_shopping_list_checks_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_shopping_list_checks_meal_plan_assignment_id_fkey'
+            columns: ['meal_plan_assignment_id']
+            isOneToOne: false
+            referencedRelation: 'meal_plan_assignments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_shopping_list_checks_checked_by_fkey'
+            columns: ['checked_by']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
@@ -4322,6 +4375,13 @@ export type ClientFoodDiaryEntryInsert =
   Database['public']['Tables']['client_food_diary_entries']['Insert']
 export type ClientFoodDiaryEntryUpdate =
   Database['public']['Tables']['client_food_diary_entries']['Update']
+
+export type ClientShoppingListCheck =
+  Database['public']['Tables']['client_shopping_list_checks']['Row']
+export type ClientShoppingListCheckInsert =
+  Database['public']['Tables']['client_shopping_list_checks']['Insert']
+export type ClientShoppingListCheckUpdate =
+  Database['public']['Tables']['client_shopping_list_checks']['Update']
 
 export type ProgramWithAssignmentCount = Program & {
   assignment_count: number

@@ -81,6 +81,11 @@ const TRACKING_TOGGLES: {
     description: 'Include peak power input.',
   },
   {
+    key: 'trackTime',
+    label: 'Time tracking',
+    description: 'Log how long each set took to complete.',
+  },
+  {
     key: 'trackReps',
     label: 'Track rep count',
     description: 'Count reps toward session volume.',

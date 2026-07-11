@@ -41,6 +41,7 @@ function baseExercise(
       forcePrUpdate: false,
       trackBarSpeed: false,
       trackPeakPower: false,
+      trackTime: false,
       trackReps: true,
       trackVolume: true,
       autoProgressLoad: false,

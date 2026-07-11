@@ -6,8 +6,6 @@ import {
   assignMealPlanToClientInternal,
   cancelMealPlanAssignmentInternal,
 } from '@/lib/meal-plan-assignment'
-import { fetchMealPlanDaysWithMeals } from '@/lib/meal-plan-data.server'
-import { appendDuplicatedMealPlanDays } from '@/lib/meal-plan-extend'
 import {
   nutritionLogValuesToRow,
   nutritionProfileToFormValues,
@@ -28,6 +26,10 @@ import {
   foodDiaryEntriesBatchSchema,
   nutritionLogFormSchema,
   type NutritionLogFormValues,
+  shoppingListCheckToggleSchema,
+  type ShoppingListCheckToggleValues,
+  shoppingListCyclesSchema,
+  type ShoppingListCyclesValues,
 } from '@/lib/validations/nutrition'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -88,7 +90,7 @@ export async function updateClientNutritionProfile(
 
 export async function assignMealPlanToClient(
   clientId: string,
-  values: { mealPlanId: string; startDate: string }
+  values: { mealPlanId: string }
 ): Promise<ActionResult> {
   const parsed = mealPlanAssignmentFormSchema.safeParse(values)
   if (!parsed.success) {
@@ -104,7 +106,6 @@ export async function assignMealPlanToClient(
     coachId: ctx.user.id,
     clientId,
     mealPlanId: parsed.data.mealPlanId,
-    startDate: parsed.data.startDate,
   })
 
   if (!result.success) {
@@ -153,7 +154,6 @@ export async function createClientMealPlan(
     coachId: ctx.user.id,
     clientId,
     mealPlanId: mealPlan.id,
-    startDate: parsed.data.startDate,
   })
 
   if (!assignResult.success) {
@@ -265,53 +265,6 @@ export async function deleteClientFoodDiaryEntry(
   return { success: true }
 }
 
-export async function extendMealPlanAssignment(
-  clientId: string
-): Promise<ActionResult> {
-  const ctx = await requireClientAccess(clientId)
-  if (!ctx) {
-    return { success: false, error: 'Client not found.' }
-  }
-
-  const { data: assignment, error: assignmentError } = await ctx.supabase
-    .from('meal_plan_assignments')
-    .select('id, meal_plan_id')
-    .eq('client_id', clientId)
-    .eq('coach_id', ctx.user.id)
-    .eq('status', 'active')
-    .maybeSingle()
-
-  if (assignmentError || !assignment) {
-    return { success: false, error: 'No active meal plan assignment found.' }
-  }
-
-  const planDays = await fetchMealPlanDaysWithMeals(
-    ctx.supabase,
-    assignment.meal_plan_id
-  )
-
-  const result = await appendDuplicatedMealPlanDays(
-    ctx.supabase,
-    assignment.meal_plan_id,
-    planDays
-  )
-
-  if (!result.success) {
-    return result
-  }
-
-  await ctx.supabase
-    .from('meal_plans')
-    .update({ updated_at: new Date().toISOString() })
-    .eq('id', assignment.meal_plan_id)
-    .eq('coach_id', ctx.user.id)
-
-  revalidateNutritionPaths(clientId)
-  revalidatePath('/library/meal-plans')
-  revalidatePath(`/library/meal-plans/${assignment.meal_plan_id}`)
-  return { success: true }
-}
-
 export async function submitClientNutritionLog(
   clientId: string,
   values: NutritionLogFormValues
@@ -419,5 +372,101 @@ export async function requestNutritionSetupForm(
   })
 
   revalidateNutritionPaths(clientId)
+  return { success: true }
+}
+
+export async function toggleClientShoppingListCheck(
+  clientId: string,
+  values: ShoppingListCheckToggleValues
+): Promise<ActionResult> {
+  const parsed = shoppingListCheckToggleSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid shopping list item.' }
+  }
+
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { data: assignment, error: assignmentError } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .select('id, client_id')
+    .eq('id', parsed.data.assignmentId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: 'Meal plan assignment not found.' }
+  }
+
+  if (parsed.data.checked) {
+    const { error } = await ctx.supabase.from('client_shopping_list_checks').upsert(
+      {
+        client_id: clientId,
+        meal_plan_assignment_id: assignment.id,
+        food_key: parsed.data.foodKey,
+        checked_by: ctx.user.id,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'meal_plan_assignment_id,food_key' }
+    )
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  } else {
+    const { error } = await ctx.supabase
+      .from('client_shopping_list_checks')
+      .delete()
+      .eq('meal_plan_assignment_id', assignment.id)
+      .eq('food_key', parsed.data.foodKey)
+      .eq('client_id', clientId)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  revalidateNutritionPaths(clientId)
+  return { success: true }
+}
+
+export async function updateClientShoppingListCycles(
+  clientId: string,
+  values: ShoppingListCyclesValues
+): Promise<ActionResult> {
+  const parsed = shoppingListCyclesSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Choose between 1 and 12 plan cycles.' }
+  }
+
+  const ctx = await requireClientAccess(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { data: assignment, error: assignmentError } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .select('id')
+    .eq('id', parsed.data.assignmentId)
+    .eq('client_id', clientId)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: 'Meal plan assignment not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .update({ shopping_list_cycles: parsed.data.cycles })
+    .eq('id', assignment.id)
+    .eq('client_id', clientId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
   return { success: true }
 }

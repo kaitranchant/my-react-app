@@ -83,6 +83,29 @@ export default async function SchedulingPage({
   const todayKey = getCoachDateKeyFromReference(coachPreferences.timezone)
   const exceptionHorizonKey = addDaysToDateKey(todayKey, 90)
 
+  const googleCalendarConnectionPromise = fetchCoachGoogleCalendarConnection(
+    supabase,
+    user.id
+  )
+  const googleReconcilePromise = googleCalendarConnectionPromise.then(
+    async (connection) => {
+      if (!connection) return
+      try {
+        await reconcileGoogleDeletedAppointmentsForCoach(user.id, {
+          timeMin: startIso,
+          timeMax: endIso,
+          supabase,
+          revalidate: false,
+        })
+      } catch (error) {
+        console.error(
+          '[google-calendar] scheduling page reconcile failed',
+          error
+        )
+      }
+    }
+  )
+
   const [
     settings,
     rules,
@@ -108,38 +131,28 @@ export default async function SchedulingPage({
       .select('full_name, business_name')
       .eq('id', user.id)
       .maybeSingle(),
-    fetchCoachGoogleCalendarConnection(supabase, user.id),
+    googleCalendarConnectionPromise,
     fetchCoachAvailabilityExceptions(
       supabase,
       user.id,
       todayKey,
       exceptionHorizonKey
     ),
+    googleReconcilePromise,
   ])
 
-  if (googleCalendarConnection) {
-    try {
-      await reconcileGoogleDeletedAppointmentsForCoach(user.id, {
-        timeMin: startIso,
-        timeMax: endIso,
-        supabase,
-        revalidate: false,
-      })
-    } catch (error) {
-      console.error('[google-calendar] scheduling page reconcile failed', error)
-    }
-  }
+  const weekStartKey = weekKeys[0]!
+  const [appointments, googleBlockedTimesFetch, weekOverrides] =
+    await Promise.all([
+      fetchCoachingAppointments(supabase, user.id, startIso, endIso),
+      googleCalendarConnection
+        ? fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)
+        : Promise.resolve(null),
+      settings.weekly_session_targets_enabled
+        ? fetchClientWeeklySessionTargets(supabase, user.id, weekStartKey)
+        : Promise.resolve([]),
+    ])
 
-  const appointments = await fetchCoachingAppointments(
-    supabase,
-    user.id,
-    startIso,
-    endIso
-  )
-
-  const googleBlockedTimesFetch = googleCalendarConnection
-    ? await fetchGoogleCalendarBlockedTimes(user.id, startIso, endIso)
-    : null
   const googleCalendarAuthExpired = googleBlockedTimesFetch?.authExpired ?? false
   const rawGoogleBlockedTimes = googleBlockedTimesFetch?.blockedTimes ?? []
   const googleBlockedTimes = await attachGoogleEventMarkers(
@@ -147,11 +160,6 @@ export default async function SchedulingPage({
     user.id,
     rawGoogleBlockedTimes
   )
-
-  const weekStartKey = weekKeys[0]!
-  const weekOverrides = settings.weekly_session_targets_enabled
-    ? await fetchClientWeeklySessionTargets(supabase, user.id, weekStartKey)
-    : []
 
   const bookingDateKeys = getPortalBookingDateKeys(
     settings,

@@ -1,7 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-import { toDateKey } from '@/lib/calendar'
-
 export type AssignMealPlanInternalResult =
   | { success: true }
   | { success: false; error: string }
@@ -12,7 +10,6 @@ export async function assignMealPlanToClientInternal(
     coachId: string
     clientId: string
     mealPlanId: string
-    startDate?: string
     teamId?: string
   }
 ): Promise<AssignMealPlanInternalResult> {
@@ -44,17 +41,12 @@ export async function assignMealPlanToClientInternal(
     return { success: false, error: cancelError.message }
   }
 
-  const startDate = params.startDate?.trim()
-    ? params.startDate.trim()
-    : toDateKey(new Date())
-
   const { error: assignError } = await supabase.from('meal_plan_assignments').insert({
     coach_id: coachId,
     client_id: clientId,
     meal_plan_id: mealPlanId,
     team_id: teamId ?? null,
     status: 'active',
-    start_date: startDate,
   })
 
   if (assignError) {

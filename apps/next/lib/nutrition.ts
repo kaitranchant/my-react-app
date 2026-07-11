@@ -13,7 +13,6 @@ import type {
   ClientNutritionLogInsert,
   ClientNutritionProfile,
   ClientNutritionProfileInsert,
-  MealPlanAssignment,
   MealPlanDay,
   MealPlanDayWithMeals,
   MealPlanMeal,
@@ -343,19 +342,6 @@ export function macroPercentFromGrams(
   )
 }
 
-export function daysBetweenDateKeys(startDateKey: string, endDateKey: string) {
-  const start = new Date(`${startDateKey}T12:00:00`)
-  const end = new Date(`${endDateKey}T12:00:00`)
-  return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-export function getMealPlanDayOffset(
-  assignment: Pick<MealPlanAssignment, 'start_date'>,
-  todayKey = toDateKey(new Date())
-): number {
-  return Math.max(0, daysBetweenDateKeys(assignment.start_date, todayKey))
-}
-
 export function formatMealPlanDayLabel(
   day: Pick<MealPlanDay, 'day_offset' | 'label'>
 ): string {
@@ -376,54 +362,6 @@ export function getMealPlanDayIndexForOffset(
 ): number {
   const index = sortedDays.findIndex((day) => day.day_offset === dayOffset)
   return index >= 0 ? index : 0
-}
-
-export type TodayMealPlanResult = {
-  dayOffset: number
-  day: MealPlanDayWithMeals | null
-  planComplete: boolean
-  planDayLabel: string | null
-}
-
-export function getTodayMealPlanDay(
-  assignment: MealPlanAssignment | null,
-  days: MealPlanDayWithMeals[],
-  todayKey = toDateKey(new Date())
-): TodayMealPlanResult {
-  if (!assignment || days.length === 0) {
-    return {
-      dayOffset: 0,
-      day: null,
-      planComplete: false,
-      planDayLabel: null,
-    }
-  }
-
-  const sortedDays = [...days].sort((left, right) => left.day_offset - right.day_offset)
-  const maxOffset = sortedDays[sortedDays.length - 1]!.day_offset
-  const dayOffset = getMealPlanDayOffset(assignment, todayKey)
-
-  if (dayOffset > maxOffset) {
-    const lastDay = sortedDays[sortedDays.length - 1]!
-    return {
-      dayOffset,
-      day: null,
-      planComplete: true,
-      planDayLabel: `${formatMealPlanDayLabel(lastDay)} complete`,
-    }
-  }
-
-  const day = sortedDays.find((entry) => entry.day_offset === dayOffset) ?? null
-  const defaultLabel = `Day ${dayOffset + 1}`
-
-  return {
-    dayOffset,
-    day,
-    planComplete: false,
-    planDayLabel: day
-      ? formatMealPlanDayLabel(day)
-      : `${defaultLabel} (no meals planned)`,
-  }
 }
 
 export function sortMealsByOrder<T extends MealPlanMeal>(meals: T[]): T[] {

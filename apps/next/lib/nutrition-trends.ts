@@ -5,6 +5,7 @@ export type NutritionTrendPoint = {
   dateKey: string
   label: string
   adherenceScore: number | null
+  clientNotes: string | null
   colorClass: string
   macroItems: MacroAdherenceItem[]
 }
@@ -53,6 +54,7 @@ export function buildNutritionTrendPoints(
         dateKey,
         label: formatTrendDateLabel(dateKey),
         adherenceScore: log?.adherence_score ?? null,
+        clientNotes: log?.client_notes?.trim() || null,
         colorClass: ADHERENCE_COLOR_CLASSES[color],
         macroItems: macroItemsByDate?.get(dateKey) ?? [],
       }

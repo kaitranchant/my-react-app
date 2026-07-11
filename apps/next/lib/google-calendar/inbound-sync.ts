@@ -339,6 +339,13 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
     console.error('[google-calendar] reconcile event list failed', error)
   }
 
+  const googleEventsById = new Map<string, GoogleCalendarEvent>()
+  for (const event of googleEvents) {
+    if (event.id) {
+      googleEventsById.set(event.id, event)
+    }
+  }
+
   let removed = 0
   let updated = 0
 
@@ -359,18 +366,28 @@ export async function reconcileGoogleDeletedAppointmentsForCoach(
 
     let linkedEvent: GoogleCalendarEvent | null = null
     if (appointment.google_calendar_event_id) {
-      try {
-        linkedEvent = await getGoogleCalendarEvent(
-          accessToken,
-          connection.calendar_id,
-          appointment.google_calendar_event_id
-        )
-      } catch (error) {
-        console.error(
-          '[google-calendar] linked event lookup failed',
-          appointment.google_calendar_event_id,
-          error
-        )
+      linkedEvent =
+        googleEventsById.get(appointment.google_calendar_event_id) ?? null
+
+      // Only hit events.get when the list miss could mean the event moved
+      // outside the week window (or was hard-deleted).
+      if (!linkedEvent) {
+        try {
+          linkedEvent = await getGoogleCalendarEvent(
+            accessToken,
+            connection.calendar_id,
+            appointment.google_calendar_event_id
+          )
+          if (linkedEvent?.id) {
+            googleEventsById.set(linkedEvent.id, linkedEvent)
+          }
+        } catch (error) {
+          console.error(
+            '[google-calendar] linked event lookup failed',
+            appointment.google_calendar_event_id,
+            error
+          )
+        }
       }
     }
 

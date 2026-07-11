@@ -2521,7 +2521,8 @@ export async function clearGoogleEventMarker(
 }
 
 export async function fetchSchedulingWeekData(
-  weekStartKey: string
+  weekStartKey: string,
+  options?: { reconcileGoogle?: boolean }
 ): Promise<SchedulingWeekDataResult> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStartKey)) {
     return { success: false, error: 'Invalid week.' }
@@ -2548,7 +2549,7 @@ export async function fetchSchedulingWeekData(
     ctx.user.id
   )
 
-  if (connection) {
+  if (options?.reconcileGoogle && connection) {
     try {
       await reconcileGoogleDeletedAppointmentsForCoach(ctx.user.id, {
         timeMin: startIso,

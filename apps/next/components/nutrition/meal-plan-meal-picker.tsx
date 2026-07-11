@@ -8,8 +8,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import {
   formatMealMacros,
   formatMealPlanDayLabel,
-  getMealPlanDayIndexForOffset,
-  getMealPlanDayOffset,
   MEAL_TYPE_LABELS,
   sortMealPlanDays,
 } from '@/lib/nutrition'
@@ -22,7 +20,6 @@ import type {
 type MealPlanMealPickerProps = {
   assignment: MealPlanAssignment | null
   days: MealPlanDayWithMeals[]
-  logDate: string
   disabled?: boolean
   onAddMeal: (meal: MealPlanMealWithFoods) => Promise<void>
 }
@@ -30,26 +27,17 @@ type MealPlanMealPickerProps = {
 export function MealPlanMealPicker({
   assignment,
   days,
-  logDate,
   disabled = false,
   onAddMeal,
 }: MealPlanMealPickerProps) {
   const [pendingMealId, setPendingMealId] = React.useState<string | null>(null)
   const sortedDays = React.useMemo(() => sortMealPlanDays(days), [days])
 
-  const defaultDayIndex = React.useMemo(() => {
-    if (!assignment || sortedDays.length === 0) return 0
-    const dayOffset = getMealPlanDayOffset(assignment, logDate)
-    const maxOffset = sortedDays[sortedDays.length - 1]?.day_offset ?? 0
-    const clampedOffset = Math.min(dayOffset, maxOffset)
-    return getMealPlanDayIndexForOffset(sortedDays, clampedOffset)
-  }, [assignment, logDate, sortedDays])
-
-  const [selectedDayIndex, setSelectedDayIndex] = React.useState(defaultDayIndex)
+  const [selectedDayIndex, setSelectedDayIndex] = React.useState(0)
 
   React.useEffect(() => {
-    setSelectedDayIndex(defaultDayIndex)
-  }, [defaultDayIndex])
+    setSelectedDayIndex(0)
+  }, [assignment?.id, sortedDays.length])
 
   const selectedDay = sortedDays[selectedDayIndex] ?? null
   const selectedDayLabel = selectedDay ? formatMealPlanDayLabel(selectedDay) : null

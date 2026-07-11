@@ -9,6 +9,8 @@ import {
   addFoodDiaryEntries,
   deleteFoodDiaryEntry,
   submitNutritionLog,
+  toggleShoppingListCheck,
+  updateShoppingListCycles,
 } from '@/app/portal/nutrition-actions'
 import { PortalNutritionSetupFormCard } from '@/components/portal/portal-nutrition-setup-form-card'
 import { MacroTargetsCard } from '@/components/nutrition/macro-targets-card'
@@ -46,7 +48,7 @@ import type {
   MealPlanDayWithMeals,
 } from 'app/types/database'
 
-const PORTAL_NUTRITION_SECTIONS = ['adherence', 'plan'] as const
+const PORTAL_NUTRITION_SECTIONS = ['adherence', 'plan', 'shopping'] as const
 export type PortalNutritionSection = (typeof PORTAL_NUTRITION_SECTIONS)[number]
 
 export function resolvePortalNutritionSection(
@@ -81,6 +83,7 @@ type PortalNutritionPanelProps = {
   assignment: MealPlanAssignmentWithPlan | null
   planDays: MealPlanDayWithMeals[]
   foodDiaryEntries: ClientFoodDiaryEntry[]
+  checkedFoodKeys: string[]
 }
 
 export function PortalNutritionPanel({
@@ -91,6 +94,7 @@ export function PortalNutritionPanel({
   assignment,
   planDays,
   foodDiaryEntries,
+  checkedFoodKeys,
 }: PortalNutritionPanelProps) {
   const pathname = usePathname()
   const router = useRouter()
@@ -179,6 +183,9 @@ export function PortalNutritionPanel({
           </TabsTrigger>
           <TabsTrigger value="plan" size="sm">
             Your plan
+          </TabsTrigger>
+          <TabsTrigger value="shopping" size="sm">
+            Shopping
           </TabsTrigger>
         </TabsList>
       </div>
@@ -350,18 +357,45 @@ export function PortalNutritionPanel({
           profile={profile}
         />
 
-        <ShoppingListCard
-          assignment={assignment}
-          days={planDays}
-          planName={assignment?.meal_plan?.name}
-        />
-
         <MacroTargetsCard profile={profile} />
 
         <NutritionDietarySummary profile={profile} />
 
         <ClientNutritionNotesCard
           initialNotes={profile?.client_nutrition_notes ?? null}
+        />
+      </TabsContent>
+
+      <TabsContent value="shopping" className="mt-4 grid gap-4">
+        <ShoppingListCard
+          assignment={assignment}
+          days={planDays}
+          planName={assignment?.meal_plan?.name}
+          checkedFoodKeys={checkedFoodKeys}
+          onToggleChecked={
+            assignment
+              ? async (foodKey, checked) => {
+                  const result = await toggleShoppingListCheck({
+                    assignmentId: assignment.id,
+                    foodKey,
+                    checked,
+                  })
+                  if (result.success) {
+                    router.refresh()
+                  }
+                  return result
+                }
+              : undefined
+          }
+          onCyclesChange={
+            assignment
+              ? async (cycles) =>
+                  updateShoppingListCycles({
+                    assignmentId: assignment.id,
+                    cycles,
+                  })
+              : undefined
+          }
         />
       </TabsContent>
     </Tabs>

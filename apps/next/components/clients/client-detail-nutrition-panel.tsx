@@ -137,11 +137,22 @@ export async function ClientDetailNutritionPanel({
   }
 
   let planDays: MealPlanDayWithMeals[] = []
+  let checkedFoodKeys: string[] = []
   if (hasResolvableAssignment && mealPlanAssignment) {
     planDays = await fetchMealPlanDaysWithMeals(
       supabase,
       mealPlanAssignment.meal_plan_id
     )
+
+    const checksResult = await supabase
+      .from('client_shopping_list_checks')
+      .select('food_key')
+      .eq('client_id', clientId)
+      .eq('meal_plan_assignment_id', mealPlanAssignment.id)
+
+    if (!checksResult.error) {
+      checkedFoodKeys = (checksResult.data ?? []).map((row) => row.food_key)
+    }
   }
 
   return (
@@ -154,6 +165,7 @@ export async function ClientDetailNutritionPanel({
       clientMealPlans={clientMealPlans}
       planDays={planDays}
       foodDiaryEntries={foodDiaryEntries}
+      checkedFoodKeys={checkedFoodKeys}
       goals={goals}
       latestScan={latestScan}
       biologicalSex={biologicalSex}

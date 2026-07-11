@@ -85,6 +85,8 @@ import {
 } from '@/lib/visual-viewport/app-viewport'
 import { usePreferWorkoutLogKeypad } from '@/lib/hooks/use-prefer-workout-log-keypad'
 import { useGuidedExerciseSwipeNavigation } from '@/lib/hooks/use-guided-exercise-swipe-navigation'
+import type { GuidedExerciseSlideDirection } from '@/lib/hooks/use-guided-exercise-swipe-navigation'
+import { GuidedExerciseCarousel } from '@/components/workout/guided-exercise-carousel'
 import { getPreviousSessionCopyValuesForSet } from '@/lib/workout-log-keypad'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -891,7 +893,7 @@ function WorkoutLogExercise({
                 />
               )}
               {!readOnly &&
-                fields.showDuration &&
+                fields.showHoldTimer &&
                 activeSetNumber != null &&
                 activeSetPrescribedDurationSeconds != null && (
                   <SetDurationTimerChip
@@ -1013,8 +1015,8 @@ function WorkoutLogExercise({
                           <span>Prev</span>
                           {fields.showWeight && <span>{weightUnitLabel(weightUnit)}</span>}
                           {fields.showReps && <span>Reps</span>}
-                          {fields.showDuration && <span>Sec</span>}
                           {fields.showDistance && <span>m</span>}
+                          {fields.showDuration && <span>Sec</span>}
                         </>
                       )}
                       <span className="sr-only">Done</span>
@@ -1152,25 +1154,6 @@ function WorkoutLogExercise({
                             />
                           )}
 
-                          {fields.showDuration && (
-                            <WorkoutLogSetField
-                              exerciseId={exercise.id}
-                              setNumber={set.setNumber}
-                              field="durationSeconds"
-                              value={set.durationSeconds}
-                              disabled={readOnly}
-                              predicted={showPredictedValues}
-                              onChange={(value) =>
-                                handleLocalSetChange(set.setNumber, {
-                                  durationSeconds: value,
-                                })
-                              }
-                              placeholder="—"
-                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
-                              ariaLabel={`Set ${set.setNumber} duration`}
-                            />
-                          )}
-
                           {fields.showDistance && (
                             <WorkoutLogSetField
                               exerciseId={exercise.id}
@@ -1187,6 +1170,29 @@ function WorkoutLogExercise({
                               placeholder="—"
                               className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
                               ariaLabel={`Set ${set.setNumber} distance`}
+                            />
+                          )}
+
+                          {fields.showDuration && (
+                            <WorkoutLogSetField
+                              exerciseId={exercise.id}
+                              setNumber={set.setNumber}
+                              field="durationSeconds"
+                              value={set.durationSeconds}
+                              disabled={readOnly}
+                              predicted={showPredictedValues}
+                              onChange={(value) =>
+                                handleLocalSetChange(set.setNumber, {
+                                  durationSeconds: value,
+                                })
+                              }
+                              placeholder="—"
+                              className="bg-background h-9 min-w-0 rounded-lg px-1.5 text-center font-medium sm:h-10 sm:px-2"
+                              ariaLabel={
+                                fields.durationOptional
+                                  ? `Set ${set.setNumber} completion time`
+                                  : `Set ${set.setNumber} duration`
+                              }
                             />
                           )}
 
@@ -1424,6 +1430,9 @@ export function WorkoutLogScreen({
     React.useState<ExerciseMetaState>({})
   const [activeSectionIndex, setActiveSectionIndex] = React.useState(0)
   const [activeExerciseIndex, setActiveExerciseIndex] = React.useState(0)
+  const [slideDirection, setSlideDirection] =
+    React.useState<GuidedExerciseSlideDirection | null>(null)
+  const activeExerciseIndexRef = React.useRef(0)
   const [sessionViewMode, setSessionViewMode] =
     React.useState<'guided' | 'list'>(defaultSessionViewMode)
   const [exerciseNavOpen, setExerciseNavOpen] = React.useState(false)
@@ -2086,29 +2095,53 @@ export function WorkoutLogScreen({
       ? getSectionLabelForExercise(activeExercise, sections)
       : null
 
-  const goToExerciseIndex = React.useCallback((index: number) => {
-    setActiveExerciseIndex(index)
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+  const goToExerciseIndex = React.useCallback(
+    (index: number, direction?: GuidedExerciseSlideDirection | null) => {
+      const current = activeExerciseIndexRef.current
+      const inferred =
+        direction !== undefined
+          ? direction
+          : index > current
+            ? 'next'
+            : index < current
+              ? 'previous'
+              : null
+
+      if (inferred) {
+        setSlideDirection(inferred)
+      }
+
+      activeExerciseIndexRef.current = index
+      setActiveExerciseIndex(index)
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    []
+  )
 
   const goToPreviousExercise = React.useCallback(() => {
-    goToExerciseIndex(Math.max(0, activeExerciseIndex - 1))
-  }, [activeExerciseIndex, goToExerciseIndex])
+    goToExerciseIndex(Math.max(0, activeExerciseIndexRef.current - 1), 'previous')
+  }, [goToExerciseIndex])
 
   const goToNextExercise = React.useCallback(() => {
     goToExerciseIndex(
-      Math.min(orderedExercises.length - 1, activeExerciseIndex + 1)
+      Math.min(orderedExercises.length - 1, activeExerciseIndexRef.current + 1),
+      'next'
     )
-  }, [activeExerciseIndex, goToExerciseIndex, orderedExercises.length])
+  }, [goToExerciseIndex, orderedExercises.length])
 
-  const { swipeProps: guidedExerciseSwipeProps } =
-    useGuidedExerciseSwipeNavigation({
-      enabled: showGuidedSession,
-      canGoPrevious: activeExerciseIndex > 0,
-      canGoNext: activeExerciseIndex < orderedExercises.length - 1,
-      onPrevious: goToPreviousExercise,
-      onNext: goToNextExercise,
-    })
+  const {
+    swipeProps: guidedExerciseSwipeProps,
+    dragOffset: guidedDragOffset,
+    isDragging: guidedIsDragging,
+    isAnimating: guidedIsAnimating,
+    preferDragTransition: guidedPreferDragTransition,
+  } = useGuidedExerciseSwipeNavigation({
+    enabled: showGuidedSession,
+    canGoPrevious: activeExerciseIndex > 0,
+    canGoNext: activeExerciseIndex < orderedExercises.length - 1,
+    onPrevious: goToPreviousExercise,
+    onNext: goToNextExercise,
+  })
 
   React.useEffect(() => {
     guidedWorkoutInitRef.current = null
@@ -2123,9 +2156,10 @@ export function WorkoutLogScreen({
     if (guidedWorkoutInitRef.current === data.id) return
 
     guidedWorkoutInitRef.current = data.id
-    setActiveExerciseIndex(
-      findResumeExerciseIndex(data.exercises, exerciseState)
-    )
+    const resumeIndex = findResumeExerciseIndex(data.exercises, exerciseState)
+    activeExerciseIndexRef.current = resumeIndex
+    setActiveExerciseIndex(resumeIndex)
+    setSlideDirection(null)
   }, [data, exerciseState, guidedSessionEligible])
 
   React.useEffect(() => {
@@ -2168,7 +2202,8 @@ export function WorkoutLogScreen({
     guidedAutoAdvanceRef.current = true
     const timer = setTimeout(() => {
       goToExerciseIndex(
-        Math.min(activeExerciseIndex + 1, orderedExercises.length - 1)
+        Math.min(activeExerciseIndex + 1, orderedExercises.length - 1),
+        'next'
       )
       guidedAutoAdvanceRef.current = false
     }, 500)
@@ -2766,8 +2801,13 @@ export function WorkoutLogScreen({
               )}
             </div>
           ) : showGuidedSession && activeExercise ? (
-            <div
-              className="flex min-h-0 flex-1 touch-pan-y flex-col"
+            <GuidedExerciseCarousel
+              activeKey={activeExercise.id}
+              direction={slideDirection}
+              dragOffset={guidedDragOffset}
+              isDragging={guidedIsDragging}
+              isAnimating={guidedIsAnimating}
+              preferDragTransition={guidedPreferDragTransition}
               {...guidedExerciseSwipeProps}
             >
               {activeExerciseSectionLabel && sections.length > 1 ? (
@@ -2781,7 +2821,7 @@ export function WorkoutLogScreen({
               {renderWorkoutLogExercise(activeExercise, {
                 className: 'mb-0 shadow-md',
               })}
-            </div>
+            </GuidedExerciseCarousel>
           ) : (
             <div>
               {sections.length > 1 && activeSection && (
@@ -2820,7 +2860,7 @@ export function WorkoutLogScreen({
                 variant="outline"
                 size="sm"
                 className="shrink-0"
-                disabled={activeExerciseIndex === 0}
+                disabled={activeExerciseIndex === 0 || guidedIsAnimating}
                 onClick={goToPreviousExercise}
               >
                 <ChevronLeft className="size-4" />
@@ -2848,7 +2888,10 @@ export function WorkoutLogScreen({
                 type="button"
                 size="sm"
                 className="shrink-0"
-                disabled={activeExerciseIndex >= orderedExercises.length - 1}
+                disabled={
+                  activeExerciseIndex >= orderedExercises.length - 1 ||
+                  guidedIsAnimating
+                }
                 onClick={goToNextExercise}
               >
                 <span className="hidden sm:inline">Next</span>

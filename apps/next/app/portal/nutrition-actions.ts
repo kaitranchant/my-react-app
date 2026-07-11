@@ -349,3 +349,104 @@ export async function submitNutritionSetupForm(
   revalidatePortalNutrition(ctx.client.id)
   return { success: true }
 }
+
+export async function toggleShoppingListCheck(values: {
+  assignmentId: string
+  foodKey: string
+  checked: boolean
+}): Promise<ActionResult> {
+  const { shoppingListCheckToggleSchema } = await import(
+    '@/lib/validations/nutrition'
+  )
+  const parsed = shoppingListCheckToggleSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid shopping list item.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: assignment, error: assignmentError } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .select('id, client_id, status')
+    .eq('id', parsed.data.assignmentId)
+    .eq('client_id', ctx.client.id)
+    .maybeSingle()
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: 'Meal plan assignment not found.' }
+  }
+
+  if (parsed.data.checked) {
+    const { error } = await ctx.supabase.from('client_shopping_list_checks').upsert(
+      {
+        client_id: ctx.client.id,
+        meal_plan_assignment_id: assignment.id,
+        food_key: parsed.data.foodKey,
+        checked_by: ctx.userId,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'meal_plan_assignment_id,food_key' }
+    )
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  } else {
+    const { error } = await ctx.supabase
+      .from('client_shopping_list_checks')
+      .delete()
+      .eq('meal_plan_assignment_id', assignment.id)
+      .eq('food_key', parsed.data.foodKey)
+      .eq('client_id', ctx.client.id)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  revalidatePortalNutrition(ctx.client.id)
+  return { success: true }
+}
+
+export async function updateShoppingListCycles(values: {
+  assignmentId: string
+  cycles: number
+}): Promise<ActionResult> {
+  const { shoppingListCyclesSchema } = await import('@/lib/validations/nutrition')
+  const parsed = shoppingListCyclesSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Choose between 1 and 12 plan cycles.' }
+  }
+
+  const ctx = await requirePortalClientContext()
+  if ('error' in ctx) {
+    return { success: false, error: ctx.error }
+  }
+
+  const { data: assignment, error: assignmentError } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .select('id')
+    .eq('id', parsed.data.assignmentId)
+    .eq('client_id', ctx.client.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: 'Meal plan assignment not found.' }
+  }
+
+  const { error } = await ctx.supabase
+    .from('meal_plan_assignments')
+    .update({ shopping_list_cycles: parsed.data.cycles })
+    .eq('id', assignment.id)
+    .eq('client_id', ctx.client.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
+}

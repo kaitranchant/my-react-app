@@ -43,6 +43,7 @@ function baseExercise(
       forcePrUpdate: false,
       trackBarSpeed: false,
       trackPeakPower: false,
+      trackTime: false,
       trackReps: true,
       trackVolume: true,
       autoProgressLoad: false,
@@ -232,6 +233,58 @@ describe('distance-based exercise autofill', () => {
 
     assert.equal(suggested.distanceMeters, '425')
     assert.equal(suggested.reps, '')
+  })
+
+  it('prefills optional completion time from previous session for distance work', () => {
+    const exercise = baseExercise({
+      rep_mode: 'distance',
+      reps: '100m',
+      tracking_options: {
+        ...baseExercise().tracking_options!,
+        trackTime: true,
+      },
+    })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {
+      1: {
+        weight: null,
+        reps: null,
+        distanceMeters: 100,
+        durationSeconds: 14,
+      },
+    })
+
+    assert.equal(suggested.distanceMeters, '100')
+    assert.equal(suggested.durationSeconds, '14')
+  })
+
+  it('does not show completion time for distance work without time tracking', () => {
+    const exercise = baseExercise({ rep_mode: 'distance', reps: '100m' })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {
+      1: {
+        weight: null,
+        reps: null,
+        distanceMeters: 100,
+        durationSeconds: 14,
+      },
+    })
+
+    assert.equal(suggested.distanceMeters, '100')
+    assert.equal(suggested.durationSeconds, '')
+  })
+
+  it('does not treat distance prescription text as completion time', () => {
+    const exercise = baseExercise({
+      rep_mode: 'distance',
+      reps: '100m',
+      tracking_options: {
+        ...baseExercise().tracking_options!,
+        trackTime: true,
+      },
+    })
+    const suggested = getSuggestedLogValuesForSet(exercise, 1, {})
+
+    assert.equal(suggested.distanceMeters, '100')
+    assert.equal(suggested.durationSeconds, '')
   })
 
   it('uses parsed prescription when no previous session exists', () => {

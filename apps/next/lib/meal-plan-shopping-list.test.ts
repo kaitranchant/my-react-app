@@ -89,17 +89,47 @@ test('formatShoppingListQuantity includes purchase estimates when available', ()
   )
 })
 
+test('generateShoppingList multiplies quantities by plan cycles', () => {
+  const items = generateShoppingList(
+    [
+      makeDay(0, [
+        { name: 'Chicken breast', quantityG: 150 },
+        { name: 'Rice', quantityG: 100 },
+      ]),
+    ],
+    { cycles: 2 }
+  )
+
+  assert.deepEqual(
+    items.map((item) => [item.foodName, item.quantityG]),
+    [
+      ['Chicken breast', 300],
+      ['Rice', 200],
+    ]
+  )
+})
+
 test('formatShoppingListText builds a copy-friendly list', () => {
   const text = formatShoppingListText(
     [
-      { foodName: 'Eggs', quantityG: 120, source: 'custom' },
-      { foodName: 'Oats', quantityG: 80, source: 'usda' },
+      { foodKey: 'eggs', foodName: 'Eggs', quantityG: 120, source: 'custom' },
+      { foodKey: 'oats', foodName: 'Oats', quantityG: 80, source: 'usda' },
     ],
     { planName: 'Lean bulk', dayCount: 7 }
   )
 
   assert.match(text, /Shopping list — Lean bulk/)
-  assert.match(text, /Full 7-day plan cycle/)
+  assert.match(text, /Full 7-day plan/)
   assert.match(text, /- Eggs — 3 eggs \(120 g\)/)
   assert.match(text, /- Oats — ~1 cup dry oats \(80 g\)/)
+})
+
+test('formatShoppingListText includes cycle count when multiplied', () => {
+  const text = formatShoppingListText(
+    [{ foodKey: 'rice', foodName: 'Rice', quantityG: 200, source: 'custom' }],
+    { planName: 'Fat loss', dayCount: 4, cycles: 2 }
+  )
+
+  assert.match(text, /Full 4-day plan × 2 cycles/)
+  assert.match(text, /- Rice — 1 bag \(200 g\)/)
 })

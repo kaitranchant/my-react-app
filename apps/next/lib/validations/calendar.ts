@@ -19,6 +19,7 @@ export const trackingOptionsSchema = z.object({
   forcePrUpdate: z.boolean(),
   trackBarSpeed: z.boolean(),
   trackPeakPower: z.boolean(),
+  trackTime: z.boolean(),
   trackReps: z.boolean(),
   trackVolume: z.boolean(),
   autoProgressLoad: z.boolean(),

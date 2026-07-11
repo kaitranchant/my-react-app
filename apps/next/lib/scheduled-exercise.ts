@@ -13,6 +13,7 @@ export const DEFAULT_TRACKING_OPTIONS: ScheduledExerciseTrackingOptions = {
   forcePrUpdate: false,
   trackBarSpeed: false,
   trackPeakPower: false,
+  trackTime: false,
   trackReps: true,
   trackVolume: true,
   autoProgressLoad: false,
@@ -34,6 +35,7 @@ export function parseTrackingOptions(
     forcePrUpdate: Boolean(raw.forcePrUpdate),
     trackBarSpeed: Boolean(raw.trackBarSpeed),
     trackPeakPower: Boolean(raw.trackPeakPower),
+    trackTime: Boolean(raw.trackTime),
     trackReps: raw.trackReps === undefined ? true : Boolean(raw.trackReps),
     trackVolume: raw.trackVolume === undefined ? true : Boolean(raw.trackVolume),
     autoProgressLoad: Boolean(raw.autoProgressLoad),
@@ -119,6 +121,7 @@ export function formatExercisePrescriptionSummary(
   if (options.coachCompletes) flags.push('coach logs')
   if (options.trackBarSpeed) flags.push('bar speed')
   if (options.trackPeakPower) flags.push('peak power')
+  if (options.trackTime) flags.push('time tracking')
   if (flags.length > 0) parts.push(flags.join(', '))
 
   return parts.join(' · ') || 'No prescription set'
@@ -148,6 +151,7 @@ export function getExerciseOptionBadges(
   if (options.coachCompletes) badges.push('Coach logs')
   if (options.trackBarSpeed) badges.push('Bar speed')
   if (options.trackPeakPower) badges.push('Peak power')
+  if (options.trackTime) badges.push('Time tracking')
   if (options.forcePrUpdate) badges.push('Force PR')
   if (options.disablePrTracking) badges.push('No PR track')
 

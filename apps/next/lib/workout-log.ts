@@ -490,7 +490,7 @@ export function getSuggestedLogValuesForSet(
     const previousDuration = getPreviousDurationSeconds(previous)
     if (previousDuration != null) {
       durationSeconds = String(previousDuration)
-    } else {
+    } else if (!fields.durationOptional) {
       const prescribed = parseDurationPrescription(targetLabel)
       if (prescribed) {
         durationSeconds = prescribed
@@ -726,12 +726,20 @@ export function getLogFieldsForExercise(
 ) {
   const options = parseTrackingOptions(exercise.tracking_options)
   const repMode = getExerciseRepMode(exercise)
+  const showDistance = !options.completionLift && repMode === 'distance'
+  const showHoldDuration = !options.completionLift && repMode === 'time'
+  const showCompletionTime =
+    !options.completionLift && options.trackTime && repMode !== 'time'
 
   return {
     showWeight: !options.completionLift && !options.bodyweight,
     showReps: !options.completionLift && repMode === 'reps',
-    showDuration: !options.completionLift && repMode === 'time',
-    showDistance: !options.completionLift && repMode === 'distance',
+    // Time mode: prescribed hold/work duration.
+    // trackTime: optional completion time (e.g. sprint finish time).
+    showDuration: showHoldDuration || showCompletionTime,
+    showDistance,
+    showHoldTimer: showHoldDuration,
+    durationOptional: showCompletionTime,
     showBarSpeed: options.trackBarSpeed,
     showPeakPower: options.trackPeakPower,
     completionOnly: options.completionLift,
@@ -908,7 +916,7 @@ export function appendSetDraft(
         reps = lastSet.reps
         predicted = true
       }
-    } else if (fields.showWeight && fields.showDuration) {
+    } else if (fields.showWeight && fields.showDuration && !fields.showDistance) {
       if (
         lastSet.weight.trim() !== '' &&
         lastSet.durationSeconds.trim() !== ''
@@ -924,22 +932,28 @@ export function appendSetDraft(
       ) {
         weight = lastSet.weight
         distanceMeters = lastSet.distanceMeters
+        if (lastSet.durationSeconds.trim() !== '') {
+          durationSeconds = lastSet.durationSeconds
+        }
         predicted = true
       }
     } else if (!fields.showWeight && fields.showReps && lastSet.reps.trim() !== '') {
       reps = lastSet.reps
       predicted = true
     } else if (
-      fields.showDuration &&
-      lastSet.durationSeconds.trim() !== ''
-    ) {
-      durationSeconds = lastSet.durationSeconds
-      predicted = true
-    } else if (
       fields.showDistance &&
       lastSet.distanceMeters.trim() !== ''
     ) {
       distanceMeters = lastSet.distanceMeters
+      if (lastSet.durationSeconds.trim() !== '') {
+        durationSeconds = lastSet.durationSeconds
+      }
+      predicted = true
+    } else if (
+      fields.showDuration &&
+      lastSet.durationSeconds.trim() !== ''
+    ) {
+      durationSeconds = lastSet.durationSeconds
       predicted = true
     }
   }
@@ -1018,10 +1032,12 @@ export function formatPreviousPerformance(
 ): string {
   if (distanceMeters != null) {
     const distanceLabel = formatDistanceMeters(distanceMeters)
+    const timeLabel =
+      durationSeconds != null ? ` in ${durationSeconds}s` : ''
     if (weight != null) {
-      return `${weight} × ${distanceLabel}`
+      return `${weight} × ${distanceLabel}${timeLabel}`
     }
-    return distanceLabel
+    return `${distanceLabel}${timeLabel}`
   }
 
   if (durationSeconds != null) {
@@ -1053,7 +1069,7 @@ export function setHasRequiredLogValues(
     return set.weight.trim() !== '' && set.reps.trim() !== ''
   }
 
-  if (fields.showWeight && fields.showDuration) {
+  if (fields.showWeight && fields.showDuration && !fields.showDistance) {
     return set.weight.trim() !== '' && set.durationSeconds.trim() !== ''
   }
 
@@ -1065,7 +1081,7 @@ export function setHasRequiredLogValues(
     return set.reps.trim() !== ''
   }
 
-  if (fields.showDuration) {
+  if (fields.showDuration && !fields.durationOptional) {
     return set.durationSeconds.trim() !== ''
   }
 

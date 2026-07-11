@@ -38,6 +38,8 @@ import {
 } from '@/lib/weekly-session-targets'
 import { cn } from '@/lib/utils'
 
+const WEEK_CACHE_STALE_MS = 60_000
+
 type SchedulingWeekPanelProps = {
   appointments: CoachingAppointment[]
   googleBlockedTimes?: GoogleCalendarBlockedTime[]
@@ -94,6 +96,7 @@ export function SchedulingWeekPanel({
   const pathname = usePathname()
   const weekCacheRef = React.useRef(new Map<string, WeekData>())
   const prefetchingRef = React.useRef(new Set<string>())
+  const lastFetchedAtRef = React.useRef(new Map<string, number>())
 
   const [weekData, setWeekData] = React.useState<WeekData>(() =>
     buildWeekData(
@@ -158,6 +161,7 @@ export function SchedulingWeekPanel({
     )
     setWeekData(next)
     weekCacheRef.current.set(initialWeekKeys[0]!, next)
+    lastFetchedAtRef.current.set(initialWeekKeys[0]!, Date.now())
   }, [
     initialAppointments,
     initialClientDefaults,
@@ -206,6 +210,7 @@ export function SchedulingWeekPanel({
             result.weekOverrides
           )
         )
+        lastFetchedAtRef.current.set(targetWeekStart, Date.now())
       }
     } catch {
       // Prefetch failures are non-blocking.
@@ -215,9 +220,12 @@ export function SchedulingWeekPanel({
   }, [])
 
   const loadWeek = React.useCallback(
-    async (targetWeekStart: string, options?: { pushHistory?: boolean }) => {
+    async (
+      targetWeekStart: string,
+      options?: { pushHistory?: boolean; reconcileGoogle?: boolean }
+    ) => {
       const cached = weekCacheRef.current.get(targetWeekStart)
-      if (cached) {
+      if (cached && !options?.reconcileGoogle) {
         setWeekData(cached)
         syncWeekUrl(targetWeekStart, options?.pushHistory ?? false)
         void prefetchWeek(addDaysToDateKey(targetWeekStart, -7))
@@ -227,7 +235,9 @@ export function SchedulingWeekPanel({
 
       setIsLoading(true)
       try {
-        const result = await fetchSchedulingWeekData(targetWeekStart)
+        const result = await fetchSchedulingWeekData(targetWeekStart, {
+          reconcileGoogle: options?.reconcileGoogle,
+        })
         if (!result.success) {
           toast.error(result.error)
           return
@@ -242,6 +252,7 @@ export function SchedulingWeekPanel({
           result.weekOverrides
         )
         weekCacheRef.current.set(targetWeekStart, next)
+        lastFetchedAtRef.current.set(targetWeekStart, Date.now())
         setWeekData(next)
         syncWeekUrl(targetWeekStart, options?.pushHistory ?? false)
         void prefetchWeek(addDaysToDateKey(targetWeekStart, -7))
@@ -264,7 +275,7 @@ export function SchedulingWeekPanel({
 
   const refreshWeek = React.useCallback(() => {
     weekCacheRef.current.delete(weekStartKey)
-    void loadWeek(weekStartKey)
+    void loadWeek(weekStartKey, { reconcileGoogle: true })
   }, [loadWeek, weekStartKey])
 
   React.useEffect(() => {
@@ -290,13 +301,21 @@ export function SchedulingWeekPanel({
   React.useEffect(() => {
     function onAppointmentsChanged() {
       weekCacheRef.current.clear()
+      lastFetchedAtRef.current.clear()
       refreshWeek()
     }
 
     function onVisibilityChange() {
       if (document.visibilityState !== 'visible') return
+      const lastFetchedAt = lastFetchedAtRef.current.get(weekStartKey) ?? 0
+      if (
+        weekCacheRef.current.has(weekStartKey) &&
+        Date.now() - lastFetchedAt < WEEK_CACHE_STALE_MS
+      ) {
+        return
+      }
       weekCacheRef.current.delete(weekStartKey)
-      void loadWeek(weekStartKey)
+      void loadWeek(weekStartKey, { reconcileGoogle: true })
     }
 
     window.addEventListener('scheduling:appointments-changed', onAppointmentsChanged)
@@ -309,11 +328,6 @@ export function SchedulingWeekPanel({
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [loadWeek, refreshWeek, weekStartKey])
-
-  React.useEffect(() => {
-    weekCacheRef.current.delete(weekStartKey)
-    void loadWeek(weekStartKey)
-  }, [loadWeek, weekStartKey])
 
   function openManage(appointment: CoachingAppointment) {
     setSelectedAppointment(appointment)

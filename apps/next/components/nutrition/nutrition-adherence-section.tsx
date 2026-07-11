@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 
-import { MacroAdherenceBadges } from '@/components/nutrition/macro-adherence-badges'
 import { NutritionTrendsChart } from '@/components/nutrition/nutrition-trends-chart'
 import {
   Card,
@@ -20,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatAdherenceScore } from '@/lib/nutrition'
 import {
   buildMacroAdherenceItems,
   sumFoodDiaryMacros,
@@ -99,11 +97,6 @@ export function NutritionAdherenceSection({
     trendPoints.some((point) => point.dateKey === log.log_date)
   )
   const averageScore = averageAdherenceScore(periodLogs)
-  const historyPoints = [...trendPoints].reverse()
-  const logsByDate = React.useMemo(
-    () => new Map(logs.map((log) => [log.log_date, log])),
-    [logs]
-  )
 
   const subject = clientName ? `${clientName}'s` : 'Your'
 
@@ -142,7 +135,7 @@ export function NutritionAdherenceSection({
         </Select>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-6">
+      <CardContent>
         {trendPoints.length > 0 ? (
           <NutritionTrendsChart points={trendPoints} />
         ) : (
@@ -153,54 +146,6 @@ export function NutritionAdherenceSection({
             className="py-6"
           />
         )}
-
-        {historyPoints.length > 0 ? (
-          <div className="border-border border-t pt-4">
-            <p className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wide">
-              Daily log history
-            </p>
-            <ul className="divide-border divide-y">
-              {historyPoints.map((point) => {
-                const log = logsByDate.get(point.dateKey)
-
-                return (
-                  <li
-                    key={point.dateKey}
-                    className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
-                  >
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="font-medium">
-                          {new Date(`${point.dateKey}T12:00:00`).toLocaleDateString(
-                            undefined,
-                            {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                            }
-                          )}
-                        </p>
-                        {log?.client_notes ? (
-                          <p className="text-muted-foreground text-sm">
-                            {log.client_notes}
-                          </p>
-                        ) : null}
-                      </div>
-                      <p className="text-sm font-medium">
-                        {log
-                          ? formatAdherenceScore(log.adherence_score)
-                          : 'Food logged — no score'}
-                      </p>
-                    </div>
-                    {point.macroItems.length > 0 ? (
-                      <MacroAdherenceBadges items={point.macroItems} />
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   )

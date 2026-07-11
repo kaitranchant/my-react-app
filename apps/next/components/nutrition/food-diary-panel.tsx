@@ -412,7 +412,6 @@ export function FoodDiaryPanel({
               <MealPlanMealPicker
                 assignment={assignment}
                 days={planDays}
-                logDate={logDate}
                 disabled={pending}
                 onAddMeal={handleMealPlanAdd}
               />

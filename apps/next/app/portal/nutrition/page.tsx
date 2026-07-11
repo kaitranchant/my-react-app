@@ -31,6 +31,7 @@ export default async function PortalNutritionPage() {
   let assignment: MealPlanAssignmentWithPlan | null = null
   let planDays: MealPlanDayWithMeals[] = []
   let foodDiaryEntries: ClientFoodDiaryEntry[] = []
+  let checkedFoodKeys: string[] = []
   let nutritionSchemaError: string | null = null
   let needsFoodLibrarySql = false
 
@@ -95,6 +96,16 @@ export default async function PortalNutritionPage() {
 
     if (assignment) {
       planDays = await fetchMealPlanDaysWithMeals(supabase, assignment.meal_plan_id)
+
+      const checksResult = await supabase
+        .from('client_shopping_list_checks')
+        .select('food_key')
+        .eq('client_id', clientRecord.id)
+        .eq('meal_plan_assignment_id', assignment.id)
+
+      if (!checksResult.error) {
+        checkedFoodKeys = (checksResult.data ?? []).map((row) => row.food_key)
+      }
     }
   }
 
@@ -103,8 +114,8 @@ export default async function PortalNutritionPage() {
       <section className="space-y-1">
         <h1 className="page-title">Nutrition</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Log daily adherence and review your meal plan, targets, and coach
-          preferences.
+          Log daily adherence and review your meal plan, shopping list, targets,
+          and coach preferences.
         </p>
       </section>
 
@@ -134,6 +145,7 @@ export default async function PortalNutritionPage() {
           assignment={assignment}
           planDays={planDays}
           foodDiaryEntries={foodDiaryEntries}
+          checkedFoodKeys={checkedFoodKeys}
         />
       )}
     </div>

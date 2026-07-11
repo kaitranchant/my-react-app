@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const ACTION_WIDTH = 72
 const SWIPE_START_THRESHOLD = 10
 const DELETE_SWIPE_RATIO = 0.35
+const EXIT_DURATION_MS = 300
 
 type WorkoutLogSwipeableSetRowProps = {
   enabled: boolean
@@ -33,6 +34,7 @@ export function WorkoutLogSwipeableSetRow({
   const [dragOffset, setDragOffset] = React.useState(0)
   const [dragging, setDragging] = React.useState(false)
   const [exiting, setExiting] = React.useState(false)
+  const exitTimeoutRef = React.useRef<number | null>(null)
   const dragRef = React.useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -54,6 +56,14 @@ export function WorkoutLogSwipeableSetRow({
     observer.observe(node)
     return () => observer.disconnect()
   }, [enabled])
+
+  React.useEffect(() => {
+    return () => {
+      if (exitTimeoutRef.current != null) {
+        window.clearTimeout(exitTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const maxOffset = containerWidth || ACTION_WIDTH
   const offset = dragging ? dragOffset : open ? ACTION_WIDTH : 0
@@ -87,7 +97,14 @@ export function WorkoutLogSwipeableSetRow({
       setDragging(false)
       setDragOffset(swipeOffset)
       setExiting(true)
-      onDelete()
+
+      if (exitTimeoutRef.current != null) {
+        window.clearTimeout(exitTimeoutRef.current)
+      }
+      exitTimeoutRef.current = window.setTimeout(() => {
+        exitTimeoutRef.current = null
+        onDelete()
+      }, EXIT_DURATION_MS)
     },
     [exiting, onDelete, onOpenChange]
   )

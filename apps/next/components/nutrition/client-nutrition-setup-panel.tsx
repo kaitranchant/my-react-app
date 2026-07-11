@@ -3,7 +3,6 @@
 import * as React from 'react'
 
 import { ClientMealPlanAssignmentCard } from '@/components/nutrition/assign-meal-plan-dialog'
-import { ShoppingListCard } from '@/components/nutrition/shopping-list-card'
 import { NutritionDietaryCard } from '@/components/nutrition/nutrition-dietary-card'
 import { NutritionGoalContextBanner } from '@/components/nutrition/nutrition-goal-context-banner'
 import { NutritionSetupFormRequestCard } from '@/components/nutrition/nutrition-setup-form-request-card'
@@ -90,13 +89,6 @@ export function ClientNutritionSetupPanel({
         clientMealPlans={clientMealPlans}
         planDays={planDays}
         profile={profile}
-      />
-
-      <ShoppingListCard
-        assignment={assignment}
-        days={planDays}
-        planName={assignment?.meal_plan?.name}
-        audience="coach"
       />
 
       <NutritionDietaryCard clientId={client.id} profile={profile} />

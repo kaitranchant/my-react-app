@@ -3,8 +3,13 @@
 import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
+import {
+  toggleClientShoppingListCheck,
+  updateClientShoppingListCycles,
+} from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { ClientNutritionSetupPanel } from '@/components/nutrition/client-nutrition-setup-panel'
 import { ClientNutritionTrackingPanel } from '@/components/nutrition/client-nutrition-tracking-panel'
+import { ShoppingListCard } from '@/components/nutrition/shopping-list-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type {
   BiologicalSex,
@@ -19,7 +24,7 @@ import type {
   MealPlanDayWithMeals,
 } from 'app/types/database'
 
-const NUTRITION_SECTIONS = ['tracking', 'setup'] as const
+const NUTRITION_SECTIONS = ['tracking', 'setup', 'shopping'] as const
 export type NutritionSection = (typeof NUTRITION_SECTIONS)[number]
 
 export function resolveNutritionSection(section: string | null): NutritionSection {
@@ -54,6 +59,7 @@ type ClientDetailNutritionSectionProps = {
   clientMealPlans: Pick<MealPlan, 'id' | 'name' | 'status' | 'updated_at'>[]
   planDays: MealPlanDayWithMeals[]
   foodDiaryEntries: ClientFoodDiaryEntry[]
+  checkedFoodKeys: string[]
   goals: ClientGoal[]
   latestScan: ClientInbodyScan | null
   biologicalSex: BiologicalSex | null
@@ -68,6 +74,7 @@ export function ClientDetailNutritionSection({
   clientMealPlans,
   planDays,
   foodDiaryEntries,
+  checkedFoodKeys,
   goals,
   latestScan,
   biologicalSex,
@@ -106,6 +113,9 @@ export function ClientDetailNutritionSection({
           <TabsTrigger value="setup" size="sm">
             Setup
           </TabsTrigger>
+          <TabsTrigger value="shopping" size="sm">
+            Shopping
+          </TabsTrigger>
         </TabsList>
       </div>
 
@@ -131,6 +141,40 @@ export function ClientDetailNutritionSection({
           goals={goals}
           latestScan={latestScan}
           biologicalSex={biologicalSex}
+        />
+      </TabsContent>
+
+      <TabsContent value="shopping" className="mt-4">
+        <ShoppingListCard
+          assignment={assignment}
+          days={planDays}
+          planName={assignment?.meal_plan?.name}
+          audience="coach"
+          checkedFoodKeys={checkedFoodKeys}
+          onToggleChecked={
+            assignment
+              ? async (foodKey, checked) => {
+                  const result = await toggleClientShoppingListCheck(client.id, {
+                    assignmentId: assignment.id,
+                    foodKey,
+                    checked,
+                  })
+                  if (result.success) {
+                    router.refresh()
+                  }
+                  return result
+                }
+              : undefined
+          }
+          onCyclesChange={
+            assignment
+              ? async (cycles) =>
+                  updateClientShoppingListCycles(client.id, {
+                    assignmentId: assignment.id,
+                    cycles,
+                  })
+              : undefined
+          }
         />
       </TabsContent>
     </Tabs>
