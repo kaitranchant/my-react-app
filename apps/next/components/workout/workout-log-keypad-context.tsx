@@ -24,9 +24,6 @@ import {
 } from '@/lib/workout-log-keypad'
 import type { WeightUnit } from 'app/types/database'
 
-/** Matches KeypadReserve height transition so we can re-scroll after layout settles. */
-const KEYPAD_RESERVE_SETTLE_MS = 320
-
 export type KeypadExerciseContext = {
   sets: WorkoutLogSetDraft[]
   fields: WorkoutLogFieldFlags
@@ -175,26 +172,24 @@ export function WorkoutLogKeypadProvider({
 
   const activeTargetRef = React.useRef(activeTarget)
   activeTargetRef.current = activeTarget
+  const previousReserveHeightRef = React.useRef(0)
 
-  // Slide once when the keypad height appears (first open). Field-to-field
-  // moves are handled by openField / goNext so we don't restart the animation.
+  // Slide once when the keypad first opens. Field-to-field moves are handled by
+  // openField / goNext so we don't restart the animation.
   React.useEffect(() => {
+    const previousHeight = previousReserveHeightRef.current
+    previousReserveHeightRef.current = keypadReserveHeight
+
     const target = activeTargetRef.current
-    if (!enabled || !target || keypadReserveHeight <= 0) return
+    const justOpened = previousHeight <= 0 && keypadReserveHeight > 0
+    if (!enabled || !target || !justOpened) return
 
     const frame = requestAnimationFrame(() => {
       scrollToField(target, 'smooth')
     })
-    // After the reserve finishes animating, nudge if still covered — keep this
-    // instant so it doesn't restart a second smooth slide.
-    const timer = window.setTimeout(() => {
-      const latest = activeTargetRef.current
-      if (latest) scrollToField(latest, 'auto')
-    }, KEYPAD_RESERVE_SETTLE_MS)
 
     return () => {
       cancelAnimationFrame(frame)
-      window.clearTimeout(timer)
     }
   }, [enabled, keypadReserveHeight, scrollToField])
 

@@ -145,7 +145,7 @@ export function KeypadReserve({
   return (
     <div
       aria-hidden
-      className="shrink-0 transition-[height] duration-300 ease-out"
+      className="shrink-0"
       style={{ height: reserveHeight }}
     />
   )
