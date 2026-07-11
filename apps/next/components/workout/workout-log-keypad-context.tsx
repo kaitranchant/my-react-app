@@ -24,6 +24,9 @@ import {
 } from '@/lib/workout-log-keypad'
 import type { WeightUnit } from 'app/types/database'
 
+/** Matches KeypadReserve height transition so we can re-scroll after layout settles. */
+const KEYPAD_RESERVE_SETTLE_MS = 320
+
 export type KeypadExerciseContext = {
   sets: WorkoutLogSetDraft[]
   fields: WorkoutLogFieldFlags
@@ -117,14 +120,24 @@ export function WorkoutLogKeypadProvider({
       if (!cellElement) return
       const scrollParent = scrollContainerRef.current
       if (!scrollParent) {
-        cellElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        cellElement.scrollIntoView({ block: 'center', behavior: 'smooth' })
         return
       }
 
+      const padding = 24
       const parentRect = scrollParent.getBoundingClientRect()
       const rect = cellElement.getBoundingClientRect()
-      const padding = 16
-      const overflowBottom = rect.bottom - (parentRect.bottom - padding)
+      const visualViewport = window.visualViewport
+      const viewportBottom = visualViewport
+        ? visualViewport.offsetTop + visualViewport.height
+        : window.innerHeight
+      // Use the known keypad height even while KeypadReserve is still animating,
+      // so the active cell ends above the overlay rather than under it.
+      const effectiveBottom =
+        Math.min(parentRect.bottom, viewportBottom - keypadReserveHeight) -
+        padding
+
+      const overflowBottom = rect.bottom - effectiveBottom
       const overflowTop = parentRect.top + padding - rect.top
 
       if (overflowBottom > 0) {
@@ -133,7 +146,7 @@ export function WorkoutLogKeypadProvider({
         scrollParent.scrollTop -= overflowTop
       }
     },
-    [scrollContainerRef]
+    [keypadReserveHeight, scrollContainerRef]
   )
 
   const scrollToField = React.useCallback(
@@ -148,6 +161,22 @@ export function WorkoutLogKeypadProvider({
     },
     [scrollCellIntoView, scrollContainerRef]
   )
+
+  React.useEffect(() => {
+    if (!enabled || !activeTarget || keypadReserveHeight <= 0) return
+
+    const frame = requestAnimationFrame(() => {
+      scrollToField(activeTarget)
+    })
+    const timer = window.setTimeout(() => {
+      scrollToField(activeTarget)
+    }, KEYPAD_RESERVE_SETTLE_MS)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [activeTarget, enabled, keypadReserveHeight, scrollToField])
 
   const openField = React.useCallback(
     (target: ActiveKeypadTarget, cellElement?: HTMLElement | null) => {
