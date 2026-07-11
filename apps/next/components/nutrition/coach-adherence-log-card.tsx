@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { submitClientNutritionLog } from '@/app/(dashboard)/clients/[clientId]/nutrition/actions'
 import { NutritionAdherenceSelector } from '@/components/nutrition/nutrition-adherence-selector'
+import { NutritionLogDateNav } from '@/components/nutrition/nutrition-log-date-nav'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -30,6 +31,7 @@ type CoachAdherenceLogCardProps = {
   clientName: string
   todayLog: ClientNutritionLog | null
   logDate?: string
+  onLogDateChange?: (logDate: string) => void
   onValuesChange?: (values: NutritionLogFormValues) => void
 }
 
@@ -38,6 +40,7 @@ export function CoachAdherenceLogCard({
   clientName,
   todayLog,
   logDate,
+  onLogDateChange,
   onValuesChange,
 }: CoachAdherenceLogCardProps) {
   const router = useRouter()
@@ -70,7 +73,10 @@ export function CoachAdherenceLogCard({
     event.preventDefault()
     setPending(true)
 
-    const result = await submitClientNutritionLog(clientId, values)
+    const result = await submitClientNutritionLog(clientId, {
+      ...values,
+      logDate: targetDate,
+    })
     setPending(false)
 
     if (!result.success) {
@@ -91,13 +97,23 @@ export function CoachAdherenceLogCard({
       })
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Log adherence for {clientName}</CardTitle>
-        <CardDescription>
-          Record {clientName}&apos;s adherence score, fiber, and water for{' '}
-          {dateLabel} on their behalf.
-        </CardDescription>
+    <Card className="[overflow-anchor:none]">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <CardTitle>Log adherence for {clientName}</CardTitle>
+          <CardDescription>
+            Record {clientName}&apos;s adherence score, fiber, and water for{' '}
+            {dateLabel} on their behalf.
+          </CardDescription>
+        </div>
+        {onLogDateChange ? (
+          <NutritionLogDateNav
+            value={targetDate}
+            onChange={onLogDateChange}
+            disabled={pending}
+            className="shrink-0 self-start"
+          />
+        ) : null}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-4">

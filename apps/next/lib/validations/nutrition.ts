@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { toDateKey } from '@/lib/calendar'
 import {
   NUTRITION_SETUP_ACTIVITY_LEVELS,
   NUTRITION_SETUP_BIOLOGICAL_SEX_OPTIONS,
@@ -127,7 +128,14 @@ export const nutritionSetupFormSchema = z.object({
 })
 
 export const nutritionLogFormSchema = z.object({
-  logDate: z.string().trim().min(1, 'Date is required'),
+  logDate: z
+    .string()
+    .trim()
+    .min(1, 'Date is required')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date is invalid')
+    .refine((value) => value <= toDateKey(new Date()), {
+      message: 'Date cannot be in the future',
+    }),
   adherenceScore: z.coerce
     .number()
     .int()

@@ -173,6 +173,21 @@ export function WorkoutLogKeypadProvider({
   const activeTargetRef = React.useRef(activeTarget)
   activeTargetRef.current = activeTarget
   const previousReserveHeightRef = React.useRef(0)
+  const scrollTopBeforeKeypadRef = React.useRef<number | null>(null)
+
+  const captureScrollBeforeKeypad = React.useCallback(() => {
+    const scrollParent = scrollContainerRef.current
+    if (!scrollParent || scrollTopBeforeKeypadRef.current != null) return
+    scrollTopBeforeKeypadRef.current = scrollParent.scrollTop
+  }, [scrollContainerRef])
+
+  const restoreScrollAfterKeypad = React.useCallback(() => {
+    const scrollParent = scrollContainerRef.current
+    const restoreTop = scrollTopBeforeKeypadRef.current
+    if (!scrollParent || restoreTop == null) return
+    scrollTopBeforeKeypadRef.current = null
+    scrollParent.scrollTo({ top: restoreTop, behavior: 'smooth' })
+  }, [scrollContainerRef])
 
   // Slide once when the keypad first opens. Field-to-field moves are handled by
   // openField / goNext so we don't restart the animation.
@@ -184,6 +199,7 @@ export function WorkoutLogKeypadProvider({
     const justOpened = previousHeight <= 0 && keypadReserveHeight > 0
     if (!enabled || !target || !justOpened) return
 
+    captureScrollBeforeKeypad()
     const frame = requestAnimationFrame(() => {
       scrollToField(target, 'smooth')
     })
@@ -191,7 +207,12 @@ export function WorkoutLogKeypadProvider({
     return () => {
       cancelAnimationFrame(frame)
     }
-  }, [enabled, keypadReserveHeight, scrollToField])
+  }, [
+    captureScrollBeforeKeypad,
+    enabled,
+    keypadReserveHeight,
+    scrollToField,
+  ])
 
   const openField = React.useCallback(
     (target: ActiveKeypadTarget, cellElement?: HTMLElement | null) => {
@@ -199,6 +220,7 @@ export function WorkoutLogKeypadProvider({
       const context = getContext(target.exerciseId)
       const set = context?.sets.find((row) => row.setNumber === target.setNumber)
       syncReplacePredictedForTarget(target)
+      captureScrollBeforeKeypad()
       setEditingValue(set?.[target.field] ?? '')
       setActiveTarget(target)
       setPlateSheetOpen(false)
@@ -213,6 +235,7 @@ export function WorkoutLogKeypadProvider({
       }
     },
     [
+      captureScrollBeforeKeypad,
       enabled,
       getContext,
       keypadReserveHeight,
@@ -224,9 +247,10 @@ export function WorkoutLogKeypadProvider({
 
   const closeKeypad = React.useCallback(() => {
     replacePredictedRef.current = false
+    restoreScrollAfterKeypad()
     setActiveTarget(null)
     setPlateSheetOpen(false)
-  }, [])
+  }, [restoreScrollAfterKeypad])
 
   const openPlateSheet = React.useCallback(() => {
     if (!enabled || !activeTarget) return

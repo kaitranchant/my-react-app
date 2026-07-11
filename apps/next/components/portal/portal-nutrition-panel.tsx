@@ -17,6 +17,7 @@ import { MacroTargetsCard } from '@/components/nutrition/macro-targets-card'
 import { NutritionAdherenceSelector } from '@/components/nutrition/nutrition-adherence-selector'
 import { NutritionAdherenceSection } from '@/components/nutrition/nutrition-adherence-section'
 import { NutritionDietarySummary } from '@/components/nutrition/nutrition-dietary-card'
+import { NutritionLogDateNav } from '@/components/nutrition/nutrition-log-date-nav'
 import { ShoppingListCard } from '@/components/nutrition/shopping-list-card'
 import { TodaysMealsCard } from '@/components/nutrition/todays-meals-card'
 import { FoodDiaryPanel } from '@/components/nutrition/food-diary-panel'
@@ -105,19 +106,24 @@ export function PortalNutritionPanel({
       resolvePortalNutritionSection(urlSection)
     )
   const todayKey = toDateKey(new Date())
-  const [viewedDate, setViewedDate] = React.useState(todayKey)
+  const [adherenceDate, setAdherenceDate] = React.useState(todayKey)
+  const [foodDiaryDate, setFoodDiaryDate] = React.useState(todayKey)
   const [pending, setPending] = React.useState(false)
 
-  const viewedLog =
-    viewedDate === todayKey
+  const adherenceLog =
+    adherenceDate === todayKey
       ? todayLog
-      : (recentLogs.find((log) => log.log_date === viewedDate) ?? null)
+      : (recentLogs.find((log) => log.log_date === adherenceDate) ?? null)
+  const foodDiaryLog =
+    foodDiaryDate === todayKey
+      ? todayLog
+      : (recentLogs.find((log) => log.log_date === foodDiaryDate) ?? null)
 
-  const isViewingToday = viewedDate === todayKey
+  const isViewingToday = adherenceDate === todayKey
   const [values, setValues] = React.useState(
-    viewedLog
-      ? nutritionLogToFormValues(viewedLog)
-      : createEmptyNutritionLogValues(viewedDate)
+    adherenceLog
+      ? nutritionLogToFormValues(adherenceLog)
+      : createEmptyNutritionLogValues(adherenceDate)
   )
 
   React.useEffect(() => {
@@ -126,11 +132,11 @@ export function PortalNutritionPanel({
 
   React.useEffect(() => {
     setValues(
-      viewedLog
-        ? nutritionLogToFormValues(viewedLog)
-        : createEmptyNutritionLogValues(viewedDate)
+      adherenceLog
+        ? nutritionLogToFormValues(adherenceLog)
+        : createEmptyNutritionLogValues(adherenceDate)
     )
-  }, [viewedLog, viewedDate])
+  }, [adherenceLog, adherenceDate])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -138,7 +144,7 @@ export function PortalNutritionPanel({
 
     const result = await submitNutritionLog({
       ...values,
-      logDate: viewedDate,
+      logDate: adherenceDate,
     })
     setPending(false)
 
@@ -153,7 +159,7 @@ export function PortalNutritionPanel({
 
   const adherenceDateLabel = isViewingToday
     ? 'today'
-    : new Date(`${viewedDate}T12:00:00`).toLocaleDateString(undefined, {
+    : new Date(`${adherenceDate}T12:00:00`).toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -192,17 +198,25 @@ export function PortalNutritionPanel({
 
       <TabsContent value="adherence" className="mt-4 grid gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>
-              {isViewingToday
-                ? "Today's adherence"
-                : `Adherence for ${adherenceDateLabel}`}
-            </CardTitle>
-            <CardDescription>
-              {isViewingToday
-                ? 'How closely did you follow your nutrition plan today?'
-                : `How closely did you follow your nutrition plan on ${adherenceDateLabel}?`}
-            </CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle>
+                {isViewingToday
+                  ? "Today's adherence"
+                  : `Adherence for ${adherenceDateLabel}`}
+              </CardTitle>
+              <CardDescription>
+                {isViewingToday
+                  ? 'How closely did you follow your nutrition plan today?'
+                  : `How closely did you follow your nutrition plan on ${adherenceDateLabel}?`}
+              </CardDescription>
+            </div>
+            <NutritionLogDateNav
+              value={adherenceDate}
+              onChange={setAdherenceDate}
+              disabled={pending}
+              className="shrink-0 self-start"
+            />
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-4">
@@ -285,7 +299,7 @@ export function PortalNutritionPanel({
                 <Button type="submit" disabled={pending}>
                   {pending
                     ? 'Saving…'
-                    : viewedLog
+                    : adherenceLog
                       ? 'Update log'
                       : isViewingToday
                         ? 'Log today'
@@ -298,14 +312,23 @@ export function PortalNutritionPanel({
 
         <FoodDiaryPanel
           entries={foodDiaryEntries}
+          logDate={foodDiaryDate}
           enableDateNavigation
           profile={profile}
-          nutritionLog={viewedLog}
-          waterMl={values.waterMl}
-          fiberG={values.fiberG}
+          nutritionLog={foodDiaryLog}
+          waterMl={
+            adherenceDate === foodDiaryDate
+              ? values.waterMl
+              : (foodDiaryLog?.water_ml ?? null)
+          }
+          fiberG={
+            adherenceDate === foodDiaryDate
+              ? values.fiberG
+              : (foodDiaryLog?.fiber_g ?? null)
+          }
           assignment={assignment}
           planDays={planDays}
-          onLogDateChange={setViewedDate}
+          onLogDateChange={setFoodDiaryDate}
           onAdd={async (entryValues) => {
             const result = await addFoodDiaryEntry(entryValues)
             if (result.success) {

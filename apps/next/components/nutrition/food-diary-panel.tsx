@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -24,9 +24,10 @@ import {
 import { FoodSearchPicker } from '@/components/nutrition/food-search-picker'
 import { ManualFoodEntryForm } from '@/components/nutrition/manual-food-entry-form'
 import { MealPlanMealPicker } from '@/components/nutrition/meal-plan-meal-picker'
+import { NutritionLogDateNav } from '@/components/nutrition/nutrition-log-date-nav'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { addDaysToDateKey, formatDayHeader, toDateKey } from '@/lib/calendar'
+import { formatDayHeader, toDateKey } from '@/lib/calendar'
 import { MacroAdherenceBadges } from '@/components/nutrition/macro-adherence-badges'
 import {
   buildMacroAdherenceItems,
@@ -101,7 +102,7 @@ export function FoodDiaryPanel({
   onLogDateChange,
 }: FoodDiaryPanelProps) {
   const todayKey = toDateKey(new Date())
-  const [selectedDate, setSelectedDate] = React.useState(initialLogDate)
+  const [uncontrolledDate, setUncontrolledDate] = React.useState(initialLogDate)
   const [showForm, setShowForm] = React.useState(false)
   const [formMode, setFormMode] = React.useState<FoodDiaryFormMode>('search')
   const [pending, setPending] = React.useState(false)
@@ -110,8 +111,20 @@ export function FoodDiaryPanel({
     createEmptyEntry(initialLogDate)
   )
   const pendingDeleteEntryId = React.useRef<string | null>(null)
-  const dateInputRef = React.useRef<HTMLInputElement>(null)
-  const logDate = enableDateNavigation ? selectedDate : initialLogDate
+  const isDateControlled = enableDateNavigation && Boolean(onLogDateChange)
+  const logDate = enableDateNavigation
+    ? isDateControlled
+      ? initialLogDate
+      : uncontrolledDate
+    : initialLogDate
+
+  function handleLogDateChange(nextDate: string) {
+    if (isDateControlled) {
+      onLogDateChange?.(nextDate)
+      return
+    }
+    setUncontrolledDate(nextDate)
+  }
 
   const deleteConfirm = useConfirmDialog({
     title: 'Remove food entry?',
@@ -137,18 +150,10 @@ export function FoodDiaryPanel({
   })
 
   React.useEffect(() => {
-    if (!enableDateNavigation) {
-      setSelectedDate(initialLogDate)
+    if (!isDateControlled) {
+      setUncontrolledDate(initialLogDate)
     }
-  }, [enableDateNavigation, initialLogDate])
-
-  const onLogDateChangeRef = React.useRef(onLogDateChange)
-  onLogDateChangeRef.current = onLogDateChange
-
-  React.useEffect(() => {
-    onLogDateChangeRef.current?.(logDate)
-  }, [logDate])
-
+  }, [initialLogDate, isDateControlled])
   React.useEffect(() => {
     setFormValues(createEmptyEntry(logDate))
     setFormMode('search')
@@ -256,7 +261,7 @@ export function FoodDiaryPanel({
   }
 
   return (
-    <Card>
+    <Card className="[overflow-anchor:none]">
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1">
           <CardTitle>Food diary</CardTitle>
@@ -272,57 +277,10 @@ export function FoodDiaryPanel({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {enableDateNavigation ? (
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-8"
-                onClick={() => setSelectedDate((current) => addDaysToDateKey(current, -1))}
-                aria-label="Previous day"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-w-[4.5rem] px-3"
-                onClick={() => dateInputRef.current?.showPicker?.()}
-                aria-label={
-                  logDate === todayKey
-                    ? 'Select date, currently Today'
-                    : `Select date, currently ${formatDayHeader(logDate)}`
-                }
-              >
-                {logDate === todayKey ? 'Today' : formatDayHeader(logDate)}
-              </Button>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={logDate}
-                max={todayKey}
-                onChange={(event) => {
-                  if (event.target.value) {
-                    setSelectedDate(event.target.value)
-                  }
-                }}
-                className="sr-only"
-                tabIndex={-1}
-                aria-label="Food diary date"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-8"
-                disabled={logDate >= todayKey}
-                onClick={() => setSelectedDate((current) => addDaysToDateKey(current, 1))}
-                aria-label="Next day"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
+            <NutritionLogDateNav
+              value={logDate}
+              onChange={handleLogDateChange}
+            />
           ) : null}
           {onAdd ? (
             <Button

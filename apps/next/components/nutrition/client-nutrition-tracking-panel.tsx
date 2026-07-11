@@ -44,17 +44,20 @@ export function ClientNutritionTrackingPanel({
 }: ClientNutritionTrackingPanelProps) {
   const router = useRouter()
   const todayKey = toDateKey(new Date())
-  const [viewedDate, setViewedDate] = React.useState(todayKey)
+  const [foodDiaryDate, setFoodDiaryDate] = React.useState(todayKey)
+  const [adherenceDate, setAdherenceDate] = React.useState(todayKey)
   const [adherenceDraft, setAdherenceDraft] = React.useState<{
     waterMl: number | null
     fiberG: number | null
   } | null>(null)
-  const viewedLog =
-    logs.find((log) => log.log_date === viewedDate) ?? null
+  const foodDiaryLog =
+    logs.find((log) => log.log_date === foodDiaryDate) ?? null
+  const adherenceLog =
+    logs.find((log) => log.log_date === adherenceDate) ?? null
 
   React.useEffect(() => {
     setAdherenceDraft(null)
-  }, [viewedDate])
+  }, [adherenceDate])
 
   const handleAdherenceValuesChange = React.useCallback(
     (values: { waterMl: number | null; fiberG: number | null }) => {
@@ -75,6 +78,15 @@ export function ClientNutritionTrackingPanel({
     []
   )
 
+  const foodDiaryWaterMl =
+    adherenceDate === foodDiaryDate
+      ? (adherenceDraft?.waterMl ?? foodDiaryLog?.water_ml ?? null)
+      : (foodDiaryLog?.water_ml ?? null)
+  const foodDiaryFiberG =
+    adherenceDate === foodDiaryDate
+      ? (adherenceDraft?.fiberG ?? foodDiaryLog?.fiber_g ?? null)
+      : (foodDiaryLog?.fiber_g ?? null)
+
   return (
     <div className="grid gap-6">
       <TodaysMealsCard
@@ -87,15 +99,16 @@ export function ClientNutritionTrackingPanel({
 
       <FoodDiaryPanel
         entries={foodDiaryEntries}
+        logDate={foodDiaryDate}
         readOnly
         enableDateNavigation
         profile={profile}
-        nutritionLog={viewedLog}
-        waterMl={adherenceDraft?.waterMl ?? viewedLog?.water_ml ?? null}
-        fiberG={adherenceDraft?.fiberG ?? viewedLog?.fiber_g ?? null}
+        nutritionLog={foodDiaryLog}
+        waterMl={foodDiaryWaterMl}
+        fiberG={foodDiaryFiberG}
         assignment={assignment}
         planDays={planDays}
-        onLogDateChange={setViewedDate}
+        onLogDateChange={setFoodDiaryDate}
         onAdd={async (entryValues) => {
           const result = await addClientFoodDiaryEntry(client.id, entryValues)
           if (result.success) {
@@ -128,8 +141,9 @@ export function ClientNutritionTrackingPanel({
       <CoachAdherenceLogCard
         clientId={client.id}
         clientName={client.full_name}
-        todayLog={viewedLog}
-        logDate={viewedDate}
+        todayLog={adherenceLog}
+        logDate={adherenceDate}
+        onLogDateChange={setAdherenceDate}
         onValuesChange={handleAdherenceValuesChange}
       />
 

@@ -138,6 +138,13 @@ export function KeypadReserve({
   enabled: boolean
   reserveHeight: number
 }) {
+  const previousHeightRef = React.useRef(reserveHeight)
+  const isCollapsing = reserveHeight < previousHeightRef.current
+
+  React.useEffect(() => {
+    previousHeightRef.current = reserveHeight
+  }, [reserveHeight])
+
   if (!enabled) {
     return null
   }
@@ -146,7 +153,13 @@ export function KeypadReserve({
     <div
       aria-hidden
       className="shrink-0"
-      style={{ height: reserveHeight }}
+      style={{
+        height: reserveHeight,
+        // Expand instantly on open; ease closed so the page doesn't snap back.
+        transition: isCollapsing
+          ? `height ${KEYPAD_EXIT_MS}ms ease-out`
+          : undefined,
+      }}
     />
   )
 }
@@ -211,10 +224,11 @@ export function KeypadSurfaceOverlay({
     if (!renderContent) return
 
     setMotionState('closing')
+    // Collapse the spacer with the exit animation instead of snapping after it.
+    onReserveHeightChange(0)
     const timer = window.setTimeout(() => {
       setRenderContent(false)
       setMotionState('closed')
-      onReserveHeightChange(0)
     }, KEYPAD_EXIT_MS)
 
     return () => window.clearTimeout(timer)

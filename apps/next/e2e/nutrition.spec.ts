@@ -221,17 +221,25 @@ test.describe('Nutrition', () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
-  test('portal adherence form syncs with food diary date', async ({ page }) => {
+  test('portal can log adherence for a past day without changing food diary date', async ({
+    page,
+  }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
     test.setTimeout(60_000)
 
     await loginAsClient(page)
 
     await page.goto('/portal/nutrition')
-    await page.getByRole('button', { name: 'Previous day' }).click()
+    const adherenceCard = page.locator('form').filter({
+      has: page.getByRole('button', { name: /Log today|Save log|Update log/ }),
+    })
+    await adherenceCard.getByRole('button', { name: 'Previous day' }).click()
     await expect(page.getByText(/Adherence for/i).first()).toBeVisible({
       timeout: 10_000,
     })
+    await expect(
+      page.getByRole('button', { name: 'Select date, currently Today' }).first()
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Adherence 3 of 5' }).click()
     await page.getByRole('button', { name: /Save log|Update log/ }).click()
     await expect(page.getByText('Nutrition log saved.')).toBeVisible({
