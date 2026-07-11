@@ -116,11 +116,14 @@ export function WorkoutLogKeypadProvider({
   )
 
   const scrollCellIntoView = React.useCallback(
-    (cellElement?: HTMLElement | null) => {
+    (
+      cellElement?: HTMLElement | null,
+      behavior: ScrollBehavior = 'smooth'
+    ) => {
       if (!cellElement) return
       const scrollParent = scrollContainerRef.current
       if (!scrollParent) {
-        cellElement.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        cellElement.scrollIntoView({ block: 'center', behavior })
         return
       }
 
@@ -140,43 +143,60 @@ export function WorkoutLogKeypadProvider({
       const overflowBottom = rect.bottom - effectiveBottom
       const overflowTop = parentRect.top + padding - rect.top
 
+      let delta = 0
       if (overflowBottom > 0) {
-        scrollParent.scrollTop += overflowBottom
+        delta = overflowBottom
       } else if (overflowTop > 0) {
-        scrollParent.scrollTop -= overflowTop
+        delta = -overflowTop
       }
+
+      if (Math.abs(delta) < 2) return
+
+      scrollParent.scrollTo({
+        top: scrollParent.scrollTop + delta,
+        behavior,
+      })
     },
     [keypadReserveHeight, scrollContainerRef]
   )
 
   const scrollToField = React.useCallback(
-    (target: ActiveKeypadTarget) => {
+    (target: ActiveKeypadTarget, behavior: ScrollBehavior = 'smooth') => {
       requestAnimationFrame(() => {
         const selector = `[data-workout-log-field="${target.exerciseId}:${target.setNumber}:${target.field}"]`
         const element = scrollContainerRef.current?.querySelector(selector)
         if (element instanceof HTMLElement) {
-          scrollCellIntoView(element)
+          scrollCellIntoView(element, behavior)
         }
       })
     },
     [scrollCellIntoView, scrollContainerRef]
   )
 
+  const activeTargetRef = React.useRef(activeTarget)
+  activeTargetRef.current = activeTarget
+
+  // Slide once when the keypad height appears (first open). Field-to-field
+  // moves are handled by openField / goNext so we don't restart the animation.
   React.useEffect(() => {
-    if (!enabled || !activeTarget || keypadReserveHeight <= 0) return
+    const target = activeTargetRef.current
+    if (!enabled || !target || keypadReserveHeight <= 0) return
 
     const frame = requestAnimationFrame(() => {
-      scrollToField(activeTarget)
+      scrollToField(target, 'smooth')
     })
+    // After the reserve finishes animating, nudge if still covered — keep this
+    // instant so it doesn't restart a second smooth slide.
     const timer = window.setTimeout(() => {
-      scrollToField(activeTarget)
+      const latest = activeTargetRef.current
+      if (latest) scrollToField(latest, 'auto')
     }, KEYPAD_RESERVE_SETTLE_MS)
 
     return () => {
       cancelAnimationFrame(frame)
       window.clearTimeout(timer)
     }
-  }, [activeTarget, enabled, keypadReserveHeight, scrollToField])
+  }, [enabled, keypadReserveHeight, scrollToField])
 
   const openField = React.useCallback(
     (target: ActiveKeypadTarget, cellElement?: HTMLElement | null) => {
@@ -187,13 +207,24 @@ export function WorkoutLogKeypadProvider({
       setEditingValue(set?.[target.field] ?? '')
       setActiveTarget(target)
       setPlateSheetOpen(false)
-      if (cellElement) {
-        requestAnimationFrame(() => scrollCellIntoView(cellElement))
-      } else {
-        scrollToField(target)
+      // When the keypad is already open (e.g. tapping another box), slide now.
+      // First open waits for keypadReserveHeight so we only animate once.
+      if (keypadReserveHeight > 0) {
+        if (cellElement) {
+          requestAnimationFrame(() => scrollCellIntoView(cellElement, 'smooth'))
+        } else {
+          scrollToField(target, 'smooth')
+        }
       }
     },
-    [enabled, getContext, scrollCellIntoView, scrollToField, syncReplacePredictedForTarget]
+    [
+      enabled,
+      getContext,
+      keypadReserveHeight,
+      scrollCellIntoView,
+      scrollToField,
+      syncReplacePredictedForTarget,
+    ]
   )
 
   const closeKeypad = React.useCallback(() => {
