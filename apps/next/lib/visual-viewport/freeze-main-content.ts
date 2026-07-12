@@ -45,15 +45,27 @@ function applyMainFreeze(main: HTMLElement, pinnedScrollTop: number) {
   return pinnedScrollTop
 }
 
+function restoreStyleProperty(
+  main: HTMLElement,
+  property: string,
+  value: string
+) {
+  if (value) {
+    main.style.setProperty(property, value)
+  } else {
+    main.style.removeProperty(property)
+  }
+}
+
 function restoreMainStyles(main: HTMLElement, snapshot: FrozenMainContent) {
-  main.style.position = snapshot.position
-  main.style.top = snapshot.top
-  main.style.left = snapshot.left
-  main.style.width = snapshot.width
-  main.style.height = snapshot.height
-  main.style.overflow = snapshot.overflow
-  main.style.overscrollBehavior = snapshot.overscrollBehavior
-  main.style.touchAction = snapshot.touchAction
+  restoreStyleProperty(main, 'position', snapshot.position)
+  restoreStyleProperty(main, 'top', snapshot.top)
+  restoreStyleProperty(main, 'left', snapshot.left)
+  restoreStyleProperty(main, 'width', snapshot.width)
+  restoreStyleProperty(main, 'height', snapshot.height)
+  restoreStyleProperty(main, 'overflow', snapshot.overflow)
+  restoreStyleProperty(main, 'overscroll-behavior', snapshot.overscrollBehavior)
+  restoreStyleProperty(main, 'touch-action', snapshot.touchAction)
   main.scrollTop = snapshot.scrollTop
 }
 

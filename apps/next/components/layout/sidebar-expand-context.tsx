@@ -1,6 +1,13 @@
 'use client'
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 type SidebarExpandContextValue = {
   expanded: boolean
@@ -24,26 +31,29 @@ export function SidebarExpandProvider({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false)
   const [touchPinned, setTouchPinned] = useState(false)
 
-  function collapse() {
+  const collapse = useCallback(() => {
     setExpanded(false)
     setTouchPinned(false)
-  }
+  }, [])
 
-  function expandFromTouch() {
+  const expandFromTouch = useCallback(() => {
     setExpanded(true)
     setTouchPinned(true)
-  }
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      expanded,
+      touchPinned,
+      setExpanded,
+      expandFromTouch,
+      collapse,
+    }),
+    [collapse, expandFromTouch, expanded, touchPinned]
+  )
 
   return (
-    <SidebarExpandContext.Provider
-      value={{
-        expanded,
-        touchPinned,
-        setExpanded,
-        expandFromTouch,
-        collapse,
-      }}
-    >
+    <SidebarExpandContext.Provider value={value}>
       {children}
     </SidebarExpandContext.Provider>
   )

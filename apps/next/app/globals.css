@@ -308,6 +308,12 @@
     bottom: auto;
   }
 
+  /* Nested scroll region for fixed app shells (iOS Safari needs explicit touch scrolling). */
+  #main-content {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
   .dialog-vv-surface-cover,
   .dialog-vv-surface-inset {
     position: fixed !important;

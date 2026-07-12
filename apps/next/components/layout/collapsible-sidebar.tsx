@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import { usePathname } from 'next/navigation'
 
 import {
   burstStabilizeViewportScroll,
@@ -26,8 +27,13 @@ function CollapsibleSidebarAside({
   header: ReactNode
   children: ReactNode
 }) {
+  const pathname = usePathname()
   const { expanded, touchPinned, setExpanded, expandFromTouch, collapse } =
     useSidebarExpand()
+
+  useEffect(() => {
+    collapse()
+  }, [collapse, pathname])
 
   useEffect(() => {
     if (!expanded || !touchPinned) return
@@ -37,18 +43,9 @@ function CollapsibleSidebarAside({
     const root = document.documentElement
     root.setAttribute('data-touch-sidebar-open', '')
 
-    const main = document.getElementById('main-content')
-    const previousMainOverflow = main?.style.overflow ?? ''
-    if (main) {
-      main.style.overflow = 'hidden'
-    }
-
     return () => {
       releaseMain()
       root.removeAttribute('data-touch-sidebar-open')
-      if (main) {
-        main.style.overflow = previousMainOverflow
-      }
       resetWindowScroll()
       burstStabilizeViewportScroll(400)
     }

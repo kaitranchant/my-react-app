@@ -94,7 +94,7 @@ export function PortalShell({
             id="main-content"
             tabIndex={-1}
             className={cn(
-              'app-shell-bg min-h-0 flex-1 overscroll-y-contain p-4 sm:p-6 lg:p-8',
+              'app-shell-bg h-0 min-h-0 flex-1 overscroll-y-contain p-4 sm:p-6 lg:p-8',
               immersiveLog
                 ? 'flex flex-col overflow-hidden p-0 md:block md:overflow-y-auto md:p-6 lg:p-8'
                 : 'overflow-y-auto pb-24 sm:pb-24 md:pb-6 lg:pb-8'
