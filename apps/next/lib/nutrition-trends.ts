@@ -45,8 +45,8 @@ export function buildNutritionTrendPoints(
   ])
 
   return Array.from(allDates)
-    .sort((left, right) => left.localeCompare(right))
-    .slice(-limit)
+    .sort((left, right) => right.localeCompare(left))
+    .slice(0, limit)
     .map((dateKey) => {
       const log = logsByDate.get(dateKey)
       const color = getAdherenceColor(log?.adherence_score ?? null)

@@ -35,15 +35,16 @@ const logs: ClientNutritionLog[] = [
   },
 ]
 
-test('buildNutritionTrendPoints sorts chronologically and limits points', () => {
+test('buildNutritionTrendPoints sorts newest first and limits points', () => {
   const points = buildNutritionTrendPoints(logs, 7)
   assert.equal(points.length, 2)
-  assert.equal(points[0]?.dateKey, '2026-06-01')
-  assert.equal(points[1]?.adherenceScore, 2)
-  assert.equal(points[0]?.colorClass, 'bg-emerald-500')
-  assert.equal(points[1]?.colorClass, 'bg-red-500')
-  assert.equal(points[0]?.clientNotes, 'chips at night')
-  assert.equal(points[1]?.clientNotes, null)
+  assert.equal(points[0]?.dateKey, '2026-06-02')
+  assert.equal(points[0]?.adherenceScore, 2)
+  assert.equal(points[0]?.colorClass, 'bg-red-500')
+  assert.equal(points[0]?.clientNotes, null)
+  assert.equal(points[1]?.dateKey, '2026-06-01')
+  assert.equal(points[1]?.colorClass, 'bg-emerald-500')
+  assert.equal(points[1]?.clientNotes, 'chips at night')
 })
 
 test('averageAdherenceScore averages adherence values', () => {
