@@ -18,8 +18,10 @@ import { AppearanceSettings } from '@/components/settings/appearance-settings'
 import { CoachingPreferencesForm } from '@/components/settings/coaching-preferences'
 import { OnboardingAutomationForm } from '@/components/settings/onboarding-automation-form'
 import { OnboardingDocumentTemplatesSettings } from '@/components/settings/onboarding-document-templates-settings'
+import { OnboardingMilestoneTemplateSettings } from '@/components/settings/onboarding-milestone-template-settings'
 import { fetchCoachOnboardingDocuments } from '@/lib/onboarding-data'
 import { parseCoachPreferences } from '@/lib/coach-preferences'
+import { parseOnboardingMilestoneTemplate } from '@/lib/client-onboarding'
 import { fetchCoachMessageTemplates } from '@/lib/message-templates'
 import { isEmailDeliveryConfigured } from '@/lib/email/config'
 import { parseNotificationPreferences } from '@/lib/notification-preferences'
@@ -50,7 +52,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view, default_onboarding_program_id, onboarding_welcome_template_id, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders, coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders, coach_send_client_onboarding_documents, stripe_customer_id'
+      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view, default_onboarding_program_id, onboarding_welcome_template_id, onboarding_milestone_template, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders, coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders, coach_send_client_onboarding_documents, stripe_customer_id'
     )
     .eq('id', user!.id)
     .single()
@@ -78,6 +80,9 @@ export default async function SettingsPage({
     defaultOnboardingProgramId: profile?.default_onboarding_program_id ?? '',
     onboardingWelcomeTemplateId: profile?.onboarding_welcome_template_id ?? '',
   }
+  const onboardingMilestoneTemplate = parseOnboardingMilestoneTemplate(
+    profile?.onboarding_milestone_template
+  )
   const subscriptionContext = await getCoachSubscriptionContext(supabase, user!.id)
   const connectResult = await loadCoachConnectStatusSafe(supabase, user!.id)
 
@@ -146,6 +151,11 @@ export default async function SettingsPage({
               programs={programs ?? []}
               messageTemplates={messageTemplates}
             />
+            <div className="mt-6">
+              <OnboardingMilestoneTemplateSettings
+                defaultTemplate={onboardingMilestoneTemplate}
+              />
+            </div>
             <div className="mt-6">
               <OnboardingDocumentTemplatesSettings documents={onboardingDocuments} />
             </div>

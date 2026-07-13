@@ -36,6 +36,7 @@ const baseClient: Client = {
   weekly_session_target: null,
   progressive_overload_enabled: true,
   onboarding_assessment_notes: null,
+  onboarding_milestone_overrides: {},
   created_at: '2026-06-10T12:00:00.000Z',
   updated_at: '2026-06-16T12:00:00.000Z',
 }
@@ -115,4 +116,100 @@ test('shows checklist for accepted clients still onboarding', () => {
   })
 
   assert.equal(shouldShowClientOnboardingChecklist(baseClient, progress), true)
+})
+
+test('applies coach milestone overrides over auto status', () => {
+  const progress = buildClientOnboardingProgress({
+    client: {
+      ...baseClient,
+      onboarding_milestone_overrides: {
+        programAssigned: true,
+        firstWorkoutLogged: true,
+        assessmentNotesRecorded: true,
+      },
+    },
+    hasProgram: false,
+    checkIns: [],
+    workouts: [],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-15',
+  })
+
+  assert.deepEqual(progress, {
+    inviteAccepted: true,
+    programAssigned: true,
+    firstCheckInDue: false,
+    firstWorkoutLogged: true,
+    assessmentNotesRecorded: true,
+  })
+})
+
+test('allows coach to uncheck an auto-complete milestone', () => {
+  const progress = buildClientOnboardingProgress({
+    client: {
+      ...baseClient,
+      onboarding_assessment_notes: 'Notes saved',
+      onboarding_milestone_overrides: {
+        assessmentNotesRecorded: false,
+      },
+    },
+    hasProgram: true,
+    checkIns: [{ check_in_date: '2026-06-20' }],
+    workouts: [{ status: 'completed' }],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-24',
+  })
+
+  assert.equal(progress.assessmentNotesRecorded, false)
+  assert.equal(isClientOnboardingComplete(progress), false)
+  assert.equal(shouldShowClientOnboardingChecklist(baseClient, progress), true)
+})
+
+test('ignores excluded milestones from the coach template', () => {
+  const progress = buildClientOnboardingProgress({
+    client: baseClient,
+    hasProgram: false,
+    checkIns: [],
+    workouts: [],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-15',
+  })
+
+  const template = {
+    programAssigned: false,
+    firstCheckInDue: false,
+    firstWorkoutLogged: false,
+    assessmentNotesRecorded: false,
+  }
+
+  assert.equal(isClientOnboardingComplete(progress, template), true)
+  assert.equal(
+    shouldShowClientOnboardingChecklist(baseClient, progress, template),
+    false
+  )
+})
+
+test('shows checklist when an included template milestone is incomplete', () => {
+  const progress = buildClientOnboardingProgress({
+    client: baseClient,
+    hasProgram: false,
+    checkIns: [],
+    workouts: [],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-15',
+  })
+
+  const template = {
+    inviteAccepted: true,
+    programAssigned: true,
+    firstCheckInDue: false,
+    firstWorkoutLogged: false,
+    assessmentNotesRecorded: false,
+  }
+
+  assert.equal(isClientOnboardingComplete(progress, template), false)
+  assert.equal(
+    shouldShowClientOnboardingChecklist(baseClient, progress, template),
+    true
+  )
 })

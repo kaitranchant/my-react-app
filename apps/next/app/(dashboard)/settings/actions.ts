@@ -29,6 +29,12 @@ import {
   onboardingAutomationSchema,
   type OnboardingAutomationValues,
 } from '@/lib/validations/onboarding-automation'
+import {
+  CLIENT_ONBOARDING_MILESTONE_KEYS,
+  parseOnboardingMilestoneTemplate,
+  serializeOnboardingMilestoneTemplate,
+  type ClientOnboardingMilestoneKey,
+} from '@/lib/client-onboarding'
 import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
 import type { CoachClientNotificationPreferenceKey } from '@/lib/validations/coach-client-notification-preferences'
 import { profileFormSchema, type ProfileFormValues } from '@/lib/validations/profile'
@@ -142,6 +148,56 @@ export async function updateOnboardingAutomation(
     .update({
       default_onboarding_program_id: normalized.defaultOnboardingProgramId,
       onboarding_welcome_template_id: normalized.onboardingWelcomeTemplateId,
+    })
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
+  revalidatePath('/clients')
+  return { success: true }
+}
+
+export async function updateOnboardingMilestoneIncluded(
+  milestone: ClientOnboardingMilestoneKey,
+  included: boolean
+): Promise<ActionResult> {
+  if (
+    !(CLIENT_ONBOARDING_MILESTONE_KEYS as readonly string[]).includes(milestone)
+  ) {
+    return { success: false, error: 'Invalid onboarding milestone.' }
+  }
+
+  const { supabase, user } = await requireUser()
+  const { data: profile, error: loadError } = await supabase
+    .from('profiles')
+    .select('onboarding_milestone_template')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (loadError) {
+    return { success: false, error: loadError.message }
+  }
+
+  const current = serializeOnboardingMilestoneTemplate(
+    parseOnboardingMilestoneTemplate(profile?.onboarding_milestone_template)
+  )
+  const next = { ...current, [milestone]: included }
+  const includedCount = Object.values(next).filter(Boolean).length
+
+  if (includedCount === 0) {
+    return {
+      success: false,
+      error: 'Keep at least one onboarding step enabled.',
+    }
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      onboarding_milestone_template: next,
     })
     .eq('id', user.id)
 

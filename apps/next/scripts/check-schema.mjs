@@ -510,6 +510,10 @@ await checkRestTable(
   'clients.onboarding_assessment_notes column',
   '/rest/v1/clients?select=onboarding_assessment_notes&limit=1'
 )
+await checkRestTable(
+  'clients.onboarding_milestone_overrides column',
+  '/rest/v1/clients?select=onboarding_milestone_overrides&limit=1'
+)
 
 // Migration 0058 — team challenges
 await checkRestTable(
@@ -599,7 +603,7 @@ await checkRestTable(
 // Migration 0069 — onboarding automation
 await checkRestTable(
   'profiles onboarding automation columns',
-  '/rest/v1/profiles?select=default_onboarding_program_id,onboarding_welcome_template_id&limit=1'
+  '/rest/v1/profiles?select=default_onboarding_program_id,onboarding_welcome_template_id,onboarding_milestone_template&limit=1'
 )
 
 await checkRestTable(

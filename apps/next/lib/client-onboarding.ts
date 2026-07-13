@@ -6,7 +6,9 @@ import {
   getCoachDateKey,
   type CoachPreferences,
 } from '@/lib/coach-preferences'
-import type { CheckInFrequency, Client, ClientCheckIn } from 'app/types/database'
+import type { CheckInFrequency, Client, ClientCheckIn, Json } from 'app/types/database'
+
+export type ClientOnboardingMilestoneKey = keyof ClientOnboardingProgress
 
 export type ClientOnboardingProgress = {
   inviteAccepted: boolean
@@ -15,6 +17,55 @@ export type ClientOnboardingProgress = {
   firstWorkoutLogged: boolean
   assessmentNotesRecorded: boolean
 }
+
+export type ClientOnboardingMilestoneOverrides = Partial<
+  Record<ClientOnboardingMilestoneKey, boolean>
+>
+
+/** false = excluded from the coach's template; missing/true = included. */
+export type ClientOnboardingMilestoneTemplate = Partial<
+  Record<ClientOnboardingMilestoneKey, boolean>
+>
+
+export const CLIENT_ONBOARDING_MILESTONE_KEYS = [
+  'inviteAccepted',
+  'programAssigned',
+  'firstCheckInDue',
+  'firstWorkoutLogged',
+  'assessmentNotesRecorded',
+] as const satisfies readonly ClientOnboardingMilestoneKey[]
+
+export const CLIENT_ONBOARDING_MILESTONE_OPTIONS: Array<{
+  key: ClientOnboardingMilestoneKey
+  label: string
+  description: string
+}> = [
+  {
+    key: 'inviteAccepted',
+    label: 'Invite accepted',
+    description: 'Client joined the portal.',
+  },
+  {
+    key: 'programAssigned',
+    label: 'Assign program',
+    description: 'Give them a training plan to follow.',
+  },
+  {
+    key: 'firstCheckInDue',
+    label: 'First check-in due',
+    description: 'Their first check-in period has arrived.',
+  },
+  {
+    key: 'firstWorkoutLogged',
+    label: 'First workout logged',
+    description: 'Client completed their first session.',
+  },
+  {
+    key: 'assessmentNotesRecorded',
+    label: 'Assessment notes',
+    description: 'Jot down observations from the initial assessment.',
+  },
+]
 
 export function hasOnboardingAssessmentNotes(notes: string | null | undefined): boolean {
   return Boolean(notes?.trim())
@@ -70,6 +121,79 @@ export function hasLoggedFirstWorkout(
   return workouts.some((workout) => workout.status === 'completed')
 }
 
+export function parseOnboardingMilestoneOverrides(
+  value: Json | null | undefined
+): ClientOnboardingMilestoneOverrides {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const overrides: ClientOnboardingMilestoneOverrides = {}
+  for (const key of CLIENT_ONBOARDING_MILESTONE_KEYS) {
+    const entry = value[key]
+    if (typeof entry === 'boolean') {
+      overrides[key] = entry
+    }
+  }
+  return overrides
+}
+
+export function parseOnboardingMilestoneTemplate(
+  value: Json | null | undefined
+): ClientOnboardingMilestoneTemplate {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const template: ClientOnboardingMilestoneTemplate = {}
+  for (const key of CLIENT_ONBOARDING_MILESTONE_KEYS) {
+    const entry = value[key]
+    if (typeof entry === 'boolean') {
+      template[key] = entry
+    }
+  }
+  return template
+}
+
+export function isOnboardingMilestoneIncluded(
+  template: ClientOnboardingMilestoneTemplate | null | undefined,
+  key: ClientOnboardingMilestoneKey
+): boolean {
+  return template?.[key] !== false
+}
+
+export function getIncludedOnboardingMilestones(
+  template: ClientOnboardingMilestoneTemplate | null | undefined
+): ClientOnboardingMilestoneKey[] {
+  return CLIENT_ONBOARDING_MILESTONE_KEYS.filter((key) =>
+    isOnboardingMilestoneIncluded(template, key)
+  )
+}
+
+export function serializeOnboardingMilestoneTemplate(
+  template: ClientOnboardingMilestoneTemplate
+): Record<ClientOnboardingMilestoneKey, boolean> {
+  const serialized = {} as Record<ClientOnboardingMilestoneKey, boolean>
+  for (const key of CLIENT_ONBOARDING_MILESTONE_KEYS) {
+    serialized[key] = isOnboardingMilestoneIncluded(template, key)
+  }
+  return serialized
+}
+
+export function applyOnboardingMilestoneOverrides(
+  auto: ClientOnboardingProgress,
+  overrides: ClientOnboardingMilestoneOverrides
+): ClientOnboardingProgress {
+  return {
+    inviteAccepted: overrides.inviteAccepted ?? auto.inviteAccepted,
+    programAssigned: overrides.programAssigned ?? auto.programAssigned,
+    firstCheckInDue: overrides.firstCheckInDue ?? auto.firstCheckInDue,
+    firstWorkoutLogged: overrides.firstWorkoutLogged ?? auto.firstWorkoutLogged,
+    assessmentNotesRecorded:
+      overrides.assessmentNotesRecorded ?? auto.assessmentNotesRecorded,
+  }
+}
+
 export function buildClientOnboardingProgress(input: {
   client: Client
   hasProgram: boolean
@@ -80,7 +204,7 @@ export function buildClientOnboardingProgress(input: {
 }): ClientOnboardingProgress {
   const inviteAcceptedAt = getInviteAcceptedAt(input.client)
 
-  return {
+  const auto: ClientOnboardingProgress = {
     inviteAccepted: input.client.invite_status === 'accepted',
     programAssigned: input.hasProgram,
     firstCheckInDue: isFirstCheckInDue(
@@ -94,33 +218,44 @@ export function buildClientOnboardingProgress(input: {
       input.client.onboarding_assessment_notes
     ),
   }
+
+  return applyOnboardingMilestoneOverrides(
+    auto,
+    parseOnboardingMilestoneOverrides(input.client.onboarding_milestone_overrides)
+  )
 }
 
 export function isClientOnboardingComplete(
-  progress: ClientOnboardingProgress
+  progress: ClientOnboardingProgress,
+  template?: ClientOnboardingMilestoneTemplate | null
 ): boolean {
-  return (
-    progress.inviteAccepted &&
-    progress.programAssigned &&
-    progress.firstCheckInDue &&
-    progress.firstWorkoutLogged &&
-    progress.assessmentNotesRecorded
-  )
+  const included = getIncludedOnboardingMilestones(template)
+  if (included.length === 0) {
+    return true
+  }
+
+  return included.every((key) => progress[key])
 }
 
 export function shouldShowClientOnboardingChecklist(
   client: Client,
-  progress: ClientOnboardingProgress
+  progress: ClientOnboardingProgress,
+  template?: ClientOnboardingMilestoneTemplate | null
 ): boolean {
   if (client.is_coach_self || client.status !== 'active') {
     return false
   }
 
-  if (!progress.inviteAccepted) {
+  // Use raw invite status so unchecking the invite milestone does not hide the list.
+  if (client.invite_status !== 'accepted') {
     return false
   }
 
-  return !isClientOnboardingComplete(progress)
+  if (getIncludedOnboardingMilestones(template).length === 0) {
+    return false
+  }
+
+  return !isClientOnboardingComplete(progress, template)
 }
 
 export function getCheckInDueStepLabel(

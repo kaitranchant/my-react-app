@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMonthDateRange, getWeekDayLabels, toDateKey, addDaysToDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences, getCoachDateKey } from '@/lib/coach-preferences'
-import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import {
+  getCoachOnboardingMilestoneTemplate,
+  getCoachPreferencesForUser,
+} from '@/lib/coach-preferences-server'
 import type { ClientWorkoutActivity } from '@/lib/client-metrics'
 import { fetchClientLoadMetrics } from '@/lib/load-queries'
 import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
@@ -28,9 +31,14 @@ export async function ClientDetailOverviewPanel({
 }: ClientDetailOverviewPanelProps) {
   const supabase = await createClient()
   const today = new Date()
-  const coachPreferences = coachUserId
-    ? await getCoachPreferencesForUser(coachUserId)
-    : defaultCoachPreferences
+  const [coachPreferences, onboardingMilestoneTemplate] = await Promise.all([
+    coachUserId
+      ? getCoachPreferencesForUser(coachUserId)
+      : Promise.resolve(defaultCoachPreferences),
+    coachUserId
+      ? getCoachOnboardingMilestoneTemplate(coachUserId)
+      : Promise.resolve({}),
+  ])
   const weekDateKeys = getWeekDayLabels(coachPreferences.weekStartsOn).map(
     (day) => day.dateKey
   )
@@ -160,6 +168,7 @@ export async function ClientDetailOverviewPanel({
       recentPrs={loadMetrics.recentPrs}
       trainingConsistency={trainingConsistency}
       coachPreferences={coachPreferences}
+      onboardingMilestoneTemplate={onboardingMilestoneTemplate}
       nutritionSnapshot={nutritionSnapshot}
     />
   )

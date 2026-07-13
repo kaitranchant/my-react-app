@@ -3,6 +3,10 @@ import {
   withPortalWeightUnit,
   type CoachPreferences,
 } from '@/lib/coach-preferences'
+import {
+  parseOnboardingMilestoneTemplate,
+  type ClientOnboardingMilestoneTemplate,
+} from '@/lib/client-onboarding'
 import { createClient } from '@/lib/supabase/server'
 import type { WeightUnit } from 'app/types/database'
 
@@ -19,6 +23,19 @@ export async function getCoachPreferencesForUser(
     .maybeSingle()
 
   return parseCoachPreferences(data)
+}
+
+export async function getCoachOnboardingMilestoneTemplate(
+  userId: string
+): Promise<ClientOnboardingMilestoneTemplate> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('profiles')
+    .select('onboarding_milestone_template')
+    .eq('id', userId)
+    .maybeSingle()
+
+  return parseOnboardingMilestoneTemplate(data?.onboarding_milestone_template)
 }
 
 export async function getCoachPreferencesForCoachId(

@@ -15,7 +15,10 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { updateClientOnboardingAssessmentNotes } from '@/app/(dashboard)/clients/actions'
+import {
+  setClientOnboardingMilestone,
+  updateClientOnboardingAssessmentNotes,
+} from '@/app/(dashboard)/clients/actions'
 import {
   Card,
   CardContent,
@@ -28,6 +31,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import {
   getCheckInDueStepLabel,
+  getIncludedOnboardingMilestones,
+  isOnboardingMilestoneIncluded,
+  type ClientOnboardingMilestoneKey,
+  type ClientOnboardingMilestoneTemplate,
   type ClientOnboardingProgress,
 } from '@/lib/client-onboarding'
 import type { CheckInFrequency } from 'app/types/database'
@@ -36,6 +43,7 @@ type ClientOnboardingChecklistProps = {
   clientId: string
   clientName: string
   progress: ClientOnboardingProgress
+  includedMilestones?: ClientOnboardingMilestoneTemplate
   initialAssessmentNotes: string | null
   programName?: string | null
   checkInFrequency: CheckInFrequency
@@ -91,12 +99,46 @@ const assessmentStep = {
   icon: ClipboardPen,
 }
 
-const totalSteps = milestoneSteps.length + 1
+function MilestoneToggle({
+  done,
+  label,
+  disabled,
+  onToggle,
+}: {
+  done: boolean
+  label: string
+  disabled?: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={done}
+      aria-label={done ? `Mark ${label} incomplete` : `Mark ${label} complete`}
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full transition',
+        done
+          ? 'bg-brand text-brand-foreground hover:bg-brand/90'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80',
+        disabled && 'pointer-events-none opacity-60'
+      )}
+    >
+      {done ? (
+        <Check className="size-4" aria-hidden />
+      ) : (
+        <Circle className="size-4" aria-hidden />
+      )}
+    </button>
+  )
+}
 
 export function ClientOnboardingChecklist({
   clientId,
   clientName,
   progress,
+  includedMilestones,
   initialAssessmentNotes,
   programName,
   checkInFrequency,
@@ -109,26 +151,44 @@ export function ClientOnboardingChecklist({
     initialAssessmentNotes ?? ''
   )
   const [isSavingNotes, setIsSavingNotes] = React.useState(false)
+  const [localProgress, setLocalProgress] = React.useState(progress)
+  const [pendingMilestone, setPendingMilestone] =
+    React.useState<ClientOnboardingMilestoneKey | null>(null)
+
+  const visibleMilestoneSteps = milestoneSteps.filter((step) =>
+    isOnboardingMilestoneIncluded(includedMilestones, step.key)
+  )
+  const showAssessmentStep = isOnboardingMilestoneIncluded(
+    includedMilestones,
+    assessmentStep.key
+  )
+  const includedKeys = getIncludedOnboardingMilestones(includedMilestones)
+  const totalSteps = includedKeys.length
 
   const savedAssessmentNotes = initialAssessmentNotes ?? ''
   const assessmentNotesDirty = assessmentNotes !== savedAssessmentNotes
-  const completedCount =
-    milestoneSteps.filter((step) => progress[step.key]).length +
-    (progress.assessmentNotesRecorded ? 1 : 0)
+  const completedCount = includedKeys.filter((key) => localProgress[key]).length
 
   React.useEffect(() => {
     setAssessmentNotes(initialAssessmentNotes ?? '')
   }, [initialAssessmentNotes])
 
+  React.useEffect(() => {
+    setLocalProgress(progress)
+  }, [progress])
+
   function getStepLabel(
     stepKey: Exclude<keyof ClientOnboardingProgress, 'assessmentNotesRecorded'>
   ) {
-    if (stepKey === 'programAssigned' && progress.programAssigned && programName) {
+    if (stepKey === 'programAssigned' && localProgress.programAssigned && programName) {
       return `Program assigned: ${programName}`
     }
 
     if (stepKey === 'firstCheckInDue') {
-      return getCheckInDueStepLabel(checkInFrequency, progress.firstCheckInDue)
+      return getCheckInDueStepLabel(
+        checkInFrequency,
+        localProgress.firstCheckInDue
+      )
     }
 
     return milestoneSteps.find((step) => step.key === stepKey)?.title ?? ''
@@ -149,6 +209,32 @@ export function ClientOnboardingChecklist({
     }
   }
 
+  async function handleToggleMilestone(
+    milestone: ClientOnboardingMilestoneKey,
+    currentlyDone: boolean
+  ) {
+    const nextDone = !currentlyDone
+    setPendingMilestone(milestone)
+    setLocalProgress((current) => ({
+      ...current,
+      [milestone]: nextDone,
+    }))
+
+    const result = await setClientOnboardingMilestone(
+      clientId,
+      milestone,
+      nextDone
+    )
+    setPendingMilestone(null)
+
+    if (result.success) {
+      router.refresh()
+    } else {
+      setLocalProgress(progress)
+      toast.error(result.error)
+    }
+  }
+
   async function handleSaveAssessmentNotes() {
     setIsSavingNotes(true)
     const result = await updateClientOnboardingAssessmentNotes(
@@ -166,7 +252,7 @@ export function ClientOnboardingChecklist({
   }
 
   const AssessmentIcon = assessmentStep.icon
-  const assessmentDone = progress.assessmentNotesRecorded
+  const assessmentDone = localProgress.assessmentNotesRecorded
 
   return (
     <Card className="border-brand/20 bg-brand/5 gap-0 py-0">
@@ -178,14 +264,15 @@ export function ClientOnboardingChecklist({
           <div className="space-y-1">
             <CardTitle className="text-base">Client onboarding</CardTitle>
             <CardDescription>
-              {completedCount} of {totalSteps} milestones for {clientName}.
+              {completedCount} of {totalSteps} milestones for {clientName}. Tap a
+              checkmark to mark complete or incomplete.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 px-4 py-4 sm:px-6">
-        {milestoneSteps.map((step) => {
-          const done = progress[step.key]
+        {visibleMilestoneSteps.map((step) => {
+          const done = localProgress[step.key]
           const Icon = step.icon
 
           return (
@@ -197,20 +284,12 @@ export function ClientOnboardingChecklist({
               )}
             >
               <div className="flex min-w-0 flex-1 items-start gap-3">
-                <div
-                  className={cn(
-                    'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full',
-                    done
-                      ? 'bg-brand text-brand-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {done ? (
-                    <Check className="size-4" aria-hidden />
-                  ) : (
-                    <Circle className="size-4" aria-hidden />
-                  )}
-                </div>
+                <MilestoneToggle
+                  done={done}
+                  label={getStepLabel(step.key)}
+                  disabled={pendingMilestone === step.key}
+                  onToggle={() => void handleToggleMilestone(step.key, done)}
+                />
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <Icon className="text-muted-foreground size-4 shrink-0" />
@@ -236,69 +315,65 @@ export function ClientOnboardingChecklist({
           )
         })}
 
-        <div
-          className={cn(
-            'flex flex-col gap-3 rounded-xl border bg-background/80 p-4',
-            assessmentDone && 'border-brand/20 bg-brand/5'
-          )}
-        >
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <div
-              className={cn(
-                'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full',
-                assessmentDone
-                  ? 'bg-brand text-brand-foreground'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
-              {assessmentDone ? (
-                <Check className="size-4" aria-hidden />
-              ) : (
-                <Circle className="size-4" aria-hidden />
-              )}
-            </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <AssessmentIcon className="text-muted-foreground size-4 shrink-0" />
-                  <p className="text-sm font-semibold">{assessmentStep.title}</p>
-                </div>
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  {assessmentStep.description}
-                </p>
-              </div>
-              <Textarea
-                rows={4}
-                className="min-h-[6rem] resize-y"
-                value={assessmentNotes}
-                onChange={(event) => setAssessmentNotes(event.target.value)}
-                placeholder="Movement screen results, injuries, goals discussed…"
+        {showAssessmentStep ? (
+          <div
+            className={cn(
+              'flex flex-col gap-3 rounded-xl border bg-background/80 p-4',
+              assessmentDone && 'border-brand/20 bg-brand/5'
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <MilestoneToggle
+                done={assessmentDone}
+                label={assessmentStep.title}
+                disabled={pendingMilestone === assessmentStep.key}
+                onToggle={() =>
+                  void handleToggleMilestone(assessmentStep.key, assessmentDone)
+                }
               />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAssessmentNotes(savedAssessmentNotes)}
-                  disabled={!assessmentNotesDirty || isSavingNotes}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void handleSaveAssessmentNotes()}
-                  disabled={!assessmentNotesDirty || isSavingNotes}
-                >
-                  {isSavingNotes ? 'Saving…' : 'Save notes'}
-                </Button>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <AssessmentIcon className="text-muted-foreground size-4 shrink-0" />
+                    <p className="text-sm font-semibold">{assessmentStep.title}</p>
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    {assessmentStep.description}
+                  </p>
+                </div>
+                <Textarea
+                  rows={4}
+                  className="min-h-[6rem] resize-y"
+                  value={assessmentNotes}
+                  onChange={(event) => setAssessmentNotes(event.target.value)}
+                  placeholder="Movement screen results, injuries, goals discussed…"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAssessmentNotes(savedAssessmentNotes)}
+                    disabled={!assessmentNotesDirty || isSavingNotes}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void handleSaveAssessmentNotes()}
+                    disabled={!assessmentNotesDirty || isSavingNotes}
+                  >
+                    {isSavingNotes ? 'Saving…' : 'Save notes'}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Configure auto-assign and welcome messages in{' '}
+          Configure checklist steps, auto-assign, and welcome messages in{' '}
           <Link
             href="/settings#onboarding"
             className="text-brand underline-offset-4 hover:underline"

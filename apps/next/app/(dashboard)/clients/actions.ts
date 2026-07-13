@@ -18,6 +18,12 @@ import {
   type InviteClientValues,
 } from '@/lib/validations/client'
 import type { ClientCoachingType, ClientStatus, Client } from 'app/types/database'
+import {
+  CLIENT_ONBOARDING_MILESTONE_KEYS,
+  parseOnboardingMilestoneOverrides,
+  type ClientOnboardingMilestoneKey,
+  type ClientOnboardingMilestoneOverrides,
+} from '@/lib/client-onboarding'
 import { getCoachSubscriptionContext, assertCanAddClient } from '@/lib/subscription-entitlements'
 
 export type ActionResult = { success: true } | { success: false; error: string }
@@ -526,6 +532,60 @@ export async function updateClientOnboardingAssessmentNotes(
     .from('clients')
     .update({
       onboarding_assessment_notes: parsed.data ? parsed.data : null,
+    })
+    .eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath(`/clients/${id}`)
+  return { success: true }
+}
+
+export async function setClientOnboardingMilestone(
+  id: string,
+  milestone: ClientOnboardingMilestoneKey,
+  completed: boolean
+): Promise<ActionResult> {
+  if (
+    !(CLIENT_ONBOARDING_MILESTONE_KEYS as readonly string[]).includes(milestone)
+  ) {
+    return { success: false, error: 'Invalid onboarding milestone.' }
+  }
+
+  const { supabase } = await requireUser()
+  const blocked = await rejectCoachSelfClientMutation(supabase, id)
+  if (blocked) {
+    return blocked
+  }
+
+  const { data: client, error: loadError } = await supabase
+    .from('clients')
+    .select('onboarding_milestone_overrides')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (loadError) {
+    return { success: false, error: loadError.message }
+  }
+
+  if (!client) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const overrides = parseOnboardingMilestoneOverrides(
+    client.onboarding_milestone_overrides
+  )
+  const nextOverrides: ClientOnboardingMilestoneOverrides = {
+    ...overrides,
+    [milestone]: completed,
+  }
+
+  const { error } = await supabase
+    .from('clients')
+    .update({
+      onboarding_milestone_overrides: nextOverrides,
     })
     .eq('id', id)
 

@@ -219,6 +219,7 @@ export type Database = {
           default_workout_log_view: WorkoutLogViewMode
           default_onboarding_program_id: string | null
           onboarding_welcome_template_id: string | null
+          onboarding_milestone_template: Json
           notify_check_ins: boolean
           notify_workout_completions: boolean
           notify_missed_sessions: boolean
@@ -280,6 +281,7 @@ export type Database = {
           default_workout_log_view?: WorkoutLogViewMode
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
+          onboarding_milestone_template?: Json
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
@@ -341,6 +343,7 @@ export type Database = {
           default_workout_log_view?: WorkoutLogViewMode
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
+          onboarding_milestone_template?: Json
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
@@ -614,6 +617,7 @@ export type Database = {
           weekly_session_target: number | null
           progressive_overload_enabled: boolean
           onboarding_assessment_notes: string | null
+          onboarding_milestone_overrides: Json
           created_at: string
           updated_at: string
         }
@@ -642,6 +646,7 @@ export type Database = {
           weekly_session_target?: number | null
           progressive_overload_enabled?: boolean
           onboarding_assessment_notes?: string | null
+          onboarding_milestone_overrides?: Json
           created_at?: string
           updated_at?: string
         }
@@ -670,6 +675,7 @@ export type Database = {
           weekly_session_target?: number | null
           progressive_overload_enabled?: boolean
           onboarding_assessment_notes?: string | null
+          onboarding_milestone_overrides?: Json
           created_at?: string
           updated_at?: string
         }

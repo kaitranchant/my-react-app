@@ -12,6 +12,7 @@ import type { CoachPreferences } from '@/lib/coach-preferences'
 import {
   buildClientOnboardingProgress,
   shouldShowClientOnboardingChecklist,
+  type ClientOnboardingMilestoneTemplate,
 } from '@/lib/client-onboarding'
 import type {
   CalendarDaySummary,
@@ -36,6 +37,7 @@ type ClientDetailOverviewSectionProps = {
   recentPrs?: RecentPrHighlight[]
   trainingConsistency?: TrainingConsistencyHeatmap | null
   coachPreferences?: CoachPreferences
+  onboardingMilestoneTemplate?: ClientOnboardingMilestoneTemplate
   nutritionSnapshot?: {
     hasTargets: boolean
     hasMealPlan: boolean
@@ -56,6 +58,7 @@ export function ClientDetailOverviewSection({
   recentPrs = [],
   trainingConsistency = null,
   coachPreferences = undefined,
+  onboardingMilestoneTemplate = {},
   nutritionSnapshot = null,
 }: ClientDetailOverviewSectionProps) {
   const router = useRouter()
@@ -89,7 +92,11 @@ export function ClientDetailOverviewSection({
     : null
   const showOnboardingChecklist =
     onboardingProgress &&
-    shouldShowClientOnboardingChecklist(client, onboardingProgress)
+    shouldShowClientOnboardingChecklist(
+      client,
+      onboardingProgress,
+      onboardingMilestoneTemplate
+    )
 
   return (
     <>
@@ -98,6 +105,7 @@ export function ClientDetailOverviewSection({
           clientId={client.id}
           clientName={client.full_name}
           progress={onboardingProgress}
+          includedMilestones={onboardingMilestoneTemplate}
           initialAssessmentNotes={client.onboarding_assessment_notes}
           programName={activeAssignment?.program?.name}
           checkInFrequency={coachPreferences!.defaultCheckInFrequency}
