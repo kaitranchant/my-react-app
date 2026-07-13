@@ -611,6 +611,11 @@ await checkRestTable(
   '/rest/v1/clients?select=invite_accepted_at,onboarding_automation_at&limit=1'
 )
 
+await checkRestTable(
+  'coach_proactive_alert_dismissals table',
+  '/rest/v1/coach_proactive_alert_dismissals?select=id,coach_id,alert_id,kind,signature&limit=1'
+)
+
 // Migration 0070 — exercise demo videos
 await checkRestTable(
   'exercises.demo_video_path column',

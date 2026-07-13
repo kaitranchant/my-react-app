@@ -12,16 +12,61 @@ export type ClientDashboardAlertContext = {
   hasInjuryFlag: boolean
 }
 
+export type ProactiveAlertKind = 'inactive' | 'acwr' | 'injury' | 'check_in'
+
 export type ProactiveAlert = {
   id: string
   message: string
   href: string
   priority: 'high' | 'medium' | 'low'
-  kind: 'inactive' | 'acwr' | 'injury' | 'check_in'
+  kind: ProactiveAlertKind
+  signature: string
+  clientId: string | null
+}
+
+export type ProactiveAlertDismissal = {
+  alertId: string
+  signature: string
 }
 
 function getFirstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] || fullName
+}
+
+/** UTC ISO week key so sticky alerts can reappear next week. */
+export function getProactiveAlertWeekKey(referenceDate = new Date()): string {
+  const date = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate()
+    )
+  )
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+export function buildAcwrAlertSignature(
+  ratio: number,
+  riskLevel: AcwrRiskLevel
+): string {
+  return `${ratio.toFixed(2)}:${riskLevel}`
+}
+
+export function buildInactiveAlertSignature(daysSinceLastSession: number): string {
+  const bucket = daysSinceLastSession >= 7 ? '7+' : '4+'
+  return `${getProactiveAlertWeekKey()}:${bucket}:${daysSinceLastSession}`
+}
+
+export function buildInjuryAlertSignature(): string {
+  return `week:${getProactiveAlertWeekKey()}`
+}
+
+export function buildCheckInAlertSignature(pendingCheckInsCount: number): string {
+  return `count:${pendingCheckInsCount}`
 }
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const
@@ -44,6 +89,8 @@ export function buildProactiveAlerts({
       href: '/check-ins',
       priority: 'high',
       kind: 'check_in',
+      signature: buildCheckInAlertSignature(pendingCheckInsCount),
+      clientId: null,
     })
   }
 
@@ -57,6 +104,8 @@ export function buildProactiveAlerts({
         href: `/clients/${client.clientId}?tab=check-ins`,
         priority: 'high',
         kind: 'injury',
+        signature: buildInjuryAlertSignature(),
+        clientId: client.clientId,
       })
     }
 
@@ -73,6 +122,11 @@ export function buildProactiveAlerts({
         href: `/load?client=${client.clientId}`,
         priority: client.acwrRiskLevel === 'overreaching' ? 'high' : 'medium',
         kind: 'acwr',
+        signature: buildAcwrAlertSignature(
+          client.acwrRatio!,
+          client.acwrRiskLevel
+        ),
+        clientId: client.clientId,
       })
     }
 
@@ -87,6 +141,8 @@ export function buildProactiveAlerts({
         href: `/clients/${client.clientId}?tab=training`,
         priority: days >= 7 ? 'high' : 'medium',
         kind: 'inactive',
+        signature: buildInactiveAlertSignature(days),
+        clientId: client.clientId,
       })
     }
   }
@@ -94,4 +150,25 @@ export function buildProactiveAlerts({
   return alerts
     .sort((left, right) => PRIORITY_ORDER[left.priority] - PRIORITY_ORDER[right.priority])
     .slice(0, MAX_PROACTIVE_ALERTS)
+}
+
+export function filterDismissedProactiveAlerts(
+  alerts: ProactiveAlert[],
+  dismissals: ProactiveAlertDismissal[]
+): ProactiveAlert[] {
+  if (dismissals.length === 0) {
+    return alerts
+  }
+
+  const signaturesByAlertId = new Map(
+    dismissals.map((dismissal) => [dismissal.alertId, dismissal.signature])
+  )
+
+  return alerts.filter((alert) => {
+    const dismissedSignature = signaturesByAlertId.get(alert.id)
+    if (dismissedSignature == null) {
+      return true
+    }
+    return dismissedSignature !== alert.signature
+  })
 }

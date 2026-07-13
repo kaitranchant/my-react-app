@@ -38,7 +38,11 @@ import {
   filterProactiveAlertsForNotifications,
 } from '@/lib/notification-preferences'
 import { getNotificationPreferencesForUser } from '@/lib/notification-preferences-server'
-import { buildProactiveAlerts } from '@/lib/proactive-alerts'
+import { fetchProactiveAlertDismissals } from '@/lib/proactive-alert-dismissals'
+import {
+  buildProactiveAlerts,
+  filterDismissedProactiveAlerts,
+} from '@/lib/proactive-alerts'
 import {
   coachPreferencesUnset,
   fetchCoachGettingStartedProgress,
@@ -238,12 +242,19 @@ export default async function DashboardPage() {
         )
       : { elevatedLoadCount: 0, injuryFlagCount: 0, clientContexts: [] }
 
-  const proactiveAlerts = filterProactiveAlertsForNotifications(
-    buildProactiveAlerts({
-      clientContexts: loadAlerts.clientContexts,
-      pendingCheckInsCount: pendingCheckInsCount ?? 0,
-    }),
-    notificationPreferences ?? defaultNotificationPreferences
+  const proactiveAlertDismissals = user
+    ? await fetchProactiveAlertDismissals(supabase, user.id)
+    : []
+
+  const proactiveAlerts = filterDismissedProactiveAlerts(
+    filterProactiveAlertsForNotifications(
+      buildProactiveAlerts({
+        clientContexts: loadAlerts.clientContexts,
+        pendingCheckInsCount: pendingCheckInsCount ?? 0,
+      }),
+      notificationPreferences ?? defaultNotificationPreferences
+    ),
+    proactiveAlertDismissals
   )
 
   const actionItems = filterActionItemsForNotifications(

@@ -2725,6 +2725,54 @@ export type Database = {
           },
         ]
       }
+      coach_proactive_alert_dismissals: {
+        Row: {
+          id: string
+          coach_id: string
+          alert_id: string
+          kind: 'inactive' | 'acwr' | 'injury' | 'check_in'
+          client_id: string | null
+          signature: string
+          dismissed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          alert_id: string
+          kind: 'inactive' | 'acwr' | 'injury' | 'check_in'
+          client_id?: string | null
+          signature: string
+          dismissed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          alert_id?: string
+          kind?: 'inactive' | 'acwr' | 'injury' | 'check_in'
+          client_id?: string | null
+          signature?: string
+          dismissed_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'coach_proactive_alert_dismissals_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'coach_proactive_alert_dismissals_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       library_meals: {
         Row: {
           id: string
@@ -4759,6 +4807,13 @@ export type CoachOnboardingDocumentInsert =
   Database['public']['Tables']['coach_onboarding_documents']['Insert']
 export type CoachOnboardingDocumentUpdate =
   Database['public']['Tables']['coach_onboarding_documents']['Update']
+
+export type CoachProactiveAlertDismissal =
+  Database['public']['Tables']['coach_proactive_alert_dismissals']['Row']
+export type CoachProactiveAlertDismissalInsert =
+  Database['public']['Tables']['coach_proactive_alert_dismissals']['Insert']
+export type CoachProactiveAlertDismissalUpdate =
+  Database['public']['Tables']['coach_proactive_alert_dismissals']['Update']
 
 export type ClientOnboardingPacket =
   Database['public']['Tables']['client_onboarding_packets']['Row']

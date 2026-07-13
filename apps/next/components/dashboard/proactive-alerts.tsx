@@ -1,12 +1,22 @@
+'use client'
+
+import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
+  Check,
   ClipboardList,
   Dumbbell,
   HeartPulse,
   Sparkles,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
+import {
+  dismissProactiveAlert,
+  undoDismissProactiveAlert,
+} from '@/app/(dashboard)/dashboard/actions'
 import {
   Card,
   CardContent,
@@ -14,6 +24,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { toastSuccessWithUndo } from '@/lib/toast-undo'
 import type { ProactiveAlert } from '@/lib/proactive-alerts'
 import { cn } from '@/lib/utils'
 
@@ -47,7 +59,57 @@ type ProactiveAlertsProps = {
 }
 
 export function ProactiveAlerts({ alerts }: ProactiveAlertsProps) {
-  if (alerts.length === 0) {
+  const router = useRouter()
+  const [pendingAlertId, setPendingAlertId] = React.useState<string | null>(null)
+  const [hiddenAlertIds, setHiddenAlertIds] = React.useState<Set<string>>(
+    () => new Set()
+  )
+
+  const visibleAlerts = alerts.filter((alert) => !hiddenAlertIds.has(alert.id))
+
+  React.useEffect(() => {
+    setHiddenAlertIds(new Set())
+  }, [alerts])
+
+  async function handleDismiss(alert: ProactiveAlert) {
+    setPendingAlertId(alert.id)
+    setHiddenAlertIds((current) => new Set(current).add(alert.id))
+
+    const result = await dismissProactiveAlert({
+      alertId: alert.id,
+      kind: alert.kind,
+      signature: alert.signature,
+      clientId: alert.clientId,
+    })
+    setPendingAlertId(null)
+
+    if (!result.success) {
+      setHiddenAlertIds((current) => {
+        const next = new Set(current)
+        next.delete(alert.id)
+        return next
+      })
+      toast.error(result.error)
+      return
+    }
+
+    toastSuccessWithUndo('Alert cleared', async () => {
+      const undoResult = await undoDismissProactiveAlert(alert.id)
+      if (!undoResult.success) {
+        toast.error(undoResult.error)
+        return
+      }
+      setHiddenAlertIds((current) => {
+        const next = new Set(current)
+        next.delete(alert.id)
+        return next
+      })
+      router.refresh()
+    })
+    router.refresh()
+  }
+
+  if (visibleAlerts.length === 0) {
     return null
   }
 
@@ -68,24 +130,40 @@ export function ProactiveAlerts({ alerts }: ProactiveAlertsProps) {
       </CardHeader>
       <CardContent className="px-0 py-0 sm:px-6 sm:pt-4 sm:pb-5">
         <ul className="divide-y divide-status-warning/10">
-          {alerts.map((alert) => {
+          {visibleAlerts.map((alert) => {
             const config = kindConfig[alert.kind]
             const Icon = config.icon
 
             return (
               <li key={alert.id}>
-                <Link
-                  href={alert.href}
+                <div
                   className={cn(
-                    'body-text flex items-start gap-3 border-l-[3px] py-3.5 pr-4 pl-4 transition-colors hover:bg-status-warning/10 sm:rounded-lg sm:py-3 sm:pr-3 sm:pl-4',
+                    'flex items-start gap-2 border-l-[3px] py-3 pr-2 pl-4 sm:rounded-lg sm:py-3 sm:pr-2 sm:pl-4',
                     priorityBorder[alert.priority]
                   )}
                 >
-                  <Icon
-                    className={cn('mt-0.5 size-4 shrink-0', config.className)}
-                  />
-                  <span className="flex-1 leading-snug">{alert.message}</span>
-                </Link>
+                  <Link
+                    href={alert.href}
+                    className="body-text flex min-w-0 flex-1 items-start gap-3 py-0.5 transition-colors hover:text-foreground"
+                  >
+                    <Icon
+                      className={cn('mt-0.5 size-4 shrink-0', config.className)}
+                    />
+                    <span className="flex-1 leading-snug">{alert.message}</span>
+                  </Link>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground shrink-0"
+                    disabled={pendingAlertId === alert.id}
+                    aria-label={`Clear alert: ${alert.message}`}
+                    onClick={() => void handleDismiss(alert)}
+                  >
+                    <Check className="size-3.5" />
+                    Clear
+                  </Button>
+                </div>
               </li>
             )
           })}
