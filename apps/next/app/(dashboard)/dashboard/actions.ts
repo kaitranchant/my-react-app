@@ -14,14 +14,18 @@ const ALERT_KINDS = new Set<ProactiveAlertKind>([
   'check_in',
 ])
 
-async function requireCoach() {
+async function requireCoach():
+  Promise<
+    | { supabase: Awaited<ReturnType<typeof createClient>>; coachId: string }
+    | { error: string }
+  > {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: 'You must be signed in.' as const }
+    return { error: 'You must be signed in.' }
   }
 
   return { supabase, coachId: user.id }
