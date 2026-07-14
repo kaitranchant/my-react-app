@@ -55,6 +55,12 @@ type WorkoutLogKeypadContextValue = {
   adjustWeight: (delta: number) => void
   copyPrevious: () => void
   goNext: () => void
+  /** Advance like the keypad NEXT button from a native (external keyboard) field. */
+  advanceFromField: (
+    target: ActiveKeypadTarget,
+    currentValue: string
+  ) => ActiveKeypadTarget | null
+  focusField: (target: ActiveKeypadTarget) => void
   goPreviousSet: () => void
   goNextSet: () => void
   canGoPreviousSet: boolean
@@ -164,6 +170,28 @@ export function WorkoutLogKeypadProvider({
         const element = scrollContainerRef.current?.querySelector(selector)
         if (element instanceof HTMLElement) {
           scrollCellIntoView(element, behavior)
+        }
+      })
+    },
+    [scrollCellIntoView, scrollContainerRef]
+  )
+
+  const focusField = React.useCallback(
+    (target: ActiveKeypadTarget) => {
+      requestAnimationFrame(() => {
+        const selector = `[data-workout-log-field="${target.exerciseId}:${target.setNumber}:${target.field}"]`
+        const element =
+          scrollContainerRef.current?.querySelector(selector) ??
+          document.querySelector(selector)
+        if (!(element instanceof HTMLElement)) return
+
+        scrollCellIntoView(element, 'smooth')
+        element.focus()
+        if (
+          element instanceof HTMLInputElement ||
+          element instanceof HTMLTextAreaElement
+        ) {
+          element.select()
         }
       })
     },
@@ -357,43 +385,50 @@ export function WorkoutLogKeypadProvider({
     }
   }, [activeTarget, getContext])
 
+  const advanceFromField = React.useCallback(
+    (target: ActiveKeypadTarget, currentValue: string) => {
+      const context = getContext(target.exerciseId)
+      if (!context) return null
+
+      let sets = context.sets
+      const currentSet = sets.find((row) => row.setNumber === target.setNumber)
+      const currentSetWithEdits = currentSet
+        ? { ...currentSet, [target.field]: currentValue }
+        : undefined
+
+      const next = getNextKeypadTarget(target, sets, context.fields)
+
+      if (
+        shouldCompleteSetOnKeypadNext(
+          target,
+          next,
+          currentSetWithEdits,
+          context.fields
+        )
+      ) {
+        sets = applyExerciseSetChanges(
+          sets,
+          target.setNumber,
+          { completed: true },
+          context.fields
+        )
+        context.onSetChange(target.setNumber, { completed: true })
+      }
+
+      return next
+    },
+    [getContext]
+  )
+
   const goNext = React.useCallback(() => {
     if (!activeTarget) return
-    const context = getContext(activeTarget.exerciseId)
-    if (!context) return
 
-    let sets = context.sets
-    const currentSet = sets.find((row) => row.setNumber === activeTarget.setNumber)
-    const currentSetWithEdits = currentSet
-      ? { ...currentSet, [activeTarget.field]: editingValue }
-      : undefined
-
-    const next = getNextKeypadTarget(
-      activeTarget,
-      sets,
-      context.fields
-    )
-
-    if (
-      shouldCompleteSetOnKeypadNext(
-        activeTarget,
-        next,
-        currentSetWithEdits,
-        context.fields
-      )
-    ) {
-      sets = applyExerciseSetChanges(
-        sets,
-        activeTarget.setNumber,
-        { completed: true },
-        context.fields
-      )
-      context.onSetChange(activeTarget.setNumber, { completed: true })
-    }
-
+    const next = advanceFromField(activeTarget, editingValue)
     if (next) {
       syncReplacePredictedForTarget(next)
-      const set = sets.find((row) => row.setNumber === next.setNumber)
+      const set = getContext(next.exerciseId)?.sets.find(
+        (row) => row.setNumber === next.setNumber
+      )
       setEditingValue(set?.[next.field] ?? '')
       setActiveTarget(next)
       scrollToField(next)
@@ -403,10 +438,12 @@ export function WorkoutLogKeypadProvider({
     closeKeypad()
   }, [
     activeTarget,
+    advanceFromField,
     closeKeypad,
     editingValue,
     getContext,
     scrollToField,
+    syncReplacePredictedForTarget,
   ])
 
   const navigateToTarget = React.useCallback(
@@ -483,6 +520,8 @@ export function WorkoutLogKeypadProvider({
       adjustWeight,
       copyPrevious,
       goNext,
+      advanceFromField,
+      focusField,
       goPreviousSet,
       goNextSet,
       canGoPreviousSet,
@@ -509,6 +548,8 @@ export function WorkoutLogKeypadProvider({
       adjustWeight,
       copyPrevious,
       goNext,
+      advanceFromField,
+      focusField,
       goPreviousSet,
       goNextSet,
       canGoPreviousSet,

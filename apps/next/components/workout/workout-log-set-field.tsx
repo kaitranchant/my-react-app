@@ -47,6 +47,26 @@ export function WorkoutLogSetField({
     disabled || !keypad?.enabled
   )
 
+  const handleNativeEnter = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      if (!keypad || disabled) return
+
+      const next = keypad.advanceFromField(
+        { exerciseId, setNumber, field },
+        value
+      )
+      if (next) {
+        keypad.focusField(next)
+        return
+      }
+
+      event.currentTarget.blur()
+    },
+    [disabled, exerciseId, field, keypad, setNumber, value]
+  )
+
   if (!keypad?.enabled || disabled) {
     const inputMode =
       field === 'reps' ||
@@ -59,9 +79,12 @@ export function WorkoutLogSetField({
       <Input
         type="text"
         inputMode={inputMode}
+        enterKeyHint="next"
         value={value}
         disabled={disabled}
+        data-workout-log-field={`${exerciseId}:${setNumber}:${field}`}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={handleNativeEnter}
         onFocus={(event) => {
           if (predicted && value) {
             event.target.select()

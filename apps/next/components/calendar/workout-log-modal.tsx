@@ -622,7 +622,7 @@ function WorkoutLogExercise({
   }
 
   React.useEffect(() => {
-    if (!keypad?.enabled) return
+    if (!keypad) return
 
     keypad.registerExerciseContext(exercise.id, {
       sets,
@@ -642,6 +642,7 @@ function WorkoutLogExercise({
     fields.showPeakPower,
     fields.showReps,
     fields.showWeight,
+    fields.showRpe,
     keypad,
     handleLocalSetChange,
     previousSets,
