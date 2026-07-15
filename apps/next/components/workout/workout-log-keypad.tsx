@@ -211,7 +211,6 @@ function WorkoutLogKeypadContent({
         >
           <Layers className="size-5" />
         </KeypadButton>
-        {digitButton('0')}
         {showDecimal ? (
           <KeypadButton
             aria-label="Decimal point"
@@ -223,6 +222,7 @@ function WorkoutLogKeypadContent({
         ) : (
           <div aria-hidden className="min-h-12" />
         )}
+        {digitButton('0')}
         <KeypadButton
           aria-label="Backspace"
           variant="icon"
