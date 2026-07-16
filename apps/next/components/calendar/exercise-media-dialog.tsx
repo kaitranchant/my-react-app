@@ -39,12 +39,8 @@ export function ExerciseMediaDialog({
     .join(' · ')
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogContent
-        className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-md"
-        onInteractOutside={(event) => event.preventDefault()}
-        onPointerDownOutside={(event) => event.preventDefault()}
-      >
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{exercise.name}</DialogTitle>
           {subtitle && <DialogDescription>{subtitle}</DialogDescription>}

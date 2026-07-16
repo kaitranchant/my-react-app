@@ -15,6 +15,8 @@ loadEnvLocal()
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const MEAL_PLAN_NAME = 'Nikki Sharpsteen Fat Loss 4-Day'
 const CLIENT_NAME = 'Nikki Sharpsteen'
+const MEAL_PLAN_DESCRIPTION =
+  '6-day fat loss meal plan (~1,450 kcal/day target). Client: 136 lbs, sedentary job, 2x/week resistance training. Includes sweet snacks daily. Days 5–6 add Mediterranean / Tex-Mex / Asian variety.'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -292,6 +294,119 @@ const mealPlanDays = [
       },
     ],
   },
+  {
+    label: 'Day 5',
+    notes: '3 meals + 1 snack — breakfast burrito, Mediterranean lunch, turkey chili',
+    meals: [
+      {
+        meal_type: 'breakfast',
+        name: 'Breakfast Burrito + Coffee',
+        sort_order: 0,
+        foods: [
+          usdaFood('174081', 50),
+          usdaFood('172183', 100),
+          usdaFood('2644285', 50),
+          usdaFood('328637', 20),
+          usdaFood('324038', 30),
+          creamerServing,
+        ],
+      },
+      {
+        meal_type: 'lunch',
+        name: 'Chickpea Chicken Mediterranean Bowl',
+        sort_order: 1,
+        foods: [
+          usdaFood('173800', 150),
+          usdaFood('171534', 100),
+          usdaFood('168409', 75),
+          usdaFood('170457', 75),
+          usdaFood('173420', 30),
+          usdaFood('171413', 7),
+        ],
+      },
+      {
+        meal_type: 'dinner',
+        name: 'Turkey Chili',
+        sort_order: 2,
+        foods: [
+          usdaFood('330869', 120),
+          usdaFood('2644285', 100),
+          usdaFood('333281', 100),
+          usdaFood('170000', 25),
+          usdaFood('2258590', 25),
+          usdaFood('328637', 20),
+        ],
+      },
+      {
+        meal_type: 'snack',
+        name: 'Snack (sweet)',
+        sort_order: 3,
+        foods: [
+          usdaFood('330137', 150),
+          usdaFood('173948', 40),
+          usdaFood('327699', 40),
+          usdaFood('169640', 8),
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Day 6',
+    notes: '3 meals + 1 snack — smoothie bowl, tuna bowl, pork tenderloin',
+    meals: [
+      {
+        meal_type: 'breakfast',
+        name: 'Protein Smoothie Bowl + Coffee',
+        sort_order: 0,
+        foods: [
+          usdaFood('173944', 100),
+          usdaFood('330137', 150),
+          usdaFood('321359', 150),
+          usdaFood('173180', 30),
+          usdaFood('171646', 20),
+          creamerServing,
+        ],
+      },
+      {
+        meal_type: 'lunch',
+        name: 'Tuna Rice Bowl',
+        sort_order: 1,
+        foods: [
+          usdaFood('334194', 130),
+          usdaFood('169704', 100),
+          usdaFood('168411', 50),
+          usdaFood('168409', 50),
+          usdaFood('2258587', 50),
+          customFood('Soy-sesame dressing', 7, {
+            caloriesKcal: 35,
+            proteinG: 0.5,
+            carbsG: 1.5,
+            fatG: 3.2,
+          }),
+        ],
+      },
+      {
+        meal_type: 'dinner',
+        name: 'Pork Tenderloin + Sweet Potato',
+        sort_order: 2,
+        foods: [
+          usdaFood('168250', 170),
+          usdaFood('168483', 150),
+          usdaFood('169141', 100),
+        ],
+      },
+      {
+        meal_type: 'snack',
+        name: 'Snack (sweet)',
+        sort_order: 3,
+        foods: [
+          usdaFood('171723', 20),
+          usdaFood('170562', 15),
+          usdaFood('167976', 10),
+        ],
+      },
+    ],
+  },
 ]
 
 const supabase = createClient(url, serviceKey, {
@@ -327,8 +442,7 @@ if (existingPlan) {
     .from('meal_plans')
     .update({
       status: 'active',
-      description:
-        '4-day fat loss meal plan (~1,450 kcal/day target). Client: 136 lbs, sedentary job, 2x/week resistance training. Includes sweet snacks daily.',
+      description: MEAL_PLAN_DESCRIPTION,
     })
     .eq('id', mealPlanId)
 } else {
@@ -337,8 +451,7 @@ if (existingPlan) {
     .insert({
       coach_id: coachId,
       name: MEAL_PLAN_NAME,
-      description:
-        '4-day fat loss meal plan (~1,450 kcal/day target). Client: 136 lbs, sedentary job, 2x/week resistance training. Includes sweet snacks daily.',
+      description: MEAL_PLAN_DESCRIPTION,
       status: 'active',
     })
     .select('id')

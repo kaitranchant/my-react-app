@@ -38,6 +38,7 @@ import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useHorizontalSwipeNavigation } from '@/lib/hooks/use-horizontal-swipe-navigation'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { openWorkoutLog } from '@/lib/open-workout-log'
 import {
@@ -528,6 +529,7 @@ export function ClientCalendarPanel({
       setLogOpen(false)
     }
 
+    selectedDateRef.current = dateKey
     setSelectedDate(dateKey)
 
     const summaries = getSummariesForDate(scheduledDays, dateKey)
@@ -541,6 +543,60 @@ export function ClientCalendarPanel({
     setSelectedWorkoutId(summary!.id)
     await loadSelectedDayWorkout(dateKey, summary!.id)
   }
+
+  const selectedDateRef = React.useRef(selectedDate)
+  selectedDateRef.current = selectedDate
+  const daySwipeGenerationRef = React.useRef(0)
+
+  async function navigateSelectedDateByDays(delta: -1 | 1) {
+    const generation = ++daySwipeGenerationRef.current
+    const nextDate = addDaysToDateKey(selectedDateRef.current, delta)
+    const parsed = parseDateKey(nextDate)
+    const nextYear = parsed.getFullYear()
+    const nextMonth = parsed.getMonth()
+
+    if (logOpen && workout && workout.scheduled_date !== nextDate) {
+      setLogOpen(false)
+    }
+
+    selectedDateRef.current = nextDate
+    setSelectedDate(nextDate)
+
+    let days = scheduledDays
+    if (nextYear !== year || nextMonth !== month) {
+      setYear(nextYear)
+      setMonth(nextMonth)
+      days = (await ensureMonthDays(nextYear, nextMonth)) ?? []
+      if (generation !== daySwipeGenerationRef.current) return
+      setScheduledDays(days)
+    }
+
+    if (generation !== daySwipeGenerationRef.current) return
+
+    const summaries = getSummariesForDate(days, nextDate)
+    if (summaries.length === 0) {
+      setSelectedWorkoutId(null)
+      setWorkout(null)
+      return
+    }
+
+    const summary = pickSummaryForDate(summaries, selectedWorkoutId)
+    setSelectedWorkoutId(summary!.id)
+    await loadSelectedDayWorkout(nextDate, summary!.id)
+  }
+
+  const navigateSelectedDateByDaysRef = React.useRef(navigateSelectedDateByDays)
+  navigateSelectedDateByDaysRef.current = navigateSelectedDateByDays
+
+  const { swipeProps: daySwipeProps } = useHorizontalSwipeNavigation({
+    enabled: isMobile,
+    onPrevious: () => {
+      void navigateSelectedDateByDaysRef.current(-1)
+    },
+    onNext: () => {
+      void navigateSelectedDateByDaysRef.current(1)
+    },
+  })
 
   async function handleDayDoubleClick(dateKey: string) {
     setSelectedDate(dateKey)
@@ -838,7 +894,7 @@ export function ClientCalendarPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="touch-pan-y space-y-4" {...daySwipeProps}>
       <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs font-medium">
@@ -891,7 +947,7 @@ export function ClientCalendarPanel({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-swipe-ignore="">
           {selectedDaySummaries.length > 0 ? (
             <>
               <Button

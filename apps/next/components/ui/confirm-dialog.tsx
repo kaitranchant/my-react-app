@@ -106,5 +106,5 @@ export function useConfirmDialog({
     />
   )
 
-  return { open: () => setOpen(true), dialog }
+  return { open: () => setOpen(true), isOpen: open, dialog }
 }

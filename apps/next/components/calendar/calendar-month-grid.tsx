@@ -289,6 +289,7 @@ function MonthNavHeader({
           variant="outline"
           size={isFull ? 'sm' : 'icon'}
           className={isFull ? 'h-8' : 'size-8'}
+          data-swipe-ignore=""
           onClick={onPreviousMonth}
           aria-label="Previous month"
         >
@@ -299,6 +300,7 @@ function MonthNavHeader({
           variant="outline"
           size={isFull ? 'sm' : 'icon'}
           className={isFull ? 'h-8' : 'size-8'}
+          data-swipe-ignore=""
           onClick={onNextMonth}
           aria-label="Next month"
         >

@@ -432,6 +432,7 @@ function WorkoutLogExercise({
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [formReviewOpen, setFormReviewOpen] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
+  const [actionsMenuOpen, setActionsMenuOpen] = React.useState(false)
   const [openSwipeDraftId, setOpenSwipeDraftId] =
     React.useState<string | null>(null)
 
@@ -454,6 +455,11 @@ function WorkoutLogExercise({
     onNestedOverlayChange?.(`${exercise.id}:form-review`, formReviewOpen)
     return () => onNestedOverlayChange?.(`${exercise.id}:form-review`, false)
   }, [exercise.id, formReviewOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(`${exercise.id}:actions-menu`, actionsMenuOpen)
+    return () => onNestedOverlayChange?.(`${exercise.id}:actions-menu`, false)
+  }, [exercise.id, actionsMenuOpen, onNestedOverlayChange])
   const { startRestTimer } = useRestTimer()
   const restSeconds = parseRestSeconds(exercise.rest_seconds)
   const mediaExercise = resolveExerciseMediaFields(exercise, libraryExercises)
@@ -764,7 +770,11 @@ function WorkoutLogExercise({
                   </Button>
                 )}
                 {!readOnly && (
-                  <DropdownMenu>
+                  <DropdownMenu
+                    modal={false}
+                    open={actionsMenuOpen}
+                    onOpenChange={setActionsMenuOpen}
+                  >
                     <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
@@ -1403,22 +1413,55 @@ export function WorkoutLogScreen({
     React.useState<ScheduledWorkoutExerciseWithDetails | null>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
   const nestedOverlaysRef = React.useRef(new Set<string>())
+  const suppressParentCloseUntilRef = React.useRef(0)
+
+  const shouldBlockParentDismiss = React.useCallback(() => {
+    return (
+      nestedOverlaysRef.current.size > 0 ||
+      performance.now() < suppressParentCloseUntilRef.current
+    )
+  }, [])
 
   const handleNestedOverlayChange = React.useCallback(
     (key: string, open: boolean) => {
       if (open) {
         nestedOverlaysRef.current.add(key)
-      } else {
-        nestedOverlaysRef.current.delete(key)
+        return
+      }
+
+      // Only suppress parent dismiss when a nested overlay actually closed.
+      // Effect cleanups for already-closed keys should not block intentional
+      // outside taps on the workout log dialog.
+      if (nestedOverlaysRef.current.delete(key)) {
+        suppressParentCloseUntilRef.current = performance.now() + 400
       }
     },
     []
+  )
+
+  const handleParentInteractOutside = React.useCallback(
+    (event: { preventDefault: () => void }) => {
+      if (shouldBlockParentDismiss()) {
+        event.preventDefault()
+      }
+    },
+    [shouldBlockParentDismiss]
   )
 
   React.useEffect(() => {
     handleNestedOverlayChange('exercise-nav', exerciseNavOpen)
     return () => handleNestedOverlayChange('exercise-nav', false)
   }, [exerciseNavOpen, handleNestedOverlayChange])
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('edit-exercise', Boolean(editingExercise))
+    return () => handleNestedOverlayChange('edit-exercise', false)
+  }, [editingExercise, handleNestedOverlayChange])
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('replace-exercise', Boolean(replacingExercise))
+    return () => handleNestedOverlayChange('replace-exercise', false)
+  }, [replacingExercise, handleNestedOverlayChange])
 
   const removeExerciseConfirm = useConfirmDialog({
     title: exerciseToRemove
@@ -1506,6 +1549,29 @@ export function WorkoutLogScreen({
       throw new Error(result.error)
     },
   })
+
+  React.useEffect(() => {
+    handleNestedOverlayChange(
+      'remove-exercise-confirm',
+      removeExerciseConfirm.isOpen
+    )
+    return () => handleNestedOverlayChange('remove-exercise-confirm', false)
+  }, [removeExerciseConfirm.isOpen, handleNestedOverlayChange])
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('skip-workout-confirm', skipWorkoutConfirm.isOpen)
+    return () => handleNestedOverlayChange('skip-workout-confirm', false)
+  }, [skipWorkoutConfirm.isOpen, handleNestedOverlayChange])
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('celebration', showCelebration)
+    return () => handleNestedOverlayChange('celebration', false)
+  }, [showCelebration, handleNestedOverlayChange])
+
+  React.useEffect(() => {
+    handleNestedOverlayChange('workout-complete', showWorkoutComplete)
+    return () => handleNestedOverlayChange('workout-complete', false)
+  }, [showWorkoutComplete, handleNestedOverlayChange])
 
   const exerciseStateRef = React.useRef(exerciseState)
   exerciseStateRef.current = exerciseState
@@ -2245,7 +2311,7 @@ export function WorkoutLogScreen({
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
-    if (!nextOpen && nestedOverlaysRef.current.size > 0) {
+    if (!nextOpen && shouldBlockParentDismiss()) {
       return
     }
 
@@ -2895,6 +2961,8 @@ export function WorkoutLogScreen({
         <DialogContent
           viewport
           className="flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),900px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(96vw,1200px)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]"
+          onPointerDownOutside={handleParentInteractOutside}
+          onInteractOutside={handleParentInteractOutside}
         >
           {logContent}
         </DialogContent>
