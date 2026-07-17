@@ -1,6 +1,7 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import * as React from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 import { TeamEventsPanel } from '@/components/teams/team-events-panel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -34,11 +35,16 @@ export function TeamScheduleSection({
   calendarPanel,
   programPanel,
 }: TeamScheduleSectionProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const scheduleSection = resolveScheduleSection(searchParams.get('section'))
+  const [scheduleSection, setScheduleSection] = React.useState<ScheduleSection>(
+    () => resolveScheduleSection(searchParams.get('section'))
+  )
   const highlightDate = searchParams.get('date')
+
+  React.useEffect(() => {
+    setScheduleSection(resolveScheduleSection(searchParams.get('section')))
+  }, [searchParams])
 
   function buildUrl(section: ScheduleSection) {
     const params = new URLSearchParams(searchParams.toString())
@@ -56,7 +62,9 @@ export function TeamScheduleSection({
   }
 
   function handleSectionChange(value: string) {
-    router.replace(buildUrl(value as ScheduleSection), { scroll: false })
+    const nextSection = resolveScheduleSection(value)
+    setScheduleSection(nextSection)
+    window.history.replaceState(null, '', buildUrl(nextSection))
   }
 
   return (
