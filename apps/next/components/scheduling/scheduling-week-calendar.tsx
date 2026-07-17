@@ -9,6 +9,7 @@ import { getWeekDayLabels, parseDateKey } from '@/lib/calendar'
 import { resolveCoachTimezone, type CoachPreferences } from '@/lib/coach-preferences'
 import type { GoogleCalendarBlockedTime } from '@/lib/google-calendar/blocked-times'
 import { hideBlockedTimesOverlappingAppointments } from '@/lib/google-calendar/blocked-times-filter'
+import { useHorizontalSwipeNavigation } from '@/lib/hooks/use-horizontal-swipe-navigation'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 import {
@@ -409,17 +410,36 @@ export function SchedulingWeekCalendar({
   const canSlideForward =
     isMobile && dayWindowStart + MOBILE_DAYS_VISIBLE < weekDays.length
 
+  const slideBack = React.useCallback(() => {
+    setDayWindowStart((start) => Math.max(0, start - 1))
+  }, [])
+
+  const slideForward = React.useCallback(() => {
+    setDayWindowStart((start) =>
+      Math.min(weekDays.length - MOBILE_DAYS_VISIBLE, start + 1)
+    )
+  }, [weekDays.length])
+
+  const { swipeProps: daySwipeProps } = useHorizontalSwipeNavigation({
+    enabled: isMobile,
+    onPrevious: slideBack,
+    onNext: slideForward,
+  })
+
   return (
-    <div className="space-y-3">
+    <div className="touch-pan-y space-y-3" {...daySwipeProps}>
       {isMobile ? (
-        <div className="flex items-center justify-between gap-2">
+        <div
+          className="flex items-center justify-between gap-2"
+          data-swipe-ignore=""
+        >
           <Button
             type="button"
             variant="outline"
             size="icon"
             className="size-8 shrink-0"
             disabled={!canSlideBack}
-            onClick={() => setDayWindowStart((start) => Math.max(0, start - 1))}
+            onClick={slideBack}
             aria-label="Show earlier days"
           >
             <ChevronLeft className="size-4" />
@@ -433,11 +453,7 @@ export function SchedulingWeekCalendar({
             size="icon"
             className="size-8 shrink-0"
             disabled={!canSlideForward}
-            onClick={() =>
-              setDayWindowStart((start) =>
-                Math.min(weekDays.length - MOBILE_DAYS_VISIBLE, start + 1)
-              )
-            }
+            onClick={slideForward}
             aria-label="Show later days"
           >
             <ChevronRight className="size-4" />

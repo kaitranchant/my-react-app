@@ -2,11 +2,7 @@
 
 import * as React from 'react'
 
-import {
-  GUIDED_EXERCISE_SWIPE_HORIZONTAL_RATIO,
-  GUIDED_EXERCISE_SWIPE_THRESHOLD_PX,
-  resolveGuidedExerciseSwipeDirection,
-} from '@/lib/hooks/use-guided-exercise-swipe-navigation'
+import { resolveGuidedExerciseSwipeDirection } from '@/lib/hooks/use-guided-exercise-swipe-navigation'
 
 const DEFAULT_IGNORE_SELECTOR = [
   'a',
@@ -15,6 +11,10 @@ const DEFAULT_IGNORE_SELECTOR = [
   'select',
   '[data-swipe-ignore]',
 ].join(', ')
+
+/** Slightly looser than guided-exercise so day swipes work on scrollable pages. */
+const DAY_SWIPE_THRESHOLD_PX = 36
+const DAY_SWIPE_HORIZONTAL_RATIO = 1.2
 
 type TouchTracking = {
   startX: number
@@ -29,6 +29,8 @@ type UseHorizontalSwipeNavigationOptions = {
   onNext: () => void
   /** Extra CSS selectors that should not start a swipe (e.g. action buttons). */
   ignoreSelector?: string
+  thresholdPx?: number
+  horizontalRatio?: number
 }
 
 function shouldIgnoreSwipeTarget(
@@ -42,17 +44,40 @@ function shouldIgnoreSwipeTarget(
   return Boolean(target.closest(ignoreSelector))
 }
 
+/**
+ * Horizontal swipe navigation that claims the gesture once horizontal intent
+ * is clear. Uses native non-passive touch listeners so preventDefault works
+ * (React's delegated touch handlers are often passive).
+ */
 export function useHorizontalSwipeNavigation({
   enabled,
   onPrevious,
   onNext,
   ignoreSelector = DEFAULT_IGNORE_SELECTOR,
+  thresholdPx = DAY_SWIPE_THRESHOLD_PX,
+  horizontalRatio = DAY_SWIPE_HORIZONTAL_RATIO,
 }: UseHorizontalSwipeNavigationOptions) {
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
   const touchRef = React.useRef<TouchTracking | null>(null)
   const suppressClickRef = React.useRef(false)
+  const onPreviousRef = React.useRef(onPrevious)
+  const onNextRef = React.useRef(onNext)
+  const ignoreSelectorRef = React.useRef(ignoreSelector)
+  const thresholdRef = React.useRef(thresholdPx)
+  const ratioRef = React.useRef(horizontalRatio)
+
+  onPreviousRef.current = onPrevious
+  onNextRef.current = onNext
+  ignoreSelectorRef.current = ignoreSelector
+  thresholdRef.current = thresholdPx
+  ratioRef.current = horizontalRatio
 
   const resetTouch = React.useCallback(() => {
     touchRef.current = null
+  }, [])
+
+  const setContainerRef = React.useCallback((node: HTMLElement | null) => {
+    setContainer(node)
   }, [])
 
   React.useEffect(() => {
@@ -76,15 +101,20 @@ export function useHorizontalSwipeNavigation({
     return () => document.removeEventListener('click', handleClickCapture, true)
   }, [enabled])
 
-  const handleTouchStart = React.useCallback(
-    (event: React.TouchEvent<HTMLElement>) => {
-      if (!enabled || event.touches.length !== 1) {
+  React.useEffect(() => {
+    if (!enabled || !container) return
+
+    function handleTouchStart(event: TouchEvent) {
+      if (event.touches.length !== 1) {
         resetTouch()
         return
       }
 
       const touch = event.touches[0]
-      if (!touch || shouldIgnoreSwipeTarget(event.target, ignoreSelector)) {
+      if (
+        !touch ||
+        shouldIgnoreSwipeTarget(event.target, ignoreSelectorRef.current)
+      ) {
         resetTouch()
         return
       }
@@ -95,12 +125,9 @@ export function useHorizontalSwipeNavigation({
         active: true,
         horizontal: false,
       }
-    },
-    [enabled, ignoreSelector, resetTouch]
-  )
+    }
 
-  const handleTouchMove = React.useCallback(
-    (event: React.TouchEvent<HTMLElement>) => {
+    function handleTouchMove(event: TouchEvent) {
       const tracking = touchRef.current
       if (!tracking?.active || event.touches.length !== 1) {
         return
@@ -116,28 +143,29 @@ export function useHorizontalSwipeNavigation({
       const deltaY = touch.clientY - tracking.startY
       const absX = Math.abs(deltaX)
       const absY = Math.abs(deltaY)
+      const threshold = thresholdRef.current
+      const ratio = ratioRef.current
 
       if (!tracking.horizontal) {
-        if (absY > GUIDED_EXERCISE_SWIPE_THRESHOLD_PX && absY > absX) {
+        if (absY > threshold && absY > absX) {
           tracking.active = false
           return
         }
 
-        if (
-          absX < GUIDED_EXERCISE_SWIPE_THRESHOLD_PX ||
-          absX < absY * GUIDED_EXERCISE_SWIPE_HORIZONTAL_RATIO
-        ) {
+        if (absX < threshold || absX < absY * ratio) {
           return
         }
 
         tracking.horizontal = true
       }
-    },
-    [resetTouch]
-  )
 
-  const handleTouchEnd = React.useCallback(
-    (event: React.TouchEvent<HTMLElement>) => {
+      // Claim the gesture so the page does not scroll / cancel the swipe.
+      if (event.cancelable) {
+        event.preventDefault()
+      }
+    }
+
+    function handleTouchEnd(event: TouchEvent) {
       const tracking = touchRef.current
       if (!tracking?.active) {
         resetTouch()
@@ -153,6 +181,8 @@ export function useHorizontalSwipeNavigation({
       const direction = resolveGuidedExerciseSwipeDirection({
         deltaX: touch.clientX - tracking.startX,
         deltaY: touch.clientY - tracking.startY,
+        threshold: thresholdRef.current,
+        horizontalRatio: ratioRef.current,
       })
 
       resetTouch()
@@ -161,22 +191,33 @@ export function useHorizontalSwipeNavigation({
 
       suppressClickRef.current = true
       if (direction === 'next') {
-        onNext()
+        onNextRef.current()
       } else {
-        onPrevious()
+        onPreviousRef.current()
       }
+    }
+
+    function handleTouchCancel() {
+      resetTouch()
+    }
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true })
+    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+    container.addEventListener('touchend', handleTouchEnd)
+    container.addEventListener('touchcancel', handleTouchCancel)
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart)
+      container.removeEventListener('touchmove', handleTouchMove)
+      container.removeEventListener('touchend', handleTouchEnd)
+      container.removeEventListener('touchcancel', handleTouchCancel)
+      resetTouch()
+    }
+  }, [container, enabled, resetTouch])
+
+  return {
+    swipeProps: {
+      ref: setContainerRef,
     },
-    [onNext, onPrevious, resetTouch]
-  )
-
-  const swipeProps = enabled
-    ? {
-        onTouchStart: handleTouchStart,
-        onTouchMove: handleTouchMove,
-        onTouchEnd: handleTouchEnd,
-        onTouchCancel: resetTouch,
-      }
-    : {}
-
-  return { swipeProps }
+  }
 }
