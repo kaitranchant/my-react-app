@@ -223,15 +223,25 @@ export function BookAppointmentDialog({
           Book session
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent
+        viewport
+        className="flex max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      >
+        <DialogHeader className="shrink-0 px-6 pt-6 pr-12">
           <DialogTitle>Book a session</DialogTitle>
           <DialogDescription>
             Schedule a session for a client.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <div
+            data-nested-keyboard-scroll=""
+            className="min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-y-contain px-6 py-4 [-webkit-overflow-scrolling:touch]"
+          >
           <div className="space-y-2">
             <Label>Client</Label>
             <Select value={clientId} onValueChange={setClientId}>
@@ -429,8 +439,9 @@ export function BookAppointmentDialog({
               </div>
             ) : null}
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="bg-background shrink-0 border-t px-6 py-4">
             <Button type="submit" disabled={pending || !startsAt}>
               {pending ? 'Booking…' : 'Book session'}
             </Button>
