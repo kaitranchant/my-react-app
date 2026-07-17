@@ -22,6 +22,7 @@ import {
   type OrderedExerciseRow,
 } from '@/lib/workout-exercise-order'
 import { createClient } from '@/lib/supabase/server'
+import { syncProgramToTeamCalendar } from '@/lib/team-calendar-sync'
 import {
   prescriptionValuesToDbRow,
   scheduledExerciseFormSchema,
@@ -475,6 +476,29 @@ async function afterProgramCalendarChange(
   options?: { deletedWorkouts?: ProgramWorkoutSnapshot[] }
 ) {
   await syncProgramToAssignedClients(supabase, coachId, programId, options)
+
+  const { data: assignedTeams, error: assignedTeamsError } = await supabase
+    .from('teams')
+    .select('id, program_start_date')
+    .eq('coach_id', coachId)
+    .eq('active_program_id', programId)
+    .not('program_start_date', 'is', null)
+
+  if (assignedTeamsError) {
+    throw new Error(assignedTeamsError.message)
+  }
+
+  for (const team of assignedTeams ?? []) {
+    if (!team.program_start_date) continue
+    await syncProgramToTeamCalendar(
+      supabase,
+      coachId,
+      team.id,
+      programId,
+      team.program_start_date
+    )
+    revalidatePath(`/teams/${team.id}`)
+  }
 
   const { data: assignments } = await supabase
     .from('program_assignments')

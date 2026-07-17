@@ -18,6 +18,8 @@ import { ClientSharedBanner } from '@/components/gym/client-gym-badge'
 import { TeamCompetitionLink } from '@/components/teams/team-competition-link'
 import { TeamDetailTabs } from '@/components/teams/team-detail-tabs'
 import { TeamFormDialog } from '@/components/teams/team-form-dialog'
+import { TeamProgramsPanel } from '@/components/teams/team-programs-panel'
+import { TeamSchedulePanel } from '@/components/teams/team-schedule-panel'
 import { TeamDetailBreadcrumbs } from '@/components/navigation/detail-breadcrumbs'
 import { getGymsForCoach, isPrimaryTeamCoach } from '@/lib/gym-access'
 import { getCoachPreferencesForCoachId } from '@/lib/coach-preferences-server'
@@ -278,21 +280,38 @@ export default async function TeamDetailPage({
           members={members}
           allClients={allClients}
           teamAssignedClientIds={teamAssignedClientIds}
-          availablePrograms={availablePrograms}
-          activeProgram={activeProgram}
           announcements={announcements}
           forumPosts={forumPosts}
-          events={eventsWithStatuses}
           performance={performance}
           activity={activity}
-          programProgress={programProgress}
-          programHistory={programHistory}
           nextEvent={nextEvent}
           exercises={exerciseRows ?? []}
           weightClasses={weightClasses}
           challenges={challenges}
           canEditLeaderboardLifts={viewerIsPrimaryCoach}
           canManageChallenges={viewerIsPrimaryCoach}
+          schedulePanel={
+            <TeamSchedulePanel
+              teamId={teamId}
+              teamName={team.name}
+              coachUserId={user?.id ?? null}
+              activeProgramId={team.active_program_id}
+              programStartDate={team.program_start_date}
+              events={eventsWithStatuses}
+              members={members}
+              programPanel={
+                <TeamProgramsPanel
+                  teamId={teamId}
+                  team={team}
+                  activeProgram={activeProgram}
+                  availablePrograms={availablePrograms}
+                  memberCount={members.length}
+                  programProgress={programProgress}
+                  programHistory={programHistory}
+                />
+              }
+            />
+          }
         />
       </Suspense>
     </div>

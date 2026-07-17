@@ -15,6 +15,7 @@ import {
   updateScheduledExercise,
   updateScheduledWorkout,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
+import * as teamCalendarActions from '@/app/(dashboard)/teams/[teamId]/calendar/actions'
 import { WorkoutBuilder } from '@/components/calendar/workout-builder'
 import { TabletFullscreenOverlay } from '@/components/layout/tablet-fullscreen-overlay'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ type WorkoutBuilderModalProps = {
     workout?: ClientScheduledWorkoutWithExercises
   ) => void | Promise<void>
   onCopy?: () => void
+  calendarVariant?: 'client' | 'team'
 }
 
 function WorkoutBuilderBody({
@@ -201,7 +203,9 @@ export function WorkoutBuilderModal({
   exercises,
   onChanged,
   onCopy,
+  calendarVariant = 'client',
 }: WorkoutBuilderModalProps) {
+  const isTeamCalendar = calendarVariant === 'team'
   const tabletTouch = useTabletTouchLayout()
   const [pending, setPending] = React.useState(false)
 
@@ -216,21 +220,45 @@ export function WorkoutBuilderModal({
   const exerciseActions = React.useMemo<WorkoutBuilderExerciseActions>(
     () => ({
       addExercise: (workoutId, values) =>
-        addScheduledExercise(clientId, workoutId, values),
+        isTeamCalendar
+          ? teamCalendarActions.addScheduledExercise(clientId, workoutId, values)
+          : addScheduledExercise(clientId, workoutId, values),
       updateExercise: (exerciseRowId, values) =>
-        updateScheduledExercise(clientId, exerciseRowId, values),
+        isTeamCalendar
+          ? teamCalendarActions.updateScheduledExercise(
+              clientId,
+              exerciseRowId,
+              values
+            )
+          : updateScheduledExercise(clientId, exerciseRowId, values),
       replaceExercise: (exerciseRowId, newExerciseId) =>
-        replaceScheduledExercise(clientId, exerciseRowId, newExerciseId),
+        isTeamCalendar
+          ? teamCalendarActions.replaceScheduledExercise(
+              clientId,
+              exerciseRowId,
+              newExerciseId
+            )
+          : replaceScheduledExercise(clientId, exerciseRowId, newExerciseId),
       removeExercise: (exerciseRowId) =>
-        removeScheduledExercise(clientId, exerciseRowId),
+        isTeamCalendar
+          ? teamCalendarActions.removeScheduledExercise(clientId, exerciseRowId)
+          : removeScheduledExercise(clientId, exerciseRowId),
       reorderExercises: (workoutId, orderedRowIds) =>
-        reorderScheduledExercises(clientId, workoutId, orderedRowIds),
+        isTeamCalendar
+          ? teamCalendarActions.reorderScheduledExercises(
+              clientId,
+              workoutId,
+              orderedRowIds
+            )
+          : reorderScheduledExercises(clientId, workoutId, orderedRowIds),
     }),
-    [clientId]
+    [clientId, isTeamCalendar]
   )
 
   async function refreshWorkout() {
-    const result = await getClientWorkoutWithExercises(clientId, workout.id)
+    const result = isTeamCalendar
+      ? await teamCalendarActions.getTeamWorkoutWithExercises(clientId, workout.id)
+      : await getClientWorkoutWithExercises(clientId, workout.id)
     if (result.success) {
       await onChanged(result.workout)
       return
@@ -243,11 +271,25 @@ export function WorkoutBuilderModal({
     closeAfter = false
   ) {
     setPending(true)
-    const result = await updateScheduledWorkout(clientId, workout.id, values)
+    const result = isTeamCalendar
+      ? await teamCalendarActions.updateScheduledWorkout(
+          clientId,
+          workout.id,
+          values
+        )
+      : await updateScheduledWorkout(clientId, workout.id, values)
     setPending(false)
 
     if (result.success) {
-      toast.success(closeAfter ? 'Workout saved.' : 'Workout updated.')
+      toast.success(
+        closeAfter
+          ? isTeamCalendar
+            ? 'Team workout saved for all members.'
+            : 'Workout saved.'
+          : isTeamCalendar
+            ? 'Team workout updated for all members.'
+            : 'Workout updated.'
+      )
       await onChanged()
       if (closeAfter) onOpenChange(false)
       return
@@ -262,7 +304,7 @@ export function WorkoutBuilderModal({
       workout={workout}
       exercises={exercises}
       exerciseActions={exerciseActions}
-      catalogClientId={clientId}
+      catalogClientId={isTeamCalendar ? undefined : clientId}
       onChanged={refreshWorkout}
       embedded
     />

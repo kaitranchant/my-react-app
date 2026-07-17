@@ -1809,6 +1809,7 @@ export type Database = {
           name: string
           notes: string | null
           library_workout_id: string | null
+          team_scheduled_workout_id: string | null
           status: ScheduledWorkoutStatus
           started_at: string | null
           completed_at: string | null
@@ -1823,6 +1824,7 @@ export type Database = {
           name: string
           notes?: string | null
           library_workout_id?: string | null
+          team_scheduled_workout_id?: string | null
           status?: ScheduledWorkoutStatus
           started_at?: string | null
           completed_at?: string | null
@@ -1837,6 +1839,7 @@ export type Database = {
           name?: string
           notes?: string | null
           library_workout_id?: string | null
+          team_scheduled_workout_id?: string | null
           status?: ScheduledWorkoutStatus
           started_at?: string | null
           completed_at?: string | null
@@ -1863,6 +1866,162 @@ export type Database = {
             columns: ['library_workout_id']
             isOneToOne: false
             referencedRelation: 'workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_scheduled_workouts_team_scheduled_workout_id_fkey'
+            columns: ['team_scheduled_workout_id']
+            isOneToOne: false
+            referencedRelation: 'team_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_scheduled_workouts: {
+        Row: {
+          id: string
+          coach_id: string
+          team_id: string
+          scheduled_date: string
+          name: string
+          notes: string | null
+          library_workout_id: string | null
+          program_scheduled_workout_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          team_id: string
+          scheduled_date: string
+          name: string
+          notes?: string | null
+          library_workout_id?: string | null
+          program_scheduled_workout_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          team_id?: string
+          scheduled_date?: string
+          name?: string
+          notes?: string | null
+          library_workout_id?: string | null
+          program_scheduled_workout_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_scheduled_workouts_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_scheduled_workouts_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_scheduled_workouts_library_workout_id_fkey'
+            columns: ['library_workout_id']
+            isOneToOne: false
+            referencedRelation: 'workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_scheduled_workouts_program_scheduled_workout_id_fkey'
+            columns: ['program_scheduled_workout_id']
+            isOneToOne: false
+            referencedRelation: 'program_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_scheduled_workout_exercises: {
+        Row: {
+          id: string
+          team_scheduled_workout_id: string
+          exercise_id: string
+          sort_order: number
+          sets: string | null
+          reps: string | null
+          prescription: string | null
+          superset_group: string | null
+          exercise_block: ScheduledExerciseBlock | null
+          workout_notes: string | null
+          rep_mode: ScheduledExerciseRepMode
+          each_side: boolean
+          tempo: string | null
+          rest_seconds: string | null
+          weight_percent: string | null
+          rpe_target: string | null
+          tracking_options: ScheduledExerciseTrackingOptions
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_scheduled_workout_id: string
+          exercise_id: string
+          sort_order?: number
+          sets?: string | null
+          reps?: string | null
+          prescription?: string | null
+          superset_group?: string | null
+          exercise_block?: ScheduledExerciseBlock | null
+          workout_notes?: string | null
+          rep_mode?: ScheduledExerciseRepMode
+          each_side?: boolean
+          tempo?: string | null
+          rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
+          tracking_options?: ScheduledExerciseTrackingOptions
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_scheduled_workout_id?: string
+          exercise_id?: string
+          sort_order?: number
+          sets?: string | null
+          reps?: string | null
+          prescription?: string | null
+          superset_group?: string | null
+          exercise_block?: ScheduledExerciseBlock | null
+          workout_notes?: string | null
+          rep_mode?: ScheduledExerciseRepMode
+          each_side?: boolean
+          tempo?: string | null
+          rest_seconds?: string | null
+          weight_percent?: string | null
+          rpe_target?: string | null
+          tracking_options?: ScheduledExerciseTrackingOptions
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_scheduled_workout_exercises_team_scheduled_workout_id_fkey'
+            columns: ['team_scheduled_workout_id']
+            isOneToOne: false
+            referencedRelation: 'team_scheduled_workouts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_scheduled_workout_exercises_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
             referencedColumns: ['id']
           },
         ]
@@ -4614,6 +4773,39 @@ export type ClientScheduledWorkoutInsert =
   Database['public']['Tables']['client_scheduled_workouts']['Insert']
 export type ClientScheduledWorkoutUpdate =
   Database['public']['Tables']['client_scheduled_workouts']['Update']
+
+export type TeamScheduledWorkout =
+  Database['public']['Tables']['team_scheduled_workouts']['Row']
+export type TeamScheduledWorkoutInsert =
+  Database['public']['Tables']['team_scheduled_workouts']['Insert']
+export type TeamScheduledWorkoutUpdate =
+  Database['public']['Tables']['team_scheduled_workouts']['Update']
+
+export type TeamScheduledWorkoutExercise =
+  Database['public']['Tables']['team_scheduled_workout_exercises']['Row']
+export type TeamScheduledWorkoutExerciseInsert =
+  Database['public']['Tables']['team_scheduled_workout_exercises']['Insert']
+export type TeamScheduledWorkoutExerciseUpdate =
+  Database['public']['Tables']['team_scheduled_workout_exercises']['Update']
+
+export type TeamScheduledWorkoutExerciseWithDetails = TeamScheduledWorkoutExercise & {
+  exercise: Pick<
+    Exercise,
+    | 'id'
+    | 'name'
+    | 'muscle_group'
+    | 'equipment'
+    | 'external_id'
+    | 'image_url'
+    | 'demo_video_path'
+    | 'demo_video_url'
+    | 'instructions'
+  >
+}
+
+export type TeamScheduledWorkoutWithExercises = TeamScheduledWorkout & {
+  exercises: TeamScheduledWorkoutExerciseWithDetails[]
+}
 
 export type ScheduledWorkoutExercise =
   Database['public']['Tables']['scheduled_workout_exercises']['Row']

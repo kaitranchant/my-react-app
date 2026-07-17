@@ -12,6 +12,11 @@ import {
   requireUser,
 } from '@/lib/gym-access'
 import { assignProgramToTeamMembers } from '@/lib/team-programs'
+import {
+  materializeTeamCalendarToClient,
+  removeProgramWorkoutsFromTeamCalendar,
+  syncProgramToTeamCalendar,
+} from '@/lib/team-calendar-sync'
 import { createClient } from '@/lib/supabase/server'
 import {
   addTeamMemberSchema,
@@ -325,6 +330,17 @@ export async function addTeamMember(
     assigned = true
   }
 
+  try {
+    await materializeTeamCalendarToClient(
+      supabase,
+      user.id,
+      teamId,
+      parsed.data.clientId
+    )
+  } catch {
+    // Team calendar sync is best-effort; membership already succeeded.
+  }
+
   revalidateTeams(teamId, [parsed.data.clientId])
   return { success: true, assigned }
 }
@@ -446,6 +462,24 @@ export async function assignProgramToTeam(
   const assignValues = { programId: parsed.data.programId, startDate }
   const result = await assignProgramToTeamMembers(teamId, assignValues, clientIds)
 
+  try {
+    await syncProgramToTeamCalendar(
+      supabase,
+      user.id,
+      teamId,
+      parsed.data.programId,
+      startDate
+    )
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Could not sync the program to the team calendar.',
+    }
+  }
+
   revalidateTeams(
     teamId,
     clientIds
@@ -518,7 +552,23 @@ export async function unassignProgramFromTeam(
     return { success: false, error: error.message }
   }
 
-  revalidateTeams(teamId)
+  let affectedClientIds: string[] = []
+  try {
+    affectedClientIds = await removeProgramWorkoutsFromTeamCalendar(
+      supabase,
+      teamId
+    )
+  } catch (calendarError) {
+    return {
+      success: false,
+      error:
+        calendarError instanceof Error
+          ? calendarError.message
+          : 'Could not remove the program from the team calendar.',
+    }
+  }
+
+  revalidateTeams(teamId, affectedClientIds)
   return { success: true, unassignedCount }
 }
 

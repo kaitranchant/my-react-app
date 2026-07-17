@@ -84,7 +84,9 @@ export function TeamMembersBulkActions({
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            router.push(`/teams/${teamId}?tab=program`, { scroll: false })
+            router.push(`/teams/${teamId}?tab=schedule&section=program`, {
+              scroll: false,
+            })
           }
         >
           <ClipboardList className="size-4" />

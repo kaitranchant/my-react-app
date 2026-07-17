@@ -5,16 +5,13 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-panel'
 import { TeamChallengesPanel } from '@/components/teams/team-challenges-panel'
-import { TeamEventsPanel } from '@/components/teams/team-events-panel'
 import { TeamForumPanel } from '@/components/teams/team-forum-panel'
 import { TeamMembersPanel } from '@/components/teams/team-members-panel'
 import { TeamOverviewPanel } from '@/components/teams/team-overview-panel'
 import { TeamPowerliftingExercisesCard } from '@/components/teams/team-powerlifting-exercises-card'
-import { TeamProgramsPanel } from '@/components/teams/team-programs-panel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type {
   Client,
-  Program,
   Team,
   TeamActivityItem,
   TeamAnnouncement,
@@ -22,22 +19,23 @@ import type {
   TeamForumPostWithReplies,
   TeamMemberWithClient,
   TeamPerformanceSummary,
-  TeamProgramHistoryEntry,
-  TeamProgramProgress,
 } from 'app/types/database'
 import type { TeamChallengeWithLeaderboard } from '@/lib/team-challenges'
 
 const TEAM_TABS = [
   'overview',
-  'community',
   'schedule',
   'members',
+  'community',
   'challenges',
-  'program',
 ] as const
 type TeamTab = (typeof TEAM_TABS)[number]
 
 function resolveTeamTab(tab: string | null | undefined): TeamTab {
+  // Legacy deep link: Program used to be a top-level tab.
+  if (tab === 'program') {
+    return 'schedule'
+  }
   if (tab && TEAM_TABS.includes(tab as TeamTab)) {
     return tab as TeamTab
   }
@@ -50,21 +48,17 @@ type TeamDetailTabsProps = {
   members: TeamMemberWithClient[]
   allClients: Pick<Client, 'id' | 'full_name' | 'status'>[]
   teamAssignedClientIds: string[]
-  availablePrograms: Pick<Program, 'id' | 'name' | 'status'>[]
-  activeProgram: Pick<Program, 'id' | 'name' | 'description' | 'status'> | null
   announcements: TeamAnnouncement[]
   forumPosts?: TeamForumPostWithReplies[]
-  events: TeamEventWithMemberStatus[]
   performance: TeamPerformanceSummary
   activity: TeamActivityItem[]
-  programProgress: TeamProgramProgress | null
-  programHistory: TeamProgramHistoryEntry[]
   nextEvent: TeamEventWithMemberStatus | null
   exercises: { id: string; name: string }[]
   weightClasses?: string[]
   challenges?: TeamChallengeWithLeaderboard[]
   canEditLeaderboardLifts: boolean
   canManageChallenges?: boolean
+  schedulePanel: React.ReactNode
 }
 
 export function TeamDetailTabs({
@@ -73,26 +67,21 @@ export function TeamDetailTabs({
   members,
   allClients,
   teamAssignedClientIds,
-  availablePrograms,
-  activeProgram,
   announcements,
   forumPosts = [],
-  events,
   performance,
   activity,
-  programProgress,
-  programHistory,
   nextEvent,
   exercises,
   weightClasses = [],
   challenges = [],
   canEditLeaderboardLifts,
   canManageChallenges = false,
+  schedulePanel,
 }: TeamDetailTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const highlightDate = searchParams.get('date')
 
   const [tab, setTab] = React.useState<TeamTab>(() =>
     resolveTeamTab(searchParams.get('tab'))
@@ -102,10 +91,20 @@ export function TeamDetailTabs({
   )
 
   React.useEffect(() => {
-    const next = resolveTeamTab(searchParams.get('tab'))
+    const rawTab = searchParams.get('tab')
+    const next = resolveTeamTab(rawTab)
     setTab(next)
     setMountedTabs((prev) => new Set(prev).add(next))
-  }, [searchParams])
+
+    // Rewrite legacy ?tab=program to Schedule → Program.
+    if (rawTab === 'program') {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('tab', 'schedule')
+      params.set('section', 'program')
+      const query = params.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    }
+  }, [searchParams, pathname, router])
 
   const performanceByClientId = Object.fromEntries(
     performance.members.map((member) => [member.clientId, member])
@@ -120,6 +119,7 @@ export function TeamDetailTabs({
     }
     if (nextTab !== 'schedule') {
       params.delete('date')
+      params.delete('section')
     }
     const query = params.toString()
     return query ? `${pathname}?${query}` : pathname
@@ -137,11 +137,10 @@ export function TeamDetailTabs({
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <TabsList className="w-max flex-nowrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="community">Community</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="community">Community</TabsTrigger>
           <TabsTrigger value="challenges">Challenges</TabsTrigger>
-          <TabsTrigger value="program">Program</TabsTrigger>
         </TabsList>
       </div>
 
@@ -164,21 +163,8 @@ export function TeamDetailTabs({
         ) : null}
       </TabsContent>
 
-      <TabsContent value="community">
-        {mountedTabs.has('community') ? (
-          <TeamForumPanel teamId={teamId} posts={forumPosts} />
-        ) : null}
-      </TabsContent>
-
       <TabsContent value="schedule">
-        {mountedTabs.has('schedule') ? (
-          <TeamEventsPanel
-            teamId={teamId}
-            events={events}
-            members={members}
-            highlightDate={highlightDate}
-          />
-        ) : null}
+        {mountedTabs.has('schedule') ? schedulePanel : null}
       </TabsContent>
 
       <TabsContent value="members">
@@ -195,6 +181,12 @@ export function TeamDetailTabs({
         ) : null}
       </TabsContent>
 
+      <TabsContent value="community">
+        {mountedTabs.has('community') ? (
+          <TeamForumPanel teamId={teamId} posts={forumPosts} />
+        ) : null}
+      </TabsContent>
+
       <TabsContent value="challenges">
         {mountedTabs.has('challenges') ? (
           <TeamChallengesPanel
@@ -204,20 +196,6 @@ export function TeamDetailTabs({
             exercises={exercises}
             weightClasses={weightClasses}
             canManage={canManageChallenges}
-          />
-        ) : null}
-      </TabsContent>
-
-      <TabsContent value="program">
-        {mountedTabs.has('program') ? (
-          <TeamProgramsPanel
-            teamId={teamId}
-            team={team}
-            activeProgram={activeProgram}
-            availablePrograms={availablePrograms}
-            memberCount={members.length}
-            programProgress={programProgress}
-            programHistory={programHistory}
           />
         ) : null}
       </TabsContent>

@@ -30,6 +30,7 @@ import {
   type CalendarCopyTargetClient,
   type SchedulableWorkoutTemplate,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
+import * as teamCalendarActions from '@/app/(dashboard)/teams/[teamId]/calendar/actions'
 import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
 import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { SelectWorkoutDialog } from '@/components/calendar/select-workout-dialog'
@@ -116,6 +117,8 @@ type ClientCalendarPanelProps = {
   initialActionDate?: string | null
   onActionConsumed?: () => void
   personalMode?: boolean
+  /** When 'team', clientId is the team id and edits fan out to all members. */
+  calendarVariant?: 'client' | 'team'
   weightUnit?: import('app/types/database').WeightUnit
 }
 
@@ -134,8 +137,10 @@ export function ClientCalendarPanel({
   initialActionDate = null,
   onActionConsumed,
   personalMode = false,
+  calendarVariant = 'client',
   weightUnit = 'lbs',
 }: ClientCalendarPanelProps) {
+  const isTeamCalendar = calendarVariant === 'team'
   const router = useRouter()
   const isMobile = useIsMobile()
   const [year, setYear] = React.useState(initialYear)
@@ -188,19 +193,29 @@ export function ClientCalendarPanel({
   const [templatesLoading, setTemplatesLoading] = React.useState(false)
 
   const deleteWorkoutConfirm = useConfirmDialog({
-    title: 'Remove workout from calendar?',
-    description: 'This removes the scheduled workout from this date.',
+    title: isTeamCalendar
+      ? 'Remove workout from team calendar?'
+      : 'Remove workout from calendar?',
+    description: isTeamCalendar
+      ? 'This removes the workout from the team calendar and every member calendar.'
+      : 'This removes the scheduled workout from this date.',
     confirmLabel: 'Remove workout',
     destructive: true,
     onConfirm: async () => {
       if (!workout) return
 
       setPending(true)
-      const result = await deleteScheduledWorkout(clientId, workout.id)
+      const result = isTeamCalendar
+        ? await teamCalendarActions.deleteScheduledWorkout(clientId, workout.id)
+        : await deleteScheduledWorkout(clientId, workout.id)
       setPending(false)
 
       if (result.success) {
-        toast.success('Workout removed.')
+        toast.success(
+          isTeamCalendar
+            ? 'Workout removed from team and member calendars.'
+            : 'Workout removed.'
+        )
         setBuilderOpen(false)
         await refreshCalendar()
         return
@@ -214,6 +229,8 @@ export function ClientCalendarPanel({
   const handledActionRef = React.useRef<string | null>(null)
 
   async function beginLogWorkout(workoutId: string) {
+    if (isTeamCalendar) return
+
     let workoutToLog =
       workout?.id === workoutId && workout.scheduled_date === selectedDate
         ? workout
@@ -308,7 +325,7 @@ export function ClientCalendarPanel({
   }, [copyTargetClientId, clientId, clientName, copyTargetClients])
 
   const showCopyClientPicker =
-    !personalMode && copyTargetClients.length > 1
+    !personalMode && !isTeamCalendar && copyTargetClients.length > 1
 
   const copySingleDateConflict =
     copyTargetClientId === clientId &&
@@ -317,7 +334,9 @@ export function ClientCalendarPanel({
 
   const loadSchedulableTemplates = React.useCallback(async () => {
     setTemplatesLoading(true)
-    const result = await getSchedulableWorkoutTemplates()
+    const result = isTeamCalendar
+      ? await teamCalendarActions.getSchedulableWorkoutTemplates()
+      : await getSchedulableWorkoutTemplates()
     setTemplatesLoading(false)
 
     if (!result.success) {
@@ -327,7 +346,7 @@ export function ClientCalendarPanel({
 
     setTemplatesError(null)
     setSchedulableTemplates(result.templates)
-  }, [])
+  }, [isTeamCalendar])
 
   const selectedDaySummaries = React.useMemo(
     () => getSummariesForDate(scheduledDays, selectedDate),
@@ -365,11 +384,13 @@ export function ClientCalendarPanel({
     }
 
     setLoading(true)
-    const result = await getCalendarMonthSummaries(
-      clientId,
-      targetYear,
-      targetMonth
-    )
+    const result = isTeamCalendar
+      ? await teamCalendarActions.getTeamCalendarMonthSummaries(
+          clientId,
+          targetYear,
+          targetMonth
+        )
+      : await getCalendarMonthSummaries(clientId, targetYear, targetMonth)
     setLoading(false)
 
     if (!result.success) {
@@ -390,7 +411,9 @@ export function ClientCalendarPanel({
     }
 
     setWorkoutLoading(true)
-    const result = await getClientWorkoutWithExercises(clientId, workoutId)
+    const result = isTeamCalendar
+      ? await teamCalendarActions.getTeamWorkoutWithExercises(clientId, workoutId)
+      : await getClientWorkoutWithExercises(clientId, workoutId)
     setWorkoutLoading(false)
 
     if (!result.success) {
@@ -440,20 +463,36 @@ export function ClientCalendarPanel({
     setPending(true)
     const result =
       template.source === 'program'
-        ? await scheduleProgramWorkoutTemplateToDate(
-            clientId,
-            template.id,
-            scheduleDate
-          )
-        : await createScheduledWorkout(
-            clientId,
-            scheduleDate,
-            {
-              name: fallbackName?.trim() || template.name,
-              notes: '',
-            },
-            template.libraryWorkoutId
-          )
+        ? isTeamCalendar
+          ? await teamCalendarActions.scheduleProgramWorkoutTemplateToDate(
+              clientId,
+              template.id,
+              scheduleDate
+            )
+          : await scheduleProgramWorkoutTemplateToDate(
+              clientId,
+              template.id,
+              scheduleDate
+            )
+        : isTeamCalendar
+          ? await teamCalendarActions.createScheduledWorkout(
+              clientId,
+              scheduleDate,
+              {
+                name: fallbackName?.trim() || template.name,
+                notes: '',
+              },
+              template.libraryWorkoutId
+            )
+          : await createScheduledWorkout(
+              clientId,
+              scheduleDate,
+              {
+                name: fallbackName?.trim() || template.name,
+                notes: '',
+              },
+              template.libraryWorkoutId
+            )
     setPending(false)
 
     if (!result.success) {
@@ -461,7 +500,11 @@ export function ClientCalendarPanel({
       return false
     }
 
-    toast.success('Workout added to calendar.')
+    toast.success(
+      isTeamCalendar
+        ? 'Workout added to team and member calendars.'
+        : 'Workout added to calendar.'
+    )
     await finalizeScheduledWorkout(scheduleDate)
     return true
   }
@@ -677,6 +720,10 @@ export function ClientCalendarPanel({
       if (cancelled) return
 
       if (initialAction === 'log') {
+        if (isTeamCalendar) {
+          onActionConsumed?.()
+          return
+        }
         const summaries = calendarResult?.summaries ?? []
         if (summaries.length > 1) {
           setLogPickerOpen(true)
@@ -713,7 +760,7 @@ export function ClientCalendarPanel({
     setCopyTargetClientId(clientId)
     setCopyOpen(true)
 
-    if (personalMode) {
+    if (personalMode || isTeamCalendar) {
       setCopyTargetClients([])
       return
     }
@@ -761,16 +808,22 @@ export function ClientCalendarPanel({
     }
 
     setPending(true)
-    const result = await createScheduledWorkout(
-      clientId,
-      scheduleDate,
-      parsed.data,
-      null
-    )
+    const result = isTeamCalendar
+      ? await teamCalendarActions.createScheduledWorkout(
+          clientId,
+          scheduleDate,
+          parsed.data,
+          null
+        )
+      : await createScheduledWorkout(clientId, scheduleDate, parsed.data, null)
     setPending(false)
 
     if (result.success) {
-      toast.success('Workout scheduled.')
+      toast.success(
+        isTeamCalendar
+          ? 'Workout scheduled for the team and all members.'
+          : 'Workout scheduled.'
+      )
       setCreateOpen(false)
       await finalizeScheduledWorkout(scheduleDate)
       return
@@ -819,20 +872,30 @@ export function ClientCalendarPanel({
     }
 
     setPending(true)
-    const result = await copyScheduledWorkoutToDate(
-      clientId,
-      workout.id,
-      copySingleDate,
-      copyTargetClientId
-    )
+    const result = isTeamCalendar
+      ? await teamCalendarActions.copyScheduledWorkoutToDate(
+          clientId,
+          workout.id,
+          copySingleDate
+        )
+      : await copyScheduledWorkoutToDate(
+          clientId,
+          workout.id,
+          copySingleDate,
+          copyTargetClientId
+        )
     setPending(false)
 
     if (result.success) {
       const destinationLabel =
-        copyTargetClientId === clientId
+        isTeamCalendar || copyTargetClientId === clientId
           ? formatDayHeader(copySingleDate)
           : `${formatDayHeader(copySingleDate)} for ${copyTargetClientName}`
-      toast.success(`Workout copied to ${destinationLabel}.`)
+      toast.success(
+        isTeamCalendar
+          ? `Workout copied to ${destinationLabel} for all members.`
+          : `Workout copied to ${destinationLabel}.`
+      )
       setCopyOpen(false)
       await refreshCalendar()
       return
@@ -852,14 +915,22 @@ export function ClientCalendarPanel({
     }
 
     setPending(true)
-    const result = await copyScheduledWorkoutToDateRange(
-      clientId,
-      workout.id,
-      copyStartDate,
-      copyEndDate,
-      copyWeekdays,
-      copyTargetClientId
-    )
+    const result = isTeamCalendar
+      ? await teamCalendarActions.copyScheduledWorkoutToDateRange(
+          clientId,
+          workout.id,
+          copyStartDate,
+          copyEndDate,
+          copyWeekdays
+        )
+      : await copyScheduledWorkoutToDateRange(
+          clientId,
+          workout.id,
+          copyStartDate,
+          copyEndDate,
+          copyWeekdays,
+          copyTargetClientId
+        )
     setPending(false)
 
     if (result.success) {
@@ -870,7 +941,11 @@ export function ClientCalendarPanel({
             } that already had workouts.`
           : ''
       const clientSuffix =
-        copyTargetClientId === clientId ? '' : ` for ${copyTargetClientName}`
+        isTeamCalendar || copyTargetClientId === clientId
+          ? isTeamCalendar
+            ? ' for all members'
+            : ''
+          : ` for ${copyTargetClientName}`
       toast.success(
         `Workout copied to ${result.copiedCount} day${
           result.copiedCount === 1 ? '' : 's'
@@ -887,8 +962,14 @@ export function ClientCalendarPanel({
   if (schemaError?.includes('Could not find the table')) {
     return (
       <SchemaSetupNotice
-        tables={['client_scheduled_workouts', 'scheduled_workout_exercises']}
-        sqlFile="apply-client-calendar.sql"
+        tables={
+          isTeamCalendar
+            ? ['team_scheduled_workouts', 'team_scheduled_workout_exercises']
+            : ['client_scheduled_workouts', 'scheduled_workout_exercises']
+        }
+        sqlFile={
+          isTeamCalendar ? '0131_team_calendar.sql' : 'apply-client-calendar.sql'
+        }
       />
     )
   }
@@ -950,20 +1031,22 @@ export function ClientCalendarPanel({
         <div className="flex flex-wrap items-center gap-2" data-swipe-ignore="">
           {selectedDaySummaries.length > 0 ? (
             <>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleLogWorkoutClick}
-              >
-                <ClipboardList className="size-4" />
-                {displayWorkout?.status === 'completed' ||
-                activeDaySummary?.status === 'completed'
-                  ? 'View log'
-                  : displayWorkout?.status === 'skipped' ||
-                      activeDaySummary?.status === 'skipped'
-                    ? 'View workout'
-                    : 'Log workout'}
-              </Button>
+              {!isTeamCalendar ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleLogWorkoutClick}
+                >
+                  <ClipboardList className="size-4" />
+                  {displayWorkout?.status === 'completed' ||
+                  activeDaySummary?.status === 'completed'
+                    ? 'View log'
+                    : displayWorkout?.status === 'skipped' ||
+                        activeDaySummary?.status === 'skipped'
+                      ? 'View workout'
+                      : 'Log workout'}
+                </Button>
+              ) : null}
               {displayWorkout && (
                 <>
                   <Button
@@ -1054,6 +1137,7 @@ export function ClientCalendarPanel({
             }
           }}
           clientId={clientId}
+          calendarVariant={calendarVariant}
           selectedDate={selectedDate}
           workout={workout}
           exercises={exercises}
@@ -1068,7 +1152,7 @@ export function ClientCalendarPanel({
         />
       )}
 
-      {!isMobile && (activeLogWorkout ?? workout) && (
+      {!isTeamCalendar && !isMobile && (activeLogWorkout ?? workout) && (
         <WorkoutLogModal
           open={logOpen}
           onOpenChange={(open) => {
@@ -1102,9 +1186,11 @@ export function ClientCalendarPanel({
           <div className="mb-4 flex items-center gap-2">
             <CalendarDays className="text-brand size-5 shrink-0" />
             <p className="text-muted-foreground text-sm">
-              {personalMode
-                ? 'Create your session for the date below.'
-                : `Create ${clientName}'s session for the date below.`}
+              {isTeamCalendar
+                ? 'Create a team session for the date below. It will appear on every member calendar.'
+                : personalMode
+                  ? 'Create your session for the date below.'
+                  : `Create ${clientName}'s session for the date below.`}
             </p>
           </div>
 
