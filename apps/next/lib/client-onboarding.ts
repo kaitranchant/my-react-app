@@ -63,12 +63,22 @@ export const CLIENT_ONBOARDING_MILESTONE_OPTIONS: Array<{
   {
     key: 'assessmentNotesRecorded',
     label: 'Assessment notes',
-    description: 'Jot down observations from the initial assessment.',
+    description: 'Record movement scores, notes, and media from the initial assessment.',
   },
 ]
 
 export function hasOnboardingAssessmentNotes(notes: string | null | undefined): boolean {
   return Boolean(notes?.trim())
+}
+
+export function hasAssessmentRecord(input: {
+  legacyNotes?: string | null
+  assessmentCount?: number
+}): boolean {
+  return (
+    hasOnboardingAssessmentNotes(input.legacyNotes) ||
+    Boolean(input.assessmentCount && input.assessmentCount > 0)
+  )
 }
 
 export function getInviteAcceptedAt(client: Client): string | null {
@@ -201,6 +211,7 @@ export function buildClientOnboardingProgress(input: {
   workouts: { status: string }[]
   coachPreferences: CoachPreferences
   todayKey?: string
+  assessmentCount?: number
 }): ClientOnboardingProgress {
   const inviteAcceptedAt = getInviteAcceptedAt(input.client)
 
@@ -214,9 +225,10 @@ export function buildClientOnboardingProgress(input: {
       input.todayKey
     ),
     firstWorkoutLogged: hasLoggedFirstWorkout(input.workouts),
-    assessmentNotesRecorded: hasOnboardingAssessmentNotes(
-      input.client.onboarding_assessment_notes
-    ),
+    assessmentNotesRecorded: hasAssessmentRecord({
+      legacyNotes: input.client.onboarding_assessment_notes,
+      assessmentCount: input.assessmentCount,
+    }),
   }
 
   return applyOnboardingMilestoneOverrides(

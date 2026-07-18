@@ -61,6 +61,7 @@ export async function ClientDetailOverviewPanel({
     activeMealPlanResult,
     recentNutritionLogsResult,
     todayNutritionLogResult,
+    assessmentCountResult,
   ] = await Promise.all([
     supabase
       .from('program_assignments')
@@ -121,6 +122,10 @@ export async function ClientDetailOverviewPanel({
       .eq('client_id', clientId)
       .eq('log_date', coachTodayKey)
       .maybeSingle(),
+    supabase
+      .from('client_assessments')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId),
   ])
 
   const activeAssignment = assignmentData
@@ -169,6 +174,7 @@ export async function ClientDetailOverviewPanel({
       trainingConsistency={trainingConsistency}
       coachPreferences={coachPreferences}
       onboardingMilestoneTemplate={onboardingMilestoneTemplate}
+      assessmentCount={assessmentCountResult.count ?? 0}
       nutritionSnapshot={nutritionSnapshot}
     />
   )

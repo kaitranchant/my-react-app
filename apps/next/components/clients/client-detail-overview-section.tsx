@@ -38,6 +38,7 @@ type ClientDetailOverviewSectionProps = {
   trainingConsistency?: TrainingConsistencyHeatmap | null
   coachPreferences?: CoachPreferences
   onboardingMilestoneTemplate?: ClientOnboardingMilestoneTemplate
+  assessmentCount?: number
   nutritionSnapshot?: {
     hasTargets: boolean
     hasMealPlan: boolean
@@ -59,6 +60,7 @@ export function ClientDetailOverviewSection({
   trainingConsistency = null,
   coachPreferences = undefined,
   onboardingMilestoneTemplate = {},
+  assessmentCount = 0,
   nutritionSnapshot = null,
 }: ClientDetailOverviewSectionProps) {
   const router = useRouter()
@@ -88,6 +90,7 @@ export function ClientDetailOverviewSection({
         checkIns,
         workouts: recentWorkouts,
         coachPreferences,
+        assessmentCount,
       })
     : null
   const showOnboardingChecklist =

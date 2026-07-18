@@ -15,10 +15,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  setClientOnboardingMilestone,
-  updateClientOnboardingAssessmentNotes,
-} from '@/app/(dashboard)/clients/actions'
+import { setClientOnboardingMilestone } from '@/app/(dashboard)/clients/actions'
+import { ClientAssessmentNotesPanel } from '@/components/clients/client-assessment-notes-panel'
 import {
   Card,
   CardContent,
@@ -27,7 +25,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
 import { cn } from '@/lib/utils'
 import {
   getCheckInDueStepLabel,
@@ -95,7 +100,7 @@ const milestoneSteps: Array<{
 const assessmentStep = {
   key: 'assessmentNotesRecorded' as const,
   title: 'Assessment notes',
-  description: 'Jot down observations from the initial assessment.',
+  description: 'Record movement scores, notes, and media from the initial assessment.',
   icon: ClipboardPen,
 }
 
@@ -147,13 +152,10 @@ export function ClientOnboardingChecklist({
   onOpenCalendar,
 }: ClientOnboardingChecklistProps) {
   const router = useRouter()
-  const [assessmentNotes, setAssessmentNotes] = React.useState(
-    initialAssessmentNotes ?? ''
-  )
-  const [isSavingNotes, setIsSavingNotes] = React.useState(false)
   const [localProgress, setLocalProgress] = React.useState(progress)
   const [pendingMilestone, setPendingMilestone] =
     React.useState<ClientOnboardingMilestoneKey | null>(null)
+  const [assessmentOpen, setAssessmentOpen] = React.useState(false)
 
   const visibleMilestoneSteps = milestoneSteps.filter((step) =>
     isOnboardingMilestoneIncluded(includedMilestones, step.key)
@@ -164,14 +166,7 @@ export function ClientOnboardingChecklist({
   )
   const includedKeys = getIncludedOnboardingMilestones(includedMilestones)
   const totalSteps = includedKeys.length
-
-  const savedAssessmentNotes = initialAssessmentNotes ?? ''
-  const assessmentNotesDirty = assessmentNotes !== savedAssessmentNotes
   const completedCount = includedKeys.filter((key) => localProgress[key]).length
-
-  React.useEffect(() => {
-    setAssessmentNotes(initialAssessmentNotes ?? '')
-  }, [initialAssessmentNotes])
 
   React.useEffect(() => {
     setLocalProgress(progress)
@@ -235,154 +230,152 @@ export function ClientOnboardingChecklist({
     }
   }
 
-  async function handleSaveAssessmentNotes() {
-    setIsSavingNotes(true)
-    const result = await updateClientOnboardingAssessmentNotes(
-      clientId,
-      assessmentNotes
-    )
-    setIsSavingNotes(false)
-
-    if (result.success) {
-      toast.success('Assessment notes saved')
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }
-
   const AssessmentIcon = assessmentStep.icon
   const assessmentDone = localProgress.assessmentNotesRecorded
+  const hasLegacyNotes = Boolean(initialAssessmentNotes?.trim())
 
   return (
-    <Card className="border-brand/20 bg-brand/5 gap-0 py-0">
-      <CardHeader className="border-brand/10 flex flex-row items-start justify-between gap-4 space-y-0 border-b px-4 py-4 sm:px-6">
-        <div className="flex items-start gap-3">
-          <div className="bg-brand/10 text-brand flex size-9 shrink-0 items-center justify-center rounded-lg">
-            <Sparkles className="size-4" />
+    <>
+      <Card className="border-brand/20 bg-brand/5 gap-0 py-0">
+        <CardHeader className="border-brand/10 flex flex-row items-start justify-between gap-4 space-y-0 border-b px-4 py-4 sm:px-6">
+          <div className="flex items-start gap-3">
+            <div className="bg-brand/10 text-brand flex size-9 shrink-0 items-center justify-center rounded-lg">
+              <Sparkles className="size-4" />
+            </div>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Client onboarding</CardTitle>
+              <CardDescription>
+                {completedCount} of {totalSteps} milestones for {clientName}. Tap a
+                checkmark to mark complete or incomplete.
+              </CardDescription>
+            </div>
           </div>
-          <div className="space-y-1">
-            <CardTitle className="text-base">Client onboarding</CardTitle>
-            <CardDescription>
-              {completedCount} of {totalSteps} milestones for {clientName}. Tap a
-              checkmark to mark complete or incomplete.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3 px-4 py-4 sm:px-6">
-        {visibleMilestoneSteps.map((step) => {
-          const done = localProgress[step.key]
-          const Icon = step.icon
+        </CardHeader>
+        <CardContent className="space-y-3 px-4 py-4 sm:px-6">
+          {visibleMilestoneSteps.map((step) => {
+            const done = localProgress[step.key]
+            const Icon = step.icon
 
-          return (
+            return (
+              <div
+                key={step.key}
+                className={cn(
+                  'flex flex-col gap-3 rounded-xl border bg-background/80 p-4 sm:flex-row sm:items-center',
+                  done && 'border-brand/20 bg-brand/5'
+                )}
+              >
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <MilestoneToggle
+                    done={done}
+                    label={getStepLabel(step.key)}
+                    disabled={pendingMilestone === step.key}
+                    onToggle={() => void handleToggleMilestone(step.key, done)}
+                  />
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Icon className="text-muted-foreground size-4 shrink-0" />
+                      <p className="text-sm font-semibold">{getStepLabel(step.key)}</p>
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+                {!done && step.actionLabel ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => handleAction(step.action)}
+                  >
+                    {step.actionLabel}
+                  </Button>
+                ) : null}
+              </div>
+            )
+          })}
+
+          {showAssessmentStep ? (
             <div
-              key={step.key}
               className={cn(
                 'flex flex-col gap-3 rounded-xl border bg-background/80 p-4 sm:flex-row sm:items-center',
-                done && 'border-brand/20 bg-brand/5'
+                assessmentDone && 'border-brand/20 bg-brand/5'
               )}
             >
               <div className="flex min-w-0 flex-1 items-start gap-3">
                 <MilestoneToggle
-                  done={done}
-                  label={getStepLabel(step.key)}
-                  disabled={pendingMilestone === step.key}
-                  onToggle={() => void handleToggleMilestone(step.key, done)}
+                  done={assessmentDone}
+                  label={assessmentStep.title}
+                  disabled={pendingMilestone === assessmentStep.key}
+                  onToggle={() =>
+                    void handleToggleMilestone(assessmentStep.key, assessmentDone)
+                  }
                 />
                 <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Icon className="text-muted-foreground size-4 shrink-0" />
-                    <p className="text-sm font-semibold">{getStepLabel(step.key)}</p>
-                  </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              </div>
-              {!done && step.actionLabel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => handleAction(step.action)}
-                >
-                  {step.actionLabel}
-                </Button>
-              ) : null}
-            </div>
-          )
-        })}
-
-        {showAssessmentStep ? (
-          <div
-            className={cn(
-              'flex flex-col gap-3 rounded-xl border bg-background/80 p-4',
-              assessmentDone && 'border-brand/20 bg-brand/5'
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <MilestoneToggle
-                done={assessmentDone}
-                label={assessmentStep.title}
-                disabled={pendingMilestone === assessmentStep.key}
-                onToggle={() =>
-                  void handleToggleMilestone(assessmentStep.key, assessmentDone)
-                }
-              />
-              <div className="min-w-0 flex-1 space-y-3">
-                <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <AssessmentIcon className="text-muted-foreground size-4 shrink-0" />
                     <p className="text-sm font-semibold">{assessmentStep.title}</p>
                   </div>
                   <p className="text-muted-foreground text-xs leading-relaxed">
                     {assessmentStep.description}
+                    {hasLegacyNotes && !assessmentDone
+                      ? ' Legacy notes are available in the assessment history.'
+                      : ''}
                   </p>
                 </div>
-                <Textarea
-                  rows={4}
-                  className="min-h-[6rem] resize-y"
-                  value={assessmentNotes}
-                  onChange={(event) => setAssessmentNotes(event.target.value)}
-                  placeholder="Movement screen results, injuries, goals discussed…"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAssessmentNotes(savedAssessmentNotes)}
-                    disabled={!assessmentNotesDirty || isSavingNotes}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void handleSaveAssessmentNotes()}
-                    disabled={!assessmentNotesDirty || isSavingNotes}
-                  >
-                    {isSavingNotes ? 'Saving…' : 'Save notes'}
-                  </Button>
-                </div>
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setAssessmentOpen(true)}
+              >
+                {assessmentDone ? 'View assessments' : 'Record assessment'}
+              </Button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Configure checklist steps, auto-assign, and welcome messages in{' '}
-          <Link
-            href="/settings#onboarding"
-            className="text-brand underline-offset-4 hover:underline"
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Configure checklist steps, auto-assign, and welcome messages in{' '}
+            <Link
+              href="/settings#onboarding"
+              className="text-brand underline-offset-4 hover:underline"
+            >
+              Settings → Onboarding
+            </Link>
+            .
+          </p>
+        </CardContent>
+      </Card>
+
+      <Sheet open={assessmentOpen} onOpenChange={setAssessmentOpen}>
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <SheetHeader className="shrink-0 border-b">
+            <SheetTitle>Assessment notes</SheetTitle>
+            <SheetDescription>
+              Movement scores, notes, and media for {clientName}.
+            </SheetDescription>
+          </SheetHeader>
+          <div
+            data-nested-keyboard-scroll
+            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4"
           >
-            Settings → Onboarding
-          </Link>
-          .
-        </p>
-      </CardContent>
-    </Card>
+            <ClientAssessmentNotesPanel
+              clientId={clientId}
+              clientName={clientName}
+              initialNotes={initialAssessmentNotes}
+              autoStartNew={!assessmentDone}
+              onCancel={() => {
+                setAssessmentOpen(false)
+                router.refresh()
+              }}
+            />
+            <MobileKeyboardReserve />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

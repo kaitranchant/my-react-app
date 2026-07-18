@@ -77,6 +77,22 @@ export type CoachTimezone =
 export type MessageSenderRole = 'coach' | 'client'
 export type ClientMessageType = 'text' | 'voice'
 export type ProgressPhotoPose = 'front' | 'side' | 'back'
+export type AssessmentItemCategory =
+  | 'mobility'
+  | 'posture'
+  | 'strength'
+  | 'cardiovascular'
+  | 'power'
+  | 'body_composition'
+  | 'health_intake'
+  | 'custom'
+export type AssessmentRubricType =
+  | 'scale'
+  | 'pass_fail'
+  | 'measurement'
+  | 'notes'
+  | 'questionnaire'
+export type AssessmentSessionSource = 'manual' | 'onboarding' | 'legacy_import'
 export type ExercisePrRecordType = 'e1rm' | 'top_set'
 export type ScheduledExerciseRepMode = 'reps' | 'time' | 'distance'
 export type ClientGoalCategory =
@@ -2475,6 +2491,223 @@ export type Database = {
           },
         ]
       }
+      assessment_items: {
+        Row: {
+          id: string
+          coach_id: string | null
+          slug: string | null
+          name: string
+          category: AssessmentItemCategory
+          instructions: string | null
+          rubric_type: AssessmentRubricType
+          rubric_config: Json
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id?: string | null
+          slug?: string | null
+          name: string
+          category: AssessmentItemCategory
+          instructions?: string | null
+          rubric_type: AssessmentRubricType
+          rubric_config?: Json
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string | null
+          slug?: string | null
+          name?: string
+          category?: AssessmentItemCategory
+          instructions?: string | null
+          rubric_type?: AssessmentRubricType
+          rubric_config?: Json
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assessment_items_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_assessments: {
+        Row: {
+          id: string
+          client_id: string
+          coach_id: string
+          title: string | null
+          assessed_at: string
+          overall_notes: string | null
+          source: AssessmentSessionSource
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          coach_id: string
+          title?: string | null
+          assessed_at?: string
+          overall_notes?: string | null
+          source?: AssessmentSessionSource
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          coach_id?: string
+          title?: string | null
+          assessed_at?: string
+          overall_notes?: string | null
+          source?: AssessmentSessionSource
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_assessments_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_assessments_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_assessment_results: {
+        Row: {
+          id: string
+          assessment_id: string
+          assessment_item_id: string | null
+          item_name: string
+          item_category: AssessmentItemCategory
+          rubric_type: AssessmentRubricType
+          rubric_config: Json
+          scale_score: number | null
+          pass_fail: boolean | null
+          measurement_value: number | null
+          measurement_unit: string | null
+          score_data: Json
+          notes: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          assessment_id: string
+          assessment_item_id?: string | null
+          item_name: string
+          item_category: AssessmentItemCategory
+          rubric_type: AssessmentRubricType
+          rubric_config?: Json
+          scale_score?: number | null
+          pass_fail?: boolean | null
+          measurement_value?: number | null
+          measurement_unit?: string | null
+          score_data?: Json
+          notes?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          assessment_id?: string
+          assessment_item_id?: string | null
+          item_name?: string
+          item_category?: AssessmentItemCategory
+          rubric_type?: AssessmentRubricType
+          rubric_config?: Json
+          scale_score?: number | null
+          pass_fail?: boolean | null
+          measurement_value?: number | null
+          measurement_unit?: string | null
+          score_data?: Json
+          notes?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_assessment_results_assessment_id_fkey'
+            columns: ['assessment_id']
+            isOneToOne: false
+            referencedRelation: 'client_assessments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_assessment_results_assessment_item_id_fkey'
+            columns: ['assessment_item_id']
+            isOneToOne: false
+            referencedRelation: 'assessment_items'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_assessment_media: {
+        Row: {
+          id: string
+          result_id: string
+          storage_path: string
+          content_type: string
+          file_size_bytes: number | null
+          file_name: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          result_id: string
+          storage_path: string
+          content_type: string
+          file_size_bytes?: number | null
+          file_name?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          result_id?: string
+          storage_path?: string
+          content_type?: string
+          file_size_bytes?: number | null
+          file_name?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_assessment_media_result_id_fkey'
+            columns: ['result_id']
+            isOneToOne: false
+            referencedRelation: 'client_assessment_results'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_wearable_connection_secrets: {
         Row: {
           connection_id: string
@@ -4490,6 +4723,8 @@ export type Database = {
       check_in_frequency: CheckInFrequency
       wearable_provider: WearableProvider
       wearable_connection_status: WearableConnectionStatus
+      assessment_item_category: AssessmentItemCategory
+      assessment_rubric_type: AssessmentRubricType
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4920,6 +5155,48 @@ export type ClientFormReviewInsert =
   Database['public']['Tables']['client_form_reviews']['Insert']
 export type ClientFormReviewUpdate =
   Database['public']['Tables']['client_form_reviews']['Update']
+
+export type AssessmentItem =
+  Database['public']['Tables']['assessment_items']['Row']
+export type AssessmentItemInsert =
+  Database['public']['Tables']['assessment_items']['Insert']
+export type AssessmentItemUpdate =
+  Database['public']['Tables']['assessment_items']['Update']
+
+export type ClientAssessment =
+  Database['public']['Tables']['client_assessments']['Row']
+export type ClientAssessmentInsert =
+  Database['public']['Tables']['client_assessments']['Insert']
+export type ClientAssessmentUpdate =
+  Database['public']['Tables']['client_assessments']['Update']
+
+export type ClientAssessmentResult =
+  Database['public']['Tables']['client_assessment_results']['Row']
+export type ClientAssessmentResultInsert =
+  Database['public']['Tables']['client_assessment_results']['Insert']
+export type ClientAssessmentResultUpdate =
+  Database['public']['Tables']['client_assessment_results']['Update']
+
+export type ClientAssessmentMedia =
+  Database['public']['Tables']['client_assessment_media']['Row']
+export type ClientAssessmentMediaInsert =
+  Database['public']['Tables']['client_assessment_media']['Insert']
+export type ClientAssessmentMediaUpdate =
+  Database['public']['Tables']['client_assessment_media']['Update']
+
+export type ClientAssessmentMediaWithUrl = ClientAssessmentMedia & {
+  signedUrl: string | null
+}
+
+export type ClientAssessmentResultWithMedia = ClientAssessmentResult & {
+  media: ClientAssessmentMediaWithUrl[]
+  delta?: number | null
+  previousScoreLabel?: string | null
+}
+
+export type ClientAssessmentWithResults = ClientAssessment & {
+  results: ClientAssessmentResultWithMedia[]
+}
 
 export type FormReviewAnnotation = {
   id: string

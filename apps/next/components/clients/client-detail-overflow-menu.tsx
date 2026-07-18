@@ -123,11 +123,12 @@ export function ClientDetailOverflowMenu({
       </Sheet>
 
       <Sheet open={assessmentNotesOpen} onOpenChange={setAssessmentNotesOpen}>
-        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
           <SheetHeader className="shrink-0 border-b">
             <SheetTitle>Assessment notes</SheetTitle>
             <SheetDescription>
-              Observations from {clientName}&apos;s initial assessment.
+              Movement scores, notes, and media from {clientName}&apos;s
+              assessments.
             </SheetDescription>
           </SheetHeader>
           <div

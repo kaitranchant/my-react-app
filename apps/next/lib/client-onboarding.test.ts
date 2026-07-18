@@ -105,6 +105,21 @@ test('marks assessment notes recorded when notes are saved', () => {
   assert.equal(isClientOnboardingComplete(progress), true)
 })
 
+test('marks assessment notes recorded when a structured assessment exists', () => {
+  const progress = buildClientOnboardingProgress({
+    client: baseClient,
+    hasProgram: true,
+    checkIns: [{ check_in_date: '2026-06-20' }],
+    workouts: [{ status: 'completed' }],
+    coachPreferences: defaultCoachPreferences,
+    todayKey: '2026-06-24',
+    assessmentCount: 1,
+  })
+
+  assert.equal(progress.assessmentNotesRecorded, true)
+  assert.equal(isClientOnboardingComplete(progress), true)
+})
+
 test('shows checklist for accepted clients still onboarding', () => {
   const progress = buildClientOnboardingProgress({
     client: baseClient,

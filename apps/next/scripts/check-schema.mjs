@@ -859,6 +859,16 @@ await checkRestTable('clients.stripe_customer_id column', '/rest/v1/clients?sele
 await checkRestTable('client_invoices table', '/rest/v1/client_invoices?select=id&limit=1')
 await checkRestTable('client_billing_subscriptions table', '/rest/v1/client_billing_subscriptions?select=id&limit=1')
 
+// Migration 0133 — structured client assessments
+await checkRestTable('assessment_items table', '/rest/v1/assessment_items?select=id&limit=1')
+await checkRestTable('client_assessments table', '/rest/v1/client_assessments?select=id&limit=1')
+await checkRestTable('client_assessment_results table', '/rest/v1/client_assessment_results?select=id&limit=1')
+await checkRestTable('client_assessment_media table', '/rest/v1/client_assessment_media?select=id&limit=1')
+await checkRestTable(
+  'assessment_items.rubric_type column',
+  '/rest/v1/assessment_items?select=rubric_type&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {

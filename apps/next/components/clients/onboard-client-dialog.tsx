@@ -15,10 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  createClientRecord,
-  updateClientOnboardingAssessmentNotes,
-} from '@/app/(dashboard)/clients/actions'
+import { createClientRecord } from '@/app/(dashboard)/clients/actions'
 import {
   createOnboardingPacket,
   fetchClientOnboardingCompletion,
@@ -28,6 +25,9 @@ import {
 } from '@/app/(dashboard)/clients/onboarding-actions'
 import { DocumentSigningFlow } from '@/components/onboarding/document-signing-flow'
 import { OnboardingDocumentsStep } from '@/components/clients/onboarding-documents-step'
+import { ClientAssessmentEditor } from '@/components/clients/assessments/client-assessment-editor'
+import type { DeferredAssessmentDraft } from '@/components/clients/assessments/client-assessment-editor'
+import { saveClientAssessment } from '@/app/(dashboard)/clients/assessment-actions'
 import {
   setClientAvatarPreset,
   uploadPendingClientAvatar,
@@ -123,7 +123,7 @@ const checklistSteps: Array<{
   {
     id: 'assessmentNotes',
     title: 'Assessment notes',
-    description: 'Jot down observations from the initial assessment.',
+    description: 'Score movements, capture notes, and attach media.',
     icon: ClipboardPen,
   },
 ]
@@ -182,8 +182,9 @@ export function OnboardClientDialog({
   const [signingSession, setSigningSession] =
     React.useState<InPersonSigningSession | null>(null)
   const [inPersonSigning, setInPersonSigning] = React.useState(false)
-  const [assessmentNotes, setAssessmentNotes] = React.useState('')
-  const [savedAssessmentNotes, setSavedAssessmentNotes] = React.useState('')
+  const [assessmentSaved, setAssessmentSaved] = React.useState(false)
+  const [pendingAssessmentDraft, setPendingAssessmentDraft] =
+    React.useState<DeferredAssessmentDraft | null>(null)
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -235,8 +236,8 @@ export function OnboardClientDialog({
       setPendingPresetId(null)
       setSigningSession(null)
       setInPersonSigning(false)
-      setAssessmentNotes('')
-      setSavedAssessmentNotes('')
+      setAssessmentSaved(false)
+      setPendingAssessmentDraft(null)
       form.reset(initialFormDefaults)
       return
     }
@@ -320,6 +321,8 @@ export function OnboardClientDialog({
   function goToNextStep(afterStep: OnboardStepId) {
     if (afterStep === 'clientDetails' && canSkipDocuments) {
       markStepComplete('documents')
+      setActiveStep('assessmentNotes')
+      return
     }
     setActiveStep(null)
   }
@@ -369,21 +372,26 @@ export function OnboardClientDialog({
     return clientEmail?.trim() || ''
   }
 
-  async function completeClientDetailsStep() {
+  async function resolveClientForAssessment(): Promise<string | null> {
     if (clientMode === 'existing') {
       if (!existingClientId) {
         toast.error('Select a client.')
-        return false
+        return null
       }
       setResolvedClientId(existingClientId)
       setResolvedClientName(selectedClient?.full_name ?? 'Client')
       markStepComplete('clientDetails')
-      goToNextStep('clientDetails')
-      return true
+      return existingClientId
     }
 
-    const valid = await form.trigger()
-    if (!valid) return false
+    const fullName = form.getValues('fullName')?.trim()
+    if (!fullName) {
+      toast.error('Enter a client name.')
+      return null
+    }
+
+    const valid = await form.trigger(['fullName', 'email', 'phone', 'gymId'])
+    if (!valid) return null
 
     setPending(true)
     const values = form.getValues()
@@ -395,13 +403,56 @@ export function OnboardClientDialog({
 
     if (!createResult.success) {
       toast.error(createResult.error)
-      return false
+      return null
     }
 
     await savePendingAvatar(createResult.clientId)
     setResolvedClientId(createResult.clientId)
     setResolvedClientName(values.fullName.trim())
     markStepComplete('clientDetails')
+    return createResult.clientId
+  }
+
+  async function flushPendingAssessment(clientId: string) {
+    if (!pendingAssessmentDraft) return true
+    // Already written to the DB — do not create a second session.
+    if (pendingAssessmentDraft.assessmentId) return true
+
+    setPending(true)
+    const result = await saveClientAssessment({
+      clientId,
+      ...pendingAssessmentDraft,
+    })
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return false
+    }
+
+    // Keep the draft so returning to Assessment notes restores scored tests.
+    setPendingAssessmentDraft({
+      ...pendingAssessmentDraft,
+      assessmentId: result.data.assessmentId,
+      results: pendingAssessmentDraft.results.map((row) => ({
+        ...row,
+        clientKey:
+          result.data.resultIdsByClientKey[row.clientKey] ?? row.clientKey,
+      })),
+    })
+    markStepComplete('assessmentNotes')
+    setAssessmentSaved(true)
+    toast.success('Assessment saved')
+    return true
+  }
+
+  async function completeClientDetailsStep() {
+    const clientId = await resolveClientForAssessment()
+    if (!clientId) return false
+
+    const flushed = await flushPendingAssessment(clientId)
+    if (!flushed) return false
+
     goToNextStep('clientDetails')
     return true
   }
@@ -495,7 +546,7 @@ export function OnboardClientDialog({
     toast.success('Documents signed.')
   }
 
-  async function completeAssessmentNotesStep(skipNotes = false) {
+  async function finishOnboarding(markAssessmentComplete: boolean) {
     const clientId = resolvedClientId
     if (!clientId) {
       toast.error('Complete client details first.')
@@ -503,31 +554,38 @@ export function OnboardClientDialog({
       return
     }
 
-    const trimmedNotes = assessmentNotes.trim()
-    const shouldSave = !skipNotes && trimmedNotes !== savedAssessmentNotes.trim()
+    if (pendingAssessmentDraft && !pendingAssessmentDraft.assessmentId) {
+      const flushed = await flushPendingAssessment(clientId)
+      if (!flushed) return
+    }
 
-    if (shouldSave) {
-      setPending(true)
-      const result = await updateClientOnboardingAssessmentNotes(
-        clientId,
-        assessmentNotes
-      )
-      setPending(false)
-
-      if (!result.success) {
-        toast.error(result.error)
-        return
-      }
-
-      setSavedAssessmentNotes(trimmedNotes)
-      if (trimmedNotes) {
-        markStepComplete('assessmentNotes')
-      }
+    if (markAssessmentComplete || assessmentSaved) {
+      markStepComplete('assessmentNotes')
+      setAssessmentSaved(true)
     }
 
     toast.success('Client onboarded successfully.')
     setOpen(false)
+    router.push(`/clients/${clientId}`)
     router.refresh()
+  }
+
+  function handleAssessmentSaved(
+    assessmentId: string,
+    draft: DeferredAssessmentDraft
+  ) {
+    setPendingAssessmentDraft({ ...draft, assessmentId })
+    markStepComplete('assessmentNotes')
+    setAssessmentSaved(true)
+    setActiveStep(null)
+  }
+
+  function handleDeferredAssessmentSave(draft: DeferredAssessmentDraft) {
+    setPendingAssessmentDraft(draft)
+    markStepComplete('assessmentNotes')
+    setAssessmentSaved(true)
+    setActiveStep(null)
+    toast.success('Assessment saved. Add client details to finish onboarding.')
   }
 
   function handleChecklistStepClick(stepId: OnboardStepId) {
@@ -553,9 +611,7 @@ export function OnboardClientDialog({
       return `${count} document${count === 1 ? '' : 's'} selected`
     }
     if (stepId === 'assessmentNotes' && completedSteps.assessmentNotes) {
-      const preview = savedAssessmentNotes.trim()
-      if (!preview) return 'Assessment notes saved'
-      return preview.length > 48 ? `${preview.slice(0, 48)}…` : preview
+      return assessmentSaved ? 'Assessment saved' : 'Assessment notes'
     }
     return checklistSteps.find((step) => step.id === stepId)?.title ?? ''
   }
@@ -567,7 +623,7 @@ export function OnboardClientDialog({
         className={
           inPersonSigning
             ? 'max-h-[90vh] max-w-3xl overflow-y-auto'
-            : activeStep === 'documents'
+            : activeStep === 'documents' || activeStep === 'assessmentNotes'
               ? 'max-h-[90vh] max-w-2xl overflow-y-auto'
               : 'max-h-[90vh] max-w-xl overflow-y-auto'
         }
@@ -614,7 +670,7 @@ export function OnboardClientDialog({
           </div>
         ) : (
           <div className="grid gap-5">
-            {!inPersonSigning ? (
+            {!inPersonSigning && activeStep === null ? (
               <div className="border-brand/20 bg-brand/5 space-y-2 rounded-xl border p-3">
                 <div className="flex items-center gap-2 px-1">
                   <div className="bg-brand/10 text-brand flex size-8 shrink-0 items-center justify-center rounded-lg">
@@ -670,6 +726,25 @@ export function OnboardClientDialog({
                     </button>
                   )
                 })}
+              </div>
+            ) : null}
+
+            {!inPersonSigning && activeStep !== null ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">
+                    {checklistSteps.find((step) => step.id === activeStep)?.title}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Step{' '}
+                    {checklistSteps.findIndex((step) => step.id === activeStep) + 1} of{' '}
+                    {checklistSteps.length}
+                    {resolvedClientName ? ` · ${resolvedClientName}` : ''}
+                  </p>
+                </div>
+                <p className="text-muted-foreground shrink-0 text-xs">
+                  {completedCount}/{checklistSteps.length} done
+                </p>
               </div>
             ) : null}
 
@@ -861,21 +936,22 @@ export function OnboardClientDialog({
                 ) : null}
 
                 {activeStep === 'assessmentNotes' ? (
-                  <div className="grid gap-3">
-                    <Label htmlFor="onboard-assessment-notes">Assessment notes</Label>
-                    <Textarea
-                      id="onboard-assessment-notes"
-                      rows={5}
-                      className="min-h-[8rem] resize-y"
-                      value={assessmentNotes}
-                      onChange={(event) => setAssessmentNotes(event.target.value)}
-                      placeholder="Movement screen results, injuries, goals discussed…"
-                    />
-                    <p className="text-muted-foreground text-xs">
-                      Optional — saved to this client&apos;s profile and counted toward
-                      onboarding on their dashboard.
-                    </p>
-                  </div>
+                  <ClientAssessmentEditor
+                    key={
+                      pendingAssessmentDraft
+                        ? `draft-${pendingAssessmentDraft.assessmentId ?? 'pending'}-${pendingAssessmentDraft.assessedAt ?? 'na'}-${pendingAssessmentDraft.results.length}`
+                        : resolvedClientId
+                          ? `client-${resolvedClientId}-new`
+                          : 'new-assessment'
+                    }
+                    clientId={resolvedClientId ?? ''}
+                    clientName={resolvedClientName || 'this client'}
+                    source="onboarding"
+                    compact
+                    initialDraft={pendingAssessmentDraft}
+                    onSaved={handleAssessmentSaved}
+                    onDeferredSave={handleDeferredAssessmentSave}
+                  />
                 ) : null}
               </div>
             ) : null}
@@ -911,28 +987,24 @@ export function OnboardClientDialog({
               </Button>
             ) : null}
             {activeStep === 'assessmentNotes' ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => void completeAssessmentNotesStep(true)}
-                >
-                  Finish without notes
-                </Button>
-                <Button
-                  type="button"
-                  variant="brand"
-                  disabled={pending}
-                  onClick={() => void completeAssessmentNotesStep(false)}
-                >
-                  {pending
-                    ? 'Saving…'
-                    : assessmentNotes.trim()
-                      ? 'Save & finish'
-                      : 'Finish onboarding'}
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void finishOnboarding(assessmentSaved)}
+              >
+                Finish without assessment
+              </Button>
+            ) : null}
+            {!activeStep && resolvedClientId ? (
+              <Button
+                type="button"
+                variant="brand"
+                disabled={pending}
+                onClick={() => void finishOnboarding(assessmentSaved)}
+              >
+                {pending ? 'Submitting…' : 'Submit'}
+              </Button>
             ) : null}
           </DialogFooter>
         ) : null}
