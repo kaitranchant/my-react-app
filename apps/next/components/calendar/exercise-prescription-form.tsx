@@ -718,7 +718,7 @@ export function ExercisePrescriptionForm({
           <summary className="cursor-pointer text-sm font-medium">
             More options
           </summary>
-          <div className="mt-3 max-h-[min(42vh,360px)] space-y-3 overflow-y-auto overscroll-contain">
+          <div className="mt-3 space-y-3">
             <FormField
               control={form.control}
               name="workoutNotes"

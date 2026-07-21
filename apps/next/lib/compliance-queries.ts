@@ -68,7 +68,6 @@ export async function fetchComplianceDashboardRows(
     supabase
       .from('client_form_reviews')
       .select('client_id')
-      .eq('coach_id', options.coachId)
       .is('reviewed_at', null)
       .in('client_id', clientIds),
     supabase

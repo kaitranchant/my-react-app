@@ -22,7 +22,7 @@ export default async function FormReviewPage({
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
         <PageHeader
           title="Form Review"
-          description="Review lift photos and videos submitted by clients and leave technique feedback."
+          description="Review media from your clients and shared gym clients. Each client can only see their own submissions."
         />
         <UpgradePrompt gate={gate} />
       </div>
@@ -39,7 +39,7 @@ export default async function FormReviewPage({
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <PageHeader
         title="Form Review"
-        description="Review lift photos and videos submitted by clients and leave technique feedback."
+        description="Review media from your clients and shared gym clients. Each client can only see their own submissions."
       />
 
       <Suspense fallback={<FormReviewTabsSkeleton />}>

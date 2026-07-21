@@ -2421,6 +2421,7 @@ export type Database = {
           coach_annotations: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at: string | null
+          reviewed_by: string | null
           client_viewed_at: string | null
           scheduled_workout_id: string | null
           scheduled_exercise_id: string | null
@@ -2441,6 +2442,7 @@ export type Database = {
           coach_annotations?: Json
           uploaded_by: CheckInSubmittedBy
           reviewed_at?: string | null
+          reviewed_by?: string | null
           client_viewed_at?: string | null
           scheduled_workout_id?: string | null
           scheduled_exercise_id?: string | null
@@ -2461,6 +2463,7 @@ export type Database = {
           coach_annotations?: Json
           uploaded_by?: CheckInSubmittedBy
           reviewed_at?: string | null
+          reviewed_by?: string | null
           client_viewed_at?: string | null
           scheduled_workout_id?: string | null
           scheduled_exercise_id?: string | null
@@ -2487,6 +2490,13 @@ export type Database = {
             columns: ['exercise_id']
             isOneToOne: false
             referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_form_reviews_reviewed_by_fkey'
+            columns: ['reviewed_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]
@@ -4671,6 +4681,14 @@ export type Database = {
           email: string
         }[]
       }
+      is_gym_owner: {
+        Args: { target_gym_id: string }
+        Returns: boolean
+      }
+      can_bootstrap_gym_owner: {
+        Args: { target_gym_id: string }
+        Returns: boolean
+      }
       get_onboarding_sign_preview: {
         Args: { p_token: string }
         Returns: {
@@ -4700,6 +4718,23 @@ export type Database = {
       link_gym_invite: {
         Args: { p_token: string; p_user_id: string; p_email: string }
         Returns: string
+      }
+      mark_own_form_reviews_viewed: {
+        Args: Record<string, never>
+        Returns: number
+      }
+      review_client_form_review: {
+        Args: {
+          p_review_id: string
+          p_coach_feedback: string | null
+          p_coach_annotations?: Json
+        }
+        Returns: {
+          client_id: string
+          primary_coach_id: string
+          review_title: string | null
+          was_previously_reviewed: boolean
+        }[]
       }
       coach_create_client: {
         Args: {
@@ -5317,6 +5352,7 @@ export type ClientFormReviewWithClient = ClientFormReview & {
   client: Pick<Client, 'id' | 'full_name' | 'avatar_url' | 'email'> | null
   exercise: Pick<Exercise, 'id' | 'name'> | null
   signedUrl: string | null
+  canDelete: boolean
 }
 
 export type ClientWearableConnection =

@@ -444,7 +444,7 @@ export function WorkoutBuilder({
               onSubmit={addForm.handleSubmit(handleAdd)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4 [-webkit-overflow-scrolling:touch]">
                 <ExercisePrescriptionForm
                   key={`builder-add-${addPrescriptionKey}`}
                   form={addForm}
@@ -517,7 +517,7 @@ export function WorkoutBuilder({
               onSubmit={editForm.handleSubmit(handleUpdate)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-4 [-webkit-overflow-scrolling:touch]">
                 <ExercisePrescriptionForm
                   key={selectedRowId ?? 'builder-edit'}
                   form={editForm}

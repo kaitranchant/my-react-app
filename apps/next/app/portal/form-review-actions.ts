@@ -337,14 +337,7 @@ export async function markClientFormReviewsAsViewed(): Promise<
     return { success: false, error: 'Client profile not found.' }
   }
 
-  const now = new Date().toISOString()
-
-  const { error } = await supabase
-    .from('client_form_reviews')
-    .update({ client_viewed_at: now })
-    .eq('client_id', client.id)
-    .not('reviewed_at', 'is', null)
-    .is('client_viewed_at', null)
+  const { error } = await supabase.rpc('mark_own_form_reviews_viewed')
 
   if (error) {
     return { success: false, error: error.message }

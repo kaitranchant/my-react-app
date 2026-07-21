@@ -206,15 +206,17 @@ export function FormReviewReviewCard({
                 'Save feedback'
               )}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              disabled={pending || deleting}
-              onClick={() => void handleDelete()}
-            >
-              {deleting ? 'Deleting…' : 'Delete'}
-            </Button>
+            {review.canDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={pending || deleting}
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       ) : null}

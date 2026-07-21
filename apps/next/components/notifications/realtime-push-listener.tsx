@@ -113,7 +113,6 @@ export function RealtimePushListener({
             event: 'INSERT',
             schema: 'public',
             table: 'client_form_reviews',
-            filter: `coach_id=eq.${userId}`,
           },
           (payload) => {
             const review = payload.new as {

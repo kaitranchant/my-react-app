@@ -50,7 +50,6 @@ export async function fetchCoachNotificationItems(
     supabase
       .from('client_form_reviews')
       .select('id, title, created_at, clients(full_name)')
-      .eq('coach_id', coachId)
       .is('reviewed_at', null)
       .order('created_at', { ascending: false })
       .limit(5),

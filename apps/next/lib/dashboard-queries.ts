@@ -13,12 +13,11 @@ export type CoachNavBadges = {
 
 async function fetchPendingFormReviewCountImpl(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  coachId: string
+  _coachId: string
 ): Promise<number> {
   const { count, error } = await supabase
     .from('client_form_reviews')
     .select('*', { count: 'exact', head: true })
-    .eq('coach_id', coachId)
     .is('reviewed_at', null)
 
   if (error) {

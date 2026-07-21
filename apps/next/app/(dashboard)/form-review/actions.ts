@@ -6,6 +6,7 @@ import {
   attachSignedUrlsToFormReviews,
   FORM_REVIEWS_BUCKET,
 } from '@/lib/form-reviews'
+import { requireClientAccess } from '@/lib/gym-access'
 import { createClient } from '@/lib/supabase/server'
 import { notifyClientOfFormReviewReply } from '@/lib/notifications/notify-client-form-review-reply'
 import {
@@ -47,39 +48,46 @@ export async function updateFormReviewFeedback(
 
   const { data: existing, error: fetchError } = await supabase
     .from('client_form_reviews')
-    .select('id, client_id, coach_id, title, reviewed_at')
+    .select('id, client_id, title')
     .eq('id', reviewId)
-    .eq('coach_id', user.id)
     .maybeSingle()
 
   if (fetchError || !existing) {
     return { success: false, error: 'Submission not found.' }
   }
 
-  const { error } = await supabase
-    .from('client_form_reviews')
-    .update({
-      coach_feedback: parsed.data.coachFeedback,
-      coach_annotations: parsed.data.coachAnnotations,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', reviewId)
-    .eq('coach_id', user.id)
-
-  if (error) {
-    return { success: false, error: error.message }
+  const clientAccess = await requireClientAccess(existing.client_id)
+  if (!clientAccess) {
+    return { success: false, error: 'Submission not found.' }
   }
 
-  if (!existing.reviewed_at) {
+  const { data: reviewRows, error } = await supabase.rpc(
+    'review_client_form_review',
+    {
+      p_review_id: reviewId,
+      p_coach_feedback: parsed.data.coachFeedback,
+      p_coach_annotations: parsed.data.coachAnnotations,
+    }
+  )
+
+  const reviewed = reviewRows?.[0]
+  if (error || !reviewed) {
+    return {
+      success: false,
+      error: error?.message ?? 'Unable to save form review feedback.',
+    }
+  }
+
+  if (!reviewed.was_previously_reviewed) {
     void notifyClientOfFormReviewReply({
-      clientId: existing.client_id,
-      coachId: existing.coach_id,
-      reviewTitle: existing.title?.trim() || 'Form review',
+      clientId: reviewed.client_id,
+      coachId: user.id,
+      reviewTitle: reviewed.review_title?.trim() || 'Form review',
       coachFeedback: parsed.data.coachFeedback,
     })
   }
 
-  revalidateFormReviewPaths(existing.client_id)
+  revalidateFormReviewPaths(reviewed.client_id)
   return { success: true }
 }
 
@@ -135,6 +143,9 @@ export async function fetchCoachFormReviews(
   limit = 50
 ): Promise<ClientFormReviewWithClient[]> {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('client_form_reviews')
     .select(
@@ -151,9 +162,13 @@ export async function fetchCoachFormReviews(
     const client = Array.isArray(row.client) ? row.client[0] : row.client
     const exercise = Array.isArray(row.exercise) ? row.exercise[0] : row.exercise
     return {
-      ...(row as Omit<ClientFormReviewWithClient, 'signedUrl' | 'client' | 'exercise'>),
+      ...(row as Omit<
+        ClientFormReviewWithClient,
+        'signedUrl' | 'client' | 'exercise' | 'canDelete'
+      >),
       client: client ?? null,
       exercise: exercise ?? null,
+      canDelete: row.coach_id === user?.id,
     }
   })
 
@@ -163,6 +178,7 @@ export async function fetchCoachFormReviews(
     ...review,
     client: reviews[index]?.client ?? null,
     exercise: reviews[index]?.exercise ?? null,
+    canDelete: reviews[index]?.canDelete ?? false,
   }))
 }
 
@@ -171,6 +187,9 @@ export async function fetchClientFormReviews(
   limit = 50
 ): Promise<ClientFormReviewWithClient[]> {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('client_form_reviews')
     .select(
@@ -188,9 +207,13 @@ export async function fetchClientFormReviews(
     const client = Array.isArray(row.client) ? row.client[0] : row.client
     const exercise = Array.isArray(row.exercise) ? row.exercise[0] : row.exercise
     return {
-      ...(row as Omit<ClientFormReviewWithClient, 'signedUrl' | 'client' | 'exercise'>),
+      ...(row as Omit<
+        ClientFormReviewWithClient,
+        'signedUrl' | 'client' | 'exercise' | 'canDelete'
+      >),
       client: client ?? null,
       exercise: exercise ?? null,
+      canDelete: row.coach_id === user?.id,
     }
   })
 
@@ -200,5 +223,6 @@ export async function fetchClientFormReviews(
     ...review,
     client: reviews[index]?.client ?? null,
     exercise: reviews[index]?.exercise ?? null,
+    canDelete: reviews[index]?.canDelete ?? false,
   }))
 }
