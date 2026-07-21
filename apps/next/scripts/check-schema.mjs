@@ -869,6 +869,16 @@ await checkRestTable(
   '/rest/v1/assessment_items?select=rubric_type&limit=1'
 )
 
+// Migration 0136 — reusable assessment templates
+await checkRestTable(
+  'assessment_templates table',
+  '/rest/v1/assessment_templates?select=id&limit=1'
+)
+await checkRestTable(
+  'assessment_template_items table',
+  '/rest/v1/assessment_template_items?select=id&limit=1'
+)
+
 let failed = false
 for (const { name, ok, detail } of checks) {
   if (ok) {

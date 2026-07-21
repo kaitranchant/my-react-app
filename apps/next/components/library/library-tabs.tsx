@@ -11,6 +11,7 @@ const tabs = [
   { href: '/library/programs', label: 'Programs' },
   { href: '/library/meal-plans', label: 'Meal plans' },
   { href: '/library/meals', label: 'Meals' },
+  { href: '/library/assessment-templates', label: 'Assessment templates' },
   { href: '/library/message-templates', label: 'Message templates' },
 ] as const
 

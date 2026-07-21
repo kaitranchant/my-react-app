@@ -2544,6 +2544,80 @@ export type Database = {
           },
         ]
       }
+      assessment_templates: {
+        Row: {
+          id: string
+          coach_id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_id: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assessment_templates_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      assessment_template_items: {
+        Row: {
+          id: string
+          template_id: string
+          assessment_item_id: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          assessment_item_id: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          assessment_item_id?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assessment_template_items_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'assessment_templates'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assessment_template_items_assessment_item_id_fkey'
+            columns: ['assessment_item_id']
+            isOneToOne: false
+            referencedRelation: 'assessment_items'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       client_assessments: {
         Row: {
           id: string
@@ -5162,6 +5236,28 @@ export type AssessmentItemInsert =
   Database['public']['Tables']['assessment_items']['Insert']
 export type AssessmentItemUpdate =
   Database['public']['Tables']['assessment_items']['Update']
+
+export type AssessmentTemplate =
+  Database['public']['Tables']['assessment_templates']['Row']
+export type AssessmentTemplateInsert =
+  Database['public']['Tables']['assessment_templates']['Insert']
+export type AssessmentTemplateUpdate =
+  Database['public']['Tables']['assessment_templates']['Update']
+
+export type AssessmentTemplateItem =
+  Database['public']['Tables']['assessment_template_items']['Row']
+export type AssessmentTemplateItemInsert =
+  Database['public']['Tables']['assessment_template_items']['Insert']
+export type AssessmentTemplateItemUpdate =
+  Database['public']['Tables']['assessment_template_items']['Update']
+
+export type AssessmentTemplateWithItems = AssessmentTemplate & {
+  items: Array<
+    AssessmentTemplateItem & {
+      assessment_item: AssessmentItem | null
+    }
+  >
+}
 
 export type ClientAssessment =
   Database['public']['Tables']['client_assessments']['Row']

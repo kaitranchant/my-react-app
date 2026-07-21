@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { Check, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { fetchAssessmentTemplates } from '@/app/(dashboard)/library/assessment-templates/actions'
 import {
   deleteAssessmentMedia,
   fetchAssessmentCatalog,
@@ -25,6 +27,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ASSESSMENT_CATEGORY_LABELS,
@@ -36,6 +45,7 @@ import {
 import { cn } from '@/lib/utils'
 import type {
   AssessmentItem,
+  AssessmentTemplateWithItems,
   ClientAssessmentWithResults,
   Json,
 } from 'app/types/database'
@@ -223,6 +233,10 @@ export function ClientAssessmentEditor({
   }, [initialAssessment, initialDraft])
 
   const [catalog, setCatalog] = React.useState<AssessmentItem[]>([])
+  const [templates, setTemplates] = React.useState<
+    AssessmentTemplateWithItems[]
+  >([])
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState('')
   const [loadingCatalog, setLoadingCatalog] = React.useState(true)
   const [pending, setPending] = React.useState(false)
   const [persistedAssessmentId, setPersistedAssessmentId] = React.useState<
@@ -254,9 +268,12 @@ export function ClientAssessmentEditor({
   React.useEffect(() => {
     let cancelled = false
     setLoadingCatalog(true)
-    fetchAssessmentCatalog()
-      .then((items) => {
-        if (!cancelled) setCatalog(items)
+    Promise.all([fetchAssessmentCatalog(), fetchAssessmentTemplates()])
+      .then(([items, templateRows]) => {
+        if (!cancelled) {
+          setCatalog(items)
+          setTemplates(templateRows)
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingCatalog(false)
@@ -308,6 +325,41 @@ export function ClientAssessmentEditor({
       return
     }
     setPhase('run')
+  }
+
+  function applySelectedTemplate() {
+    const template = templates.find((row) => row.id === selectedTemplateId)
+    if (!template) return
+    if (completedCount > 0) {
+      toast.error(
+        'Clear or finish this assessment before replacing scored tests with a template.'
+      )
+      return
+    }
+
+    const catalogById = new Map(catalog.map((item) => [item.id, item]))
+    const templateItems = [...template.items]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((row) => catalogById.get(row.assessment_item_id))
+      .filter((item): item is AssessmentItem => Boolean(item))
+
+    if (templateItems.length === 0) {
+      toast.error('This template has no available tests.')
+      return
+    }
+
+    setResults(
+      templateItems.map((item, index) => itemToEditable(item, index))
+    )
+    if (title === 'Assessment' || title === 'Initial assessment') {
+      setTitle(template.name)
+    }
+    const unavailableCount = template.items.length - templateItems.length
+    toast.success(
+      unavailableCount > 0
+        ? `Template applied. ${unavailableCount} unavailable test${unavailableCount === 1 ? '' : 's'} skipped.`
+        : `${template.name} applied`
+    )
   }
 
   function openBeginDialog(result: EditableAssessmentResult) {
@@ -522,6 +574,54 @@ export function ClientAssessmentEditor({
                 disabled={pending}
               />
             </div>
+          </div>
+
+          <div className="grid gap-2 rounded-xl border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <Label>Assessment template</Label>
+                <p className="text-muted-foreground text-xs">
+                  Load a reusable list of tests.
+                </p>
+              </div>
+              <Button variant="link" size="sm" asChild className="h-auto p-0">
+                <Link href="/library/assessment-templates">
+                  Manage templates
+                </Link>
+              </Button>
+            </div>
+            {templates.length > 0 ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={setSelectedTemplateId}
+                  disabled={pending}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Choose a template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name} ({template.items.length} tests)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!selectedTemplateId || pending || completedCount > 0}
+                  onClick={applySelectedTemplate}
+                >
+                  Apply template
+                </Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No templates yet. Create one in the assessment template library.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">
