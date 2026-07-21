@@ -1,8 +1,13 @@
 import { calculateE1rm } from '@/lib/workout-log'
 import { mergeCoachNotesForHistory } from '@/lib/exercise-log-notes'
+import {
+  FORM_REVIEWS_BUCKET,
+  FORM_REVIEW_SIGNED_URL_TTL_SECONDS,
+} from '@/lib/form-reviews'
 import type { createClient } from '@/lib/supabase/server'
 import type {
   ClientScheduledWorkoutWithExercises,
+  ExerciseHistoryMedia,
   ExerciseHistorySession,
   ExerciseHistorySet,
   ExercisePreviousSets,
@@ -248,8 +253,19 @@ type ExerciseHistoryNotesRow = {
   }
 }
 
+type ExerciseHistoryMediaRow = {
+  id: string
+  scheduled_workout_id: string | null
+  storage_path: string
+  content_type: string
+  title: string | null
+  created_at: string
+}
+
+type ExerciseHistoryWorkout = ExerciseHistoryRow['client_scheduled_workouts']
+
 function createExerciseHistorySession(
-  workout: ExerciseHistoryRow['client_scheduled_workouts'],
+  workout: ExerciseHistoryWorkout,
   notes?: Pick<
     ExerciseHistoryRow['scheduled_workout_exercises'],
     'workout_notes' | 'coach_session_notes' | 'client_notes'
@@ -261,6 +277,7 @@ function createExerciseHistorySession(
     date,
     workoutName: workout.name,
     sets: [],
+    media: [],
     bestE1rm: null,
     coachNotes: mergeCoachNotesForHistory(
       notes?.workout_notes,
@@ -308,11 +325,7 @@ export async function fetchExerciseHistory(
 
   const { data, error } = await query
 
-  if (error || !data) {
-    return []
-  }
-
-  const rows = data as ExerciseHistoryRow[]
+  const rows = error || !data ? [] : (data as ExerciseHistoryRow[])
   const sessionsByWorkout = new Map<string, ExerciseHistorySession>()
 
   for (const row of rows) {
@@ -389,11 +402,85 @@ export async function fetchExerciseHistory(
     )
   }
 
-  return Array.from(sessionsByWorkout.values())
+  let mediaQuery = supabase
+    .from('client_form_reviews')
+    .select(
+      'id, scheduled_workout_id, storage_path, content_type, title, created_at'
+    )
+    .eq('client_id', clientId)
+    .eq('exercise_id', libraryExerciseId)
+    .not('scheduled_workout_id', 'is', null)
+    .order('created_at', { ascending: true })
+
+  if (options?.excludeWorkoutId) {
+    mediaQuery = mediaQuery.neq(
+      'scheduled_workout_id',
+      options.excludeWorkoutId
+    )
+  }
+
+  const { data: mediaData } = await mediaQuery
+  const mediaRows = (mediaData ?? []) as ExerciseHistoryMediaRow[]
+  const mediaByWorkout = new Map<string, ExerciseHistoryMediaRow[]>()
+
+  for (const media of mediaRows) {
+    if (!media.scheduled_workout_id) continue
+    const workoutMedia = mediaByWorkout.get(media.scheduled_workout_id) ?? []
+    workoutMedia.push(media)
+    mediaByWorkout.set(media.scheduled_workout_id, workoutMedia)
+  }
+
+  const missingMediaWorkoutIds = Array.from(mediaByWorkout.keys()).filter(
+    (workoutId) => !sessionsByWorkout.has(workoutId)
+  )
+
+  if (missingMediaWorkoutIds.length > 0) {
+    const { data: mediaWorkouts } = await supabase
+      .from('client_scheduled_workouts')
+      .select('id, scheduled_date, name, status')
+      .eq('client_id', clientId)
+      .eq('status', 'completed')
+      .in('id', missingMediaWorkoutIds)
+
+    for (const workout of (mediaWorkouts ?? []) as ExerciseHistoryWorkout[]) {
+      const date = String(workout.scheduled_date ?? '').slice(0, 10)
+      if (!date) continue
+      sessionsByWorkout.set(workout.id, createExerciseHistorySession(workout))
+    }
+  }
+
+  const sessions = Array.from(sessionsByWorkout.values())
     .map((session) => ({
       ...session,
       sets: session.sets.sort((a, b) => a.setNumber - b.setNumber),
     }))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit)
+
+  await Promise.all(
+    sessions.map(async (session) => {
+      const workoutMedia = mediaByWorkout.get(session.workoutId) ?? []
+      session.media = await Promise.all(
+        workoutMedia.map(async (media): Promise<ExerciseHistoryMedia> => {
+          const { data: signedData, error: signedUrlError } =
+            await supabase.storage
+              .from(FORM_REVIEWS_BUCKET)
+              .createSignedUrl(
+                media.storage_path,
+                FORM_REVIEW_SIGNED_URL_TTL_SECONDS
+              )
+
+          return {
+            id: media.id,
+            contentType: media.content_type,
+            signedUrl: signedUrlError ? null : (signedData?.signedUrl ?? null),
+            title: media.title,
+            createdAt: media.created_at,
+          }
+        })
+      )
+    })
+  )
+
+  return sessions
 }

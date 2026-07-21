@@ -15,6 +15,7 @@ import {
   PlayCircle,
   Plus,
   StickyNote,
+  Trash2,
   Trophy,
   Video,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ import {
 } from '@/app/(dashboard)/clients/[clientId]/calendar/actions'
 import {
   completeWorkoutLog,
+  deleteCoachWorkoutFormReview,
   getWorkoutLogData,
   persistWorkoutLogPrs,
   saveWorkoutLogSets,
@@ -34,6 +36,7 @@ import {
   startWorkoutLog,
   stopWorkoutLog,
 } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
+import { deleteClientFormReview } from '@/app/portal/form-review-actions'
 import {
   completePortalWorkoutLog,
   getPortalWorkoutLogData,
@@ -52,6 +55,10 @@ import { EditScheduledExerciseDialog } from '@/components/calendar/edit-schedule
 import { ExerciseLogNotesDialog } from '@/components/calendar/exercise-log-notes-dialog'
 import { ExerciseMediaDialog } from '@/components/calendar/exercise-media-dialog'
 import { ReplaceExerciseDialog } from '@/components/calendar/replace-exercise-dialog'
+import {
+  FormReviewMedia,
+  FormReviewMediaUnavailable,
+} from '@/components/form-review/form-review-media'
 import { FormReviewSubmitDialog } from '@/components/form-review/form-review-submit-dialog'
 import { PrCelebrationDialog } from '@/components/workout/pr-celebration-dialog'
 import { WorkoutLogKeypad } from '@/components/workout/workout-log-keypad'
@@ -176,6 +183,7 @@ import {
   isWorkoutLogSchemaError,
 } from '@/lib/workout-log-schema'
 import type {
+  ClientFormReviewWithUrl,
   Exercise,
   ExercisePersonalBest,
   ScheduledWorkoutExerciseWithDetails,
@@ -385,6 +393,9 @@ type WorkoutLogExerciseProps = {
   clientId: string
   workoutId: string
   variant: 'coach' | 'client'
+  currentFormReviews: ClientFormReviewWithUrl[]
+  onFormReviewSubmitted: (review: ClientFormReviewWithUrl) => void
+  onFormReviewDeleted: (reviewId: string) => void
   onSetChange: (
     setNumber: number,
     patch: Partial<WorkoutLogSetDraft>
@@ -415,6 +426,9 @@ function WorkoutLogExercise({
   clientId,
   workoutId,
   variant,
+  currentFormReviews,
+  onFormReviewSubmitted,
+  onFormReviewDeleted,
   onSetChange,
   onAddSet,
   onRemoveSet,
@@ -431,10 +445,44 @@ function WorkoutLogExercise({
   const [mediaOpen, setMediaOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [formReviewOpen, setFormReviewOpen] = React.useState(false)
+  const [formReviewPreviewOpen, setFormReviewPreviewOpen] = React.useState(false)
+  const [formReviewToDelete, setFormReviewToDelete] =
+    React.useState<ClientFormReviewWithUrl | null>(null)
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [actionsMenuOpen, setActionsMenuOpen] = React.useState(false)
   const [openSwipeDraftId, setOpenSwipeDraftId] =
     React.useState<string | null>(null)
+  const deleteFormReviewConfirm = useConfirmDialog({
+    title: 'Delete form review media?',
+    description: 'This permanently removes this photo or video.',
+    confirmLabel: 'Delete media',
+    destructive: true,
+    onConfirm: async () => {
+      if (!formReviewToDelete) return
+
+      const result =
+        variant === 'client'
+          ? await deleteClientFormReview(formReviewToDelete.id)
+          : await deleteCoachWorkoutFormReview(
+              clientId,
+              formReviewToDelete.id,
+              workoutId,
+              exercise.id
+            )
+
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+
+      onFormReviewDeleted(formReviewToDelete.id)
+      if (currentFormReviews.length === 1) {
+        setFormReviewPreviewOpen(false)
+      }
+      setFormReviewToDelete(null)
+      toast.success('Form review media deleted')
+    },
+  })
 
   React.useEffect(() => {
     onNestedOverlayChange?.(`${exercise.id}:notes`, notesOpen)
@@ -455,6 +503,28 @@ function WorkoutLogExercise({
     onNestedOverlayChange?.(`${exercise.id}:form-review`, formReviewOpen)
     return () => onNestedOverlayChange?.(`${exercise.id}:form-review`, false)
   }, [exercise.id, formReviewOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(
+      `${exercise.id}:form-review-preview`,
+      formReviewPreviewOpen
+    )
+    return () =>
+      onNestedOverlayChange?.(`${exercise.id}:form-review-preview`, false)
+  }, [exercise.id, formReviewPreviewOpen, onNestedOverlayChange])
+
+  React.useEffect(() => {
+    onNestedOverlayChange?.(
+      `${exercise.id}:delete-form-review`,
+      deleteFormReviewConfirm.isOpen
+    )
+    return () =>
+      onNestedOverlayChange?.(`${exercise.id}:delete-form-review`, false)
+  }, [
+    deleteFormReviewConfirm.isOpen,
+    exercise.id,
+    onNestedOverlayChange,
+  ])
 
   React.useEffect(() => {
     onNestedOverlayChange?.(`${exercise.id}:actions-menu`, actionsMenuOpen)
@@ -757,7 +827,22 @@ function WorkoutLogExercise({
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
                 <ExerciseHistoryButton onClick={() => setHistoryOpen(true)} />
-                {variant === 'client' && !readOnly && (
+                {currentFormReviews.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    onClick={() => setFormReviewPreviewOpen(true)}
+                  >
+                    <Video className="size-3.5" />
+                    Form review
+                    {currentFormReviews.length > 1
+                      ? ` (${currentFormReviews.length})`
+                      : ''}
+                  </Button>
+                ) : null}
+                {!readOnly && (
                   <Button
                     type="button"
                     variant="outline"
@@ -766,7 +851,7 @@ function WorkoutLogExercise({
                     onClick={() => setFormReviewOpen(true)}
                   >
                     <Video className="size-3.5" />
-                    Submit form
+                    {variant === 'client' ? 'Submit form' : 'Add media'}
                   </Button>
                 )}
                 {!readOnly && (
@@ -799,11 +884,11 @@ function WorkoutLogExercise({
                         <StickyNote className="size-4" />
                         {hasExerciseNotes ? 'Edit notes' : 'Add notes'}
                       </DropdownMenuItem>
-                      {variant === 'client' && (
-                        <DropdownMenuItem onSelect={() => setFormReviewOpen(true)}>
-                          Submit form photo/video
-                        </DropdownMenuItem>
-                      )}
+                      <DropdownMenuItem onSelect={() => setFormReviewOpen(true)}>
+                        {variant === 'client'
+                          ? 'Submit form photo/video'
+                          : 'Add form photo/video'}
+                      </DropdownMenuItem>
                       {showMedia && (
                         <DropdownMenuItem onSelect={() => setMediaOpen(true)}>
                           View form
@@ -1289,14 +1374,62 @@ function WorkoutLogExercise({
         variant={variant}
       />
 
-      {variant === 'client' && (
+      {currentFormReviews.length > 0 ? (
+        <Dialog
+          open={formReviewPreviewOpen}
+          onOpenChange={setFormReviewPreviewOpen}
+        >
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            <DialogTitle>Form review</DialogTitle>
+            <DialogDescription>
+              {currentFormReviews.length} {exercise.exercise.name}{' '}
+              {currentFormReviews.length === 1 ? 'upload' : 'uploads'} from this
+              workout
+            </DialogDescription>
+            <div className="space-y-4">
+              {currentFormReviews.map((review) => (
+                <div className="relative" key={review.id}>
+                  {review.signedUrl ? (
+                    <FormReviewMedia
+                      signedUrl={review.signedUrl}
+                      contentType={review.content_type}
+                      title={review.title?.trim() || exercise.exercise.name}
+                    />
+                  ) : (
+                    <FormReviewMediaUnavailable />
+                  )}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 size-8 shadow-md"
+                    aria-label="Delete form review media"
+                    onClick={() => {
+                      setFormReviewToDelete(review)
+                      deleteFormReviewConfirm.open()
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {deleteFormReviewConfirm.dialog}
+
+      {!readOnly && (
         <FormReviewSubmitDialog
           open={formReviewOpen}
           onOpenChange={setFormReviewOpen}
           exerciseName={exercise.exercise.name}
           exerciseId={exercise.exercise_id}
+          clientId={clientId}
           scheduledWorkoutId={workoutId}
           scheduledExerciseId={exercise.id}
+          variant={variant}
+          onSubmitted={onFormReviewSubmitted}
         />
       )}
 
@@ -1382,6 +1515,9 @@ export function WorkoutLogScreen({
   const [schemaError, setSchemaError] = React.useState<string | null>(null)
   const [data, setData] = React.useState<WorkoutLogData | null>(null)
   const [exerciseState, setExerciseState] = React.useState<ExerciseLogState>({})
+  const [currentFormReviews, setCurrentFormReviews] = React.useState<
+    Record<string, ClientFormReviewWithUrl[]>
+  >({})
   const [activeSectionIndex, setActiveSectionIndex] = React.useState(0)
   const [activeExerciseIndex, setActiveExerciseIndex] = React.useState(0)
   const [slideDirection, setSlideDirection] =
@@ -1607,6 +1743,7 @@ export function WorkoutLogScreen({
     skipAutoSaveRef.current = true
     setData(null)
     setExerciseState({})
+    setCurrentFormReviews({})
   }, [workoutId])
 
   const readOnly =
@@ -2502,6 +2639,21 @@ export function WorkoutLogScreen({
         clientId={clientId}
         workoutId={workoutId}
         variant={variant}
+        currentFormReviews={currentFormReviews[exercise.id] ?? []}
+        onFormReviewSubmitted={(review) =>
+          setCurrentFormReviews((current) => ({
+            ...current,
+            [exercise.id]: [...(current[exercise.id] ?? []), review],
+          }))
+        }
+        onFormReviewDeleted={(reviewId) =>
+          setCurrentFormReviews((current) => ({
+            ...current,
+            [exercise.id]: (current[exercise.id] ?? []).filter(
+              (review) => review.id !== reviewId
+            ),
+          }))
+        }
         onSetChange={(setNumber, patch) =>
           handleSetChange(exercise, setNumber, patch)
         }

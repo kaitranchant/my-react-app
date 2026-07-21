@@ -25,7 +25,9 @@ type ActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
 
-export type FormReviewUploadResult = ActionResult<ClientFormReviewWithUrl>
+export type FormReviewUploadResult =
+  | { success: true; data: ClientFormReviewWithUrl }
+  | { success: false; error: string }
 
 async function revalidateFormReviewPaths(clientId: string) {
   revalidatePath('/portal/form-review')
@@ -38,6 +40,7 @@ async function revalidateFormReviewPaths(clientId: string) {
 async function validateWorkoutContext(
   supabase: Awaited<ReturnType<typeof createClient>>,
   clientId: string,
+  exerciseId: string | null,
   scheduledWorkoutId: string | null,
   scheduledExerciseId: string | null
 ): Promise<string | null> {
@@ -61,7 +64,9 @@ async function validateWorkoutContext(
   if (scheduledExerciseId) {
     const { data: scheduledExercise } = await supabase
       .from('scheduled_workout_exercises')
-      .select('id, scheduled_workout_id, scheduled_workout:client_scheduled_workouts(client_id)')
+      .select(
+        'id, exercise_id, scheduled_workout_id, scheduled_workout:client_scheduled_workouts(client_id)'
+      )
       .eq('id', scheduledExerciseId)
       .maybeSingle()
 
@@ -72,6 +77,7 @@ async function validateWorkoutContext(
     if (
       !scheduledExercise ||
       workout?.client_id !== clientId ||
+      scheduledExercise.exercise_id !== exerciseId ||
       (scheduledWorkoutId &&
         scheduledExercise.scheduled_workout_id !== scheduledWorkoutId)
     ) {
@@ -146,6 +152,7 @@ export async function uploadClientFormReview(
   const workoutContextError = await validateWorkoutContext(
     supabase,
     client.id,
+    parsed.data.exerciseId,
     parsed.data.scheduledWorkoutId,
     parsed.data.scheduledExerciseId
   )

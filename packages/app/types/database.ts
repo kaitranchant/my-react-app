@@ -5186,11 +5186,20 @@ export type ExerciseHistorySet = {
   e1rm: number | null
 }
 
+export type ExerciseHistoryMedia = {
+  id: string
+  contentType: string
+  signedUrl: string | null
+  title: string | null
+  createdAt: string
+}
+
 export type ExerciseHistorySession = {
   workoutId: string
   date: string
   workoutName: string | null
   sets: ExerciseHistorySet[]
+  media: ExerciseHistoryMedia[]
   bestE1rm: number | null
   coachNotes: string | null
   clientNotes: string | null

@@ -65,6 +65,7 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  overlayClassName,
   children,
   viewport = false,
   visualViewport = false,
@@ -74,6 +75,8 @@ function DialogContent({
   onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** Override the portal overlay styling, such as for nested modal layers. */
+  overlayClassName?: string
   /** Fill the viewport with safe-area margins instead of vertical centering. */
   viewport?: boolean
   /** Compact dialog anchored within the visual viewport on mobile. */
@@ -124,7 +127,11 @@ function DialogContent({
 
   return (
     <DialogPortal>
-      <DialogOverlay viewport={viewport} visualViewport={visualViewport} />
+      <DialogOverlay
+        viewport={viewport}
+        visualViewport={visualViewport}
+        className={overlayClassName}
+      />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         data-vv-surface={

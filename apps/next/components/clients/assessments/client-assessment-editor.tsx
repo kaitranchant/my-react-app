@@ -591,13 +591,13 @@ export function ClientAssessmentEditor({
               </Button>
             </div>
             {templates.length > 0 ? (
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <Select
                   value={selectedTemplateId}
                   onValueChange={setSelectedTemplateId}
                   disabled={pending}
                 >
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="min-w-0">
                     <SelectValue placeholder="Choose a template" />
                   </SelectTrigger>
                   <SelectContent>
@@ -611,6 +611,7 @@ export function ClientAssessmentEditor({
                 <Button
                   type="button"
                   variant="outline"
+                  className="whitespace-nowrap"
                   disabled={!selectedTemplateId || pending || completedCount > 0}
                   onClick={applySelectedTemplate}
                 >

@@ -8,6 +8,13 @@ import {
   type CompleteWorkoutResult,
 } from '@/lib/pr-records'
 import {
+  attachSignedUrlsToFormReviews,
+  formReviewStoragePath,
+  FORM_REVIEWS_BUCKET,
+  getFormReviewMaxUploadBytes,
+  resolveFormReviewContentType,
+} from '@/lib/form-reviews'
+import {
   fetchExerciseHistory,
   fetchLogSets,
   fetchPreviousSetsForExercises,
@@ -18,10 +25,16 @@ import {
   saveWorkoutLogSetsSchema,
   type WorkoutLogSetValues,
 } from '@/lib/validations/workout-log'
+import {
+  formReviewUploadSchema,
+  type FormReviewUploadValues,
+} from '@/lib/validations/form-review'
 import { syncWorkoutLogSetsForExercises } from '@/lib/workout-log-set-sync'
 import { createClient } from '@/lib/supabase/server'
 import { requireClientAccess } from '@/lib/gym-access'
 import type {
+  ClientFormReview,
+  ClientFormReviewWithUrl,
   WorkoutLogData,
   WorkoutLogSet,
 } from 'app/types/database'
@@ -30,6 +43,10 @@ export type ActionResult = { success: true } | { success: false; error: string }
 
 export type WorkoutLogResult =
   | { success: true; data: WorkoutLogData }
+  | { success: false; error: string }
+
+export type CoachFormReviewUploadResult =
+  | { success: true; data: ClientFormReviewWithUrl }
   | { success: false; error: string }
 
 async function requireUser() {
@@ -54,6 +71,7 @@ async function requireClient(clientId: string) {
     user: ctx.user,
     client: {
       id: ctx.client.id,
+      coach_id: ctx.client.coach_id,
       progressive_overload_enabled: ctx.client.progressive_overload_enabled,
     },
   }
@@ -116,6 +134,173 @@ export async function getWorkoutLogData(
       progressiveOverloadEnabled: ctx.client.progressive_overload_enabled ?? false,
     },
   }
+}
+
+export async function uploadCoachFormReview(
+  clientId: string,
+  values: FormReviewUploadValues,
+  formData: FormData
+): Promise<CoachFormReviewUploadResult> {
+  const parsed = formReviewUploadSchema.safeParse(values)
+  if (!parsed.success) {
+    return { success: false, error: 'Please check the form and try again.' }
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) {
+    return { success: false, error: 'No file provided.' }
+  }
+
+  const contentType = resolveFormReviewContentType(file)
+  if (!contentType) {
+    return {
+      success: false,
+      error: 'Unsupported file type. Use MP4, WebM, MOV, JPEG, PNG, or WebP.',
+    }
+  }
+
+  const maxUploadBytes = getFormReviewMaxUploadBytes(contentType)
+  if (file.size > maxUploadBytes) {
+    return {
+      success: false,
+      error: contentType.startsWith('image/')
+        ? 'Photos must be under 10 MB.'
+        : 'Videos must be under 50 MB.',
+    }
+  }
+
+  const { exerciseId, scheduledWorkoutId, scheduledExerciseId } = parsed.data
+  if (!exerciseId || !scheduledWorkoutId || !scheduledExerciseId) {
+    return { success: false, error: 'Workout exercise details are required.' }
+  }
+
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase, client } = ctx
+  const { data: scheduledExercise } = await supabase
+    .from('scheduled_workout_exercises')
+    .select(
+      'id, exercise_id, scheduled_workout_id, scheduled_workout:client_scheduled_workouts!inner(client_id)'
+    )
+    .eq('id', scheduledExerciseId)
+    .maybeSingle()
+
+  const workout = Array.isArray(scheduledExercise?.scheduled_workout)
+    ? scheduledExercise.scheduled_workout[0]
+    : scheduledExercise?.scheduled_workout
+
+  if (
+    !scheduledExercise ||
+    workout?.client_id !== clientId ||
+    scheduledExercise.exercise_id !== exerciseId ||
+    scheduledExercise.scheduled_workout_id !== scheduledWorkoutId
+  ) {
+    return { success: false, error: 'Exercise not found in this workout.' }
+  }
+
+  const reviewId = crypto.randomUUID()
+  const storagePath = formReviewStoragePath(clientId, reviewId, contentType)
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const { error: uploadError } = await supabase.storage
+    .from(FORM_REVIEWS_BUCKET)
+    .upload(storagePath, buffer, {
+      upsert: false,
+      contentType,
+      cacheControl: '3600',
+    })
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message }
+  }
+
+  const { data: review, error: insertError } = await supabase
+    .from('client_form_reviews')
+    .insert({
+      id: reviewId,
+      client_id: clientId,
+      coach_id: client.coach_id,
+      exercise_id: exerciseId,
+      storage_path: storagePath,
+      content_type: contentType,
+      file_size_bytes: file.size,
+      title: parsed.data.title,
+      client_notes: null,
+      scheduled_workout_id: scheduledWorkoutId,
+      scheduled_exercise_id: scheduledExerciseId,
+      uploaded_by: 'coach',
+    })
+    .select('*')
+    .single()
+
+  if (insertError || !review) {
+    await supabase.storage.from(FORM_REVIEWS_BUCKET).remove([storagePath])
+    return {
+      success: false,
+      error: insertError?.message ?? 'Unable to save form review media.',
+    }
+  }
+
+  const [reviewWithUrl] = await attachSignedUrlsToFormReviews(supabase, [
+    review as ClientFormReview,
+  ])
+  revalidateClientCalendar(clientId)
+  revalidatePath(`/clients/${clientId}/workouts/${scheduledWorkoutId}/log`)
+  revalidatePath('/form-review')
+  revalidatePath('/portal/form-review')
+  return { success: true, data: reviewWithUrl }
+}
+
+export async function deleteCoachWorkoutFormReview(
+  clientId: string,
+  reviewId: string,
+  scheduledWorkoutId: string,
+  scheduledExerciseId: string
+): Promise<ActionResult> {
+  const ctx = await requireClient(clientId)
+  if (!ctx) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { supabase } = ctx
+  const { data: review, error: fetchError } = await supabase
+    .from('client_form_reviews')
+    .select('id, storage_path')
+    .eq('id', reviewId)
+    .eq('client_id', clientId)
+    .eq('scheduled_workout_id', scheduledWorkoutId)
+    .eq('scheduled_exercise_id', scheduledExerciseId)
+    .eq('uploaded_by', 'coach')
+    .maybeSingle()
+
+  if (fetchError || !review) {
+    return { success: false, error: 'Form review media not found.' }
+  }
+
+  const { error: storageError } = await supabase.storage
+    .from(FORM_REVIEWS_BUCKET)
+    .remove([review.storage_path])
+
+  if (storageError) {
+    return { success: false, error: storageError.message }
+  }
+
+  const { error: deleteError } = await supabase
+    .from('client_form_reviews')
+    .delete()
+    .eq('id', review.id)
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message }
+  }
+
+  revalidateClientCalendar(clientId)
+  revalidatePath(`/clients/${clientId}/workouts/${scheduledWorkoutId}/log`)
+  revalidatePath('/form-review')
+  revalidatePath('/portal/form-review')
+  return { success: true }
 }
 
 export async function startWorkoutLog(

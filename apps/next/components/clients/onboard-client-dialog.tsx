@@ -622,10 +622,10 @@ export function OnboardClientDialog({
       <DialogContent
         className={
           inPersonSigning
-            ? 'max-h-[90vh] max-w-3xl overflow-y-auto'
+            ? 'flex max-h-[90dvh] max-w-3xl flex-col overflow-hidden'
             : activeStep === 'documents' || activeStep === 'assessmentNotes'
-              ? 'max-h-[90vh] max-w-2xl overflow-y-auto'
-              : 'max-h-[90vh] max-w-xl overflow-y-auto'
+              ? 'flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden'
+              : 'flex max-h-[90dvh] max-w-xl flex-col overflow-hidden'
         }
       >
         <DialogHeader>
@@ -635,41 +635,45 @@ export function OnboardClientDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : loadError ? (
-          <div className="grid gap-3">
-            <p className="text-destructive text-sm">{loadError}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => {
-                setLoadError(null)
-                setLoading(true)
-                void Promise.all([
-                  fetchClientsForOnboarding(),
-                  fetchOnboardingTemplatesForCoach(),
-                ])
-                  .then(([clientRows, documentRows]) => {
-                    setClients(clientRows)
-                    setDocuments(documentRows)
-                    const defaults = getDefaultOnboardingDocumentSelections(documentRows)
-                    setSelectedFillDocumentIds(defaults.fillIds)
-                    setSelectedSignatureDocumentIds(defaults.signatureIds)
-                  })
-                  .catch(() => {
-                    setLoadError('Could not load onboarding data. Please try again.')
-                  })
-                  .finally(() => setLoading(false))
-              }}
-            >
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <div className="grid gap-5">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {loading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : loadError ? (
+            <div className="grid gap-3">
+              <p className="text-destructive text-sm">{loadError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => {
+                  setLoadError(null)
+                  setLoading(true)
+                  void Promise.all([
+                    fetchClientsForOnboarding(),
+                    fetchOnboardingTemplatesForCoach(),
+                  ])
+                    .then(([clientRows, documentRows]) => {
+                      setClients(clientRows)
+                      setDocuments(documentRows)
+                      const defaults =
+                        getDefaultOnboardingDocumentSelections(documentRows)
+                      setSelectedFillDocumentIds(defaults.fillIds)
+                      setSelectedSignatureDocumentIds(defaults.signatureIds)
+                    })
+                    .catch(() => {
+                      setLoadError(
+                        'Could not load onboarding data. Please try again.'
+                      )
+                    })
+                    .finally(() => setLoading(false))
+                }}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-5">
             {!inPersonSigning && activeStep === null ? (
               <div className="border-brand/20 bg-brand/5 space-y-2 rounded-xl border p-3">
                 <div className="flex items-center gap-2 px-1">
@@ -955,11 +959,12 @@ export function OnboardClientDialog({
                 ) : null}
               </div>
             ) : null}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {!inPersonSigning && !loading ? (
-          <DialogFooter className="gap-2 sm:justify-between">
+          <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:justify-between">
             <Button
               type="button"
               variant="outline"

@@ -43,12 +43,12 @@ export function resolveKeyboardMode({
     return 'tel'
   }
 
-  if (type === 'number' || inputMode === 'numeric') {
-    return 'numeric'
-  }
-
   if (inputMode === 'decimal') {
     return 'decimal'
+  }
+
+  if (type === 'number' || inputMode === 'numeric') {
+    return 'numeric'
   }
 
   if (multiline) {

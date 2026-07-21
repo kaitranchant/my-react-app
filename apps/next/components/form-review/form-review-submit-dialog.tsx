@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Camera, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { uploadCoachFormReview } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
 import { uploadClientFormReview } from '@/app/portal/form-review-actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,15 +23,18 @@ import {
   getFormReviewMaxUploadBytes,
   resolveFormReviewContentType,
 } from '@/lib/form-reviews'
+import type { ClientFormReviewWithUrl } from 'app/types/database'
 
 type FormReviewSubmitDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   exerciseName: string
   exerciseId: string
+  clientId: string
   scheduledWorkoutId: string
   scheduledExerciseId: string
-  onSubmitted?: () => void
+  variant: 'coach' | 'client'
+  onSubmitted?: (review: ClientFormReviewWithUrl) => void
 }
 
 export function FormReviewSubmitDialog({
@@ -38,8 +42,10 @@ export function FormReviewSubmitDialog({
   onOpenChange,
   exerciseName,
   exerciseId,
+  clientId,
   scheduledWorkoutId,
   scheduledExerciseId,
+  variant,
   onSubmitted,
 }: FormReviewSubmitDialogProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -88,22 +94,27 @@ export function FormReviewSubmitDialog({
     const formData = new FormData()
     formData.set('file', file)
 
-    const result = await uploadClientFormReview(
-      {
-        title: exerciseName,
-        clientNotes: clientNotes.trim() || null,
-        exerciseId,
-        scheduledWorkoutId,
-        scheduledExerciseId,
-      },
-      formData
-    )
+    const values = {
+      title: exerciseName,
+      clientNotes: variant === 'client' ? clientNotes.trim() || null : null,
+      exerciseId,
+      scheduledWorkoutId,
+      scheduledExerciseId,
+    }
+    const result =
+      variant === 'client'
+        ? await uploadClientFormReview(values, formData)
+        : await uploadCoachFormReview(clientId, values, formData)
     setPending(false)
 
     if (result.success) {
-      toast.success('Form review submitted')
+      toast.success(
+        variant === 'client'
+          ? 'Form review submitted'
+          : 'Form review media added'
+      )
       onOpenChange(false)
-      onSubmitted?.()
+      onSubmitted?.(result.data)
       return
     }
 
@@ -112,33 +123,45 @@ export function FormReviewSubmitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="overflow-hidden sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Submit form review</DialogTitle>
+          <DialogTitle>
+            {variant === 'client'
+              ? 'Submit form review'
+              : 'Add form review media'}
+          </DialogTitle>
           <DialogDescription>
             Upload a photo or video of{' '}
-            <span className="text-foreground">{exerciseName}</span> for your coach
-            to review. {FORM_REVIEW_UPLOAD_HINT}
+            <span className="text-foreground">{exerciseName}</span>{' '}
+            {variant === 'client'
+              ? 'for your coach to review.'
+              : "for this client. It will appear in the exercise's history."}{' '}
+            {FORM_REVIEW_UPLOAD_HINT}
           </DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
-          <div className="space-y-2">
-            <Label htmlFor="workout-form-review-notes">
-              Notes for your coach (optional)
-            </Label>
-            <Textarea
-              id="workout-form-review-notes"
-              value={clientNotes}
-              onChange={(event) => setClientNotes(event.target.value)}
-              placeholder="Which set or cue should they focus on?"
-              rows={3}
-              maxLength={500}
-              disabled={pending}
-            />
-          </div>
+        <form
+          className="min-w-0 space-y-4"
+          onSubmit={(event) => void handleSubmit(event)}
+        >
+          {variant === 'client' ? (
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="workout-form-review-notes">
+                Notes for your coach (optional)
+              </Label>
+              <Textarea
+                id="workout-form-review-notes"
+                value={clientNotes}
+                onChange={(event) => setClientNotes(event.target.value)}
+                placeholder="Which set or cue should they focus on?"
+                rows={3}
+                maxLength={500}
+                disabled={pending}
+              />
+            </div>
+          ) : null}
 
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="workout-form-review-file">Photo or video</Label>
             <input
               ref={fileInputRef}
@@ -155,20 +178,22 @@ export function FormReviewSubmitDialog({
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-start"
+              className="w-full min-w-0 justify-start overflow-hidden"
               disabled={pending}
               onClick={() => fileInputRef.current?.click()}
             >
               {pending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 shrink-0 animate-spin" />
               ) : (
-                <Upload className="size-4" />
+                <Upload className="size-4 shrink-0" />
               )}
-              {selectedFileName ?? 'Choose photo or video'}
+              <span className="min-w-0 truncate">
+                {selectedFileName ?? 'Choose photo or video'}
+              </span>
             </Button>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="w-full min-w-0">
             <Button
               type="button"
               variant="outline"
@@ -186,7 +211,7 @@ export function FormReviewSubmitDialog({
               ) : (
                 <>
                   <Camera className="size-4" />
-                  Submit
+                  {variant === 'client' ? 'Submit' : 'Add media'}
                 </>
               )}
             </Button>

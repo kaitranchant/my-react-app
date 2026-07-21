@@ -6,6 +6,10 @@ import { toast } from 'sonner'
 
 import { getExerciseHistory } from '@/app/(dashboard)/clients/[clientId]/calendar/workout-log-actions'
 import { getPortalExerciseHistory } from '@/app/portal/workout-log-actions'
+import {
+  FormReviewMedia,
+  FormReviewMediaUnavailable,
+} from '@/components/form-review/form-review-media'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -181,6 +185,30 @@ function HistorySessionCard({
         </div>
       ) : null}
 
+      {session.media.length > 0 ? (
+        <div className="space-y-3 border-b px-4 py-3">
+          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+            Form review
+          </p>
+          {session.media.map((media) =>
+            media.signedUrl ? (
+              <FormReviewMedia
+                key={media.id}
+                signedUrl={media.signedUrl}
+                contentType={media.contentType}
+                title={media.title?.trim() || 'Form review'}
+                className="max-h-64"
+              />
+            ) : (
+              <FormReviewMediaUnavailable
+                key={media.id}
+                className="h-32"
+              />
+            )
+          )}
+        </div>
+      ) : null}
+
       {session.sets.length > 0 ? (
         <div className="px-4 py-2">
           <div className="text-muted-foreground grid grid-cols-[2rem_1fr_4rem] gap-2 text-xs font-medium">
@@ -228,7 +256,7 @@ function HistorySessionCard({
         </div>
       ) : (
         <p className="text-muted-foreground px-4 py-3 text-sm">
-          Notes only — no logged sets for this session.
+          No logged sets for this session.
         </p>
       )}
     </div>
