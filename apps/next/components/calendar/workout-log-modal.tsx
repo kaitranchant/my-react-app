@@ -155,6 +155,7 @@ import {
   shouldGuidedWorkoutAutoAdvance,
   getBestE1rmFromDrafts,
   getBestE1rmFromPrevious,
+  isOnPrPace,
   getLogFieldsForExercise,
   getWorkoutLogSetGridTemplate,
   getSupersetColor,
@@ -578,9 +579,7 @@ function WorkoutLogExercise({
           progressiveOverloadEnabled
         )
       : null
-  const isLivePr =
-    currentE1rm != null &&
-    (allTimeE1rm == null || currentE1rm > allTimeE1rm)
+  const isLivePr = isOnPrPace(currentE1rm, allTimeE1rm, previousE1rm)
   const sessionVolume = trackingOptions.trackVolume
     ? calcSessionVolumeForExercise(
         sets.map((set) => ({

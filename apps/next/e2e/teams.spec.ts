@@ -18,7 +18,7 @@ test.describe('Teams', () => {
     await page.getByRole('tab', { name: 'Members' }).click()
     await page.getByRole('button', { name: 'Add member' }).click()
 
-    await page.getByLabel('Client').click()
+    await page.getByRole('combobox', { name: 'Client' }).click()
     await page.getByRole('option', { name: E2E_CLIENT_NAME }).click()
     await page
       .getByRole('dialog')

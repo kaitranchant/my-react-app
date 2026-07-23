@@ -407,6 +407,47 @@ export const saveClientAssessmentSchema = z.object({
 
 export type SaveClientAssessmentValues = z.infer<typeof saveClientAssessmentSchema>
 
+export const teamAssessmentSessionItemInputSchema = z.object({
+  assessmentItemId: z.string().uuid().nullable().optional(),
+  itemName: z.string().trim().min(1).max(120),
+  itemCategory: z.enum(assessmentItemCategories),
+  rubricType: z.enum(assessmentRubricTypes),
+  rubricConfig: z.record(z.string(), z.unknown()).optional().default({}),
+  sortOrder: z.number().int().min(0).max(10_000).optional().default(0),
+})
+
+export type TeamAssessmentSessionItemInputValues = z.infer<
+  typeof teamAssessmentSessionItemInputSchema
+>
+
+export const createTeamAssessmentSessionSchema = z.object({
+  teamId: z.string().uuid(),
+  title: optionalText(160),
+  assessedAt: z
+    .string()
+    .datetime({ offset: true })
+    .or(z.string().datetime())
+    .optional(),
+  items: z
+    .array(teamAssessmentSessionItemInputSchema)
+    .min(1, 'Select at least one test.')
+    .max(100),
+})
+
+export type CreateTeamAssessmentSessionValues = z.infer<
+  typeof createTeamAssessmentSessionSchema
+>
+
+export const saveTeamAssessmentResultSchema = z.object({
+  sessionId: z.string().uuid(),
+  clientId: z.string().uuid(),
+  result: assessmentResultInputSchema,
+})
+
+export type SaveTeamAssessmentResultValues = z.infer<
+  typeof saveTeamAssessmentResultSchema
+>
+
 export function parseRubricConfig(
   rubricType: (typeof assessmentRubricTypes)[number],
   config: unknown

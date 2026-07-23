@@ -4,6 +4,7 @@ import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { TeamAnnouncementsPanel } from '@/components/teams/team-announcements-panel'
+import { TeamAssessmentsPanel } from '@/components/teams/team-assessments-panel'
 import { TeamChallengesPanel } from '@/components/teams/team-challenges-panel'
 import { TeamForumPanel } from '@/components/teams/team-forum-panel'
 import { TeamMembersPanel } from '@/components/teams/team-members-panel'
@@ -26,6 +27,7 @@ const TEAM_TABS = [
   'overview',
   'schedule',
   'members',
+  'assessments',
   'community',
   'challenges',
 ] as const
@@ -139,6 +141,7 @@ export function TeamDetailTabs({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="community">Community</TabsTrigger>
           <TabsTrigger value="challenges">Challenges</TabsTrigger>
         </TabsList>
@@ -178,6 +181,12 @@ export function TeamDetailTabs({
             performanceByClientId={performanceByClientId}
             nextEvent={nextEvent}
           />
+        ) : null}
+      </TabsContent>
+
+      <TabsContent value="assessments">
+        {mountedTabs.has('assessments') ? (
+          <TeamAssessmentsPanel teamId={teamId} memberCount={members.length} />
         ) : null}
       </TabsContent>
 

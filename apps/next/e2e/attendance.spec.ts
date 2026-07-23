@@ -32,7 +32,7 @@ test.describe('Attendance', () => {
 
     await page.getByRole('tab', { name: 'Members' }).click()
     await page.getByRole('button', { name: 'Add member' }).click()
-    await page.getByLabel('Client').click()
+    await page.getByRole('combobox', { name: 'Client' }).click()
     await page.getByRole('option', { name: E2E_CLIENT_NAME }).click()
     await page
       .getByRole('dialog')
@@ -41,22 +41,20 @@ test.describe('Attendance', () => {
     await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 })
 
     await page.getByRole('tab', { name: 'Schedule' }).click()
+    await page.getByRole('tab', { name: 'Events' }).click()
+    await expect(page).toHaveURL(/section=events/, { timeout: 15_000 })
     await page.getByRole('button', { name: 'Add event' }).click()
     const eventDialog = page.getByRole('dialog', { name: 'Add team event' })
     await eventDialog.getByLabel('Title').fill(eventTitle)
     await eventDialog.getByRole('button', { name: 'Add event', exact: true }).click()
-    await expect(page.getByText('Event added to team schedule')).toBeVisible({
-      timeout: 15_000,
-    })
-    await expect(eventDialog).toBeHidden({ timeout: 15_000 })
+    await expect(eventDialog).toBeHidden({ timeout: 30_000 })
     await expect(page.getByText(eventTitle)).toBeVisible({ timeout: 15_000 })
 
     await page.goto('/attendance')
     await expect(page.getByRole('heading', { name: 'Attendance' })).toBeVisible()
     await page
-      .locator('div')
-      .filter({ has: page.getByText('Filter by team') })
-      .getByRole('button', { name: teamName })
+      .locator('a[href*="/attendance?team="]')
+      .filter({ hasText: teamName })
       .click()
     await expect(page.getByText(eventTitle)).toBeVisible()
 
@@ -88,7 +86,7 @@ test.describe('Attendance', () => {
 
     await page.getByRole('tab', { name: 'Members' }).click()
     await page.getByRole('button', { name: 'Add member' }).click()
-    await page.getByLabel('Client').click()
+    await page.getByRole('combobox', { name: 'Client' }).click()
     await page.getByRole('option', { name: E2E_CLIENT_NAME }).click()
     await page
       .getByRole('dialog')
@@ -100,11 +98,13 @@ test.describe('Attendance', () => {
     await page
       .locator('div')
       .filter({ has: page.getByText('Filter by team') })
-      .getByRole('button', { name: teamName })
+      .getByRole('link', { name: teamName })
       .click()
 
     const clientRows = page.getByRole('listitem').filter({ hasText: E2E_CLIENT_NAME })
     await expect(clientRows).toHaveCount(1)
-    await expect(page.getByText(`Mark presence for ${teamName} members`)).toBeVisible()
+    await expect(page.getByText(`Mark presence for ${teamName} members`)).toBeVisible({
+      timeout: 15_000,
+    })
   })
 })

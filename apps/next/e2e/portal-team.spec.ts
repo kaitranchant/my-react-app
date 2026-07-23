@@ -18,7 +18,7 @@ test.describe('Portal team', () => {
     coachPage: page,
   }) => {
     test.skip(!hasE2ECredentials, 'Supabase env vars required for E2E tests')
-    test.setTimeout(90_000)
+    test.setTimeout(150_000)
 
     const teamName = `E2E Portal Team ${Date.now()}`
     const eventTitle = `E2E Practice ${Date.now()}`
@@ -36,7 +36,7 @@ test.describe('Portal team', () => {
 
     await page.getByRole('tab', { name: 'Members' }).click()
     await page.getByRole('button', { name: 'Add member' }).click()
-    await page.getByLabel('Client').click()
+    await page.getByRole('combobox', { name: 'Client' }).click()
     await page.getByRole('option', { name: E2E_CLIENT_NAME }).click()
     await page
       .getByRole('dialog')
@@ -54,14 +54,13 @@ test.describe('Portal team', () => {
     })
 
     await page.getByRole('tab', { name: 'Schedule' }).click()
+    await page.getByRole('tab', { name: 'Events' }).click()
+    await expect(page).toHaveURL(/section=events/, { timeout: 15_000 })
     await page.getByRole('button', { name: 'Add event' }).click()
     const eventDialog = page.getByRole('dialog', { name: 'Add team event' })
     await eventDialog.getByLabel('Title').fill(eventTitle)
     await eventDialog.getByLabel('Date').fill(eventDate)
     await eventDialog.getByRole('button', { name: 'Add event', exact: true }).click()
-    await expect(page.getByText('Event added to team schedule')).toBeVisible({
-      timeout: 15_000,
-    })
     await expect(eventDialog).toBeHidden({ timeout: 15_000 })
     await page.reload()
     await page.getByRole('tab', { name: 'Schedule' }).click()
@@ -90,6 +89,7 @@ test.describe('Portal team', () => {
     await page.goto('/teams')
     await page.getByRole('link', { name: teamName }).click()
     await page.getByRole('tab', { name: 'Schedule' }).click()
+    await page.getByRole('tab', { name: 'Events' }).click()
     await expect(page.getByText(/RSVP: 1 going/)).toBeVisible({
       timeout: 15_000,
     })

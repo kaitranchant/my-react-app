@@ -26,6 +26,8 @@ const EXERCISE_NAME = 'E2E Squat'
 const BENCH_EXERCISE_NAME = 'E2E Bench Press'
 const DEADLIFT_EXERCISE_NAME = 'E2E Deadlift'
 const TEAM_NAME = 'E2E Leaderboard Team'
+const TEAMMATE_NAME = 'E2E Teammate'
+const TEAMMATE_EMAIL = 'e2e-teammate@coaching-app.test'
 const WORKOUT_NAME = 'E2E Day 1 Workout'
 const MEAL_PLAN_NAME = 'E2E Test Meal Plan'
 const MEAL_PLAN_MEAL_NAME = 'E2E Test Breakfast'
@@ -361,7 +363,13 @@ async function main() {
 
   await supabase
     .from('profiles')
-    .update({ role: 'coach', full_name: 'E2E Coach' })
+    .update({
+      role: 'coach',
+      full_name: 'E2E Coach',
+      // Teams/nutrition/scheduling features are plan-gated; keep the E2E coach entitled.
+      subscription_plan: 'scale',
+      subscription_status: 'active',
+    })
     .eq('id', coachId)
   await supabase
     .from('profiles')
@@ -698,6 +706,58 @@ async function main() {
     })
     if (error) throw error
   }
+
+  // Second roster member so team assessment specs can score multiple athletes.
+  const { data: existingTeammate } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('email', TEAMMATE_EMAIL)
+    .maybeSingle()
+
+  let teammateId = existingTeammate?.id
+  if (teammateId) {
+    await supabase
+      .from('clients')
+      .update({ full_name: TEAMMATE_NAME, status: 'active' })
+      .eq('id', teammateId)
+  } else {
+    const { data: insertedTeammate, error } = await supabase
+      .from('clients')
+      .insert({
+        coach_id: coachId,
+        full_name: TEAMMATE_NAME,
+        email: TEAMMATE_EMAIL,
+        status: 'active',
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    teammateId = insertedTeammate.id
+  }
+
+  const { data: existingTeammateMembership } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('client_id', teammateId)
+    .maybeSingle()
+
+  if (!existingTeammateMembership) {
+    const { error } = await supabase.from('team_members').insert({
+      team_id: teamId,
+      client_id: teammateId,
+    })
+    if (error) throw error
+  }
+
+  // Reset team assessment runs so specs start from a clean slate.
+  await supabase
+    .from('client_assessments')
+    .delete()
+    .not('team_assessment_session_id', 'is', null)
+    .in('client_id', [clientId, teammateId])
+  await supabase.from('team_assessment_sessions').delete().eq('team_id', teamId)
 
   await ensureE2EMealPlanTemplate(coachId, clientId)
   await ensureE2ENutritionProfile(coachId, clientId)

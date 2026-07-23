@@ -1362,3 +1362,19 @@ export function getBestE1rmFromPrevious(
 
   return best
 }
+
+/** Live "PR pace" — only when current e1RM beats a known all-time or last-session best. */
+export function isOnPrPace(
+  currentE1rm: number | null,
+  allTimeE1rm: number | null,
+  previousE1rm: number | null = null
+): boolean {
+  if (currentE1rm == null) return false
+
+  const baseline =
+    allTimeE1rm != null && previousE1rm != null
+      ? Math.max(allTimeE1rm, previousE1rm)
+      : (allTimeE1rm ?? previousE1rm)
+
+  return baseline != null && currentE1rm > baseline
+}

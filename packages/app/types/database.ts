@@ -2637,6 +2637,7 @@ export type Database = {
           assessed_at: string
           overall_notes: string | null
           source: AssessmentSessionSource
+          team_assessment_session_id: string | null
           created_at: string
           updated_at: string
         }
@@ -2648,6 +2649,7 @@ export type Database = {
           assessed_at?: string
           overall_notes?: string | null
           source?: AssessmentSessionSource
+          team_assessment_session_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -2659,6 +2661,7 @@ export type Database = {
           assessed_at?: string
           overall_notes?: string | null
           source?: AssessmentSessionSource
+          team_assessment_session_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -2788,6 +2791,108 @@ export type Database = {
             columns: ['result_id']
             isOneToOne: false
             referencedRelation: 'client_assessment_results'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_assessment_sessions: {
+        Row: {
+          id: string
+          team_id: string
+          coach_id: string
+          title: string | null
+          assessed_at: string
+          overall_notes: string | null
+          status: TeamAssessmentSessionStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          coach_id: string
+          title?: string | null
+          assessed_at?: string
+          overall_notes?: string | null
+          status?: TeamAssessmentSessionStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          coach_id?: string
+          title?: string | null
+          assessed_at?: string
+          overall_notes?: string | null
+          status?: TeamAssessmentSessionStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_assessment_sessions_team_id_fkey'
+            columns: ['team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_assessment_sessions_coach_id_fkey'
+            columns: ['coach_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      team_assessment_session_items: {
+        Row: {
+          id: string
+          session_id: string
+          assessment_item_id: string | null
+          item_name: string
+          item_category: AssessmentItemCategory
+          rubric_type: AssessmentRubricType
+          rubric_config: Json
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          assessment_item_id?: string | null
+          item_name: string
+          item_category: AssessmentItemCategory
+          rubric_type: AssessmentRubricType
+          rubric_config?: Json
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          assessment_item_id?: string | null
+          item_name?: string
+          item_category?: AssessmentItemCategory
+          rubric_type?: AssessmentRubricType
+          rubric_config?: Json
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'team_assessment_session_items_session_id_fkey'
+            columns: ['session_id']
+            isOneToOne: false
+            referencedRelation: 'team_assessment_sessions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'team_assessment_session_items_assessment_item_id_fkey'
+            columns: ['assessment_item_id']
+            isOneToOne: false
+            referencedRelation: 'assessment_items'
             referencedColumns: ['id']
           },
         ]
@@ -5337,6 +5442,20 @@ export type ClientAssessmentResultWithMedia = ClientAssessmentResult & {
 export type ClientAssessmentWithResults = ClientAssessment & {
   results: ClientAssessmentResultWithMedia[]
 }
+
+export type TeamAssessmentSessionStatus = 'in_progress' | 'completed'
+
+export type TeamAssessmentSession =
+  Database['public']['Tables']['team_assessment_sessions']['Row']
+export type TeamAssessmentSessionInsert =
+  Database['public']['Tables']['team_assessment_sessions']['Insert']
+export type TeamAssessmentSessionUpdate =
+  Database['public']['Tables']['team_assessment_sessions']['Update']
+
+export type TeamAssessmentSessionItem =
+  Database['public']['Tables']['team_assessment_session_items']['Row']
+export type TeamAssessmentSessionItemInsert =
+  Database['public']['Tables']['team_assessment_session_items']['Insert']
 
 export type FormReviewAnnotation = {
   id: string
