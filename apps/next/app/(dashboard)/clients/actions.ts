@@ -7,7 +7,13 @@ import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { sendClientInviteEmail } from '@/lib/email/client-invite'
 import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 import { getAppBaseUrl } from '@/lib/email/config'
-import { getCoachGymAccessMode, getGymMembershipForCoach, getGymIdsForCoach, isGymInvitedOnlyCoach } from '@/lib/gym-access'
+import { getCoachGymAccessMode, getGymMembershipForCoach, getGymIdsForCoach, isGymInvitedOnlyCoach, requireClientAccess } from '@/lib/gym-access'
+import { createAdminClient, findAuthUserByEmail } from '@/lib/supabase/admin'
+import { formatSupabaseAuthError } from '@/lib/auth/errors'
+import {
+  setClientPasswordSchema,
+  type SetClientPasswordValues,
+} from '@/lib/validations/account'
 import { buildClientInviteUrl } from '@/lib/invite'
 import {
   clientFormSchema,
@@ -747,6 +753,132 @@ export async function sendClientPasswordResetEmail(
   }
 
   return { success: true }
+}
+
+export type SetClientPasswordResult =
+  | { success: true; createdAccount: boolean; email: string }
+  | { success: false; error: string }
+
+export async function setClientAccountPassword(
+  clientId: string,
+  values: SetClientPasswordValues
+): Promise<SetClientPasswordResult> {
+  const parsed = setClientPasswordSchema.safeParse(values)
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid password.',
+    }
+  }
+
+  const access = await requireClientAccess(clientId)
+  if (!access) {
+    return { success: false, error: 'Client not found.' }
+  }
+
+  const { client } = access
+  const email = client.email?.trim().toLowerCase()
+  if (!email) {
+    return {
+      success: false,
+      error: 'Add an email to this client before setting a password.',
+    }
+  }
+
+  const admin = createAdminClient()
+  if (!admin) {
+    return {
+      success: false,
+      error:
+        'Setting client passwords requires SUPABASE_SERVICE_ROLE_KEY in your server environment.',
+    }
+  }
+
+  const password = parsed.data.newPassword
+  let userId = client.user_id
+  let createdAccount = false
+
+  if (userId) {
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      password,
+      email_confirm: true,
+    })
+    if (error) {
+      return { success: false, error: formatSupabaseAuthError(error.message) }
+    }
+  } else {
+    const existingAuthUser = await findAuthUserByEmail(admin, email)
+    if (existingAuthUser) {
+      const { data: linkedElsewhere } = await admin
+        .from('clients')
+        .select('id')
+        .eq('user_id', existingAuthUser.id)
+        .neq('id', client.id)
+        .maybeSingle()
+
+      if (linkedElsewhere) {
+        return {
+          success: false,
+          error:
+            'That email already belongs to another client account. Use a different email.',
+        }
+      }
+
+      const { error } = await admin.auth.admin.updateUserById(existingAuthUser.id, {
+        password,
+        email_confirm: true,
+        user_metadata: {
+          ...(existingAuthUser.user_metadata ?? {}),
+          full_name: client.full_name,
+          role: 'client',
+        },
+      })
+      if (error) {
+        return { success: false, error: formatSupabaseAuthError(error.message) }
+      }
+      userId = existingAuthUser.id
+    } else {
+      const { data: created, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: client.full_name,
+          role: 'client',
+        },
+      })
+      if (error || !created.user) {
+        return {
+          success: false,
+          error: formatSupabaseAuthError(
+            error?.message ?? 'Could not create the client account.'
+          ),
+        }
+      }
+      userId = created.user.id
+      createdAccount = true
+    }
+
+    const { error: linkError } = await admin
+      .from('clients')
+      .update({
+        user_id: userId,
+        invite_status: 'accepted',
+        invite_token: null,
+        invite_expires_at: null,
+      })
+      .eq('id', client.id)
+
+    if (linkError) {
+      return {
+        success: false,
+        error: linkError.message,
+      }
+    }
+  }
+
+  revalidateClients()
+  return { success: true, createdAccount, email }
 }
 
 export async function resendClientActivationEmail(

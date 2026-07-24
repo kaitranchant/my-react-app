@@ -9,6 +9,7 @@ import {
   resendClientActivationEmail,
   sendClientPasswordResetEmail,
 } from '@/app/(dashboard)/clients/actions'
+import { ClientSetPasswordDialog } from '@/components/clients/client-set-password-dialog'
 import { Button } from '@/components/ui/button'
 import type { Client } from 'app/types/database'
 
@@ -91,20 +92,22 @@ export function ClientAccountEmailActions({
         <p className="text-sm font-medium">Account access</p>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
           {hasEmail
-            ? `Send a password reset link to ${client.email}.`
-            : 'Add an email address to send a password reset link.'}
+            ? `Login email: ${client.email}. Set a new password to share with your client, or email them a reset link.`
+            : 'Add an email address before managing portal access.'}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          disabled={pending || !hasEmail}
-          onClick={handlePasswordReset}
-        >
-          <KeyRound className="size-4" />
-          Send password reset email
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <ClientSetPasswordDialog client={client} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending || !hasEmail}
+            onClick={handlePasswordReset}
+          >
+            <KeyRound className="size-4" />
+            Send reset email
+          </Button>
+        </div>
       </div>
     )
   }
@@ -114,10 +117,11 @@ export function ClientAccountEmailActions({
       <p className="text-sm font-medium">Account activation</p>
       <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
         {hasEmail
-          ? `Send an activation email or copy an invite link so ${client.full_name} can create their account.`
-          : 'Add an email address to send an activation email or invite link.'}
+          ? `Send an activation email, copy an invite link, or create a login and password for ${client.full_name} yourself.`
+          : 'Add an email address to send an activation email or create a login.'}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
+        <ClientSetPasswordDialog client={client} />
         <Button
           type="button"
           variant="outline"

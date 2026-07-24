@@ -16,6 +16,21 @@ export const changePasswordSchema = z
 
 export type ChangePasswordValues = z.infer<typeof changePasswordSchema>
 
+export const setClientPasswordSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password is too long'),
+    confirmPassword: z.string().min(1, 'Confirm the password'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+
+export type SetClientPasswordValues = z.infer<typeof setClientPasswordSchema>
+
 export type DeleteAccountFormValues = {
   password: string
   confirmation: string
