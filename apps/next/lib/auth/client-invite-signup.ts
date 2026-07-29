@@ -252,7 +252,7 @@ export async function registerInvitedClient(
   if (!pendingClient?.email) {
     return {
       ok: false,
-      error: 'This invite link is invalid or has expired. Ask your coach for a new one.',
+      error: 'This invite link is invalid or no longer available. Ask your coach for a new one.',
     }
   }
 

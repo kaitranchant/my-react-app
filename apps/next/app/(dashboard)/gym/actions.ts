@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 
 import { formatGymInviteLinkError } from '@/lib/auth/errors'
 import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
-import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
 import { getAppBaseUrl } from '@/lib/email/config'
 import {
   coachHasActiveGymMembership,
@@ -23,9 +22,9 @@ import {
   assertCanCreateGym,
   countGymCoachSeats,
   getCoachSubscriptionContext,
-  getGymSubscription,
   hasActiveFacilitySubscription,
   canInviteGymCoach,
+  ensureOwnedFacilityGymSubscription,
 } from '@/lib/subscription-entitlements'
 import {
   gymFormSchema,
@@ -44,12 +43,6 @@ export type CreateGymResult =
 export type InviteCoachResult =
   | { success: true; inviteUrl: string }
   | { success: false; error: string }
-
-function inviteExpiresAt() {
-  const expires = new Date()
-  expires.setDate(expires.getDate() + CLIENT_INVITE_EXPIRY_DAYS)
-  return expires.toISOString()
-}
 
 function revalidateGym() {
   revalidatePath('/gym')
@@ -125,22 +118,19 @@ export async function createGymRecord(
   await ensureGymCoachPortalMembership(supabase, gym.id)
 
   if (subscriptionContext.personalPlan === 'facility') {
-    const { data: billingProfile } = await supabase
-      .from('profiles')
-      .select(
-        'stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_end'
-      )
-      .eq('id', user.id)
-      .single()
-
-    await supabase.from('gym_subscriptions').insert({
-      gym_id: gym.id,
-      plan: 'facility',
-      status: billingProfile?.subscription_status ?? 'active',
-      stripe_customer_id: billingProfile?.stripe_customer_id ?? null,
-      stripe_subscription_id: billingProfile?.stripe_subscription_id ?? null,
-      current_period_end: billingProfile?.subscription_current_period_end ?? null,
-    })
+    const linked = await ensureOwnedFacilityGymSubscription(
+      supabase,
+      user.id,
+      gym.id
+    )
+    if (!hasActiveFacilitySubscription(linked)) {
+      await supabase.from('gym_members').delete().eq('gym_id', gym.id)
+      await supabase.from('gyms').delete().eq('id', gym.id)
+      return {
+        success: false,
+        error: 'Could not attach your Facility subscription to this gym.',
+      }
+    }
   }
 
   revalidateGym()
@@ -191,7 +181,11 @@ export async function inviteCoachToGym(
     return { success: false, error: error ?? 'Gym not found.' }
   }
 
-  const gymSubscription = await getGymSubscription(supabase, gymContext.gym.id)
+  const gymSubscription = await ensureOwnedFacilityGymSubscription(
+    supabase,
+    user.id,
+    gymContext.gym.id
+  )
   if (!hasActiveFacilitySubscription(gymSubscription)) {
     return {
       success: false,
@@ -230,7 +224,7 @@ export async function inviteCoachToGym(
       email,
       invite_token: token,
       invited_by: user.id,
-      expires_at: inviteExpiresAt(),
+      expires_at: null,
     })
     .select('invite_token')
     .single()
@@ -438,7 +432,7 @@ export async function getGymInviteLink(
 
   const { data: invite, error: fetchError } = await supabase
     .from('gym_invites')
-    .select('invite_token')
+    .select('invite_token, expires_at')
     .eq('id', inviteId)
     .eq('gym_id', gymContext.gym.id)
     .eq('status', 'pending')
@@ -446,6 +440,14 @@ export async function getGymInviteLink(
 
   if (fetchError || !invite) {
     return { success: false, error: 'Invite not found.' }
+  }
+
+  if (invite.expires_at) {
+    await supabase
+      .from('gym_invites')
+      .update({ expires_at: null })
+      .eq('id', inviteId)
+      .eq('gym_id', gymContext.gym.id)
   }
 
   const origin = getAppBaseUrl()

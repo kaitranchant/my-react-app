@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
-import { CLIENT_INVITE_EXPIRY_DAYS } from '@/lib/constants'
+import { buildClientInviteUrl } from '@/lib/invite'
 import { sendClientInviteEmail } from '@/lib/email/client-invite'
 import { isCoachClientNotificationEnabled } from '@/lib/coach-client-notification-preferences'
 import { getAppBaseUrl } from '@/lib/email/config'
@@ -14,7 +14,6 @@ import {
   setClientPasswordSchema,
   type SetClientPasswordValues,
 } from '@/lib/validations/account'
-import { buildClientInviteUrl } from '@/lib/invite'
 import {
   clientFormSchema,
   clientNotesSchema,
@@ -55,12 +54,6 @@ async function requireUser() {
     throw new Error('You must be signed in.')
   }
   return { supabase, user }
-}
-
-function inviteExpiresAt() {
-  const expires = new Date()
-  expires.setDate(expires.getDate() + CLIENT_INVITE_EXPIRY_DAYS)
-  return expires.toISOString()
 }
 
 function newInviteToken() {
@@ -354,7 +347,7 @@ export async function inviteClientRecord(
     .update({
       invite_status: 'pending',
       invite_token: token,
-      invite_expires_at: inviteExpiresAt(),
+      invite_expires_at: null,
       biological_sex: biologicalSexFromForm(parsed.data.biologicalSex),
       leaderboard_opt_out: parsed.data.leaderboardOptOut ?? false,
     })
@@ -408,7 +401,7 @@ export async function sendClientInvite(
     .update({
       invite_status: 'pending',
       invite_token: token,
-      invite_expires_at: inviteExpiresAt(),
+      invite_expires_at: null,
     })
     .eq('id', clientId)
     .eq('coach_id', user.id)
@@ -463,18 +456,15 @@ export async function getClientInviteLink(
   }
 
   let token = client.invite_token
-  const inviteExpired =
-    client.invite_expires_at &&
-    new Date(client.invite_expires_at) <= new Date()
 
-  if (!token || inviteExpired || client.invite_status === 'not_invited') {
+  if (!token || client.invite_status === 'not_invited') {
     token = newInviteToken()
     const { error: updateError } = await supabase
       .from('clients')
       .update({
         invite_status: 'pending',
         invite_token: token,
-        invite_expires_at: inviteExpiresAt(),
+        invite_expires_at: null,
       })
       .eq('id', clientId)
       .eq('coach_id', user.id)
@@ -485,6 +475,13 @@ export async function getClientInviteLink(
 
     revalidateClients()
     revalidatePath(`/clients/${clientId}`)
+  } else if (client.invite_expires_at) {
+    // Keep the same token; clear legacy expiry so the link stays valid.
+    await supabase
+      .from('clients')
+      .update({ invite_expires_at: null })
+      .eq('id', clientId)
+      .eq('coach_id', user.id)
   }
 
   const origin = getAppBaseUrl()
@@ -918,18 +915,15 @@ export async function resendClientActivationEmail(
 
   const email = client.email.trim()
   let token = client.invite_token
-  const inviteExpired =
-    client.invite_expires_at &&
-    new Date(client.invite_expires_at) <= new Date()
 
-  if (!token || inviteExpired || client.invite_status === 'not_invited') {
+  if (!token || client.invite_status === 'not_invited') {
     token = newInviteToken()
     const { error: updateError } = await supabase
       .from('clients')
       .update({
         invite_status: 'pending',
         invite_token: token,
-        invite_expires_at: inviteExpiresAt(),
+        invite_expires_at: null,
       })
       .eq('id', clientId)
       .eq('coach_id', user.id)
@@ -937,6 +931,12 @@ export async function resendClientActivationEmail(
     if (updateError) {
       return { success: false, error: updateError.message }
     }
+  } else if (client.invite_expires_at) {
+    await supabase
+      .from('clients')
+      .update({ invite_expires_at: null })
+      .eq('id', clientId)
+      .eq('coach_id', user.id)
   }
 
   const { data: profile } = await supabase

@@ -85,8 +85,8 @@ export function GymJoinClient({
         <CardHeader>
           <CardTitle>Invalid invite</CardTitle>
           <CardDescription>
-            This gym invite link is invalid or has expired. Ask the gym owner
-            for a new link.
+            This gym invite link is invalid or no longer available. Ask the gym
+            owner for a new link.
           </CardDescription>
         </CardHeader>
       </Card>

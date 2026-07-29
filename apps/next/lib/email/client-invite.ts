@@ -25,7 +25,7 @@ export function buildClientInviteEmailContent(payload: ClientInviteEmailPayload)
     '',
     `Create your account: ${payload.inviteUrl}`,
     '',
-    'This link is personal to you. If it expires, ask your coach to send a new one.',
+    'This link is personal to you and stays valid until you create your account.',
   ].join('\n')
 
   const html = `<!DOCTYPE html>
@@ -36,7 +36,7 @@ export function buildClientInviteEmailContent(payload: ClientInviteEmailPayload)
       <h1 style="margin:0 0 8px;font-size:24px;">You're invited, ${escapeHtml(payload.clientName)}</h1>
       <p style="margin:0 0 20px;color:#334155;">${escapeHtml(payload.coachName)} invited you to create your client account so you can view workouts, log training, submit check-ins, and message your coach.</p>
       <a href="${payload.inviteUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:600;">Create your account</a>
-      <p style="margin:20px 0 0;color:#64748b;font-size:13px;">This link is personal to you. If it expires, ask your coach to send a new one.</p>
+      <p style="margin:20px 0 0;color:#64748b;font-size:13px;">This link is personal to you and stays valid until you create your account.</p>
     </div>
   </body>
 </html>`

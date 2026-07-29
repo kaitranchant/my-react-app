@@ -96,7 +96,7 @@ export default async function SignupPage({
     <>
       {hasInvalidInvite && (
         <p className="text-destructive mb-4 text-center text-sm" role="alert">
-          This invite link is invalid or has expired. Ask for a new invite link.
+          This invite link is invalid or no longer available. Ask for a new invite link.
         </p>
       )}
       <AuthForm

@@ -59,8 +59,8 @@ function isSafeRedirectPath(path: string | null | undefined): path is string {
 
 function inviteSignupDatabaseError(isClientSignup: boolean): string {
   return isClientSignup
-    ? 'Could not complete signup. The invite may be invalid, expired, or the email may not match. Ask your coach for a new invite link.'
-    : 'Could not complete signup. The gym invite may be invalid, expired, or the email may not match.'
+    ? 'Could not complete signup. The invite may be invalid or no longer available, or the email may not match. Ask your coach for a new invite link.'
+    : 'Could not complete signup. The gym invite may be invalid or no longer available, or the email may not match.'
 }
 
 function signupMetadata(input: {

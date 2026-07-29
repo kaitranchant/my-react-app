@@ -102,7 +102,7 @@ export function isEmailNotConfirmedError(error: unknown): boolean {
 
 export function formatClientInviteLinkError(message: string): string {
   if (message.includes('Invalid or expired invite')) {
-    return 'This invite link is invalid or has expired. Ask your coach for a new one.'
+    return 'This invite link is invalid or no longer available. Ask your coach for a new one.'
   }
 
   if (message.includes('Invite email does not match signup email')) {
@@ -114,7 +114,7 @@ export function formatClientInviteLinkError(message: string): string {
 
 export function formatGymInviteLinkError(message: string): string {
   if (message.includes('Invalid or expired invite')) {
-    return 'This gym invite link is invalid or has expired. Ask the gym owner for a new link.'
+    return 'This gym invite link is invalid or no longer available. Ask the gym owner for a new link.'
   }
 
   if (message.includes('Invite email does not match signup email')) {

@@ -89,8 +89,8 @@ export function PortalJoinClient({
         <CardHeader>
           <CardTitle>Invalid invite</CardTitle>
           <CardDescription>
-            This client invite link is invalid or has expired. Ask your coach for
-            a new link.
+            This client invite link is invalid or no longer available. Ask your
+            coach for a new link.
           </CardDescription>
         </CardHeader>
       </Card>

@@ -197,6 +197,64 @@ export async function getGymSubscription(
   return data
 }
 
+/**
+ * If the owner has an active Facility plan on their profile but this gym is
+ * missing (or has a canceled) gym_subscriptions row, recreate it from the
+ * profile. Covers recreate-after-delete and create-while-still-on-Starter races.
+ */
+export async function ensureOwnedFacilityGymSubscription(
+  supabase: DbClient,
+  coachId: string,
+  gymId: string
+) {
+  const existing = await getGymSubscription(supabase, gymId)
+  if (hasActiveFacilitySubscription(existing)) {
+    return existing
+  }
+
+  const context = await getCoachSubscriptionContext(supabase, coachId)
+  if (context.personalPlan !== 'facility') {
+    return existing
+  }
+
+  const { data: billingProfile } = await supabase
+    .from('profiles')
+    .select(
+      'stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_end'
+    )
+    .eq('id', coachId)
+    .maybeSingle()
+
+  const status =
+    billingProfile?.subscription_status &&
+    ACTIVE_SUBSCRIPTION_STATUSES.has(billingProfile.subscription_status)
+      ? billingProfile.subscription_status
+      : 'active'
+
+  const payload = {
+    gym_id: gymId,
+    plan: 'facility' as const,
+    status,
+    included_coach_seats: FACILITY_INCLUDED_COACH_SEATS,
+    stripe_customer_id: billingProfile?.stripe_customer_id ?? null,
+    stripe_subscription_id: billingProfile?.stripe_subscription_id ?? null,
+    current_period_end: billingProfile?.subscription_current_period_end ?? null,
+  }
+
+  const { data, error } = await supabase
+    .from('gym_subscriptions')
+    .upsert(payload, { onConflict: 'gym_id' })
+    .select('*')
+    .single()
+
+  if (error) {
+    console.error('ensureOwnedFacilityGymSubscription', error)
+    return existing
+  }
+
+  return data
+}
+
 export function hasActiveFacilitySubscription(
   subscription: { status: string; plan: string } | null | undefined
 ): boolean {
