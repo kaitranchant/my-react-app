@@ -15,9 +15,7 @@ import {
   markCoachesForClientLimitResolution,
   syncClientLimitResolutionFlag,
 } from '@/lib/client-limit-resolution'
-import { getStripeClient } from '@/lib/stripe/config'
 import { clearFacilityStripeSubscription } from '@/lib/stripe/sync'
-import { createAdminClient } from '@/lib/supabase/admin'
 import {
   buildGymJoinUrl,
 } from '@/lib/invite'
@@ -372,34 +370,22 @@ export async function deleteGymRecord(gymId: string): Promise<DeleteGymResult> {
 
   const { data: members } = await supabase
     .from('gym_members')
-    .select('coach_id')
+    .select('coach_id, role')
     .eq('gym_id', gymContext.gym.id)
     .eq('status', 'active')
 
-  const memberCoachIds = (members ?? []).map((row) => row.coach_id)
+  // Joined coaches lose their facility seat; the owner keeps their Facility plan
+  // (createGym re-links gym_subscriptions from the profile).
+  const joinedCoachIds = (members ?? [])
+    .filter((row) => row.role !== 'owner')
+    .map((row) => row.coach_id)
 
-  const { data: gymSubscription } = await supabase
-    .from('gym_subscriptions')
-    .select('stripe_subscription_id')
-    .eq('gym_id', gymContext.gym.id)
-    .maybeSingle()
-
-  const stripeSubscriptionId = gymSubscription?.stripe_subscription_id
-
-  // Cancel Stripe first so webhooks don't fight the dissolve, then clear local rows.
-  if (stripeSubscriptionId) {
-    try {
-      const stripe = getStripeClient()
-      await stripe.subscriptions.cancel(stripeSubscriptionId)
-    } catch (stripeError) {
-      console.error('deleteGymRecord stripe cancel', stripeError)
-    }
-  }
-
+  // Detach gym billing row without downgrading the owner's Facility plan.
   try {
     await clearFacilityStripeSubscription({
       gymId: gymContext.gym.id,
       coachId: user.id,
+      clearOwnerProfile: false,
     })
   } catch (clearError) {
     console.error('deleteGymRecord clear facility subscription', clearError)
@@ -413,23 +399,10 @@ export async function deleteGymRecord(gymId: string): Promise<DeleteGymResult> {
     return { success: false, error: deleteError.message }
   }
 
-  // Members (including the owner) who lack their own paid tier fall back to
-  // Starter and may need to pick clients or upgrade.
-  await markCoachesForClientLimitResolution(memberCoachIds)
-
-  const admin = createAdminClient()
-  let needsClientLimitResolution = false
-  if (admin) {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('needs_client_limit_resolution')
-      .eq('id', user.id)
-      .maybeSingle()
-    needsClientLimitResolution = Boolean(profile?.needs_client_limit_resolution)
-  }
+  await markCoachesForClientLimitResolution(joinedCoachIds)
 
   revalidateGym()
-  return { success: true, needsClientLimitResolution }
+  return { success: true, needsClientLimitResolution: false }
 }
 
 export async function acceptGymInvite(

@@ -81,7 +81,8 @@ export async function syncCoachStripeSubscription(params: {
       stripe_customer_id: customerId,
       stripe_subscription_id: params.subscription.id,
       subscription_current_period_end: periodEndIso(params.subscription),
-      ...(entitled && (plan === 'growth' || plan === 'scale')
+      ...(entitled &&
+      (plan === 'growth' || plan === 'scale' || plan === 'facility')
         ? { needs_client_limit_resolution: false }
         : {}),
     })
@@ -134,6 +135,7 @@ export async function syncFacilityStripeSubscription(params: {
       stripe_customer_id: customerId,
       stripe_subscription_id: params.subscription.id,
       subscription_current_period_end: periodEndIso(params.subscription),
+      ...(entitled ? { needs_client_limit_resolution: false } : {}),
     })
     .eq('id', params.coachId)
 
@@ -166,6 +168,8 @@ export async function clearCoachStripeSubscription(coachId: string) {
 export async function clearFacilityStripeSubscription(params: {
   gymId: string
   coachId: string
+  /** When false, keep the owner's Facility plan so they can recreate a gym. */
+  clearOwnerProfile?: boolean
 }) {
   const admin = createAdminClient()
   if (!admin) {
@@ -183,6 +187,10 @@ export async function clearFacilityStripeSubscription(params: {
 
   if (gymError) {
     throw gymError
+  }
+
+  if (params.clearOwnerProfile === false) {
+    return
   }
 
   await clearCoachStripeSubscription(params.coachId)

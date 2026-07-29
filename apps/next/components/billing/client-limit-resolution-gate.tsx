@@ -1,8 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import {
@@ -24,28 +23,47 @@ import { Label } from '@/components/ui/label'
 
 type RequiredState = Extract<ClientLimitResolutionState, { required: true }>
 
+const UPGRADE_ROUTES = ['/pricing', '/settings']
+
 export function ClientLimitResolutionGate() {
   const router = useRouter()
+  const pathname = usePathname()
   const [state, setState] = React.useState<RequiredState | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const [pending, setPending] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
+  const [browsingUpgrade, setBrowsingUpgrade] = React.useState(false)
 
   const load = React.useCallback(async () => {
     setLoading(true)
     const next = await fetchClientLimitResolutionState()
     if (next.required) {
       setState(next)
-      setSelectedIds(next.clients.slice(0, next.clientLimit).map((c) => c.id))
+      setSelectedIds((current) => {
+        if (current.length > 0) {
+          const valid = new Set(next.clients.map((c) => c.id))
+          const kept = current.filter((id) => valid.has(id)).slice(0, next.clientLimit)
+          if (kept.length > 0) return kept
+        }
+        return next.clients.slice(0, next.clientLimit).map((c) => c.id)
+      })
     } else {
       setState(null)
+      setBrowsingUpgrade(false)
     }
     setLoading(false)
   }, [])
 
   React.useEffect(() => {
     void load()
-  }, [load])
+  }, [load, pathname])
+
+  React.useEffect(() => {
+    if (!browsingUpgrade) return
+    if (!UPGRADE_ROUTES.some((route) => pathname.startsWith(route))) {
+      setBrowsingUpgrade(false)
+    }
+  }, [browsingUpgrade, pathname])
 
   function toggleClient(clientId: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -84,7 +102,18 @@ export function ClientLimitResolutionGate() {
     router.refresh()
   }
 
-  if (loading || !state) return null
+  function handleUpgradePlan() {
+    setBrowsingUpgrade(true)
+    router.push('/pricing')
+  }
+
+  const onUpgradeRoute = UPGRADE_ROUTES.some((route) =>
+    pathname.startsWith(route)
+  )
+  const showGate =
+    !loading && state != null && !(browsingUpgrade && onUpgradeRoute)
+
+  if (!showGate || !state) return null
 
   const archiveCount = Math.max(0, state.billableClientCount - selectedIds.length)
 
@@ -144,8 +173,8 @@ export function ClientLimitResolutionGate() {
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/billing">Upgrade plan</Link>
+          <Button type="button" variant="outline" onClick={handleUpgradePlan}>
+            Upgrade plan
           </Button>
           <Button
             type="button"

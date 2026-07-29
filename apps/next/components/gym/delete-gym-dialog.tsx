@@ -75,8 +75,9 @@ export function DeleteGymDialog({
           <DialogTitle>Delete {gymName}?</DialogTitle>
           <DialogDescription>
             Clients stay with their primary coach and are unassigned from the
-            gym. Coaches without their own paid plan fall back to Starter and
-            may need to keep fewer clients or upgrade. This cannot be undone.
+            gym. Coaches who only had a facility seat fall back to their own
+            plan and may need to keep fewer clients or upgrade. Your Facility
+            plan stays so you can create another gym. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
