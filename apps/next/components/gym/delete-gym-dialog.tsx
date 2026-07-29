@@ -52,7 +52,11 @@ export function DeleteGymDialog({
       return
     }
 
-    toast.success('Gym deleted.')
+    toast.success(
+      result.needsClientLimitResolution
+        ? 'Gym deleted. Choose which clients to keep on your plan, or upgrade.'
+        : 'Gym deleted. Clients stay with their primary coaches.'
+    )
     setOpen(false)
     onDeleted?.()
     router.push('/gym')
@@ -70,8 +74,9 @@ export function DeleteGymDialog({
         <DialogHeader>
           <DialogTitle>Delete {gymName}?</DialogTitle>
           <DialogDescription>
-            This permanently deletes the gym for all coaches and clears client
-            memberships tied to it. This cannot be undone.
+            Clients stay with their primary coach and are unassigned from the
+            gym. Coaches without their own paid plan fall back to Starter and
+            may need to keep fewer clients or upgrade. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
 

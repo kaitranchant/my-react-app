@@ -44,7 +44,11 @@ export function GymDangerZone({
         throw new Error(result.error)
       }
 
-      toast.success('You left the gym.')
+      toast.success(
+        result.needsClientLimitResolution
+          ? 'You left the gym. Choose which clients to keep on your plan, or upgrade.'
+          : 'You left the gym.'
+      )
       router.refresh()
     },
   })

@@ -81,6 +81,9 @@ export async function syncCoachStripeSubscription(params: {
       stripe_customer_id: customerId,
       stripe_subscription_id: params.subscription.id,
       subscription_current_period_end: periodEndIso(params.subscription),
+      ...(entitled && (plan === 'growth' || plan === 'scale')
+        ? { needs_client_limit_resolution: false }
+        : {}),
     })
     .eq('id', params.coachId)
 

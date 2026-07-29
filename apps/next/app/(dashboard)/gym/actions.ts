@@ -12,6 +12,13 @@ import {
   requireUser,
 } from '@/lib/gym-access'
 import {
+  markCoachesForClientLimitResolution,
+  syncClientLimitResolutionFlag,
+} from '@/lib/client-limit-resolution'
+import { getStripeClient } from '@/lib/stripe/config'
+import { clearFacilityStripeSubscription } from '@/lib/stripe/sync'
+import { createAdminClient } from '@/lib/supabase/admin'
+import {
   buildGymJoinUrl,
 } from '@/lib/invite'
 import {
@@ -307,7 +314,11 @@ export async function removeGymMember(
   return { success: true }
 }
 
-export async function leaveGym(gymId: string): Promise<ActionResult> {
+export type LeaveGymResult =
+  | { success: true; needsClientLimitResolution: boolean }
+  | { success: false; error: string }
+
+export async function leaveGym(gymId: string): Promise<LeaveGymResult> {
   const { supabase, user } = await requireUser()
   const gymContext = await getGymMembershipForCoach(user.id, gymId)
 
@@ -331,27 +342,94 @@ export async function leaveGym(gymId: string): Promise<ActionResult> {
     return { success: false, error: error.message }
   }
 
+  // Losing a facility seat may put this coach over Starter/Growth limits.
+  await syncClientLimitResolutionFlag(supabase, user.id)
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('needs_client_limit_resolution')
+    .eq('id', user.id)
+    .maybeSingle()
+
   revalidateGym()
-  return { success: true }
+  return {
+    success: true,
+    needsClientLimitResolution: Boolean(
+      profile?.needs_client_limit_resolution
+    ),
+  }
 }
 
-export async function deleteGymRecord(gymId: string): Promise<ActionResult> {
-  const { supabase, gymContext, error } = await requireGymOwner(gymId)
+export type DeleteGymResult =
+  | { success: true; needsClientLimitResolution: boolean }
+  | { success: false; error: string }
+
+export async function deleteGymRecord(gymId: string): Promise<DeleteGymResult> {
+  const { supabase, user, gymContext, error } = await requireGymOwner(gymId)
   if (error || !gymContext) {
     return { success: false, error: error ?? 'Gym not found.' }
   }
 
-  const { error: deleteError } = await supabase
-    .from('gyms')
-    .delete()
-    .eq('id', gymContext.gym.id)
+  const { data: members } = await supabase
+    .from('gym_members')
+    .select('coach_id')
+    .eq('gym_id', gymContext.gym.id)
+    .eq('status', 'active')
+
+  const memberCoachIds = (members ?? []).map((row) => row.coach_id)
+
+  const { data: gymSubscription } = await supabase
+    .from('gym_subscriptions')
+    .select('stripe_subscription_id')
+    .eq('gym_id', gymContext.gym.id)
+    .maybeSingle()
+
+  const stripeSubscriptionId = gymSubscription?.stripe_subscription_id
+
+  // Cancel Stripe first so webhooks don't fight the dissolve, then clear local rows.
+  if (stripeSubscriptionId) {
+    try {
+      const stripe = getStripeClient()
+      await stripe.subscriptions.cancel(stripeSubscriptionId)
+    } catch (stripeError) {
+      console.error('deleteGymRecord stripe cancel', stripeError)
+    }
+  }
+
+  try {
+    await clearFacilityStripeSubscription({
+      gymId: gymContext.gym.id,
+      coachId: user.id,
+    })
+  } catch (clearError) {
+    console.error('deleteGymRecord clear facility subscription', clearError)
+  }
+
+  const { error: deleteError } = await supabase.rpc('delete_gym', {
+    p_gym_id: gymContext.gym.id,
+  })
 
   if (deleteError) {
     return { success: false, error: deleteError.message }
   }
 
+  // Members (including the owner) who lack their own paid tier fall back to
+  // Starter and may need to pick clients or upgrade.
+  await markCoachesForClientLimitResolution(memberCoachIds)
+
+  const admin = createAdminClient()
+  let needsClientLimitResolution = false
+  if (admin) {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('needs_client_limit_resolution')
+      .eq('id', user.id)
+      .maybeSingle()
+    needsClientLimitResolution = Boolean(profile?.needs_client_limit_resolution)
+  }
+
   revalidateGym()
-  return { success: true }
+  return { success: true, needsClientLimitResolution }
 }
 
 export async function acceptGymInvite(

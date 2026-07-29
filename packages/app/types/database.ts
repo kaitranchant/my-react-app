@@ -277,6 +277,7 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_current_period_end: string | null
+          needs_client_limit_resolution: boolean
           stripe_connect_account_id: string | null
           stripe_connect_charges_enabled: boolean
           stripe_connect_payouts_enabled: boolean
@@ -339,6 +340,7 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
+          needs_client_limit_resolution?: boolean
           stripe_connect_account_id?: string | null
           stripe_connect_charges_enabled?: boolean
           stripe_connect_payouts_enabled?: boolean
@@ -401,6 +403,7 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
+          needs_client_limit_resolution?: boolean
           stripe_connect_account_id?: string | null
           stripe_connect_charges_enabled?: boolean
           stripe_connect_payouts_enabled?: boolean
@@ -4823,6 +4826,10 @@ export type Database = {
       link_gym_invite: {
         Args: { p_token: string; p_user_id: string; p_email: string }
         Returns: string
+      }
+      delete_gym: {
+        Args: { p_gym_id: string }
+        Returns: undefined
       }
       mark_own_form_reviews_viewed: {
         Args: Record<string, never>

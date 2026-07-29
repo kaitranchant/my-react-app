@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 
+import { ClientLimitResolutionGate } from '@/components/billing/client-limit-resolution-gate'
 import { AppShellScrollLock } from '@/components/dashboard/app-shell-scroll-lock'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { DashboardMobileBottomNav } from '@/components/dashboard/dashboard-mobile-bottom-nav'
@@ -112,6 +113,7 @@ export function DashboardShell({
         </main>
         {!immersiveLog ? <DashboardMobileBottomNav badges={navBadges} /> : null}
         <DashboardShortcuts />
+        <ClientLimitResolutionGate />
       </div>
     </div>
     </MobileKeyboardShell>
