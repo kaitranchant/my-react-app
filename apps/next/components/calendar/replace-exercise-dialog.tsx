@@ -160,7 +160,7 @@ export function ReplaceExerciseDialog({
       <DialogContent
         viewport
         overlayClassName="z-[110]"
-        className="z-[110] flex max-h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),820px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="z-[110] flex h-[min(calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem),820px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
         <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
           <DialogTitle>Replace exercise</DialogTitle>
@@ -174,7 +174,7 @@ export function ReplaceExerciseDialog({
           <Tabs
             value={source}
             onValueChange={(value) => setSource(value as ExerciseSource)}
-            className="flex min-h-0 flex-1 flex-col"
+            className="flex min-h-0 flex-1 flex-col gap-0"
           >
             <TabsList className="grid w-full shrink-0 grid-cols-2">
               <TabsTrigger value="library">Library</TabsTrigger>
@@ -183,19 +183,19 @@ export function ReplaceExerciseDialog({
 
             <TabsContent
               value="library"
-              className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden"
+              className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
               <LibraryExerciseList
                 exercises={libraryExercises}
                 selectedId={libraryExerciseId || null}
                 onSelect={(exerciseId) => setLibraryExerciseId(exerciseId)}
-                className="min-h-[min(360px,48vh)]"
+                className="min-h-0 flex-1"
               />
             </TabsContent>
 
             <TabsContent
               value="custom"
-              className="mt-3 min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden"
+              className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-y-contain data-[state=inactive]:hidden"
             >
               <CustomExerciseTab form={customForm} />
             </TabsContent>

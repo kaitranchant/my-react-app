@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils'
 
 const priorityStyles = {
   high: {
-    border: 'border-l-amber-400',
-    bg: 'hover:bg-amber-50/50 dark:hover:bg-amber-500/5',
+    border: 'border-l-status-danger',
+    bg: 'hover:bg-status-danger/5',
   },
   medium: {
     border: 'border-l-brand',

@@ -20,17 +20,25 @@ import {
   type TodaySession,
 } from '@/lib/dashboard'
 import { fetchCoachNavBadges } from '@/lib/dashboard-queries'
-import { countCoachTasksDueToday } from '@/lib/coach-tasks-queries'
+import {
+  countCoachTasksDueToday,
+  fetchHighPriorityCoachTasks,
+} from '@/lib/coach-tasks-queries'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { CoachGettingStartedChecklist } from '@/components/dashboard/coach-getting-started-checklist'
 import { CoachSetupDialog } from '@/components/dashboard/coach-setup-dialog'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
+import { HighPriorityTasks } from '@/components/dashboard/high-priority-tasks'
 import { ProactiveAlerts } from '@/components/dashboard/proactive-alerts'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { TodaysSchedule } from '@/components/dashboard/todays-schedule'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
+import {
+  defaultDashboardPreferences,
+} from '@/lib/dashboard-preferences'
+import { getDashboardPreferencesForUser } from '@/lib/dashboard-preferences-server'
 import {
   defaultNotificationPreferences,
   filterActionItemsForNotifications,
@@ -66,6 +74,9 @@ export default async function DashboardPage() {
   const notificationPreferences = user
     ? await getNotificationPreferencesForUser(user.id)
     : null
+  const dashboardPreferences = user
+    ? await getDashboardPreferencesForUser(user.id)
+    : defaultDashboardPreferences
   const today = getCoachDateKey(coachPreferences.timezone)
   const { start: weekStart, end: weekEnd } = getWeekRange(
     coachPreferences.weekStartsOn,
@@ -104,6 +115,7 @@ export default async function DashboardPage() {
     { data: recentNutritionSetups },
     navBadges,
     tasksDueToday,
+    highPriorityTasks,
   ] = await Promise.all([
       supabase
         .from('profiles')
@@ -180,6 +192,9 @@ export default async function DashboardPage() {
       user
         ? countCoachTasksDueToday(supabase, user.id, today)
         : Promise.resolve(0),
+      user
+        ? fetchHighPriorityCoachTasks(supabase, user.id)
+        : Promise.resolve([]),
     ])
 
   const coachName =
@@ -257,6 +272,9 @@ export default async function DashboardPage() {
     proactiveAlertDismissals
   )
 
+  const showHighPriorityTasksSection =
+    dashboardPreferences.highPriorityTasks && highPriorityTasks.length > 0
+
   const actionItems = filterActionItemsForNotifications(
     buildActionItems({
       clients: allClients as Client[],
@@ -271,8 +289,11 @@ export default async function DashboardPage() {
       injuryFlagClients: loadAlerts.injuryFlagCount,
       unreadMessages: navBadges.inboxUnread,
       tasksDueToday,
+      highPriorityTasks: highPriorityTasks.length,
     }),
     notificationPreferences ?? defaultNotificationPreferences
+  ).filter((item) =>
+    showHighPriorityTasksSection ? item.id !== 'high-priority-tasks' : true
   )
 
   const activityItems = filterActivityFeedForNotifications(
@@ -346,6 +367,8 @@ export default async function DashboardPage() {
         : 'Welcome! Add your first client to start building their program.'
 
   const showCoachSetup = user ? coachPreferencesUnset(profile) : false
+  const showScheduleOrAttention =
+    dashboardPreferences.todaysSchedule || dashboardPreferences.actionItems
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:gap-8">
@@ -365,17 +388,19 @@ export default async function DashboardPage() {
             </h1>
             <p className="helper-text max-w-lg leading-relaxed">{summary}</p>
           </div>
-          <QuickActions
-            clients={activeClients.map((client) => ({
-              id: client.id,
-              full_name: client.full_name,
-            }))}
-            gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
-          />
+          {dashboardPreferences.quickActions ? (
+            <QuickActions
+              clients={activeClients.map((client) => ({
+                id: client.id,
+                full_name: client.full_name,
+              }))}
+              gyms={coachGyms.map((gym) => ({ id: gym.id, name: gym.name }))}
+            />
+          ) : null}
         </div>
       </section>
 
-      {user ? (
+      {user && dashboardPreferences.gettingStarted ? (
         <CoachGettingStartedChecklist
           userId={user.id}
           progress={gettingStartedProgress}
@@ -383,22 +408,45 @@ export default async function DashboardPage() {
         />
       ) : null}
 
-      <DashboardStats
-        activeClients={activeClients.length}
-        totalClients={allClients.length}
-        pausedClients={pausedClients}
-        completionRate={completionRate}
-        weekWorkoutCount={weekWorkoutList.length}
-      />
+      {dashboardPreferences.stats ? (
+        <DashboardStats
+          activeClients={activeClients.length}
+          totalClients={allClients.length}
+          pausedClients={pausedClients}
+          completionRate={completionRate}
+          weekWorkoutCount={weekWorkoutList.length}
+        />
+      ) : null}
 
-      <ProactiveAlerts alerts={proactiveAlerts} />
+      {dashboardPreferences.proactiveAlerts ? (
+        <ProactiveAlerts alerts={proactiveAlerts} />
+      ) : null}
 
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
-        <TodaysSchedule sessions={sessions} />
-        <ActionItems items={actionItems} />
-      </div>
+      {showHighPriorityTasksSection ? (
+        <HighPriorityTasks tasks={highPriorityTasks} todayKey={today} />
+      ) : null}
 
-      <ActivityFeed items={activityItems} />
+      {showScheduleOrAttention ? (
+        <div
+          className={
+            dashboardPreferences.todaysSchedule &&
+            dashboardPreferences.actionItems
+              ? 'grid gap-4 sm:gap-5 lg:grid-cols-2'
+              : 'grid gap-4 sm:gap-5'
+          }
+        >
+          {dashboardPreferences.todaysSchedule ? (
+            <TodaysSchedule sessions={sessions} />
+          ) : null}
+          {dashboardPreferences.actionItems ? (
+            <ActionItems items={actionItems} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {dashboardPreferences.recentActivity ? (
+        <ActivityFeed items={activityItems} />
+      ) : null}
     </div>
   )
 }

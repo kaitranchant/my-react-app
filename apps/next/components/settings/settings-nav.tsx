@@ -8,6 +8,7 @@ import { scrollElementIntoMainContent } from '@/lib/visual-viewport/app-viewport
 const sections = [
   { id: 'profile', label: 'Profile' },
   { id: 'appearance', label: 'Appearance' },
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'coaching', label: 'Coaching' },
   { id: 'onboarding', label: 'Onboarding' },
   { id: 'notifications', label: 'Notifications' },

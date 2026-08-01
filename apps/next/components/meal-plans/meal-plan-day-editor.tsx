@@ -117,6 +117,39 @@ function refreshMealPlanInBackground(router: ReturnType<typeof useRouter>) {
   })
 }
 
+/**
+ * Prefer server data, but never wipe foods we already have for a meal when the
+ * refresh payload comes back with an empty foods array (known race after
+ * name/label-only updates).
+ */
+function mergeMealPlanDaysFromServer(
+  current: MealPlanDayWithMeals[],
+  incoming: MealPlanDayWithMeals[]
+): MealPlanDayWithMeals[] {
+  if (current.length === 0) return incoming
+
+  const previousFoodsByMealId = new Map<string, MealPlanMealWithFoods['foods']>()
+  for (const day of current) {
+    for (const meal of day.meals) {
+      if (meal.foods.length > 0) {
+        previousFoodsByMealId.set(meal.id, meal.foods)
+      }
+    }
+  }
+
+  if (previousFoodsByMealId.size === 0) return incoming
+
+  return incoming.map((day) => ({
+    ...day,
+    meals: day.meals.map((meal) => {
+      if (meal.foods.length > 0) return meal
+      const previousFoods = previousFoodsByMealId.get(meal.id)
+      if (!previousFoods || previousFoods.length === 0) return meal
+      return { ...meal, foods: previousFoods }
+    }),
+  }))
+}
+
 function snapshotToMealFoodValues(
   snapshot: FoodSelectionSnapshot,
   sortOrder: number
@@ -363,7 +396,7 @@ export function MealPlanDayEditor({ mealPlanId, days: initialDays }: MealPlanDay
     days.length > 0 ? Math.max(...days.map((day) => day.day_offset)) + 1 : 0
 
   React.useEffect(() => {
-    setDays(initialDays)
+    setDays((current) => mergeMealPlanDaysFromServer(current, initialDays))
   }, [initialDays])
 
   const deleteDayConfirm = useConfirmDialog({
@@ -632,7 +665,8 @@ function MealPlanDayCard({
     onDaysChange((current) =>
       patchDayInDays(current, day.id, { label: trimmed || null })
     )
-    refreshMealPlanInBackground(router)
+    // Name/label-only saves shouldn't hard-refresh — that was wiping meal foods
+    // from client state when the RSC payload briefly omitted them.
   }
 
   async function handleMealNameSave(mealId: string) {
@@ -664,7 +698,8 @@ function MealPlanDayCard({
     onDaysChange((current) =>
       patchMealInDays(current, day.id, mealId, { name: fallbackName })
     )
-    refreshMealPlanInBackground(router)
+    // Keep local state authoritative for name-only edits. A background refresh
+    // was clearing foods from the UI even though they remained in the database.
   }
 
   function scheduleMealNameSave(mealId: string) {

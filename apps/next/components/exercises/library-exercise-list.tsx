@@ -53,7 +53,7 @@ export function LibraryExerciseList({
 
       <div
         className={cn(
-          'min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain rounded-lg border',
+          'min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain rounded-lg border [scrollbar-gutter:stable]',
           variant === 'grid' ? 'p-2' : ''
         )}
       >

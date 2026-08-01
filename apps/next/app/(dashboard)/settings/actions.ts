@@ -12,6 +12,10 @@ import {
   notificationPreferencesToRow,
   parseNotificationPreferences,
 } from '@/lib/notification-preferences'
+import {
+  dashboardPreferencesToRow,
+  parseDashboardPreferences,
+} from '@/lib/dashboard-preferences'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -36,6 +40,7 @@ import {
   type ClientOnboardingMilestoneKey,
 } from '@/lib/client-onboarding'
 import type { NotificationPreferenceKey } from '@/lib/validations/notification-preferences'
+import type { DashboardSectionKey } from '@/lib/validations/dashboard-preferences'
 import type { CoachClientNotificationPreferenceKey } from '@/lib/validations/coach-client-notification-preferences'
 import { profileFormSchema, type ProfileFormValues } from '@/lib/validations/profile'
 
@@ -232,6 +237,44 @@ export async function updateNotificationPreference(
   const { error } = await supabase
     .from('profiles')
     .update(notificationPreferencesToRow({ ...current, [key]: enabled }))
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function updateDashboardSectionVisibility(
+  key: DashboardSectionKey,
+  enabled: boolean
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
+
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('dashboard_section_visibility')
+    .eq('id', user.id)
+    .single()
+
+  if (fetchError) {
+    return { success: false, error: fetchError.message }
+  }
+
+  const current = parseDashboardPreferences(
+    profile?.dashboard_section_visibility
+  )
+  const { error } = await supabase
+    .from('profiles')
+    .update(
+      dashboardPreferencesToRow({
+        ...current,
+        [key]: enabled,
+      })
+    )
     .eq('id', user.id)
 
   if (error) {

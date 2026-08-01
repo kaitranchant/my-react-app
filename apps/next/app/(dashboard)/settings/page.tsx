@@ -28,11 +28,13 @@ import { parseNotificationPreferences } from '@/lib/notification-preferences'
 import { parseCoachClientNotificationPreferences } from '@/lib/coach-client-notification-preferences'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { CoachClientNotificationSettings } from '@/components/settings/coach-client-notification-settings'
+import { DashboardSettings } from '@/components/settings/dashboard-settings'
 import { SettingsSubsection } from '@/components/settings/settings-subsection'
 import { WebPushSettings } from '@/components/notifications/web-push-settings'
 import { ProfileSettingsForm } from '@/components/settings/profile-settings-form'
 import { SettingsNav } from '@/components/settings/settings-nav'
 import { SettingsSection } from '@/components/settings/settings-section'
+import { parseDashboardPreferences } from '@/lib/dashboard-preferences'
 
 export const metadata = {
   title: 'Settings — Coaching App',
@@ -52,7 +54,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view, default_onboarding_program_id, onboarding_welcome_template_id, onboarding_milestone_template, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders, coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders, coach_send_client_onboarding_documents, stripe_customer_id'
+      'full_name, business_name, avatar_url, weight_unit, week_starts_on, coach_timezone, default_check_in_frequency, default_workout_log_view, default_onboarding_program_id, onboarding_welcome_template_id, onboarding_milestone_template, dashboard_section_visibility, notify_check_ins, notify_form_reviews, notify_workout_completions, notify_missed_sessions, notify_invite_accepted, notify_prs, notify_weekly_summary, notify_appointment_reminders, coach_send_client_messages, coach_send_client_check_in_reviews, coach_send_client_form_review_replies, coach_send_client_nutrition_setup, coach_send_client_team_updates, coach_send_client_invites, coach_send_client_workout_reminders, coach_send_client_check_in_reminders, coach_send_client_unread_digest, coach_send_client_appointment_reminders, coach_send_client_onboarding_documents, stripe_customer_id'
     )
     .eq('id', user!.id)
     .single()
@@ -73,6 +75,9 @@ export default async function SettingsPage({
     businessName: profile?.business_name?.trim() ?? '',
   }
   const coachingPreferences = parseCoachPreferences(profile)
+  const dashboardPreferences = parseDashboardPreferences(
+    profile?.dashboard_section_visibility
+  )
   const notificationPreferences = parseNotificationPreferences(profile)
   const coachClientNotificationPreferences =
     parseCoachClientNotificationPreferences(profile)
@@ -131,6 +136,14 @@ export default async function SettingsPage({
             description="Customize how the app looks on your device."
           >
             <AppearanceSettings />
+          </SettingsSection>
+
+          <SettingsSection
+            id="dashboard"
+            title="Dashboard"
+            description="Choose which sections appear on your coach dashboard."
+          >
+            <DashboardSettings defaultValues={dashboardPreferences} />
           </SettingsSection>
 
           <SettingsSection

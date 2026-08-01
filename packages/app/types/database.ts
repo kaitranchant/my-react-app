@@ -236,6 +236,7 @@ export type Database = {
           default_onboarding_program_id: string | null
           onboarding_welcome_template_id: string | null
           onboarding_milestone_template: Json
+          dashboard_section_visibility: Json
           notify_check_ins: boolean
           notify_workout_completions: boolean
           notify_missed_sessions: boolean
@@ -299,6 +300,7 @@ export type Database = {
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
           onboarding_milestone_template?: Json
+          dashboard_section_visibility?: Json
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean
@@ -362,6 +364,7 @@ export type Database = {
           default_onboarding_program_id?: string | null
           onboarding_welcome_template_id?: string | null
           onboarding_milestone_template?: Json
+          dashboard_section_visibility?: Json
           notify_check_ins?: boolean
           notify_workout_completions?: boolean
           notify_missed_sessions?: boolean

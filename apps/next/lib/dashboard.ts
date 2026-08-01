@@ -67,6 +67,7 @@ export function buildActionItems({
   injuryFlagClients = 0,
   unreadMessages = 0,
   tasksDueToday = 0,
+  highPriorityTasks = 0,
 }: {
   clients: Client[]
   pendingInvites: number
@@ -80,8 +81,18 @@ export function buildActionItems({
   injuryFlagClients?: number
   unreadMessages?: number
   tasksDueToday?: number
+  highPriorityTasks?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
+
+  if (highPriorityTasks > 0) {
+    items.push({
+      id: 'high-priority-tasks',
+      message: `${highPriorityTasks} high-priority task${highPriorityTasks === 1 ? '' : 's'} open`,
+      href: '/scheduling?view=tasks',
+      priority: 'high',
+    })
+  }
 
   if (injuryFlagClients > 0) {
     items.push({
@@ -133,7 +144,7 @@ export function buildActionItems({
       id: 'tasks-due-today',
       message: `${tasksDueToday} task${tasksDueToday === 1 ? '' : 's'} due today`,
       href: '/scheduling?view=tasks',
-      priority: 'medium',
+      priority: highPriorityTasks > 0 ? 'high' : 'medium',
     })
   }
 

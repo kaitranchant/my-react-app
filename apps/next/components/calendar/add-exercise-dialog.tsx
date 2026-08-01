@@ -244,18 +244,14 @@ export function AddExerciseDialog({
 
                 <TabsContent
                   value="library"
-                  className="mt-3 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+                  className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
                 >
                   <LibraryExerciseList
                     exercises={activeExercises}
                     selectedId={libraryExerciseId || null}
                     onSelect={handleLibrarySelect}
                     variant={compactLayout ? 'grid' : 'list'}
-                    className={
-                      compactLayout
-                        ? 'flex min-h-0 flex-1 flex-col'
-                        : 'min-h-[min(420px,52vh)]'
-                    }
+                    className="min-h-0 flex-1"
                   />
                 </TabsContent>
 

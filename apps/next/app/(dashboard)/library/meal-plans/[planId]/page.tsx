@@ -73,7 +73,18 @@ export default async function MealPlanDetailPage({
     clientName = clientData?.full_name ?? null
   }
 
-  const days = await fetchMealPlanDaysWithMeals(supabase, planId)
+  let days
+  try {
+    days = await fetchMealPlanDaysWithMeals(supabase, planId)
+  } catch (error) {
+    return (
+      <LibraryLoadError
+        resource="meal plan days"
+        error={error instanceof Error ? error : new Error('Could not load meals.')}
+        sqlFile="apply-nutrition.sql"
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">

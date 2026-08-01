@@ -12,32 +12,44 @@ export async function fetchMealPlanDaysWithMeals(
   supabase: SupabaseClient,
   mealPlanId: string
 ): Promise<MealPlanDayWithMeals[]> {
-  const { data: daysData } = await supabase
+  const { data: daysData, error: daysError } = await supabase
     .from('meal_plan_days')
     .select('*')
     .eq('meal_plan_id', mealPlanId)
     .order('day_offset', { ascending: true })
+
+  if (daysError) {
+    throw new Error(daysError.message)
+  }
 
   const dayIds = (daysData ?? []).map((day) => day.id)
   let mealsData: MealPlanMeal[] = []
   let mealFoodsData: MealPlanMealFood[] = []
 
   if (dayIds.length > 0) {
-    const { data: meals } = await supabase
+    const { data: meals, error: mealsError } = await supabase
       .from('meal_plan_meals')
       .select('*')
       .in('meal_plan_day_id', dayIds)
       .order('sort_order', { ascending: true })
 
+    if (mealsError) {
+      throw new Error(mealsError.message)
+    }
+
     mealsData = (meals ?? []) as MealPlanMeal[]
 
     const mealIds = mealsData.map((meal) => meal.id)
     if (mealIds.length > 0) {
-      const { data: mealFoods } = await supabase
+      const { data: mealFoods, error: foodsError } = await supabase
         .from('meal_plan_meal_foods')
         .select('*')
         .in('meal_plan_meal_id', mealIds)
         .order('sort_order', { ascending: true })
+
+      if (foodsError) {
+        throw new Error(foodsError.message)
+      }
 
       mealFoodsData = (mealFoods ?? []) as MealPlanMealFood[]
     }

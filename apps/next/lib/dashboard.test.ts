@@ -56,6 +56,26 @@ test('buildActionItems includes tasks due today', () => {
   assert.deepEqual(items.map((item) => item.id), ['tasks-due-today'])
   assert.equal(items[0]?.message, '2 tasks due today')
   assert.equal(items[0]?.href, '/scheduling?view=tasks')
+  assert.equal(items[0]?.priority, 'medium')
+})
+
+test('buildActionItems elevates tasks due today when high-priority tasks exist', () => {
+  const items = buildActionItems({
+    clients: baseClients,
+    pendingInvites: 0,
+    clientsWithoutWorkoutThisWeek: 0,
+    skippedThisWeek: 0,
+    tasksDueToday: 1,
+    highPriorityTasks: 1,
+  })
+
+  assert.deepEqual(items.map((item) => item.id), [
+    'high-priority-tasks',
+    'tasks-due-today',
+  ])
+  assert.equal(items[0]?.message, '1 high-priority task open')
+  assert.equal(items[0]?.priority, 'high')
+  assert.equal(items[1]?.priority, 'high')
 })
 
 test('mergeActivityFeed combines and sorts activity by timestamp', () => {

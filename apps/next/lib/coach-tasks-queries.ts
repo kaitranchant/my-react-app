@@ -68,3 +68,57 @@ export async function countCoachTasksDueToday(
 
   return count ?? 0
 }
+
+export async function fetchHighPriorityCoachTasks(
+  supabase: SupabaseClient,
+  coachId: string,
+  limit = 8
+): Promise<CoachTask[]> {
+  const { data, error } = await supabase
+    .from('coach_tasks')
+    .select(
+      `
+      id,
+      coach_id,
+      client_id,
+      title,
+      details,
+      due_date,
+      priority,
+      status,
+      completed_at,
+      created_at,
+      updated_at,
+      client:clients(id, full_name)
+    `
+    )
+    .eq('coach_id', coachId)
+    .eq('status', 'pending')
+    .eq('priority', 'high')
+    .order('due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) {
+    return []
+  }
+
+  return data.map((row) => {
+    const client = Array.isArray(row.client) ? row.client[0] : row.client
+
+    return {
+      id: row.id,
+      coach_id: row.coach_id,
+      client_id: row.client_id,
+      title: row.title,
+      details: row.details,
+      due_date: row.due_date,
+      priority: row.priority,
+      status: row.status,
+      completed_at: row.completed_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      client: client ?? null,
+    } satisfies CoachTask
+  })
+}
