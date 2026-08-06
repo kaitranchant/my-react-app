@@ -34,7 +34,23 @@ export function WorkoutElapsedTimer({
 
     tick()
     const interval = setInterval(tick, 1000)
-    return () => clearInterval(interval)
+
+    function onVisibilityOrFocus() {
+      if (document.visibilityState === 'visible') {
+        tick()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+    window.addEventListener('pageshow', onVisibilityOrFocus)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+      window.removeEventListener('pageshow', onVisibilityOrFocus)
+    }
   }, [active, startedAt])
 
   if (!active || !startedAt) return null

@@ -316,12 +316,11 @@ export function AddExerciseDialog({
                 </Button>
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6">
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-6 [-webkit-overflow-scrolling:touch]">
                 <Form {...form}>
                   <form
                     id="add-exercise-form"
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
                   >
                     <ExercisePrescriptionForm
                       form={form}

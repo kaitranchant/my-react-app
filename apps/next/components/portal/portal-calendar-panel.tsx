@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { ClipboardList, Loader2 } from 'lucide-react'
+import { ClipboardList, Eye, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -13,6 +13,7 @@ import { CalendarMonthGrid } from '@/components/calendar/calendar-month-grid'
 import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { SelectWorkoutDialog } from '@/components/calendar/select-workout-dialog'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
+import { WorkoutPreviewDialog } from '@/components/calendar/workout-preview-dialog'
 import { Button } from '@/components/ui/button'
 import { coerceDateKey, formatDayHeader, addDaysToDateKey, parseDateKey, toDateKey } from '@/lib/calendar'
 import {
@@ -80,6 +81,7 @@ export function PortalCalendarPanel({
   )
   const [logOpen, setLogOpen] = React.useState(false)
   const [logPickerOpen, setLogPickerOpen] = React.useState(false)
+  const [previewOpen, setPreviewOpen] = React.useState(false)
   const handledActionRef = React.useRef<string | null>(null)
 
   const selectedDaySummaries = React.useMemo(
@@ -193,6 +195,23 @@ export function PortalCalendarPanel({
     const summary = selectedDaySummaries[0]
     if (!summary) return
     void beginLogWorkout(summary.id)
+  }
+
+  async function openWorkoutPreview(workoutId: string, dateKey: string) {
+    if (logOpen && workout && workout.scheduled_date !== dateKey) {
+      setLogOpen(false)
+    }
+
+    setSelectedDate(dateKey)
+    setSelectedWorkoutId(workoutId)
+    setPreviewOpen(true)
+    await loadSelectedDayWorkout(dateKey, workoutId)
+  }
+
+  function handlePreviewWorkoutClick() {
+    const summary = activeDaySummary ?? selectedDaySummaries[0]
+    if (!summary) return
+    void openWorkoutPreview(summary.id, selectedDate)
   }
 
   async function refreshCalendar(
@@ -438,6 +457,15 @@ export function PortalCalendarPanel({
               <ClipboardList className="size-4" />
               {getLogButtonLabel()}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePreviewWorkoutClick}
+            >
+              <Eye className="size-4" />
+              Details
+            </Button>
             {displayWorkout && (
               <PrintWorkoutButton workout={displayWorkout} selectedDate={selectedDate} />
             )}
@@ -454,6 +482,9 @@ export function PortalCalendarPanel({
         loading={loading}
         onMonthChange={handleMonthChange}
         onSelectDate={handleSelectDate}
+        onSelectWorkout={(workoutId, dateKey) => {
+          void openWorkoutPreview(workoutId, dateKey)
+        }}
       />
 
       {loading && scheduledDays.length === 0 && (
@@ -495,6 +526,24 @@ export function PortalCalendarPanel({
         onOpenChange={setLogPickerOpen}
         workouts={selectedDaySummaries}
         onSelect={(workoutId) => void beginLogWorkout(workoutId)}
+      />
+
+      <WorkoutPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        workout={
+          displayWorkout &&
+          displayWorkout.id === (activeDaySummary?.id ?? selectedWorkoutId)
+            ? displayWorkout
+            : null
+        }
+        loading={workoutLoading}
+        selectedDate={selectedDate}
+        logLabel={getLogButtonLabel()}
+        onLog={() => {
+          const id = activeDaySummary?.id ?? selectedWorkoutId
+          if (id) void beginLogWorkout(id)
+        }}
       />
     </div>
   )

@@ -35,6 +35,10 @@ import {
 } from '@/lib/session-booking-slots'
 import { sessionBookingSettingsToRow } from '@/lib/session-booking-types'
 import {
+  fetchClientWorkoutCoverageKeys,
+  workoutCoverageKey,
+} from '@/lib/session-workout-coverage'
+import {
   applyGoogleCalendarLinkToAppointment,
   queueCoachingAppointmentGoogleRemoval,
   queueCoachingAppointmentGoogleSync,
@@ -2366,6 +2370,8 @@ export type SchedulingWeekDataResult =
       googleBlockedTimes: GoogleCalendarBlockedTime[]
       googleAuthExpired: boolean
       weeklyTargetsEnabled: boolean
+      /** Appointment IDs that are scheduled with no training workout that day. */
+      appointmentIdsMissingWorkout: string[]
       clientDefaults: Array<{
         id: string
         full_name: string | null
@@ -2584,6 +2590,7 @@ export async function fetchSchedulingWeekData(
   )
 
   const resolvedWeekStartKey = weekKeys[0]!
+  const resolvedWeekEndKey = weekKeys[weekKeys.length - 1]!
   const weekOverrides = settings.weekly_session_targets_enabled
     ? await fetchClientWeeklySessionTargets(
         ctx.supabase,
@@ -2592,6 +2599,42 @@ export async function fetchSchedulingWeekData(
       )
     : []
 
+  const scheduledClientIds = [
+    ...new Set(
+      appointments
+        .filter(
+          (appointment) =>
+            appointment.status === 'scheduled' && appointment.client_id
+        )
+        .map((appointment) => appointment.client_id)
+    ),
+  ]
+
+  const workoutCoverageKeys =
+    scheduledClientIds.length > 0
+      ? await fetchClientWorkoutCoverageKeys(
+          ctx.supabase,
+          scheduledClientIds,
+          resolvedWeekStartKey,
+          resolvedWeekEndKey
+        )
+      : new Set<string>()
+
+  const appointmentIdsMissingWorkout = appointments
+    .filter((appointment) => {
+      if (appointment.status !== 'scheduled' || !appointment.client_id) {
+        return false
+      }
+      const dateKey = getDateKeyFromInstant(
+        appointment.starts_at,
+        coachPreferences.timezone
+      )
+      return !workoutCoverageKeys.has(
+        workoutCoverageKey(appointment.client_id, dateKey)
+      )
+    })
+    .map((appointment) => appointment.id)
+
   return {
     success: true,
     appointments,
@@ -2599,6 +2642,7 @@ export async function fetchSchedulingWeekData(
     googleBlockedTimes,
     googleAuthExpired: blockedTimesResult.authExpired,
     weeklyTargetsEnabled: settings.weekly_session_targets_enabled,
+    appointmentIdsMissingWorkout,
     clientDefaults: clients ?? [],
     weekOverrides,
   }

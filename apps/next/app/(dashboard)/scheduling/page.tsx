@@ -25,7 +25,14 @@ import {
   getWeekAppointmentRange,
 } from '@/lib/session-booking-queries'
 import { addDaysToDateKey } from '@/lib/calendar'
-import { getCoachDateKeyFromReference } from '@/lib/session-booking-slots'
+import {
+  getCoachDateKeyFromReference,
+  getDateKeyFromInstant,
+} from '@/lib/session-booking-slots'
+import {
+  fetchClientWorkoutCoverageKeys,
+  workoutCoverageKey,
+} from '@/lib/session-workout-coverage'
 import { fetchCoachTasks } from '@/lib/coach-tasks-queries'
 import { sessionBookingSettingsToFormValues } from '@/lib/session-booking-types'
 import { createClient } from '@/lib/supabase/server'
@@ -142,6 +149,7 @@ export default async function SchedulingPage({
   ])
 
   const weekStartKey = weekKeys[0]!
+  const weekEndKey = weekKeys[weekKeys.length - 1]!
   const [appointments, googleBlockedTimesFetch, weekOverrides] =
     await Promise.all([
       fetchCoachingAppointments(supabase, user.id, startIso, endIso),
@@ -152,6 +160,40 @@ export default async function SchedulingPage({
         ? fetchClientWeeklySessionTargets(supabase, user.id, weekStartKey)
         : Promise.resolve([]),
     ])
+
+  const scheduledClientIds = [
+    ...new Set(
+      appointments
+        .filter(
+          (appointment) =>
+            appointment.status === 'scheduled' && appointment.client_id
+        )
+        .map((appointment) => appointment.client_id)
+    ),
+  ]
+  const workoutCoverageKeys =
+    scheduledClientIds.length > 0
+      ? await fetchClientWorkoutCoverageKeys(
+          supabase,
+          scheduledClientIds,
+          weekStartKey,
+          weekEndKey
+        )
+      : new Set<string>()
+  const appointmentIdsMissingWorkout = appointments
+    .filter((appointment) => {
+      if (appointment.status !== 'scheduled' || !appointment.client_id) {
+        return false
+      }
+      const dateKey = getDateKeyFromInstant(
+        appointment.starts_at,
+        coachPreferences.timezone
+      )
+      return !workoutCoverageKeys.has(
+        workoutCoverageKey(appointment.client_id, dateKey)
+      )
+    })
+    .map((appointment) => appointment.id)
 
   const googleCalendarAuthExpired = googleBlockedTimesFetch?.authExpired ?? false
   const rawGoogleBlockedTimes = googleBlockedTimesFetch?.blockedTimes ?? []
@@ -219,6 +261,7 @@ export default async function SchedulingPage({
         connectSuccess={connected === 'google_calendar'}
         googleBlockedTimes={googleBlockedTimes}
         weekOverrides={weekOverrides}
+        appointmentIdsMissingWorkout={appointmentIdsMissingWorkout}
       />
     </div>
   )

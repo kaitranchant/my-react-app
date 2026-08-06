@@ -1189,12 +1189,13 @@ export async function dematerializeProgramFromClientCalendar(
     return { removedCount: 0 }
   }
 
-  const programByDate = new Map(
-    programWorkouts.map((workout) => [
-      addDaysToDateKey(startDate, workout.day_offset),
-      workout,
-    ])
-  )
+  const programByDate = new Map<string, typeof programWorkouts>()
+  for (const workout of programWorkouts) {
+    const dateKey = addDaysToDateKey(startDate, workout.day_offset)
+    const existing = programByDate.get(dateKey) ?? []
+    existing.push(workout)
+    programByDate.set(dateKey, existing)
+  }
   const targetDates = Array.from(programByDate.keys())
 
   const { data: clientWorkouts, error: clientError } = await supabase
@@ -1209,9 +1210,11 @@ export async function dematerializeProgramFromClientCalendar(
 
   const idsToDelete = (clientWorkouts ?? [])
     .filter((clientWorkout) => {
-      const programWorkout = programByDate.get(clientWorkout.scheduled_date)
-      if (!programWorkout) return false
-      return matchesMaterializedProgramWorkout(programWorkout, clientWorkout)
+      const dayProgramWorkouts =
+        programByDate.get(clientWorkout.scheduled_date) ?? []
+      return dayProgramWorkouts.some((programWorkout) =>
+        matchesMaterializedProgramWorkout(programWorkout, clientWorkout)
+      )
     })
     .map((workout) => workout.id)
 

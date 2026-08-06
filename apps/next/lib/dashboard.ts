@@ -68,6 +68,7 @@ export function buildActionItems({
   unreadMessages = 0,
   tasksDueToday = 0,
   highPriorityTasks = 0,
+  sessionsMissingWorkouts = 0,
 }: {
   clients: Client[]
   pendingInvites: number
@@ -82,6 +83,7 @@ export function buildActionItems({
   unreadMessages?: number
   tasksDueToday?: number
   highPriorityTasks?: number
+  sessionsMissingWorkouts?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
 
@@ -90,6 +92,15 @@ export function buildActionItems({
       id: 'high-priority-tasks',
       message: `${highPriorityTasks} high-priority task${highPriorityTasks === 1 ? '' : 's'} open`,
       href: '/scheduling?view=tasks',
+      priority: 'high',
+    })
+  }
+
+  if (sessionsMissingWorkouts > 0) {
+    items.push({
+      id: 'sessions-missing-workouts',
+      message: `${sessionsMissingWorkouts} session${sessionsMissingWorkouts === 1 ? '' : 's'} this week ha${sessionsMissingWorkouts === 1 ? 's' : 've'} no workout on the training calendar that day`,
+      href: '/scheduling',
       priority: 'high',
     })
   }

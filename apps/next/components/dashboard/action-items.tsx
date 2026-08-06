@@ -53,7 +53,13 @@ export function ActionItems({ items }: ActionItemsProps) {
             </div>
           </div>
         ) : (
-          <ul className="divide-y">
+          <ul
+            className={cn(
+              'divide-y',
+              items.length > 3 &&
+                'max-h-[13.5rem] touch-pan-y overflow-y-auto overscroll-y-contain sm:max-h-[12.75rem] [scrollbar-gutter:stable]'
+            )}
+          >
             {items.map((item) => {
               const style = priorityStyles[item.priority]
               return (

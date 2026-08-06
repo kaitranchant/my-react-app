@@ -10,7 +10,13 @@ import { cn } from '@/lib/utils'
 type SetDurationTimerState = {
   totalSeconds: number
   remainingSeconds: number
+  endsAt: number | null
   paused: boolean
+}
+
+function remainingFromEndsAt(endsAt: number | null, fallback: number) {
+  if (endsAt == null) return fallback
+  return Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
 }
 
 function TimerControlButton({
@@ -47,6 +53,7 @@ export function SetDurationTimerChip({
 }) {
   const [state, setState] = React.useState<SetDurationTimerState | null>(null)
   const [overlayOpen, setOverlayOpen] = React.useState(false)
+  const [nowMs, setNowMs] = React.useState(() => Date.now())
   const onCompleteRef = React.useRef(onComplete)
 
   React.useEffect(() => {
@@ -58,45 +65,86 @@ export function SetDurationTimerChip({
     setOverlayOpen(false)
   }, [seconds])
 
+  const syncFromWallClock = React.useCallback(() => {
+    setNowMs(Date.now())
+    setState((current) => {
+      if (!current || current.paused || current.endsAt == null) return current
+      const remaining = remainingFromEndsAt(
+        current.endsAt,
+        current.remainingSeconds
+      )
+      if (remaining <= 0) {
+        onCompleteRef.current?.(current.totalSeconds)
+        setOverlayOpen(false)
+        return null
+      }
+      if (remaining === current.remainingSeconds) return current
+      return { ...current, remainingSeconds: remaining }
+    })
+  }, [])
+
   React.useEffect(() => {
     if (!state || state.paused) return
 
-    const interval = window.setInterval(() => {
-      setState((current) => {
-        if (!current || current.paused) return current
+    syncFromWallClock()
+    const interval = window.setInterval(syncFromWallClock, 250)
 
-        const next = current.remainingSeconds - 1
-        if (next <= 0) {
-          onCompleteRef.current?.(current.totalSeconds)
-          setOverlayOpen(false)
-          return null
-        }
+    function onVisibilityOrFocus() {
+      if (document.visibilityState === 'visible') {
+        syncFromWallClock()
+      }
+    }
 
-        return { ...current, remainingSeconds: next }
-      })
-    }, 1000)
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+    window.addEventListener('pageshow', onVisibilityOrFocus)
 
-    return () => window.clearInterval(interval)
-  }, [state?.paused, state?.remainingSeconds, state?.totalSeconds])
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+      window.removeEventListener('pageshow', onVisibilityOrFocus)
+    }
+  }, [state?.paused, state?.endsAt, syncFromWallClock])
 
   const pauseTimer = React.useCallback(() => {
-    setState((current) =>
-      current ? { ...current, paused: true } : current
-    )
+    setState((current) => {
+      if (!current || current.paused) return current
+      const remaining = remainingFromEndsAt(
+        current.endsAt,
+        current.remainingSeconds
+      )
+      return {
+        ...current,
+        remainingSeconds: remaining,
+        endsAt: null,
+        paused: true,
+      }
+    })
   }, [])
 
   const resumeTimer = React.useCallback(() => {
-    setState((current) =>
-      current ? { ...current, paused: false } : current
-    )
+    setState((current) => {
+      if (!current || !current.paused) return current
+      const remaining = Math.max(0, current.remainingSeconds)
+      return {
+        ...current,
+        remainingSeconds: remaining,
+        endsAt: Date.now() + remaining * 1000,
+        paused: false,
+      }
+    })
+    setNowMs(Date.now())
   }, [])
 
   const resetTimer = React.useCallback(() => {
     setState({
       totalSeconds: seconds,
       remainingSeconds: seconds,
+      endsAt: Date.now() + seconds * 1000,
       paused: false,
     })
+    setNowMs(Date.now())
   }, [seconds])
 
   const stopTimer = React.useCallback(() => {
@@ -112,13 +160,15 @@ export function SetDurationTimerChip({
     return (
       <button
         type="button"
-        onClick={() =>
+        onClick={() => {
           setState({
             totalSeconds: seconds,
             remainingSeconds: seconds,
+            endsAt: Date.now() + seconds * 1000,
             paused: false,
           })
-        }
+          setNowMs(Date.now())
+        }}
         className={cn(
           'bg-chart-2/10 text-chart-2 hover:bg-chart-2/15 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
           className
@@ -130,9 +180,15 @@ export function SetDurationTimerChip({
     )
   }
 
+  const displayRemaining =
+    state.paused || state.endsAt == null
+      ? state.remainingSeconds
+      : remainingFromEndsAt(state.endsAt, state.remainingSeconds)
+  void nowMs
+
   const progress =
     state.totalSeconds > 0
-      ? (state.totalSeconds - state.remainingSeconds) / state.totalSeconds
+      ? (state.totalSeconds - displayRemaining) / state.totalSeconds
       : 0
 
   return (
@@ -143,7 +199,7 @@ export function SetDurationTimerChip({
           className
         )}
         role="timer"
-        aria-label={`Set timer: ${formatElapsedTime(state.remainingSeconds)} remaining`}
+        aria-label={`Set timer: ${formatElapsedTime(displayRemaining)} remaining`}
       >
         <div
           className="bg-chart-2/15 absolute inset-y-0 left-0 transition-[width] duration-1000 ease-linear"
@@ -158,7 +214,7 @@ export function SetDurationTimerChip({
         >
           <Clock className="size-3.5 shrink-0" />
           <span className="min-w-[2.75rem] tabular-nums font-semibold">
-            {formatElapsedTime(state.remainingSeconds)}
+            {formatElapsedTime(displayRemaining)}
           </span>
         </button>
         <div className="relative flex items-center">
@@ -181,7 +237,7 @@ export function SetDurationTimerChip({
         open={overlayOpen}
         onMinimize={() => setOverlayOpen(false)}
         title={`${formatElapsedTime(seconds)} hold`}
-        remainingSeconds={state.remainingSeconds}
+        remainingSeconds={displayRemaining}
         totalSeconds={state.totalSeconds}
         paused={state.paused}
         variant="duration"

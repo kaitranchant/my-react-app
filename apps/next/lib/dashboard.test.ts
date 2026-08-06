@@ -59,6 +59,24 @@ test('buildActionItems includes tasks due today', () => {
   assert.equal(items[0]?.priority, 'medium')
 })
 
+test('buildActionItems includes sessions missing workouts', () => {
+  const items = buildActionItems({
+    clients: baseClients,
+    pendingInvites: 0,
+    clientsWithoutWorkoutThisWeek: 0,
+    skippedThisWeek: 0,
+    sessionsMissingWorkouts: 2,
+  })
+
+  assert.deepEqual(items.map((item) => item.id), ['sessions-missing-workouts'])
+  assert.equal(
+    items[0]?.message,
+    '2 sessions this week have no workout on the training calendar that day'
+  )
+  assert.equal(items[0]?.href, '/scheduling')
+  assert.equal(items[0]?.priority, 'high')
+})
+
 test('buildActionItems elevates tasks due today when high-priority tasks exist', () => {
   const items = buildActionItems({
     clients: baseClients,

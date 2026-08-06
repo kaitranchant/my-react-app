@@ -22,6 +22,7 @@ type CalendarMonthGridProps = {
   scheduledDays: CalendarDaySummary[]
   onMonthChange: (year: number, month: number) => void
   onSelectDate: (dateKey: string) => void
+  onSelectWorkout?: (workoutId: string, dateKey: string) => void
   onDayDoubleClick?: (dateKey: string) => void
   variant?: 'compact' | 'full'
   loading?: boolean
@@ -62,34 +63,68 @@ type CalendarDayCellProps = {
   isToday: boolean
   scheduledWorkouts: CalendarDaySummary[]
   onSelectDate: (dateKey: string) => void
+  onSelectWorkout?: (workoutId: string, dateKey: string) => void
   onDayDoubleClick?: (dateKey: string) => void
 }
 
 function ScheduledWorkoutBadge({
   scheduled,
   isSelected,
+  onSelect,
 }: {
   scheduled: CalendarDaySummary
   isSelected: boolean
+  onSelect?: () => void
 }) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
-        getScheduledDayStyles(scheduled, isSelected)
-      )}
-    >
+  const statusLabel = getWorkoutDisplayStatus(
+    scheduled.status,
+    workoutHasProgress(scheduled, [])
+  ).label
+
+  const className = cn(
+    'flex w-full flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
+    getScheduledDayStyles(scheduled, isSelected),
+    onSelect && 'hover:brightness-[0.98] focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none'
+  )
+
+  const content = (
+    <>
       <p className="line-clamp-1 text-xs leading-snug font-semibold">
         {scheduled.name}
       </p>
       <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
         <Dumbbell className="size-2.5 shrink-0" />
-        {getWorkoutDisplayStatus(
-          scheduled.status,
-          workoutHasProgress(scheduled, [])
-        ).label}
+        {statusLabel}
       </p>
-    </div>
+    </>
+  )
+
+  if (!onSelect) {
+    return <div className={className}>{content}</div>
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      title={`Preview ${scheduled.name}`}
+      aria-label={`Preview ${scheduled.name} (${statusLabel})`}
+      onClick={(event) => {
+        event.stopPropagation()
+        onSelect()
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation()
+        event.preventDefault()
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.stopPropagation()
+        }
+      }}
+    >
+      {content}
+    </button>
   )
 }
 
@@ -100,6 +135,7 @@ function CalendarDayCell({
   isToday,
   scheduledWorkouts,
   onSelectDate,
+  onSelectWorkout,
   onDayDoubleClick,
 }: CalendarDayCellProps) {
   const hasWorkouts = scheduledWorkouts.length > 0
@@ -157,6 +193,11 @@ function CalendarDayCell({
               key={scheduled.id}
               scheduled={scheduled}
               isSelected={isSelected}
+              onSelect={
+                onSelectWorkout
+                  ? () => onSelectWorkout(scheduled.id, dateKey)
+                  : undefined
+              }
             />
           ))}
           {hiddenCount > 0 && (
@@ -318,6 +359,7 @@ export function CalendarMonthGrid({
   scheduledDays,
   onMonthChange,
   onSelectDate,
+  onSelectWorkout,
   onDayDoubleClick,
   variant = 'compact',
   loading = false,
@@ -399,6 +441,7 @@ export function CalendarMonthGrid({
                     isToday={cell.isToday}
                     scheduledWorkouts={scheduledWorkouts}
                     onSelectDate={onSelectDate}
+                    onSelectWorkout={onSelectWorkout}
                     onDayDoubleClick={onDayDoubleClick}
                   />
                 )

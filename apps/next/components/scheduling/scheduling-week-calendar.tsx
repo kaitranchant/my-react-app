@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,9 @@ const statusColors: Record<CoachingAppointment['status'], string> = {
   rescheduled: 'bg-muted border-border text-muted-foreground',
 }
 
+const missingWorkoutClassName =
+  'bg-orange-500/15 border-orange-500/50 text-orange-950 dark:text-orange-100'
+
 const blockedTimeClassName =
   'bg-zinc-500/20 border-zinc-400/40 text-zinc-700 dark:text-zinc-200 z-0 bg-[repeating-linear-gradient(-45deg,transparent,transparent_5px,rgba(161,161,170,0.18)_5px,rgba(161,161,170,0.18)_10px)]'
 
@@ -59,6 +62,7 @@ type SchedulingWeekCalendarProps = {
   coachPreferences: CoachPreferences
   weekKeys: string[]
   clientSessionProgress?: Map<string, ClientSessionProgress>
+  appointmentIdsMissingWorkout?: string[]
   onSelectAppointment?: (appointment: CoachingAppointment) => void
   onSelectBlockedTime?: (blockedTime: GoogleCalendarBlockedTime) => void
 }
@@ -100,8 +104,13 @@ function formatAppointmentStartTime(
 
 function getAppointmentBlockClassName(
   appointment: CoachingAppointment,
-  clientSessionProgress?: Map<string, ClientSessionProgress>
+  clientSessionProgress?: Map<string, ClientSessionProgress>,
+  missingWorkout = false
 ) {
+  if (missingWorkout) {
+    return missingWorkoutClassName
+  }
+
   const progress = clientSessionProgress?.get(appointment.client_id)
   const underTarget =
     progress != null &&
@@ -128,6 +137,7 @@ function CalendarGrid({
   blockedTimesByDay,
   coachPreferences,
   clientSessionProgress,
+  missingWorkoutIds,
   onSelectAppointment,
   onSelectBlockedTime,
   columnMinWidth,
@@ -137,6 +147,7 @@ function CalendarGrid({
   blockedTimesByDay: Map<string, GoogleCalendarBlockedTime[]>
   coachPreferences: CoachPreferences
   clientSessionProgress?: Map<string, ClientSessionProgress>
+  missingWorkoutIds: Set<string>
   onSelectAppointment?: (appointment: CoachingAppointment) => void
   onSelectBlockedTime?: (blockedTime: GoogleCalendarBlockedTime) => void
   columnMinWidth?: string
@@ -277,20 +288,35 @@ function CalendarGrid({
                 appointment.starts_at,
                 coachPreferences.timezone
               )
+              const missingWorkout = missingWorkoutIds.has(appointment.id)
 
               return (
                 <button
                   key={appointment.id}
                   type="button"
+                  title={
+                    missingWorkout
+                      ? 'No workout on training calendar for this day'
+                      : undefined
+                  }
                   onClick={() => onSelectAppointment?.(appointment)}
                   className={cn(
                     'absolute inset-x-1 z-10 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:brightness-95',
-                    getAppointmentBlockClassName(appointment, clientSessionProgress)
+                    getAppointmentBlockClassName(
+                      appointment,
+                      clientSessionProgress,
+                      missingWorkout
+                    )
                   )}
                   style={{ top, height }}
                 >
-                  <p className="truncate font-medium">
-                    {clientDisplayName(appointment.client?.full_name)}
+                  <p className="flex min-w-0 items-center gap-1 truncate font-medium">
+                    {missingWorkout ? (
+                      <AlertTriangle className="size-3 shrink-0" aria-hidden />
+                    ) : null}
+                    <span className="truncate">
+                      {clientDisplayName(appointment.client?.full_name)}
+                    </span>
                   </p>
                   {progress ? (
                     <p className="flex min-w-0 items-center gap-1.5">
@@ -318,11 +344,16 @@ export function SchedulingWeekCalendar({
   coachPreferences,
   weekKeys,
   clientSessionProgress,
+  appointmentIdsMissingWorkout = [],
   onSelectAppointment,
   onSelectBlockedTime,
 }: SchedulingWeekCalendarProps) {
   const isMobile = useIsMobile()
   const [dayWindowStart, setDayWindowStart] = React.useState(0)
+  const missingWorkoutIds = React.useMemo(
+    () => new Set(appointmentIdsMissingWorkout),
+    [appointmentIdsMissingWorkout]
+  )
 
   const referenceDate = React.useMemo(
     () => parseDateKey(weekKeys[0] ?? new Date().toISOString().slice(0, 10)),
@@ -468,6 +499,7 @@ export function SchedulingWeekCalendar({
           blockedTimesByDay={blockedTimesByDay}
           coachPreferences={coachPreferences}
           clientSessionProgress={clientSessionProgress}
+          missingWorkoutIds={missingWorkoutIds}
           onSelectAppointment={onSelectAppointment}
           onSelectBlockedTime={onSelectBlockedTime}
           columnMinWidth={isMobile ? undefined : '96px'}
@@ -491,6 +523,14 @@ export function SchedulingWeekCalendar({
             {appointmentStatusLabels[status]}
           </Badge>
         ))}
+        {missingWorkoutIds.size > 0 ? (
+          <Badge
+            variant="outline"
+            className={cn('font-normal', missingWorkoutClassName)}
+          >
+            No workout that day
+          </Badge>
+        ) : null}
       </div>
     </div>
   )

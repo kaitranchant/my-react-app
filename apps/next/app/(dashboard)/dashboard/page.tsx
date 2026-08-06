@@ -24,6 +24,12 @@ import {
   countCoachTasksDueToday,
   fetchHighPriorityCoachTasks,
 } from '@/lib/coach-tasks-queries'
+import { addDaysToDateKey } from '@/lib/calendar'
+import { fetchCoachingAppointments } from '@/lib/session-booking-queries'
+import {
+  fetchClientWorkoutCoverageKeys,
+  findSessionsMissingWorkouts,
+} from '@/lib/session-workout-coverage'
 import { fetchCoachDashboardLoadAlerts } from '@/lib/load-queries'
 import { ActionItems } from '@/components/dashboard/action-items'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
@@ -261,6 +267,40 @@ export default async function DashboardPage() {
     ? await fetchProactiveAlertDismissals(supabase, user.id)
     : []
 
+  const appointmentRangeStart = addDaysToDateKey(weekStart, -1)
+  const appointmentRangeEnd = addDaysToDateKey(weekEnd, 1)
+  const weekAppointments = user
+    ? await fetchCoachingAppointments(
+        supabase,
+        user.id,
+        `${appointmentRangeStart}T00:00:00.000Z`,
+        `${appointmentRangeEnd}T23:59:59.999Z`
+      )
+    : []
+  const weekScheduled = weekAppointments.filter(
+    (appointment) => appointment.status === 'scheduled' && appointment.client_id
+  )
+  const workoutCoverageKeys =
+    weekScheduled.length > 0
+      ? await fetchClientWorkoutCoverageKeys(
+          supabase,
+          [
+            ...new Set(
+              weekScheduled.map((appointment) => appointment.client_id)
+            ),
+          ],
+          weekStart,
+          weekEnd
+        )
+      : new Set<string>()
+  const sessionsMissingWorkouts = findSessionsMissingWorkouts({
+    appointments: weekScheduled,
+    workoutCoverageKeys,
+    timezone: coachPreferences.timezone,
+    todayKey: weekStart,
+    throughDateKey: weekEnd,
+  })
+
   const proactiveAlerts = filterDismissedProactiveAlerts(
     filterProactiveAlertsForNotifications(
       buildProactiveAlerts({
@@ -290,6 +330,7 @@ export default async function DashboardPage() {
       unreadMessages: navBadges.inboxUnread,
       tasksDueToday,
       highPriorityTasks: highPriorityTasks.length,
+      sessionsMissingWorkouts: sessionsMissingWorkouts.length,
     }),
     notificationPreferences ?? defaultNotificationPreferences
   ).filter((item) =>

@@ -33,7 +33,7 @@ const DOUBLE_CLICK_DELAY_MS = 200
 type ProgramDayCellProps = {
   dayOffset: number
   isSelected: boolean
-  scheduled?: ProgramDaySummary
+  scheduledWorkouts?: ProgramDaySummary[]
   onSelectDay: (dayOffset: number) => void
   onDayDoubleClick?: (dayOffset: number) => void
 }
@@ -41,7 +41,7 @@ type ProgramDayCellProps = {
 function ProgramDayCell({
   dayOffset,
   isSelected,
-  scheduled,
+  scheduledWorkouts = [],
   onSelectDay,
   onDayDoubleClick,
 }: ProgramDayCellProps) {
@@ -87,7 +87,7 @@ function ProgramDayCell({
       }}
       title={
         onDayDoubleClick
-          ? scheduled
+          ? scheduledWorkouts.length > 0
             ? 'Double-click to edit workout'
             : 'Double-click to add workout'
           : undefined
@@ -110,22 +110,27 @@ function ProgramDayCell({
         </span>
       </div>
 
-      {scheduled ? (
-        <div
-          className={cn(
-            'mt-2 flex flex-1 flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
-            isSelected
-              ? 'border-brand/30 bg-brand/10'
-              : 'border-border bg-background group-hover:border-brand/20 group-hover:bg-muted/40'
-          )}
-        >
-          <p className="line-clamp-2 text-xs leading-snug font-semibold">
-            {scheduled.name}
-          </p>
-          <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
-            <Dumbbell className="size-2.5 shrink-0" />
-            Scheduled
-          </p>
+      {scheduledWorkouts.length > 0 ? (
+        <div className="mt-2 flex flex-1 flex-col gap-1.5">
+          {scheduledWorkouts.map((workout) => (
+            <div
+              key={workout.id}
+              className={cn(
+                'flex flex-col rounded-md border px-2 py-1.5 text-left transition-colors',
+                isSelected
+                  ? 'border-brand/30 bg-brand/10'
+                  : 'border-border bg-background group-hover:border-brand/20 group-hover:bg-muted/40'
+              )}
+            >
+              <p className="line-clamp-2 text-xs leading-snug font-semibold">
+                {workout.name}
+              </p>
+              <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
+                <Dumbbell className="size-2.5 shrink-0" />
+                Scheduled
+              </p>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="mt-auto flex justify-center pb-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -152,9 +157,12 @@ export function ProgramWeekGrid({
   canCopyWeek = false,
   loading = false,
 }: ProgramWeekGridProps) {
-  const scheduledByOffset = new Map(
-    scheduledWorkouts.map((workout) => [workout.day_offset, workout])
-  )
+  const scheduledByOffset = new Map<number, ProgramDaySummary[]>()
+  for (const workout of scheduledWorkouts) {
+    const existing = scheduledByOffset.get(workout.day_offset) ?? []
+    existing.push(workout)
+    scheduledByOffset.set(workout.day_offset, existing)
+  }
   const weekPhase =
     getPhaseForDayOffset(phases, dayOffsets[0]) ??
     getPhaseForDayOffset(phases, selectedDayOffset)
@@ -235,7 +243,7 @@ export function ProgramWeekGrid({
 
         <div className={cn('grid grid-cols-7', loading && 'opacity-60')}>
           {dayOffsets.map((dayOffset) => {
-            const scheduled = scheduledByOffset.get(dayOffset)
+            const dayScheduled = scheduledByOffset.get(dayOffset) ?? []
             const isSelected = dayOffset === selectedDayOffset
 
             return (
@@ -243,7 +251,7 @@ export function ProgramWeekGrid({
                 key={dayOffset}
                 dayOffset={dayOffset}
                 isSelected={isSelected}
-                scheduled={scheduled}
+                scheduledWorkouts={dayScheduled}
                 onSelectDay={onSelectDay}
                 onDayDoubleClick={onDayDoubleClick}
               />

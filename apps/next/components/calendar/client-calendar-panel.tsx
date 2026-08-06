@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ClipboardList,
   Copy,
+  Eye,
   LibraryBig,
   Loader2,
   Pencil,
@@ -36,6 +37,7 @@ import { PrintWorkoutButton } from '@/components/calendar/print-workout-button'
 import { SelectWorkoutDialog } from '@/components/calendar/select-workout-dialog'
 import { WorkoutBuilderModal } from '@/components/calendar/workout-builder-modal'
 import { WorkoutLogModal } from '@/components/calendar/workout-log-modal'
+import { WorkoutPreviewDialog } from '@/components/calendar/workout-preview-dialog'
 import { SchemaSetupNotice } from '@/components/library/schema-setup-notice'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -168,6 +170,7 @@ export function ClientCalendarPanel({
   >(null)
   const [logOpen, setLogOpen] = React.useState(false)
   const [logPickerOpen, setLogPickerOpen] = React.useState(false)
+  const [previewOpen, setPreviewOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createDialogDate, setCreateDialogDate] = React.useState(initialSelectedDate)
   const [copyOpen, setCopyOpen] = React.useState(false)
@@ -273,6 +276,23 @@ export function ClientCalendarPanel({
     void beginLogWorkout(summary.id)
   }
 
+  async function openWorkoutPreview(workoutId: string, dateKey: string) {
+    if (logOpen && workout && workout.scheduled_date !== dateKey) {
+      setLogOpen(false)
+    }
+
+    setSelectedDate(dateKey)
+    setSelectedWorkoutId(workoutId)
+    setPreviewOpen(true)
+    await loadSelectedDayWorkout(dateKey, workoutId)
+  }
+
+  function handlePreviewWorkoutClick() {
+    const summary = activeDaySummary ?? selectedDaySummaries[0]
+    if (!summary) return
+    void openWorkoutPreview(summary.id, selectedDate)
+  }
+
   const defaultWorkoutName = personalMode
     ? 'My Workout'
     : `${clientName.split(' ')[0]} Workout`
@@ -363,6 +383,13 @@ export function ClientCalendarPanel({
     workout.id === activeDaySummary?.id
       ? workout
       : null
+
+  function getLogButtonLabel() {
+    const status = displayWorkout?.status ?? activeDaySummary?.status
+    if (status === 'completed') return 'View log'
+    if (status === 'skipped') return 'View workout'
+    return 'Log workout'
+  }
 
   function invalidateMonthCache(targetYear?: number, targetMonth?: number) {
     if (targetYear !== undefined && targetMonth !== undefined) {
@@ -1038,15 +1065,18 @@ export function ClientCalendarPanel({
                   onClick={handleLogWorkoutClick}
                 >
                   <ClipboardList className="size-4" />
-                  {displayWorkout?.status === 'completed' ||
-                  activeDaySummary?.status === 'completed'
-                    ? 'View log'
-                    : displayWorkout?.status === 'skipped' ||
-                        activeDaySummary?.status === 'skipped'
-                      ? 'View workout'
-                      : 'Log workout'}
+                  {getLogButtonLabel()}
                 </Button>
               ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePreviewWorkoutClick}
+              >
+                <Eye className="size-4" />
+                Details
+              </Button>
               {displayWorkout && (
                 <>
                   <Button
@@ -1124,6 +1154,9 @@ export function ClientCalendarPanel({
         loading={loading}
         onMonthChange={handleMonthChange}
         onSelectDate={handleSelectDate}
+        onSelectWorkout={(workoutId, dateKey) => {
+          void openWorkoutPreview(workoutId, dateKey)
+        }}
         onDayDoubleClick={handleDayDoubleClick}
       />
 
@@ -1176,6 +1209,35 @@ export function ClientCalendarPanel({
         onOpenChange={setLogPickerOpen}
         workouts={selectedDaySummaries}
         onSelect={(workoutId) => void beginLogWorkout(workoutId)}
+      />
+
+      <WorkoutPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        workout={
+          displayWorkout &&
+          displayWorkout.id === (activeDaySummary?.id ?? selectedWorkoutId)
+            ? displayWorkout
+            : null
+        }
+        loading={workoutLoading}
+        selectedDate={selectedDate}
+        logLabel={getLogButtonLabel()}
+        onLog={
+          isTeamCalendar
+            ? undefined
+            : () => {
+                const id = activeDaySummary?.id ?? selectedWorkoutId
+                if (id) void beginLogWorkout(id)
+              }
+        }
+        onEdit={
+          displayWorkout
+            ? () => {
+                setBuilderOpen(true)
+              }
+            : undefined
+        }
       />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

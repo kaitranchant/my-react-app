@@ -58,6 +58,7 @@ type SchedulingPageTabsProps = {
   connectSuccess: boolean
   googleBlockedTimes: GoogleCalendarBlockedTime[]
   weekOverrides: Array<{ client_id: string; target_sessions: number }>
+  appointmentIdsMissingWorkout?: string[]
 }
 
 function readViewFromLocation(): SchedulingViewMode {
@@ -92,6 +93,7 @@ export function SchedulingPageTabs({
   connectSuccess,
   googleBlockedTimes,
   weekOverrides,
+  appointmentIdsMissingWorkout = [],
 }: SchedulingPageTabsProps) {
   const pathname = usePathname()
   const [view, setView] = React.useState(initialView)
@@ -169,6 +171,7 @@ export function SchedulingPageTabs({
               weeklyTargetsEnabled={settings.weekly_session_targets_enabled}
               clientDefaults={clients}
               weekOverrides={weekOverrides}
+              appointmentIdsMissingWorkout={appointmentIdsMissingWorkout}
             />
           </CardContent>
         </Card>

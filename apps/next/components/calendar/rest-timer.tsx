@@ -10,13 +10,16 @@ import { cn } from '@/lib/utils'
 type RestTimerState = {
   exerciseName: string
   totalSeconds: number
+  /** Seconds left while paused; ignored while running (derived from endsAt). */
   remainingSeconds: number
+  /** Absolute deadline in ms; null while paused. */
+  endsAt: number | null
   paused: boolean
-  startedAt: number
 }
 
 type RestTimerContextValue = {
   activeTimer: RestTimerState | null
+  displayRemainingSeconds: number
   startRestTimer: (exerciseName: string, seconds: number) => void
   dismissRestTimer: () => void
   pauseRestTimer: () => void
@@ -37,11 +40,17 @@ export function useRestTimer() {
   return ctx
 }
 
+function remainingFromEndsAt(endsAt: number | null, fallback: number) {
+  if (endsAt == null) return fallback
+  return Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+}
+
 export function RestTimerProvider({ children }: { children: React.ReactNode }) {
   const [activeTimer, setActiveTimer] = React.useState<RestTimerState | null>(
     null
   )
   const [overlayOpen, setOverlayOpen] = React.useState(false)
+  const [nowMs, setNowMs] = React.useState(() => Date.now())
   const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
   const clearIntervalRef = React.useCallback(() => {
@@ -61,54 +70,83 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
     (exerciseName: string, seconds: number) => {
       clearIntervalRef()
       setOverlayOpen(false)
+      const totalSeconds = Math.max(0, Math.round(seconds))
       setActiveTimer({
         exerciseName,
-        totalSeconds: seconds,
-        remainingSeconds: seconds,
+        totalSeconds,
+        remainingSeconds: totalSeconds,
+        endsAt: Date.now() + totalSeconds * 1000,
         paused: false,
-        startedAt: Date.now(),
       })
+      setNowMs(Date.now())
     },
     [clearIntervalRef]
   )
 
   const pauseRestTimer = React.useCallback(() => {
-    setActiveTimer((current) =>
-      current ? { ...current, paused: true } : current
-    )
+    setActiveTimer((current) => {
+      if (!current || current.paused) return current
+      const remaining = remainingFromEndsAt(
+        current.endsAt,
+        current.remainingSeconds
+      )
+      return {
+        ...current,
+        remainingSeconds: remaining,
+        endsAt: null,
+        paused: true,
+      }
+    })
   }, [])
 
   const resumeRestTimer = React.useCallback(() => {
-    setActiveTimer((current) =>
-      current ? { ...current, paused: false } : current
-    )
+    setActiveTimer((current) => {
+      if (!current || !current.paused) return current
+      const remaining = Math.max(0, current.remainingSeconds)
+      return {
+        ...current,
+        remainingSeconds: remaining,
+        endsAt: Date.now() + remaining * 1000,
+        paused: false,
+      }
+    })
+    setNowMs(Date.now())
   }, [])
 
   const resetRestTimer = React.useCallback(() => {
-    setActiveTimer((current) =>
-      current
-        ? {
-            ...current,
-            remainingSeconds: current.totalSeconds,
-            paused: false,
-          }
-        : current
-    )
+    setActiveTimer((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        remainingSeconds: current.totalSeconds,
+        endsAt: Date.now() + current.totalSeconds * 1000,
+        paused: false,
+      }
+    })
+    setNowMs(Date.now())
   }, [])
 
   const addRestTime = React.useCallback(() => {
-    setActiveTimer((current) =>
-      current
-        ? {
-            ...current,
-            remainingSeconds: current.remainingSeconds + 15,
-            totalSeconds: Math.max(
-              current.totalSeconds,
-              current.remainingSeconds + 15
-            ),
-          }
-        : current
-    )
+    setActiveTimer((current) => {
+      if (!current) return current
+      if (current.paused || current.endsAt == null) {
+        const remaining = current.remainingSeconds + 15
+        return {
+          ...current,
+          remainingSeconds: remaining,
+          totalSeconds: Math.max(current.totalSeconds, remaining),
+        }
+      }
+      const nextEndsAt = current.endsAt + 15_000
+      const remaining = remainingFromEndsAt(nextEndsAt, current.remainingSeconds)
+      return {
+        ...current,
+        endsAt: nextEndsAt,
+        remainingSeconds: remaining,
+        totalSeconds: Math.max(current.totalSeconds, remaining),
+      }
+    })
+    setNowMs(Date.now())
   }, [])
 
   const openRestTimerOverlay = React.useCallback(() => {
@@ -125,33 +163,70 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeTimer])
 
+  const syncFromWallClock = React.useCallback(() => {
+    setNowMs(Date.now())
+    setActiveTimer((current) => {
+      if (!current || current.paused || current.endsAt == null) return current
+      const remaining = remainingFromEndsAt(
+        current.endsAt,
+        current.remainingSeconds
+      )
+      if (remaining <= 0) {
+        clearIntervalRef()
+        setOverlayOpen(false)
+        return null
+      }
+      if (remaining === current.remainingSeconds) return current
+      return { ...current, remainingSeconds: remaining }
+    })
+  }, [clearIntervalRef])
+
   React.useEffect(() => {
     if (!activeTimer || activeTimer.paused) {
       clearIntervalRef()
       return
     }
 
-    intervalRef.current = setInterval(() => {
-      setActiveTimer((current) => {
-        if (!current || current.paused) return current
+    syncFromWallClock()
+    intervalRef.current = setInterval(syncFromWallClock, 250)
 
-        const next = current.remainingSeconds - 1
-        if (next <= 0) {
-          clearIntervalRef()
-          return null
-        }
+    function onVisibilityOrFocus() {
+      if (document.visibilityState === 'visible') {
+        syncFromWallClock()
+      }
+    }
 
-        return { ...current, remainingSeconds: next }
-      })
-    }, 1000)
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+    window.addEventListener('pageshow', onVisibilityOrFocus)
 
-    return clearIntervalRef
-  }, [activeTimer?.paused, activeTimer?.startedAt, clearIntervalRef])
+    return () => {
+      clearIntervalRef()
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+      window.removeEventListener('pageshow', onVisibilityOrFocus)
+    }
+  }, [
+    activeTimer?.paused,
+    activeTimer?.endsAt,
+    clearIntervalRef,
+    syncFromWallClock,
+  ])
+
+  const displayRemainingSeconds = activeTimer
+    ? activeTimer.paused || activeTimer.endsAt == null
+      ? activeTimer.remainingSeconds
+      : remainingFromEndsAt(activeTimer.endsAt, activeTimer.remainingSeconds)
+    : 0
+
+  // Keep displayRemainingSeconds reactive to nowMs ticks while running.
+  void nowMs
 
   return (
     <RestTimerContext.Provider
       value={{
         activeTimer,
+        displayRemainingSeconds,
         startRestTimer,
         dismissRestTimer,
         pauseRestTimer,
@@ -168,7 +243,7 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
           open={overlayOpen}
           onMinimize={closeRestTimerOverlay}
           title={activeTimer.exerciseName}
-          remainingSeconds={activeTimer.remainingSeconds}
+          remainingSeconds={displayRemainingSeconds}
           totalSeconds={activeTimer.totalSeconds}
           paused={activeTimer.paused}
           variant="rest"
@@ -216,6 +291,7 @@ export function RestTimerChip({
 }) {
   const {
     activeTimer,
+    displayRemainingSeconds,
     startRestTimer,
     dismissRestTimer,
     pauseRestTimer,
@@ -227,7 +303,7 @@ export function RestTimerChip({
 
   const isActive = activeTimer?.exerciseName === exerciseName
 
-  if (!isActive) {
+  if (!isActive || !activeTimer) {
     return (
       <button
         type="button"
@@ -245,7 +321,7 @@ export function RestTimerChip({
 
   const progress =
     activeTimer.totalSeconds > 0
-      ? (activeTimer.totalSeconds - activeTimer.remainingSeconds) /
+      ? (activeTimer.totalSeconds - displayRemainingSeconds) /
         activeTimer.totalSeconds
       : 0
 
@@ -256,7 +332,7 @@ export function RestTimerChip({
         className
       )}
       role="timer"
-      aria-label={`Rest timer: ${formatElapsedTime(activeTimer.remainingSeconds)} remaining`}
+      aria-label={`Rest timer: ${formatElapsedTime(displayRemainingSeconds)} remaining`}
     >
       <div
         className="bg-brand/15 absolute inset-y-0 left-0 transition-[width] duration-1000 ease-linear"
@@ -271,7 +347,7 @@ export function RestTimerChip({
       >
         <Clock className="size-3.5 shrink-0" />
         <span className="min-w-[2.75rem] tabular-nums font-semibold">
-          {formatElapsedTime(activeTimer.remainingSeconds)}
+          {formatElapsedTime(displayRemainingSeconds)}
         </span>
       </button>
       <div className="relative flex items-center">

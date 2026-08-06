@@ -52,6 +52,7 @@ type SchedulingWeekPanelProps = {
   weeklyTargetsEnabled: boolean
   clientDefaults: ClientWeeklySessionDefault[]
   weekOverrides: Array<{ client_id: string; target_sessions: number }>
+  appointmentIdsMissingWorkout?: string[]
 }
 
 type WeekViewMode = 'calendar' | 'list'
@@ -62,6 +63,7 @@ type WeekData = {
   googleBlockedTimes: GoogleCalendarBlockedTime[]
   clientDefaults: ClientWeeklySessionDefault[]
   weekOverrides: Array<{ client_id: string; target_sessions: number }>
+  appointmentIdsMissingWorkout: string[]
 }
 
 function buildWeekData(
@@ -69,7 +71,8 @@ function buildWeekData(
   weekKeys: string[],
   googleBlockedTimes: GoogleCalendarBlockedTime[] = [],
   clientDefaults: ClientWeeklySessionDefault[] = [],
-  weekOverrides: Array<{ client_id: string; target_sessions: number }> = []
+  weekOverrides: Array<{ client_id: string; target_sessions: number }> = [],
+  appointmentIdsMissingWorkout: string[] = []
 ): WeekData {
   return {
     appointments,
@@ -77,6 +80,7 @@ function buildWeekData(
     googleBlockedTimes,
     clientDefaults,
     weekOverrides,
+    appointmentIdsMissingWorkout,
   }
 }
 
@@ -92,6 +96,7 @@ export function SchedulingWeekPanel({
   weeklyTargetsEnabled,
   clientDefaults: initialClientDefaults,
   weekOverrides: initialWeekOverrides,
+  appointmentIdsMissingWorkout: initialAppointmentIdsMissingWorkout = [],
 }: SchedulingWeekPanelProps) {
   const pathname = usePathname()
   const weekCacheRef = React.useRef(new Map<string, WeekData>())
@@ -104,7 +109,8 @@ export function SchedulingWeekPanel({
       initialWeekKeys,
       initialGoogleBlockedTimes,
       initialClientDefaults,
-      initialWeekOverrides
+      initialWeekOverrides,
+      initialAppointmentIdsMissingWorkout
     )
   )
   const [isLoading, setIsLoading] = React.useState(false)
@@ -157,13 +163,15 @@ export function SchedulingWeekPanel({
       initialWeekKeys,
       initialGoogleBlockedTimes,
       initialClientDefaults,
-      initialWeekOverrides
+      initialWeekOverrides,
+      initialAppointmentIdsMissingWorkout
     )
     setWeekData(next)
     weekCacheRef.current.set(initialWeekKeys[0]!, next)
     lastFetchedAtRef.current.set(initialWeekKeys[0]!, Date.now())
   }, [
     initialAppointments,
+    initialAppointmentIdsMissingWorkout,
     initialClientDefaults,
     initialGoogleBlockedTimes,
     initialWeekKeys,
@@ -207,7 +215,8 @@ export function SchedulingWeekPanel({
             result.weekKeys,
             result.googleBlockedTimes,
             result.clientDefaults,
-            result.weekOverrides
+            result.weekOverrides,
+            result.appointmentIdsMissingWorkout
           )
         )
         lastFetchedAtRef.current.set(targetWeekStart, Date.now())
@@ -249,7 +258,8 @@ export function SchedulingWeekPanel({
           result.weekKeys,
           result.googleBlockedTimes,
           result.clientDefaults,
-          result.weekOverrides
+          result.weekOverrides,
+          result.appointmentIdsMissingWorkout
         )
         weekCacheRef.current.set(targetWeekStart, next)
         lastFetchedAtRef.current.set(targetWeekStart, Date.now())
@@ -485,6 +495,9 @@ export function SchedulingWeekPanel({
               coachPreferences={coachPreferences}
               weekKeys={weekData.weekKeys}
               clientSessionProgress={clientSessionProgress}
+              appointmentIdsMissingWorkout={
+                weekData.appointmentIdsMissingWorkout
+              }
               onSelectAppointment={openManage}
               onSelectBlockedTime={openBlockedTime}
             />
