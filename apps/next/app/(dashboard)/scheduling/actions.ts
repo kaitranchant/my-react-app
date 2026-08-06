@@ -2599,16 +2599,16 @@ export async function fetchSchedulingWeekData(
       )
     : []
 
-  const scheduledClientIds = [
-    ...new Set(
+  const scheduledClientIds = Array.from(
+    new Set(
       appointments
         .filter(
           (appointment) =>
             appointment.status === 'scheduled' && appointment.client_id
         )
         .map((appointment) => appointment.client_id)
-    ),
-  ]
+    )
+  )
 
   const workoutCoverageKeys =
     scheduledClientIds.length > 0

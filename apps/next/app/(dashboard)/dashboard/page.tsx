@@ -284,11 +284,11 @@ export default async function DashboardPage() {
     weekScheduled.length > 0
       ? await fetchClientWorkoutCoverageKeys(
           supabase,
-          [
-            ...new Set(
+          Array.from(
+            new Set(
               weekScheduled.map((appointment) => appointment.client_id)
-            ),
-          ],
+            )
+          ),
           weekStart,
           weekEnd
         )
