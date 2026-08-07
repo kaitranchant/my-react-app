@@ -127,14 +127,14 @@ export function AppointmentManageDialog({
   const endSeriesConfirm = useConfirmDialog({
     title: 'Stop recurring sessions?',
     description:
-      'This cancels all future sessions from today onward and stops the weekly series. To cancel from a specific session instead, use Cancel session.',
-    confirmLabel: 'Stop recurring sessions',
+      'This permanently removes all future sessions for this client from today onward and stops the weekly series. Past sessions stay on your calendar.',
+    confirmLabel: 'Delete future sessions',
     destructive: true,
     onConfirm: async () => {
       if (!appointment?.series_id) return
       const result = await endCoachingAppointmentSeries(appointment.series_id)
       if (result.success) {
-        await refreshAfterSuccess('Recurring sessions stopped')
+        await refreshAfterSuccess('Future sessions deleted')
       } else {
         toast.error(result.error)
         throw new Error(result.error)

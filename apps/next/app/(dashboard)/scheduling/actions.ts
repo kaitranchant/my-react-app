@@ -1187,16 +1187,15 @@ export async function endCoachingAppointmentSeries(
   }
 
   const nowIso = new Date().toISOString()
-  const { error: cancelError } = await cancelScheduledSeriesAppointments(
+  const { error: deleteError } = await deleteScheduledSeriesAppointments(
     ctx.supabase,
     ctx.user.id,
     seriesScope,
-    nowIso,
-    'Recurring series ended by coach'
+    nowIso
   )
 
-  if (cancelError) {
-    return { success: false, error: cancelError.message }
+  if (deleteError) {
+    return { success: false, error: deleteError.message }
   }
 
   const { error: seriesError } = await ctx.supabase
