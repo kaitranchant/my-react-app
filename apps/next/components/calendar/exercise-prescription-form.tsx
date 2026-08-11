@@ -199,9 +199,14 @@ function CollapsibleSection({
   defaultOpen: boolean
   children: React.ReactNode
 }) {
+  const [open, setOpen] = React.useState(defaultOpen)
+
   return (
     <details
-      defaultOpen={defaultOpen}
+      open={open}
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open)
+      }}
       className="group rounded-lg border border-border/60 border-l-2 border-l-brand bg-muted/20"
     >
       <summary className="cursor-pointer list-none px-3 py-2.5 [&::-webkit-details-marker]:hidden">
