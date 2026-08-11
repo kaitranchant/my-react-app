@@ -1,5 +1,7 @@
+import { Suspense } from 'react'
+
 import { createClient } from '@/lib/supabase/server'
-import { getMonthDateRange, getWeekDayLabels, toDateKey, addDaysToDateKey } from '@/lib/calendar'
+import { getWeekDayLabels, toDateKey, addDaysToDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences, getCoachDateKey } from '@/lib/coach-preferences'
 import {
   getCoachOnboardingMilestoneTemplate,
@@ -11,6 +13,10 @@ import { fetchTrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import { hasNutritionTargets } from '@/lib/nutrition'
 import { averageAdherenceScore } from '@/lib/nutrition-trends'
 import { ClientDetailOverviewSection } from '@/components/clients/client-detail-overview-section'
+import type { CoachPreferences } from '@/lib/coach-preferences'
+import type { ClientOnboardingMilestoneTemplate } from '@/lib/client-onboarding'
+import type { RecentPrHighlight } from '@/lib/pr-records'
+import type { TrainingConsistencyHeatmap } from '@/lib/training-consistency'
 import type {
   CalendarDaySummary,
   Client,
@@ -22,6 +28,55 @@ type ClientDetailOverviewPanelProps = {
   client: Client
   clientId: string
   coachUserId: string | null
+}
+
+type OverviewCoreProps = {
+  client: Client
+  activeAssignment: ClientProgramAssignment | null
+  weekSessions: CalendarDaySummary[]
+  recentWorkouts: ClientWorkoutActivity[]
+  streakWorkouts: ClientWorkoutActivity[]
+  checkIns: ClientCheckIn[]
+  coachPreferences: CoachPreferences
+  onboardingMilestoneTemplate: ClientOnboardingMilestoneTemplate
+  assessmentCount: number
+  nutritionSnapshot: {
+    hasTargets: boolean
+    hasMealPlan: boolean
+    lastLogDate: string | null
+    avgAdherence7d: number | null
+    loggedToday: boolean
+  }
+}
+
+async function ClientDetailOverviewLoadEnrichment({
+  clientId,
+  weekStartsOn,
+  core,
+}: {
+  clientId: string
+  weekStartsOn: CoachPreferences['weekStartsOn']
+  core: OverviewCoreProps
+}) {
+  const supabase = await createClient()
+  const [loadMetrics, trainingConsistency] = await Promise.all([
+    fetchClientLoadMetrics(supabase, clientId),
+    fetchTrainingConsistencyHeatmap(supabase, clientId, weekStartsOn),
+  ])
+
+  return (
+    <ClientDetailOverviewSection
+      {...core}
+      loadMetrics={{
+        thisWeekVolume: loadMetrics.thisWeekVolume,
+        volumeDeltaLabel: loadMetrics.volumeDeltaLabel,
+        acwrLabel: loadMetrics.acwrLabel,
+        acwrVariant: loadMetrics.acwrVariant,
+      }}
+      recentPrs={loadMetrics.recentPrs}
+      trainingConsistency={trainingConsistency}
+    />
+  )
 }
 
 export async function ClientDetailOverviewPanel({
@@ -128,54 +183,43 @@ export async function ClientDetailOverviewPanel({
       .eq('client_id', clientId),
   ])
 
-  const activeAssignment = assignmentData
-    ? (assignmentData as ClientProgramAssignment)
-    : null
-  const weekSessions = (weekResult.data ?? []) as CalendarDaySummary[]
-  const recentWorkouts = (recentWorkoutsResult.data ??
-    []) as ClientWorkoutActivity[]
-  const streakWorkouts = (streakWorkoutsResult.data ??
-    []) as ClientWorkoutActivity[]
-  const checkIns = (checkInsResult.data ?? []) as ClientCheckIn[]
-  const nutritionProfile = nutritionProfileResult.data ?? null
-  const recentNutritionLogs = recentNutritionLogsResult.data ?? []
-  const nutritionSnapshot = {
-    hasTargets: hasNutritionTargets(nutritionProfile),
-    hasMealPlan: Boolean(activeMealPlanResult.data),
-    lastLogDate: recentNutritionLogs[0]?.log_date ?? null,
-    avgAdherence7d: averageAdherenceScore(recentNutritionLogs),
-    loggedToday: Boolean(todayNutritionLogResult.data),
+  const core: OverviewCoreProps = {
+    client,
+    activeAssignment: assignmentData
+      ? (assignmentData as ClientProgramAssignment)
+      : null,
+    weekSessions: (weekResult.data ?? []) as CalendarDaySummary[],
+    recentWorkouts: (recentWorkoutsResult.data ?? []) as ClientWorkoutActivity[],
+    streakWorkouts: (streakWorkoutsResult.data ?? []) as ClientWorkoutActivity[],
+    checkIns: (checkInsResult.data ?? []) as ClientCheckIn[],
+    coachPreferences,
+    onboardingMilestoneTemplate,
+    assessmentCount: assessmentCountResult.count ?? 0,
+    nutritionSnapshot: {
+      hasTargets: hasNutritionTargets(nutritionProfileResult.data ?? null),
+      hasMealPlan: Boolean(activeMealPlanResult.data),
+      lastLogDate: (recentNutritionLogsResult.data ?? [])[0]?.log_date ?? null,
+      avgAdherence7d: averageAdherenceScore(recentNutritionLogsResult.data ?? []),
+      loggedToday: Boolean(todayNutritionLogResult.data),
+    },
   }
 
-  const [loadMetrics, trainingConsistency] = await Promise.all([
-    fetchClientLoadMetrics(supabase, clientId),
-    fetchTrainingConsistencyHeatmap(
-      supabase,
-      clientId,
-      coachPreferences.weekStartsOn
-    ),
-  ])
-
   return (
-    <ClientDetailOverviewSection
-      client={client}
-      activeAssignment={activeAssignment}
-      weekSessions={weekSessions}
-      recentWorkouts={recentWorkouts}
-      streakWorkouts={streakWorkouts}
-      checkIns={checkIns}
-      loadMetrics={{
-        thisWeekVolume: loadMetrics.thisWeekVolume,
-        volumeDeltaLabel: loadMetrics.volumeDeltaLabel,
-        acwrLabel: loadMetrics.acwrLabel,
-        acwrVariant: loadMetrics.acwrVariant,
-      }}
-      recentPrs={loadMetrics.recentPrs}
-      trainingConsistency={trainingConsistency}
-      coachPreferences={coachPreferences}
-      onboardingMilestoneTemplate={onboardingMilestoneTemplate}
-      assessmentCount={assessmentCountResult.count ?? 0}
-      nutritionSnapshot={nutritionSnapshot}
-    />
+    <Suspense
+      fallback={
+        <ClientDetailOverviewSection
+          {...core}
+          loadMetrics={undefined}
+          recentPrs={[] as RecentPrHighlight[]}
+          trainingConsistency={null as TrainingConsistencyHeatmap | null}
+        />
+      }
+    >
+      <ClientDetailOverviewLoadEnrichment
+        clientId={clientId}
+        weekStartsOn={coachPreferences.weekStartsOn}
+        core={core}
+      />
+    </Suspense>
   )
 }

@@ -27,6 +27,7 @@ import {
   getCalendarMonthSummaries,
   getClientWorkoutWithExercises,
   getSchedulableWorkoutTemplates,
+  loadCoachExerciseLibrary,
   scheduleProgramWorkoutTemplateToDate,
   type CalendarCopyTargetClient,
   type SchedulableWorkoutTemplate,
@@ -165,6 +166,10 @@ export function ClientCalendarPanel({
   )
   const [pending, setPending] = React.useState(false)
   const [builderOpen, setBuilderOpen] = React.useState(false)
+  const [exerciseLibrary, setExerciseLibrary] = React.useState(exercises)
+  const [exerciseLibraryLoading, setExerciseLibraryLoading] =
+    React.useState(false)
+  const exerciseLibraryPromiseRef = React.useRef<Promise<boolean> | null>(null)
   const [openBuilderForDate, setOpenBuilderForDate] = React.useState<
     string | null
   >(null)
@@ -248,6 +253,8 @@ export function ClientCalendarPanel({
     if (!workoutToLog) return
 
     setActiveLogWorkout(workoutToLog)
+    const ready = await ensureExerciseLibrary()
+    if (!ready) return
     openWorkoutLog({
       router,
       isMobile,
@@ -306,11 +313,52 @@ export function ClientCalendarPanel({
   })
 
   React.useEffect(() => {
+    if (exercises.length > 0) {
+      setExerciseLibrary(exercises)
+    }
+  }, [exercises])
+
+  const ensureExerciseLibrary = React.useCallback(async () => {
+    if (exerciseLibrary.length > 0) return true
+    if (exerciseLibraryPromiseRef.current) {
+      return exerciseLibraryPromiseRef.current
+    }
+
+    setExerciseLibraryLoading(true)
+    const promise = loadCoachExerciseLibrary()
+      .then((result) => {
+        if (!result.success) {
+          toast.error(result.error)
+          return false
+        }
+        setExerciseLibrary(result.exercises)
+        return true
+      })
+      .catch(() => {
+        toast.error('Failed to load exercise library.')
+        return false
+      })
+      .finally(() => {
+        setExerciseLibraryLoading(false)
+        exerciseLibraryPromiseRef.current = null
+      })
+
+    exerciseLibraryPromiseRef.current = promise
+    return promise
+  }, [exerciseLibrary.length])
+
+  const openWorkoutBuilder = React.useCallback(async () => {
+    const ready = await ensureExerciseLibrary()
+    if (!ready) return
+    setBuilderOpen(true)
+  }, [ensureExerciseLibrary])
+
+  React.useEffect(() => {
     if (openBuilderForDate && workout?.scheduled_date === openBuilderForDate) {
       setOpenBuilderForDate(null)
-      setBuilderOpen(true)
+      void openWorkoutBuilder()
     }
-  }, [openBuilderForDate, workout])
+  }, [openBuilderForDate, workout, openWorkoutBuilder])
 
   const copyTargetCount = React.useMemo(() => {
     if (!copyStartDate || !copyEndDate || copyWeekdays.length === 0) {
@@ -473,7 +521,7 @@ export function ClientCalendarPanel({
       setMonth(targetMonth)
     }
     await refreshCalendar(targetYear, targetMonth, scheduleDate)
-    setBuilderOpen(true)
+    await openWorkoutBuilder()
   }
 
   async function scheduleFromTemplate(
@@ -681,7 +729,7 @@ export function ClientCalendarPanel({
     setSelectedWorkoutId(summary!.id)
 
     if (workout?.scheduled_date === dateKey && workout.id === summary?.id) {
-      setBuilderOpen(true)
+      await openWorkoutBuilder()
       return
     }
 
@@ -1083,9 +1131,16 @@ export function ClientCalendarPanel({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setBuilderOpen(true)}
+                    onClick={() => {
+                      void openWorkoutBuilder()
+                    }}
+                    disabled={exerciseLibraryLoading}
                   >
-                    <Pencil className="size-4" />
+                    {exerciseLibraryLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Pencil className="size-4" />
+                    )}
                     Edit workout
                   </Button>
                   <PrintWorkoutButton
@@ -1173,7 +1228,7 @@ export function ClientCalendarPanel({
           calendarVariant={calendarVariant}
           selectedDate={selectedDate}
           workout={workout}
-          exercises={exercises}
+          exercises={exerciseLibrary}
           onChanged={async (nextWorkout) => {
             if (nextWorkout) {
               setWorkout(nextWorkout)
@@ -1198,7 +1253,7 @@ export function ClientCalendarPanel({
           selectedDate={selectedDate}
           workoutId={(activeLogWorkout ?? workout)!.id}
           initialStatus={(activeLogWorkout ?? workout)!.status}
-          exercises={exercises}
+          exercises={exerciseLibrary}
           onChanged={() => refreshCalendar()}
           weightUnit={weightUnit}
         />
@@ -1234,7 +1289,7 @@ export function ClientCalendarPanel({
         onEdit={
           displayWorkout
             ? () => {
-                setBuilderOpen(true)
+                void openWorkoutBuilder()
               }
             : undefined
         }

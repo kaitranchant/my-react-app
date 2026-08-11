@@ -74,15 +74,31 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const coachPreferences = user
-    ? await getCoachPreferencesForUser(user.id)
-    : defaultCoachPreferences
-  const notificationPreferences = user
-    ? await getNotificationPreferencesForUser(user.id)
-    : null
-  const dashboardPreferences = user
-    ? await getDashboardPreferencesForUser(user.id)
-    : defaultDashboardPreferences
+  const [
+    coachPreferences,
+    notificationPreferences,
+    dashboardPreferences,
+    coachGyms,
+    gettingStartedProgress,
+  ] = await Promise.all([
+    user
+      ? getCoachPreferencesForUser(user.id)
+      : Promise.resolve(defaultCoachPreferences),
+    user
+      ? getNotificationPreferencesForUser(user.id)
+      : Promise.resolve(null),
+    user
+      ? getDashboardPreferencesForUser(user.id)
+      : Promise.resolve(defaultDashboardPreferences),
+    user ? getGymsForCoach(user.id) : Promise.resolve([]),
+    user
+      ? fetchCoachGettingStartedProgress(supabase, user.id)
+      : Promise.resolve({
+          hasClient: false,
+          hasProgramOrWorkout: false,
+          hasScheduledWorkout: false,
+        }),
+  ])
   const today = getCoachDateKey(coachPreferences.timezone)
   const { start: weekStart, end: weekEnd } = getWeekRange(
     coachPreferences.weekStartsOn,
@@ -97,16 +113,6 @@ export default async function DashboardPage() {
   const checkInPeriodLabel = getCheckInPeriodLabel(
     coachPreferences.defaultCheckInFrequency
   )
-
-  const coachGyms = user ? await getGymsForCoach(user.id) : []
-
-  const gettingStartedProgress = user
-    ? await fetchCoachGettingStartedProgress(supabase, user.id)
-    : {
-        hasClient: false,
-        hasProgramOrWorkout: false,
-        hasScheduledWorkout: false,
-      }
 
   const [
     { data: profile },
@@ -252,31 +258,40 @@ export default async function DashboardPage() {
     (c) => !activeClientIdsWithCheckIn.has(c.id)
   ).length
 
-  const loadAlerts =
+  const loadAlertsPromise =
     activeClients.length > 0
-      ? await fetchCoachDashboardLoadAlerts(
+      ? fetchCoachDashboardLoadAlerts(
           supabase,
           activeClients.map((client) => ({
             id: client.id,
             full_name: client.full_name,
           }))
         )
-      : { elevatedLoadCount: 0, injuryFlagCount: 0, clientContexts: [] }
-
-  const proactiveAlertDismissals = user
-    ? await fetchProactiveAlertDismissals(supabase, user.id)
-    : []
+      : Promise.resolve({
+          elevatedLoadCount: 0,
+          injuryFlagCount: 0,
+          clientContexts: [],
+        })
 
   const appointmentRangeStart = addDaysToDateKey(weekStart, -1)
   const appointmentRangeEnd = addDaysToDateKey(weekEnd, 1)
-  const weekAppointments = user
-    ? await fetchCoachingAppointments(
-        supabase,
-        user.id,
-        `${appointmentRangeStart}T00:00:00.000Z`,
-        `${appointmentRangeEnd}T23:59:59.999Z`
-      )
-    : []
+
+  const [loadAlerts, proactiveAlertDismissals, weekAppointments] =
+    await Promise.all([
+      loadAlertsPromise,
+      user
+        ? fetchProactiveAlertDismissals(supabase, user.id)
+        : Promise.resolve([]),
+      user
+        ? fetchCoachingAppointments(
+            supabase,
+            user.id,
+            `${appointmentRangeStart}T00:00:00.000Z`,
+            `${appointmentRangeEnd}T23:59:59.999Z`
+          )
+        : Promise.resolve([]),
+    ])
+
   const weekScheduled = weekAppointments.filter(
     (appointment) => appointment.status === 'scheduled' && appointment.client_id
   )

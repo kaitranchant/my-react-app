@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { ensureCoachCatalogSeeded } from '@/lib/coach-exercise-library.server'
 import { getMonthDateRange, toDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -8,7 +7,6 @@ import type {
   CalendarDaySummary,
   ClientProgramAssignment,
   ClientScheduledWorkoutWithExercises,
-  Exercise,
   Program,
   Workout,
 } from 'app/types/database'
@@ -20,6 +18,10 @@ type ClientDetailTrainingPanelProps = {
   isCoachSelf?: boolean
 }
 
+/**
+ * Calendar-first training panel: month + selected day paint without waiting
+ * for the full exercise catalog seed/load (that happens when the builder opens).
+ */
 export async function ClientDetailTrainingPanel({
   clientId,
   clientName,
@@ -32,22 +34,18 @@ export async function ClientDetailTrainingPanel({
   const month = today.getMonth()
   const selectedDate = toDateKey(today)
   const { start: monthStart, end: monthEnd } = getMonthDateRange(year, month)
-  const coachPreferences = coachUserId
-    ? await getCoachPreferencesForUser(coachUserId)
-    : defaultCoachPreferences
-
-  if (coachUserId) {
-    await ensureCoachCatalogSeeded(supabase, coachUserId)
-  }
 
   const [
+    coachPreferences,
     { data: assignmentData },
     { data: programsData },
     monthResult,
     selectedResult,
-    exercisesResult,
     workoutsResult,
   ] = await Promise.all([
+    coachUserId
+      ? getCoachPreferencesForUser(coachUserId)
+      : Promise.resolve(defaultCoachPreferences),
     supabase
       .from('program_assignments')
       .select('*, program:programs(id, name, description, status), team:teams(id, name)')
@@ -83,11 +81,6 @@ export async function ClientDetailTrainingPanel({
       .limit(1)
       .maybeSingle(),
     supabase
-      .from('exercises')
-      .select('id, name, muscle_group, external_id')
-      .eq('status', 'active')
-      .order('name', { ascending: true }),
-    supabase
       .from('workouts')
       .select('id, name, status')
       .neq('status', 'archived')
@@ -113,10 +106,6 @@ export async function ClientDetailTrainingPanel({
     } as ClientScheduledWorkoutWithExercises
   }
 
-  const exercises = (exercisesResult.data ?? []) as Pick<
-    Exercise,
-    'id' | 'name' | 'muscle_group' | 'external_id'
-  >[]
   const libraryWorkouts = (workoutsResult.data ?? []) as Pick<
     Workout,
     'id' | 'name' | 'status'
@@ -136,7 +125,8 @@ export async function ClientDetailTrainingPanel({
         selectedDate,
         days: (monthResult.data ?? []) as CalendarDaySummary[],
         selectedWorkout,
-        exercises,
+        // Loaded on demand when opening the workout builder / log replace UI.
+        exercises: [],
         libraryWorkouts,
       }}
       coachPreferences={coachPreferences}

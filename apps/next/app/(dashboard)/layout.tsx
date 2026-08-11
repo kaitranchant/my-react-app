@@ -31,16 +31,17 @@ export default async function DashboardLayout({
   }
 
   const role = profile?.role ?? 'coach'
-  const surfaceContext = await getAppSurfaceContext({
-    supabase,
-    userId: user.id,
-    role,
-  })
-
   const name =
     profile?.full_name?.trim() || user.email?.split('@')[0] || 'Coach'
 
-  const navBadges = await fetchCoachNavBadges(supabase, user.id)
+  const [surfaceContext, navBadges] = await Promise.all([
+    getAppSurfaceContext({
+      supabase,
+      userId: user.id,
+      role,
+    }),
+    fetchCoachNavBadges(supabase, user.id),
+  ])
   const notifications = await fetchCoachNotificationItems(
     supabase,
     user.id,

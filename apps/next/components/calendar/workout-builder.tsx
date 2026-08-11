@@ -580,8 +580,8 @@ export function WorkoutBuilder({
         />
       ) : null}
 
-      {/* Desktop + tablet: 3-panel layout */}
-      <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(200px,260px)] md:overflow-hidden">
+      {/* Desktop + tablet: library + flexible prescription + capped order */}
+      <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(280px,340px)] md:overflow-hidden">
         <div className="flex min-h-0 flex-col overflow-hidden border-r">
           <p className="text-muted-foreground shrink-0 border-b px-4 py-2.5 text-xs font-medium">
             Exercise library

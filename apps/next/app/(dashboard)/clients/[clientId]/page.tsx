@@ -46,9 +46,9 @@ export default async function ClientDetailPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const coachGyms = user ? await getGymsForCoach(user.id) : []
 
-  const [{ data }, teamMembershipsResult] = await Promise.all([
+  const [coachGyms, { data }, teamMembershipsResult] = await Promise.all([
+    user ? getGymsForCoach(user.id) : Promise.resolve([]),
     supabase.from('clients').select('*').eq('id', clientId).maybeSingle(),
     supabase
       .from('team_members')
@@ -70,17 +70,24 @@ export default async function ClientDetailPage({
     ? isPrimaryCoach(user.id, client)
     : false
 
-  let primaryCoachName: string | null = null
-  if (!viewerIsPrimaryCoach) {
-    const { data: primaryCoach } = await supabase
-      .from('profiles')
-      .select('full_name, business_name')
-      .eq('id', client.coach_id)
-      .maybeSingle()
+  const [primaryCoachResult, onboardingDocuments] = await Promise.all([
+    !viewerIsPrimaryCoach
+      ? supabase
+          .from('profiles')
+          .select('full_name, business_name')
+          .eq('id', client.coach_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    user && !coachSelf
+      ? fetchClientOnboardingDocumentsSummary(supabase, clientId, user.id)
+      : Promise.resolve(null),
+  ])
 
+  let primaryCoachName: string | null = null
+  if (!viewerIsPrimaryCoach && primaryCoachResult.data) {
     primaryCoachName =
-      primaryCoach?.full_name ??
-      primaryCoach?.business_name ??
+      primaryCoachResult.data.full_name ??
+      primaryCoachResult.data.business_name ??
       'Primary coach'
   }
 
@@ -89,11 +96,6 @@ export default async function ClientDetailPage({
   }[])
     .filter((row) => row.team)
     .map((row) => ({ team: row.team! })) as ClientTeamMembership[]
-
-  const onboardingDocuments =
-    user && !coachSelf
-      ? await fetchClientOnboardingDocumentsSummary(supabase, clientId, user.id)
-      : null
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">

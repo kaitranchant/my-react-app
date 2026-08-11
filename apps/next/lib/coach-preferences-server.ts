@@ -1,3 +1,5 @@
+import { cache } from 'react'
+
 import {
   parseCoachPreferences,
   withPortalWeightUnit,
@@ -10,7 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import type { WeightUnit } from 'app/types/database'
 
-export async function getCoachPreferencesForUser(
+async function getCoachPreferencesForUserImpl(
   userId: string
 ): Promise<CoachPreferences> {
   const supabase = await createClient()
@@ -25,7 +27,9 @@ export async function getCoachPreferencesForUser(
   return parseCoachPreferences(data)
 }
 
-export async function getCoachOnboardingMilestoneTemplate(
+export const getCoachPreferencesForUser = cache(getCoachPreferencesForUserImpl)
+
+async function getCoachOnboardingMilestoneTemplateImpl(
   userId: string
 ): Promise<ClientOnboardingMilestoneTemplate> {
   const supabase = await createClient()
@@ -38,7 +42,11 @@ export async function getCoachOnboardingMilestoneTemplate(
   return parseOnboardingMilestoneTemplate(data?.onboarding_milestone_template)
 }
 
-export async function getCoachPreferencesForCoachId(
+export const getCoachOnboardingMilestoneTemplate = cache(
+  getCoachOnboardingMilestoneTemplateImpl
+)
+
+async function getCoachPreferencesForCoachIdImpl(
   coachId: string
 ): Promise<CoachPreferences> {
   const supabase = await createClient()
@@ -52,6 +60,8 @@ export async function getCoachPreferencesForCoachId(
 
   return parseCoachPreferences(data)
 }
+
+export const getCoachPreferencesForCoachId = cache(getCoachPreferencesForCoachIdImpl)
 
 export async function getPortalWeightUnit(userId: string): Promise<WeightUnit> {
   const preferences = await getCoachPreferencesForUser(userId)

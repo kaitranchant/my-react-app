@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { ensureCoachCatalogSeeded } from '@/lib/coach-exercise-library.server'
 import { getMonthDateRange, toDateKey } from '@/lib/calendar'
 import { defaultCoachPreferences } from '@/lib/coach-preferences'
 import { getCoachPreferencesForUser } from '@/lib/coach-preferences-server'
@@ -9,7 +8,6 @@ import { TeamScheduleSection } from '@/components/teams/team-schedule-section'
 import type {
   CalendarDaySummary,
   ClientScheduledWorkoutWithExercises,
-  Exercise,
   TeamEventWithMemberStatus,
   TeamMemberWithClient,
   Workout,
@@ -47,10 +45,6 @@ export async function TeamSchedulePanel({
     ? await getCoachPreferencesForUser(coachUserId)
     : defaultCoachPreferences
 
-  if (coachUserId) {
-    await ensureCoachCatalogSeeded(supabase, coachUserId)
-  }
-
   if (coachUserId && activeProgramId && programStartDate) {
     await backfillTeamCalendarFromProgram(
       supabase,
@@ -61,8 +55,7 @@ export async function TeamSchedulePanel({
     )
   }
 
-  const [monthResult, selectedResult, exercisesResult, workoutsResult] =
-    await Promise.all([
+  const [monthResult, selectedResult, workoutsResult] = await Promise.all([
       supabase
         .from('team_scheduled_workouts')
         .select('id, scheduled_date, name, created_at')
@@ -87,11 +80,6 @@ export async function TeamSchedulePanel({
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle(),
-      supabase
-        .from('exercises')
-        .select('id, name, muscle_group, external_id')
-        .eq('status', 'active')
-        .order('name', { ascending: true }),
       supabase
         .from('workouts')
         .select('id, name, status')
@@ -155,10 +143,6 @@ export async function TeamSchedulePanel({
     started_at: null,
   }))
 
-  const exercises = (exercisesResult.data ?? []) as Pick<
-    Exercise,
-    'id' | 'name' | 'muscle_group' | 'external_id'
-  >[]
   const libraryWorkouts = (workoutsResult.data ?? []) as Pick<
     Workout,
     'id' | 'name' | 'status'
@@ -174,7 +158,7 @@ export async function TeamSchedulePanel({
           clientId={teamId}
           clientName={teamName}
           calendarVariant="team"
-          exercises={exercises}
+          exercises={[]}
           libraryWorkouts={libraryWorkouts}
           schemaError={monthResult.error?.message ?? null}
           initialYear={year}

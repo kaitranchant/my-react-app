@@ -424,15 +424,44 @@ export async function fetchProgressiveOverloadSuggestions(
   return { suggestions, weekLabel: lastWeek.label, schemaError: null }
 }
 
+/**
+ * Fast badge estimate for nav — avoids the full suggestion pipeline.
+ * Counts last-week completed workouts for clients with progressive overload on.
+ * The progressive-overload page still computes exact suggestions.
+ */
 export async function countPendingProgressiveOverloadSuggestions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   coachId: string,
   coachPreferences: CoachPreferences
 ): Promise<number> {
-  const result = await fetchProgressiveOverloadSuggestions(
-    supabase,
-    coachId,
-    coachPreferences
-  )
-  return result.suggestions.length
+  const lastWeek = getLastWeekBounds(coachPreferences.weekStartsOn)
+
+  const { data: clients, error: clientsError } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('coach_id', coachId)
+    .eq('status', 'active')
+    .eq('is_coach_self', false)
+    .eq('progressive_overload_enabled', true)
+
+  if (clientsError || !clients?.length) {
+    return 0
+  }
+
+  const { count, error } = await supabase
+    .from('client_scheduled_workouts')
+    .select('id', { count: 'exact', head: true })
+    .in(
+      'client_id',
+      clients.map((client) => client.id)
+    )
+    .eq('status', 'completed')
+    .gte('scheduled_date', lastWeek.start)
+    .lte('scheduled_date', lastWeek.end)
+
+  if (error) {
+    return 0
+  }
+
+  return count ?? 0
 }

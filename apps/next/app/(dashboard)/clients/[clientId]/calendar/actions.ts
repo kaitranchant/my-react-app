@@ -74,6 +74,16 @@ export type CalendarCopyTargetClientsResult =
   | { success: true; clients: CalendarCopyTargetClient[] }
   | { success: false; error: string }
 
+export type CoachExerciseLibraryResult =
+  | {
+      success: true
+      exercises: Pick<
+        import('app/types/database').Exercise,
+        'id' | 'name' | 'muscle_group' | 'external_id'
+      >[]
+    }
+  | { success: false; error: string }
+
 async function requireUser() {
   const supabase = await createClient()
   const {
@@ -175,6 +185,33 @@ async function fetchWorkoutWithExercises(
     ...data,
     exercises,
   } as ClientScheduledWorkoutWithExercises
+}
+
+export async function loadCoachExerciseLibrary(): Promise<CoachExerciseLibraryResult> {
+  try {
+    const { supabase, user } = await requireUser()
+    const { ensureCoachCatalogSeeded } = await import(
+      '@/lib/coach-exercise-library.server'
+    )
+    await ensureCoachCatalogSeeded(supabase, user.id)
+
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('id, name, muscle_group, external_id')
+      .eq('status', 'active')
+      .order('name', { ascending: true })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, exercises: data ?? [] }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load exercises.',
+    }
+  }
 }
 
 export async function getClientWorkoutWithExercises(

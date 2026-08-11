@@ -219,8 +219,18 @@ function SortableExerciseItem({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{row.exercise.name}</p>
-            <p className="text-muted-foreground truncate text-xs">{summary}</p>
+            <p
+              className="line-clamp-2 text-sm font-medium leading-snug break-words"
+              title={row.exercise.name}
+            >
+              {row.exercise.name}
+            </p>
+            <p
+              className="text-muted-foreground line-clamp-2 text-xs leading-snug break-words"
+              title={summary}
+            >
+              {summary}
+            </p>
           </div>
         </div>
       </button>
@@ -514,7 +524,7 @@ function SortableSection({
           ) : (
             <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
           )}
-          <span className="truncate text-xs font-medium">
+          <span className="truncate text-xs font-medium" title={segment.label}>
             {segment.label}
           </span>
           <span className="text-muted-foreground ml-auto shrink-0 text-[11px]">

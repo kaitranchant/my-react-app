@@ -72,7 +72,8 @@ export function LibraryExerciseList({
                     onClick={() => onSelect(exercise.id, exercise.name)}
                     className={cn(
                       'hover:bg-muted/50 flex w-full flex-col overflow-hidden rounded-md border text-left transition-colors',
-                      selected && 'border-brand bg-brand/10 ring-brand ring-1'
+                      selected &&
+                        'border-brand bg-brand/10 ring-2 ring-brand ring-offset-1 ring-offset-background'
                     )}
                   >
                     {exercise.external_id ? (

@@ -93,7 +93,7 @@ export function ExerciseLibraryPanel({
                 className={cn(
                   'hover:bg-muted/50 mt-3 w-full rounded-md border px-3 py-2.5 text-left text-sm transition-colors',
                   selection?.source === 'custom' &&
-                    'border-brand bg-brand/10 ring-brand ring-1'
+                    'border-brand bg-brand/10 ring-2 ring-brand ring-offset-1 ring-offset-background'
                 )}
               >
                 Use <span className="font-semibold">{customName.trim()}</span>
