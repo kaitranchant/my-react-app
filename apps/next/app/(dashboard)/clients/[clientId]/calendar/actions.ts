@@ -189,12 +189,10 @@ async function fetchWorkoutWithExercises(
 
 export async function loadCoachExerciseLibrary(): Promise<CoachExerciseLibraryResult> {
   try {
-    const { supabase, user } = await requireUser()
-    const { ensureCoachCatalogSeeded } = await import(
-      '@/lib/coach-exercise-library.server'
-    )
-    await ensureCoachCatalogSeeded(supabase, user.id)
+    const { supabase } = await requireUser()
 
+    // Do not seed the catalog here — seeding can take many seconds and blocked
+    // opening the workout builder. Seed from the exercise library page instead.
     const { data, error } = await supabase
       .from('exercises')
       .select('id, name, muscle_group, external_id')

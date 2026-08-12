@@ -235,8 +235,11 @@ export function FoodDiaryPanel({
     setShowForm(false)
   }
 
-  async function handleMealPlanAdd(meal: Parameters<typeof mealPlanMealToDiaryEntries>[1]) {
-    await submitEntries(mealPlanMealToDiaryEntries(logDate, meal))
+  async function handleMealPlanAdd(
+    meal: Parameters<typeof mealPlanMealToDiaryEntries>[1],
+    mealType: Parameters<typeof mealPlanMealToDiaryEntries>[2]
+  ) {
+    await submitEntries(mealPlanMealToDiaryEntries(logDate, meal, mealType))
   }
 
   async function handleCatalogAdd(snapshot: FoodSelectionSnapshot) {

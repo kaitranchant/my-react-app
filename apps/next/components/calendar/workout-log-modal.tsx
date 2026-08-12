@@ -305,6 +305,27 @@ function normalizeExerciseState(state: ExerciseLogState): ExerciseLogState {
   )
 }
 
+const SAVE_IN_FLIGHT_WAIT_MS = 10_000
+const SAVE_IN_FLIGHT_POLL_MS = 50
+
+async function waitWhile(
+  condition: () => boolean,
+  options?: { timeoutMs?: number; intervalMs?: number }
+): Promise<'cleared' | 'timed_out'> {
+  const timeoutMs = options?.timeoutMs ?? SAVE_IN_FLIGHT_WAIT_MS
+  const intervalMs = options?.intervalMs ?? SAVE_IN_FLIGHT_POLL_MS
+  const startedAt = Date.now()
+
+  while (condition()) {
+    if (Date.now() - startedAt >= timeoutMs) {
+      return 'timed_out'
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+
+  return 'cleared'
+}
+
 function exerciseSetCountsDecreased(
   current: ExerciseLogState,
   lastPersistedSerialized: string
@@ -1538,6 +1559,7 @@ export function WorkoutLogScreen({
   const [celebrationPrs, setCelebrationPrs] = React.useState<WorkoutPrSummary[]>([])
   const [showCelebration, setShowCelebration] = React.useState(false)
   const [showWorkoutComplete, setShowWorkoutComplete] = React.useState(false)
+  const [completingWorkout, setCompletingWorkout] = React.useState(false)
   const [pendingCelebrationPrs, setPendingCelebrationPrs] = React.useState<
     WorkoutPrSummary[]
   >([])
@@ -1884,43 +1906,48 @@ export function WorkoutLogScreen({
         syncSetDeletions: options?.syncSetDeletions ?? false,
       }
 
-      const result = isClientPortal
-        ? await savePortalWorkoutLogSets(
-            workoutIdRef.current,
-            buildSetsPayload(state, snapshot.exercises),
-            saveOptions
-          )
-        : await saveWorkoutLogSets(
-            clientId,
-            workoutIdRef.current,
-            buildSetsPayload(state, snapshot.exercises),
-            saveOptions
-          )
+      try {
+        const result = isClientPortal
+          ? await savePortalWorkoutLogSets(
+              workoutIdRef.current,
+              buildSetsPayload(state, snapshot.exercises),
+              saveOptions
+            )
+          : await saveWorkoutLogSets(
+              clientId,
+              workoutIdRef.current,
+              buildSetsPayload(state, snapshot.exercises),
+              saveOptions
+            )
 
-      if (options?.blockUi) setPending(false)
-
-      if (result.success) {
-        lastPersistedStateRef.current = serializeWorkoutLogForSave(state)
-        if (options?.reload) {
-          skipAutoSaveRef.current = true
-          await loadData()
+        if (result.success) {
+          lastPersistedStateRef.current = serializeWorkoutLogForSave(state)
+          if (options?.reload) {
+            skipAutoSaveRef.current = true
+            await loadData()
+          }
+          if (options?.notifyParent) onChangedRef.current()
+          return true
         }
-        if (options?.notifyParent) onChangedRef.current()
-        return true
-      }
 
-      if (isWorkoutLogSchemaError(result.error)) {
-        setSchemaError(result.error)
+        if (isWorkoutLogSchemaError(result.error)) {
+          setSchemaError(result.error)
+          return false
+        }
+
+        if (options?.silent) {
+          toast.error('Could not auto-save workout log.')
+        } else {
+          toast.error(result.error)
+        }
+
         return false
+      } catch {
+        toast.error('Could not save workout log.')
+        return false
+      } finally {
+        if (options?.blockUi) setPending(false)
       }
-
-      if (options?.silent) {
-        toast.error('Could not auto-save workout log.')
-      } else {
-        toast.error(result.error)
-      }
-
-      return false
     },
     [buildSetsPayload, clientId, isClientPortal, loadData]
   )
@@ -1956,6 +1983,7 @@ export function WorkoutLogScreen({
   const completeWorkout = React.useCallback(async () => {
     if (autoCompletingRef.current) return
     autoCompletingRef.current = true
+    setCompletingWorkout(true)
     celebrationRevealedRef.current = false
     workoutCompleteDismissedRef.current = false
     pendingCelebrationPrsRef.current = []
@@ -1998,8 +2026,10 @@ export function WorkoutLogScreen({
     setShowWorkoutComplete(true)
 
     try {
-      while (saveInFlightRef.current) {
-        await new Promise((resolve) => setTimeout(resolve, 50))
+      const waitResult = await waitWhile(() => saveInFlightRef.current)
+      if (waitResult === 'timed_out') {
+        // A prior autosave never cleared — don't block completion forever.
+        saveInFlightRef.current = false
       }
 
       const payloadKey = serializeWorkoutLogForSave(currentState)
@@ -2024,8 +2054,7 @@ export function WorkoutLogScreen({
           setShowWorkoutComplete(false)
           pendingCelebrationPrsRef.current = []
           setPendingCelebrationPrs([])
-          autoCompletingRef.current = false
-          saveInFlightRef.current = false
+          toast.error('Could not save sets before completing. Tap Finish to retry.')
           return
         }
       }
@@ -2058,14 +2087,18 @@ export function WorkoutLogScreen({
       setShowWorkoutComplete(false)
       setShowCelebration(false)
       setCelebrationPrs([])
-      toast.error(result.error)
+      toast.error(result.error ?? 'Could not complete workout. Tap Finish to retry.')
     } catch {
       setShowWorkoutComplete(false)
       pendingCelebrationPrsRef.current = []
       setPendingCelebrationPrs([])
+      setShowCelebration(false)
+      setCelebrationPrs([])
+      toast.error('Could not complete workout. Tap Finish to retry.')
     } finally {
       autoCompletingRef.current = false
       saveInFlightRef.current = false
+      setCompletingWorkout(false)
     }
   }, [clientId, isClientPortal, workoutId])
 
@@ -2078,6 +2111,14 @@ export function WorkoutLogScreen({
     },
     [active, completeWorkout, data, readOnly]
   )
+
+  // Heal workouts that were fully logged but never marked completed
+  // (e.g. a prior save hung before the status write).
+  React.useEffect(() => {
+    if (!active || readOnly || loading || !data) return
+    if (data.status === 'completed' || data.status === 'skipped') return
+    maybeTriggerWorkoutComplete(exerciseState)
+  }, [active, data, exerciseState, loading, maybeTriggerWorkoutComplete, readOnly])
 
   const runAutoSave = React.useCallback(async () => {
     if (autoCompletingRef.current || completionFinalizedRef.current) return
@@ -2103,18 +2144,21 @@ export function WorkoutLogScreen({
     }
 
     saveInFlightRef.current = true
-    await persistSetsRef.current(state, {
-      silent: true,
-      reload: false,
-      notifyParent: false,
-      blockUi: false,
-      revalidate: false,
-      syncSetDeletions: exerciseSetCountsDecreased(
-        state,
-        lastPersistedStateRef.current
-      ),
-    })
-    saveInFlightRef.current = false
+    try {
+      await persistSetsRef.current(state, {
+        silent: true,
+        reload: false,
+        notifyParent: false,
+        blockUi: false,
+        revalidate: false,
+        syncSetDeletions: exerciseSetCountsDecreased(
+          state,
+          lastPersistedStateRef.current
+        ),
+      })
+    } finally {
+      saveInFlightRef.current = false
+    }
 
     if (queuedSaveRef.current) {
       queuedSaveRef.current = false
@@ -2409,8 +2453,9 @@ export function WorkoutLogScreen({
       autoSaveTimerRef.current = null
     }
 
-    while (saveInFlightRef.current) {
-      await new Promise((resolve) => setTimeout(resolve, 50))
+    const waitResult = await waitWhile(() => saveInFlightRef.current)
+    if (waitResult === 'timed_out') {
+      saveInFlightRef.current = false
     }
 
     const notifyParent = options?.notifyParent ?? true
@@ -2423,14 +2468,19 @@ export function WorkoutLogScreen({
         serializeWorkoutLogForSave(state) !==
           lastPersistedStateRef.current
       ) {
-        await persistSetsRef.current(state, {
-          silent: true,
-          reload: false,
-          notifyParent: false,
-          blockUi: false,
-          revalidate: false,
-          syncSetDeletions: false,
-        })
+        saveInFlightRef.current = true
+        try {
+          await persistSetsRef.current(state, {
+            silent: true,
+            reload: false,
+            notifyParent: false,
+            blockUi: false,
+            revalidate: false,
+            syncSetDeletions: false,
+          })
+        } finally {
+          saveInFlightRef.current = false
+        }
       }
     }
 
@@ -2497,6 +2547,17 @@ export function WorkoutLogScreen({
     return countTotalSetsForWorkout(data.exercises)
   }, [data, exerciseState])
   const savedCompletedCount = data ? countCompletedSets(data.logSets) : 0
+  const hasDraftSets = Object.keys(exerciseState).length > 0
+  const displayCompletedCount = hasDraftSets
+    ? completedSetCount
+    : savedCompletedCount
+  const canFinish =
+    data != null &&
+    !readOnly &&
+    !completingWorkout &&
+    data.status !== 'completed' &&
+    data.status !== 'skipped' &&
+    isWorkoutFullyLogged(data.exercises, exerciseState)
 
   function handleSetChange(
     exercise: ScheduledWorkoutExerciseWithDetails,
@@ -2803,7 +2864,7 @@ export function WorkoutLogScreen({
                   />
                   {totalSetCount > 0 && (
                     <span className="text-muted-foreground text-sm">
-                      {completedSetCount || savedCompletedCount} / {totalSetCount}{' '}
+                      {displayCompletedCount} / {totalSetCount}{' '}
                       sets
                     </span>
                   )}
@@ -2813,12 +2874,12 @@ export function WorkoutLogScreen({
 
             {totalSetCount > 0 && (
               <WorkoutProgressBar
-                completed={completedSetCount || savedCompletedCount}
+                completed={displayCompletedCount}
                 total={totalSetCount}
               />
             )}
 
-            {(canEditPrescription || canSkip) && (
+            {(canEditPrescription || canSkip || canFinish || completingWorkout) && (
               <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&_button]:w-full sm:[&_button]:w-auto">
                 {canEditPrescription && (
                   <AddExerciseDialog
@@ -2828,13 +2889,33 @@ export function WorkoutLogScreen({
                     onAdded={handleExerciseStructureChanged}
                   />
                 )}
+                {(canFinish || completingWorkout) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending || loading || completingWorkout}
+                    onClick={() => void completeWorkout()}
+                  >
+                    {completingWorkout ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Finishing…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="size-4" />
+                        Finish
+                      </>
+                    )}
+                  </Button>
+                )}
                 {canSkip && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground"
-                    disabled={pending || loading}
+                    disabled={pending || loading || completingWorkout}
                     onClick={skipWorkoutConfirm.open}
                   >
                     Skip

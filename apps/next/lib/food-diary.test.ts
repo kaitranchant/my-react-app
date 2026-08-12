@@ -141,6 +141,10 @@ test('mealPlanMealToDiaryEntries maps foods to diary entries', () => {
   assert.equal(diaryEntries[0]?.foodName, 'Greek yogurt')
   assert.equal(diaryEntries[0]?.mealType, 'breakfast')
   assert.equal(diaryEntries[1]?.source, 'custom')
+
+  const asDinner = mealPlanMealToDiaryEntries('2026-06-01', meal, 'dinner')
+  assert.equal(asDinner[0]?.mealType, 'dinner')
+  assert.equal(asDinner[1]?.mealType, 'dinner')
 })
 
 test('mealPlanMealToDiaryEntries falls back to meal name when no foods', () => {
@@ -164,4 +168,8 @@ test('mealPlanMealToDiaryEntries falls back to meal name when no foods', () => {
   assert.equal(diaryEntries.length, 1)
   assert.equal(diaryEntries[0]?.foodName, 'Meal prep chicken')
   assert.equal(diaryEntries[0]?.caloriesKcal, 650)
+  assert.equal(diaryEntries[0]?.mealType, 'lunch')
+
+  const asSnack = mealPlanMealToDiaryEntries('2026-06-01', meal, 'snack')
+  assert.equal(asSnack[0]?.mealType, 'snack')
 })

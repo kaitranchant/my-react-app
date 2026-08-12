@@ -180,16 +180,17 @@ export function mealPlanFoodToDiaryEntry(
 
 export function mealPlanMealToDiaryEntries(
   logDate: string,
-  meal: MealPlanMealWithFoods
+  meal: MealPlanMealWithFoods,
+  mealType: MealType = meal.meal_type
 ): FoodDiaryEntryFormValues[] {
   if (meal.foods.length > 0) {
-    return meal.foods.map((food) => mealPlanFoodToDiaryEntry(logDate, meal.meal_type, food))
+    return meal.foods.map((food) => mealPlanFoodToDiaryEntry(logDate, mealType, food))
   }
 
   return [
     {
       logDate,
-      mealType: meal.meal_type,
+      mealType,
       foodName: meal.name,
       source: 'custom',
       externalId: null,

@@ -167,8 +167,6 @@ export function ClientCalendarPanel({
   const [pending, setPending] = React.useState(false)
   const [builderOpen, setBuilderOpen] = React.useState(false)
   const [exerciseLibrary, setExerciseLibrary] = React.useState(exercises)
-  const [exerciseLibraryLoading, setExerciseLibraryLoading] =
-    React.useState(false)
   const exerciseLibraryPromiseRef = React.useRef<Promise<boolean> | null>(null)
   const [openBuilderForDate, setOpenBuilderForDate] = React.useState<
     string | null
@@ -253,8 +251,6 @@ export function ClientCalendarPanel({
     if (!workoutToLog) return
 
     setActiveLogWorkout(workoutToLog)
-    const ready = await ensureExerciseLibrary()
-    if (!ready) return
     openWorkoutLog({
       router,
       isMobile,
@@ -312,51 +308,63 @@ export function ClientCalendarPanel({
     },
   })
 
-  React.useEffect(() => {
-    if (exercises.length > 0) {
-      setExerciseLibrary(exercises)
-    }
-  }, [exercises])
+  const prefetchExerciseLibrary = React.useCallback(() => {
+    if (exerciseLibrary.length > 0) return
+    if (exerciseLibraryPromiseRef.current) return
 
-  const ensureExerciseLibrary = React.useCallback(async () => {
-    if (exerciseLibrary.length > 0) return true
-    if (exerciseLibraryPromiseRef.current) {
-      return exerciseLibraryPromiseRef.current
-    }
-
-    setExerciseLibraryLoading(true)
     const promise = loadCoachExerciseLibrary()
       .then((result) => {
-        if (!result.success) {
-          toast.error(result.error)
-          return false
-        }
+        if (!result.success) return false
         setExerciseLibrary(result.exercises)
+        try {
+          window.sessionStorage.setItem(
+            'coach-exercise-library-v1',
+            JSON.stringify(result.exercises)
+          )
+        } catch {
+          // Ignore quota / private mode failures.
+        }
         return true
       })
-      .catch(() => {
-        toast.error('Failed to load exercise library.')
-        return false
-      })
+      .catch(() => false)
       .finally(() => {
-        setExerciseLibraryLoading(false)
         exerciseLibraryPromiseRef.current = null
       })
 
     exerciseLibraryPromiseRef.current = promise
-    return promise
   }, [exerciseLibrary.length])
 
-  const openWorkoutBuilder = React.useCallback(async () => {
-    const ready = await ensureExerciseLibrary()
-    if (!ready) return
+  React.useEffect(() => {
+    if (exercises.length > 0) {
+      setExerciseLibrary(exercises)
+      return
+    }
+
+    try {
+      const cached = window.sessionStorage.getItem('coach-exercise-library-v1')
+      if (cached) {
+        const parsed = JSON.parse(cached) as typeof exercises
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setExerciseLibrary(parsed)
+          return
+        }
+      }
+    } catch {
+      // Ignore quota / private mode failures.
+    }
+
+    prefetchExerciseLibrary()
+  }, [exercises, prefetchExerciseLibrary])
+
+  const openWorkoutBuilder = React.useCallback(() => {
+    prefetchExerciseLibrary()
     setBuilderOpen(true)
-  }, [ensureExerciseLibrary])
+  }, [prefetchExerciseLibrary])
 
   React.useEffect(() => {
     if (openBuilderForDate && workout?.scheduled_date === openBuilderForDate) {
       setOpenBuilderForDate(null)
-      void openWorkoutBuilder()
+      openWorkoutBuilder()
     }
   }, [openBuilderForDate, workout, openWorkoutBuilder])
 
@@ -521,7 +529,7 @@ export function ClientCalendarPanel({
       setMonth(targetMonth)
     }
     await refreshCalendar(targetYear, targetMonth, scheduleDate)
-    await openWorkoutBuilder()
+    openWorkoutBuilder()
   }
 
   async function scheduleFromTemplate(
@@ -729,7 +737,7 @@ export function ClientCalendarPanel({
     setSelectedWorkoutId(summary!.id)
 
     if (workout?.scheduled_date === dateKey && workout.id === summary?.id) {
-      await openWorkoutBuilder()
+      openWorkoutBuilder()
       return
     }
 
@@ -1132,15 +1140,10 @@ export function ClientCalendarPanel({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      void openWorkoutBuilder()
+                      openWorkoutBuilder()
                     }}
-                    disabled={exerciseLibraryLoading}
                   >
-                    {exerciseLibraryLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Pencil className="size-4" />
-                    )}
+                    <Pencil className="size-4" />
                     Edit workout
                   </Button>
                   <PrintWorkoutButton
@@ -1289,7 +1292,7 @@ export function ClientCalendarPanel({
         onEdit={
           displayWorkout
             ? () => {
-                void openWorkoutBuilder()
+                openWorkoutBuilder()
               }
             : undefined
         }

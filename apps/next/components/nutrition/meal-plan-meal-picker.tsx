@@ -1,9 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Plus, UtensilsCrossed } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Plus, UtensilsCrossed } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
   formatMealMacros,
@@ -11,17 +18,19 @@ import {
   MEAL_TYPE_LABELS,
   sortMealPlanDays,
 } from '@/lib/nutrition'
+import { mealTypes } from '@/lib/validations/nutrition'
 import type {
   MealPlanAssignment,
   MealPlanDayWithMeals,
   MealPlanMealWithFoods,
+  MealType,
 } from 'app/types/database'
 
 type MealPlanMealPickerProps = {
   assignment: MealPlanAssignment | null
   days: MealPlanDayWithMeals[]
   disabled?: boolean
-  onAddMeal: (meal: MealPlanMealWithFoods) => Promise<void>
+  onAddMeal: (meal: MealPlanMealWithFoods, mealType: MealType) => Promise<void>
 }
 
 export function MealPlanMealPicker({
@@ -43,10 +52,10 @@ export function MealPlanMealPicker({
   const selectedDayLabel = selectedDay ? formatMealPlanDayLabel(selectedDay) : null
   const showDayNavigation = sortedDays.length > 1
 
-  async function handleAddMeal(meal: MealPlanMealWithFoods) {
+  async function handleAddMeal(meal: MealPlanMealWithFoods, mealType: MealType) {
     setPendingMealId(meal.id)
     try {
-      await onAddMeal(meal)
+      await onAddMeal(meal, mealType)
     } finally {
       setPendingMealId(null)
     }
@@ -108,7 +117,7 @@ export function MealPlanMealPicker({
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
-          Browse any plan day and log meals to your diary for this date.
+          Browse any plan day and choose which diary meal to log each plan meal as.
         </p>
         {showDayNavigation ? (
           <PlanDayNavigator
@@ -159,21 +168,40 @@ export function MealPlanMealPicker({
                   <p className="text-muted-foreground mt-1 text-xs">{macros}</p>
                 ) : null}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="shrink-0"
-                disabled={disabled || isPending}
-                onClick={() => void handleAddMeal(meal)}
-              >
-                <Plus className="size-3.5" />
-                {isPending
-                  ? 'Logging…'
-                  : itemCount > 1
-                    ? `Log ${itemCount} items`
-                    : 'Log meal'}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    disabled={disabled || isPending}
+                  >
+                    <Plus className="size-3.5" />
+                    {isPending
+                      ? 'Logging…'
+                      : itemCount > 1
+                        ? `Log ${itemCount} items`
+                        : 'Log meal'}
+                    <ChevronDown className="size-3.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[11rem]">
+                  <DropdownMenuLabel>Log as</DropdownMenuLabel>
+                  {mealTypes.map((type) => (
+                    <DropdownMenuItem
+                      key={type}
+                      disabled={disabled || isPending}
+                      onSelect={() => void handleAddMeal(meal, type)}
+                    >
+                      {MEAL_TYPE_LABELS[type]}
+                      {type === meal.meal_type ? (
+                        <Check className="ml-auto size-3.5" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </li>
           )
         })}
