@@ -25,11 +25,10 @@ function isAndroidTouchTablet() {
 }
 
 /**
- * Prefer the in-app mobile keyboard over native inputs on phones,
- * iPads, and other touch-first layouts. Desktop browsers with a mouse, and
- * touch devices with an external keyboard or trackpad, keep native inputs.
+ * True on phones, iPads, and other touch-first layouts that do not have a
+ * mouse, trackpad, or detected hardware keyboard.
  */
-export function usePreferMobileKeyboard() {
+export function useTouchFirstWithoutPhysicalKeyboard() {
   const isMobile = useIsMobile()
   const tabletTouch = useTabletTouchLayout()
   const coarsePointer = useCoarsePointer()

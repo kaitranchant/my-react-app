@@ -40,33 +40,14 @@ export function TabletFullscreenOverlay({
     if (!open) return
 
     const overlay = overlayRef.current
-    const visualViewport = window.visualViewport
-    if (!overlay || !visualViewport) return
+    if (!overlay) return
 
-    const apply = () => {
-      const keyboardOpen =
-        visualViewport.height < window.innerHeight - 100
-
-      if (keyboardOpen) {
-        overlay.style.top = `${visualViewport.offsetTop}px`
-        overlay.style.left = `${visualViewport.offsetLeft}px`
-        overlay.style.width = `${visualViewport.width}px`
-        overlay.style.height = `${visualViewport.height}px`
-      } else {
-        overlay.style.top = '0px'
-        overlay.style.left = '0px'
-        overlay.style.width = '100%'
-        overlay.style.height = '100svh'
-      }
-    }
-
-    apply()
-    visualViewport.addEventListener('resize', apply)
-    visualViewport.addEventListener('scroll', apply)
+    overlay.style.top = '0px'
+    overlay.style.left = '0px'
+    overlay.style.width = '100%'
+    overlay.style.height = '100svh'
 
     return () => {
-      visualViewport.removeEventListener('resize', apply)
-      visualViewport.removeEventListener('scroll', apply)
       overlay.style.top = ''
       overlay.style.left = ''
       overlay.style.width = ''

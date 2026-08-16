@@ -28,7 +28,7 @@ function useAnyFinePointer() {
 
 /**
  * True when a hardware keyboard, trackpad, or mouse is available — i.e. the
- * in-app mobile keyboard should stay hidden so native inputs can be used.
+ * in-app workout keypad and covered-field overlay should stay off.
  */
 export function useHasPhysicalKeyboard() {
   const hasFinePointer = useAnyFinePointer()

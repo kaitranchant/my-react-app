@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/sheet'
 import { ClientOnboardingDocumentsPanel } from '@/components/clients/client-onboarding-documents-panel'
 import { ClientAssessmentNotesPanel } from '@/components/clients/client-assessment-notes-panel'
-import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
 import { useClientGymShareActions } from '@/components/gym/client-gym-share-toggle'
 import type { ClientOnboardingDocumentsSummary } from '@/lib/onboarding-data'
 import type { Client, Gym } from 'app/types/database'
@@ -141,7 +140,6 @@ export function ClientDetailOverflowMenu({
               initialNotes={initialAssessmentNotes}
               onCancel={() => setAssessmentNotesOpen(false)}
             />
-            <MobileKeyboardReserve />
           </div>
         </SheetContent>
       </Sheet>

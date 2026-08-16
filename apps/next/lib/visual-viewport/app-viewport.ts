@@ -19,10 +19,6 @@ export function isInNestedKeyboardScrollContainer() {
   )
 }
 
-export function isManagingNestedKeyboardScroll() {
-  return isInNestedKeyboardScrollContainer() && isKeyboardOpen()
-}
-
 export function isKeyboardOpen() {
   if (typeof document !== 'undefined') {
     if (document.documentElement.hasAttribute('data-mobile-keyboard-open')) {
@@ -111,113 +107,12 @@ export function scrollElementIntoMainContent(
   clampMainContentScroll()
 }
 
-/**
- * Keep a focused input visible within a nested scroll container.
- * Uses the scroll parent's visible bounds (already sized by the app shell keyboard sync).
- */
-export function scrollFocusedInputIntoView(
-  element: HTMLElement,
-  scrollParent: HTMLElement,
-  options: { paddingPx?: number } = {}
-) {
-  const { paddingPx = 16 } = options
-  const parentRect = scrollParent.getBoundingClientRect()
-  const rect = element.getBoundingClientRect()
-
-  const overflowBottom = rect.bottom - (parentRect.bottom - paddingPx)
-  const overflowTop = parentRect.top + paddingPx - rect.top
-
-  if (overflowBottom > 0) {
-    scrollParent.scrollTop += overflowBottom
-  } else if (overflowTop > 0) {
-    scrollParent.scrollTop -= overflowTop
-  }
-}
-
-let focusedInputScrollGeneration = 0
-
-/** Scroll after focus once the keyboard/viewport height settles. */
-export function scheduleFocusedInputScroll(
-  element: HTMLElement,
-  scrollParent: HTMLElement
-) {
-  const generation = ++focusedInputScrollGeneration
-  const visualViewport = window.visualViewport
-
-  let debounceId = 0
-  let timeoutId = 0
-  let lastHeight = visualViewport?.height ?? 0
-
-  const scrollOnce = () => {
-    if (generation !== focusedInputScrollGeneration) return
-    if (!scrollParent.contains(element)) return
-    scrollFocusedInputIntoView(element, scrollParent)
-  }
-
-  const cleanup = () => {
-    window.clearTimeout(debounceId)
-    window.clearTimeout(timeoutId)
-    visualViewport?.removeEventListener('resize', onResize)
-  }
-
-  const onResize = () => {
-    if (generation !== focusedInputScrollGeneration) return
-
-    const nextHeight = visualViewport?.height ?? lastHeight
-    window.clearTimeout(debounceId)
-    debounceId = window.setTimeout(() => {
-      if (generation !== focusedInputScrollGeneration) return
-
-      if (Math.abs(nextHeight - lastHeight) < 1) {
-        scrollOnce()
-        cleanup()
-        return
-      }
-
-      lastHeight = nextHeight
-    }, 80)
-  }
-
-  visualViewport?.addEventListener('resize', onResize)
-  timeoutId = window.setTimeout(() => {
-    scrollOnce()
-    cleanup()
-  }, 400)
-}
-
 export function syncAppViewportCssVars() {
   const root = document.documentElement
-  const visualViewport = window.visualViewport
-
-  if (!visualViewport) {
-    root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
-    root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
-    root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
-    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
-    return
-  }
-
-  const nested = isInNestedKeyboardScrollContainer()
-  const keyboardOpen = isKeyboardOpen()
-
-  if (!keyboardOpen && !nested) {
-    root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
-    root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
-    root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
-    root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
-    return
-  }
-
-  root.style.setProperty(
-    VIEWPORT_CSS_VARS.top,
-    nested ? '0px' : `${visualViewport.offsetTop}px`
-  )
-  root.style.setProperty(
-    VIEWPORT_CSS_VARS.left,
-    nested ? '0px' : `${visualViewport.offsetLeft}px`
-  )
-  root.style.setProperty(VIEWPORT_CSS_VARS.width, `${visualViewport.width}px`)
-  root.style.setProperty(VIEWPORT_CSS_VARS.height, `${visualViewport.height}px`)
+  root.style.setProperty(VIEWPORT_CSS_VARS.top, '0px')
+  root.style.setProperty(VIEWPORT_CSS_VARS.left, '0px')
+  root.style.setProperty(VIEWPORT_CSS_VARS.width, '100%')
+  root.style.setProperty(VIEWPORT_CSS_VARS.height, '100svh')
 }
 
 export function stabilizeViewportScroll() {
@@ -246,24 +141,19 @@ export function installAppViewportSync() {
 
   const onViewportChange = (event: Event) => {
     const keyboardOpen = isKeyboardOpen()
-    const nested = isInNestedKeyboardScrollContainer()
     const appShell = isFixedAppShellLayout()
 
     if (event.type === 'scroll') {
       if (appShell) resetWindowScroll()
-      if (nested || !keyboardOpen) {
-        return
-      }
+      return
     }
 
     syncAppViewportCssVars()
     if (appShell) resetWindowScroll()
 
     if (appShell && keyboardWasOpen && !keyboardOpen) {
-      if (!isManagingNestedKeyboardScroll()) {
-        clampMainContentScroll()
-        burstStabilizeViewportScroll(400)
-      }
+      clampMainContentScroll()
+      burstStabilizeViewportScroll(400)
     }
 
     keyboardWasOpen = keyboardOpen
@@ -290,9 +180,7 @@ export function installAppViewportSync() {
     requestAnimationFrame(() => {
       if (!isFixedAppShellLayout()) return
       resetWindowScroll()
-      if (inNestedKeyboardScroll) {
-        syncAppViewportCssVars()
-      } else {
+      if (!inNestedKeyboardScroll) {
         clampMainContentScroll()
       }
     })

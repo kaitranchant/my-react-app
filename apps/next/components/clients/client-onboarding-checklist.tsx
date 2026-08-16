@@ -32,7 +32,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { MobileKeyboardReserve } from '@/components/mobile-keyboard/mobile-keyboard'
 import { cn } from '@/lib/utils'
 import {
   getCheckInDueStepLabel,
@@ -372,7 +371,6 @@ export function ClientOnboardingChecklist({
                 router.refresh()
               }}
             />
-            <MobileKeyboardReserve />
           </div>
         </SheetContent>
       </Sheet>

@@ -442,48 +442,6 @@
     animation: mobile-keypad-exit 260ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
   }
 
-  @keyframes mobile-keyboard-caret-blink {
-    0%,
-    49% {
-      opacity: 1;
-    }
-    50%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  .mobile-keyboard-caret {
-    display: inline-block;
-    width: 2px;
-    height: 1.1em;
-    margin-left: 1px;
-    vertical-align: text-bottom;
-    background-color: var(--brand, var(--primary, currentColor));
-    border-radius: 1px;
-    animation: mobile-keyboard-caret-blink 1s steps(1, end) infinite;
-  }
-
-  /* Nested scroll inside the keypad; pan-y overrides parent touch-action. */
-  .mobile-keypad-typing-scroll {
-    height: 4.75rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-  }
-
-  .mobile-keypad-typing-scroll-x {
-    min-height: 2.75rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
-    white-space: nowrap;
-  }
-
   .mobile-keypad-surface button:active,
   .workout-log-keypad-surface button:active {
     transform: scale(0.96);

@@ -1,6 +1,6 @@
 'use client'
 
-import { usePreferMobileKeyboard } from '@/lib/hooks/use-prefer-mobile-keyboard'
+import { useTouchFirstWithoutPhysicalKeyboard } from '@/lib/hooks/use-touch-first-layout'
 
 /**
  * Prefer the in-app workout log keypad over native number inputs on phones,
@@ -8,5 +8,5 @@ import { usePreferMobileKeyboard } from '@/lib/hooks/use-prefer-mobile-keyboard'
  * native inputs so a physical keyboard can be used.
  */
 export function usePreferWorkoutLogKeypad() {
-  return usePreferMobileKeyboard()
+  return useTouchFirstWithoutPhysicalKeyboard()
 }

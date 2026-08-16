@@ -66,11 +66,6 @@ import {
   WorkoutLogKeypadProvider,
   useWorkoutLogKeypad,
 } from '@/components/workout/workout-log-keypad-context'
-import { MobileKeyboardOverlay } from '@/components/mobile-keyboard/mobile-keyboard'
-import {
-  MobileKeyboardProvider,
-  useMobileKeyboard,
-} from '@/components/mobile-keyboard/mobile-keyboard-context'
 import { WorkoutLogSetField } from '@/components/workout/workout-log-set-field'
 import { WorkoutLogSwipeableSetRow } from '@/components/workout/workout-log-swipeable-set-row'
 import { WorkoutCompleteDialog } from '@/components/workout/workout-complete-dialog'
@@ -1471,27 +1466,6 @@ function WorkoutLogExercise({
   )
 }
 
-function WorkoutLogKeyboardCoordinator() {
-  const mobileKeyboard = useMobileKeyboard()
-  const workoutKeypad = useWorkoutLogKeypad()
-
-  React.useEffect(() => {
-    if (!mobileKeyboard?.activeField || !workoutKeypad?.activeTarget) {
-      return
-    }
-    workoutKeypad.closeKeypad()
-  }, [mobileKeyboard?.activeField, workoutKeypad])
-
-  React.useEffect(() => {
-    if (!workoutKeypad?.activeTarget || !mobileKeyboard?.activeField) {
-      return
-    }
-    mobileKeyboard.closeKeyboard()
-  }, [mobileKeyboard, workoutKeypad?.activeTarget])
-
-  return null
-}
-
 function WorkoutLogScrollArea({
   scrollContainerRef,
   children,
@@ -2776,13 +2750,11 @@ export function WorkoutLogScreen({
   }
 
   const logContent = (
-    <MobileKeyboardProvider enabled={useCustomKeypad}>
     <WorkoutLogKeypadProvider
       enabled={useCustomKeypad}
       weightUnit={weightUnit}
       scrollContainerRef={scrollContainerRef}
     >
-      <WorkoutLogKeyboardCoordinator />
       <RestTimerProvider>
       <div
         className={cn(
@@ -3145,8 +3117,6 @@ export function WorkoutLogScreen({
       </div>
     </RestTimerProvider>
     </WorkoutLogKeypadProvider>
-    {useCustomKeypad ? <MobileKeyboardOverlay /> : null}
-    </MobileKeyboardProvider>
   )
 
   const celebrationDialog = (
