@@ -25,14 +25,12 @@ function isAndroidTouchTablet() {
 }
 
 /**
- * True on phones, iPads, and other touch-first layouts that do not have a
- * mouse, trackpad, or detected hardware keyboard.
+ * True on phones, iPads, and other touch-first layouts.
  */
-export function useTouchFirstWithoutPhysicalKeyboard() {
+export function useTouchFirstLayout() {
   const isMobile = useIsMobile()
   const tabletTouch = useTabletTouchLayout()
   const coarsePointer = useCoarsePointer()
-  const hasPhysicalKeyboard = useHasPhysicalKeyboard()
   const [touchTablet, setTouchTablet] = React.useState(false)
 
   React.useEffect(() => {
@@ -44,8 +42,16 @@ export function useTouchFirstWithoutPhysicalKeyboard() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const touchFirstLayout =
-    isMobile || tabletTouch || coarsePointer || touchTablet
+  return isMobile || tabletTouch || coarsePointer || touchTablet
+}
 
+/**
+ * Touch-first layouts that do not have a mouse, trackpad, or detected
+ * hardware keyboard. Used by the workout keypad — not the typing overlay,
+ * because iOS software keyboards also fire keydown events.
+ */
+export function useTouchFirstWithoutPhysicalKeyboard() {
+  const touchFirstLayout = useTouchFirstLayout()
+  const hasPhysicalKeyboard = useHasPhysicalKeyboard()
   return touchFirstLayout && !hasPhysicalKeyboard
 }

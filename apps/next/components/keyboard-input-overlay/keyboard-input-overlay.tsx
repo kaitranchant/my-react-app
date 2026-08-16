@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useTouchFirstWithoutPhysicalKeyboard } from '@/lib/hooks/use-touch-first-layout'
+import { useTouchFirstLayout } from '@/lib/hooks/use-touch-first-layout'
 import { pinScrollContainersAround } from '@/lib/visual-viewport/app-viewport'
 import { cn } from '@/lib/utils'
 
@@ -144,7 +144,7 @@ export function KeyboardInputOverlayProvider({
 }: {
   children: React.ReactNode
 }) {
-  const enabled = useTouchFirstWithoutPhysicalKeyboard()
+  const enabled = useTouchFirstLayout()
   const [field, setField] = React.useState<OverlayField | null>(null)
   const overlayFieldRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(
     null
@@ -223,13 +223,18 @@ export function KeyboardInputOverlayProvider({
     if (!field) return
 
     const source = field.source
-    const closeIfDetached = () => {
-      if (!document.contains(source)) {
-        closeOverlay()
-      }
-    }
-
-    const observer = new MutationObserver(closeIfDetached)
+    const observer = new MutationObserver(() => {
+      if (document.contains(source)) return
+      requestAnimationFrame(() => {
+        if (
+          document.activeElement instanceof Element &&
+          document.activeElement.closest('[data-keyboard-overlay-root]')
+        ) {
+          return
+        }
+        if (!document.contains(source)) closeOverlay()
+      })
+    })
     observer.observe(document.body, { childList: true, subtree: true })
 
     return () => observer.disconnect()
@@ -277,6 +282,17 @@ export function KeyboardInputOverlayProvider({
             overlayFieldRef.current?.focus({ preventScroll: true })
           }}
           onCloseAutoFocus={(event) => {
+            event.preventDefault()
+          }}
+          onFocusOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => {
+            const target = event.target
+            if (
+              target instanceof Element &&
+              target.closest('[data-slot="dialog-overlay"]')
+            ) {
+              return
+            }
             event.preventDefault()
           }}
         >
