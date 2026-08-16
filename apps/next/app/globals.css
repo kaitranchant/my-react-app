@@ -170,6 +170,19 @@
   }
 }
 
+/* iOS Safari zooms the whole page when a focused field is smaller than 16px. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
+      [type='file']
+    ):not([type='hidden']):not([type='button']):not([type='submit']):not(
+      [type='reset']
+    ):not([type='image']):not([type='color']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   .app-shell-bg {
     background-color: var(--background);

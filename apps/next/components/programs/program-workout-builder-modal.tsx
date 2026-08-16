@@ -225,7 +225,7 @@ export function ProgramWorkoutBuilderModal({
                       <Textarea
                         rows={2}
                         placeholder="Optional session notes for this day"
-                        className="min-h-[52px] resize-none text-sm"
+                        className="min-h-[52px] resize-none text-base"
                         {...field}
                       />
                     </FormControl>

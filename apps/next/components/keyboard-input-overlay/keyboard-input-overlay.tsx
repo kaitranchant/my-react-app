@@ -313,7 +313,7 @@ export function KeyboardInputOverlayProvider({
   }
 
   const fieldClassName = cn(
-    'placeholder:text-muted-foreground flex w-full rounded-md bg-transparent py-3 text-base outline-none md:text-sm',
+    'placeholder:text-muted-foreground flex w-full rounded-md bg-transparent py-3 text-base outline-none',
     field?.multiline ? 'min-h-24 resize-none' : 'h-10'
   )
 

@@ -1014,7 +1014,7 @@ export function ExercisePrescriptionForm({
                       rows={2}
                       maxLength={255}
                       placeholder="Session-only cues"
-                      className="text-sm"
+                      className="text-base"
                       {...field}
                     />
                   </FormControl>

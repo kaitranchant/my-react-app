@@ -47,7 +47,7 @@ export function LibraryExerciseList({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search library…"
-          className="h-9 pl-8 text-sm"
+          className="h-9 pl-8"
         />
       </div>
 
