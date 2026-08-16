@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useTouchFirstLayout } from '@/lib/hooks/use-touch-first-layout'
-import { pinScrollContainersAround } from '@/lib/visual-viewport/app-viewport'
+import { pinScrollContainersAround, releasePinnedScrolls } from '@/lib/visual-viewport/app-viewport'
 import { cn } from '@/lib/utils'
 
 export const KEYBOARD_OVERLAY_ROOT_ATTR = 'data-keyboard-overlay-root'
@@ -215,6 +215,7 @@ export function KeyboardInputOverlayProvider({
       const dy = event.clientY - pending.y
       if (Math.hypot(dx, dy) > TAP_MOVE_THRESHOLD_PX) {
         pending.cancelled = true
+        releasePinnedScrolls()
       }
     }
 
@@ -227,8 +228,11 @@ export function KeyboardInputOverlayProvider({
         current.field.blur()
         return
       }
-      if (current.cancelled && document.activeElement === current.field) {
-        current.field.blur()
+      if (current.cancelled) {
+        releasePinnedScrolls()
+        if (document.activeElement === current.field) {
+          current.field.blur()
+        }
       }
     }
 

@@ -132,6 +132,13 @@ export function pinScrollContainersAround(target: EventTarget | null) {
   requestAnimationFrame(tick)
 }
 
+/** Stop restoring scroll so a drag-to-scroll gesture can move the page. */
+export function releasePinnedScrolls() {
+  pinGeneration += 1
+  scrollPins = []
+  pinUntil = 0
+}
+
 export function clampMainContentScroll() {
   const main = document.getElementById('main-content')
   if (!main) return
@@ -216,10 +223,17 @@ export function installAppViewportSync() {
   const visualViewport = window.visualViewport
   const main = document.getElementById('main-content')
   let keyboardWasOpen = isKeyboardOpen()
+  const GESTURE_MOVE_PX = 10
+  let gestureStart: { x: number; y: number } | null = null
+  let gestureIsPan = false
 
   const onViewportChange = (event: Event) => {
     const keyboardOpen = isKeyboardOpen()
     const appShell = isFixedAppShellLayout()
+
+    if (gestureIsPan) {
+      releasePinnedScrolls()
+    }
 
     if (scrollPins.length > 0 && keyboardOpen) {
       pinUntil = Math.max(pinUntil, performance.now() + 180)
@@ -258,24 +272,32 @@ export function installAppViewportSync() {
     clampMainContentScroll()
   }
 
-  const onPrepareEditableFocus = (event: Event) => {
-    const target = event.target
-    if (!(target instanceof Element)) return
-    if (
-      !target.closest(
-        'input, textarea, select, [contenteditable="true"]'
-      )
-    ) {
-      return
+  const onPointerDown = (event: PointerEvent) => {
+    gestureStart = { x: event.clientX, y: event.clientY }
+    gestureIsPan = false
+  }
+
+  const onPointerMove = (event: PointerEvent) => {
+    if (!gestureStart || gestureIsPan) return
+    const dx = event.clientX - gestureStart.x
+    const dy = event.clientY - gestureStart.y
+    if (Math.hypot(dx, dy) > GESTURE_MOVE_PX) {
+      gestureIsPan = true
+      releasePinnedScrolls()
     }
-    pinScrollContainersAround(target)
+  }
+
+  const onPointerEnd = () => {
+    gestureStart = null
   }
 
   const onFocusIn = (event: FocusEvent) => {
     const target = event.target
     if (!(target instanceof Node) || !main?.contains(target)) return
 
-    pinScrollContainersAround(target)
+    if (!gestureIsPan) {
+      pinScrollContainersAround(target)
+    }
 
     const inNestedKeyboardScroll =
       target instanceof Element &&
@@ -283,6 +305,10 @@ export function installAppViewportSync() {
 
     requestAnimationFrame(() => {
       if (!isFixedAppShellLayout()) return
+      if (gestureIsPan) {
+        releasePinnedScrolls()
+        return
+      }
       if (restorePinnedScrolls()) return
       resetWindowScroll()
       if (!inNestedKeyboardScroll) {
@@ -293,13 +319,13 @@ export function installAppViewportSync() {
 
   stabilizeViewportScroll()
   window.addEventListener('scroll', onWindowScroll, { passive: true })
-  window.addEventListener('touchstart', onPrepareEditableFocus, {
+  window.addEventListener('pointerdown', onPointerDown, { capture: true })
+  window.addEventListener('pointermove', onPointerMove, {
     capture: true,
     passive: true,
   })
-  window.addEventListener('pointerdown', onPrepareEditableFocus, {
-    capture: true,
-  })
+  window.addEventListener('pointerup', onPointerEnd, { capture: true })
+  window.addEventListener('pointercancel', onPointerEnd, { capture: true })
   main?.addEventListener('scroll', onMainScroll, { passive: true })
   main?.addEventListener('focusin', onFocusIn)
   visualViewport?.addEventListener('resize', onViewportChange)
@@ -309,8 +335,10 @@ export function installAppViewportSync() {
     pinGeneration += 1
     scrollPins = []
     window.removeEventListener('scroll', onWindowScroll)
-    window.removeEventListener('touchstart', onPrepareEditableFocus, true)
-    window.removeEventListener('pointerdown', onPrepareEditableFocus, true)
+    window.removeEventListener('pointerdown', onPointerDown, true)
+    window.removeEventListener('pointermove', onPointerMove, true)
+    window.removeEventListener('pointerup', onPointerEnd, true)
+    window.removeEventListener('pointercancel', onPointerEnd, true)
     main?.removeEventListener('scroll', onMainScroll)
     main?.removeEventListener('focusin', onFocusIn)
     visualViewport?.removeEventListener('resize', onViewportChange)
