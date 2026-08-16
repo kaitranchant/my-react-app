@@ -49,9 +49,87 @@ function isFixedAppShellLayout() {
 export function resetWindowScroll() {
   if (!isFixedAppShellLayout()) return
 
-  window.scrollTo(0, 0)
+  // `html { scroll-behavior: smooth }` would animate this reset, which looks
+  // like the keyboard jump sliding back down. Force an instant pin.
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
+}
+
+type ScrollPin = { el: HTMLElement; top: number; left: number }
+
+let scrollPins: ScrollPin[] = []
+let pinGeneration = 0
+let pinUntil = 0
+
+const KEYBOARD_SCROLL_PIN_MS = 500
+
+function isVerticallyScrollable(el: HTMLElement) {
+  const style = getComputedStyle(el)
+  const overflowY = style.overflowY
+  const canScroll =
+    overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
+  return canScroll && el.scrollHeight > el.clientHeight + 1
+}
+
+function collectScrollPins(target: EventTarget | null): ScrollPin[] {
+  const pins: ScrollPin[] = []
+  const seen = new Set<HTMLElement>()
+  const add = (el: HTMLElement | null) => {
+    if (!el || seen.has(el)) return
+    seen.add(el)
+    pins.push({ el, top: el.scrollTop, left: el.scrollLeft })
+  }
+
+  let current = target instanceof Element ? target.parentElement : null
+  while (current instanceof HTMLElement) {
+    if (current.id === 'main-content' || isVerticallyScrollable(current)) {
+      add(current)
+    }
+    current = current.parentElement
+  }
+
+  add(document.getElementById('main-content'))
+  return pins
+}
+
+function restorePinnedScrolls() {
+  if (scrollPins.length === 0) return false
+  if (performance.now() > pinUntil) {
+    scrollPins = []
+    return false
+  }
+
+  resetWindowScroll()
+  for (const pin of scrollPins) {
+    if (pin.el.scrollTop !== pin.top) pin.el.scrollTop = pin.top
+    if (pin.el.scrollLeft !== pin.left) pin.el.scrollLeft = pin.left
+  }
+  return true
+}
+
+/** Snapshot scroll parents before iOS autoscrolls the focused field. */
+export function pinScrollContainersAround(target: EventTarget | null) {
+  const now = performance.now()
+  if (scrollPins.length > 0 && now < pinUntil) {
+    pinUntil = now + KEYBOARD_SCROLL_PIN_MS
+    return
+  }
+
+  scrollPins = collectScrollPins(target)
+  pinUntil = now + KEYBOARD_SCROLL_PIN_MS
+  const generation = ++pinGeneration
+
+  const tick = () => {
+    if (generation !== pinGeneration) return
+    restorePinnedScrolls()
+    if (performance.now() < pinUntil) {
+      requestAnimationFrame(tick)
+    }
+  }
+
+  restorePinnedScrolls()
+  requestAnimationFrame(tick)
 }
 
 export function clampMainContentScroll() {
@@ -143,6 +221,15 @@ export function installAppViewportSync() {
     const keyboardOpen = isKeyboardOpen()
     const appShell = isFixedAppShellLayout()
 
+    if (scrollPins.length > 0 && keyboardOpen) {
+      pinUntil = Math.max(pinUntil, performance.now() + 180)
+    }
+
+    if (restorePinnedScrolls()) {
+      keyboardWasOpen = keyboardOpen
+      return
+    }
+
     if (event.type === 'scroll') {
       if (appShell) resetWindowScroll()
       return
@@ -161,17 +248,34 @@ export function installAppViewportSync() {
 
   const onWindowScroll = () => {
     if (!isFixedAppShellLayout()) return
+    if (restorePinnedScrolls()) return
     resetWindowScroll()
     clampMainContentScroll()
   }
 
   const onMainScroll = () => {
+    if (restorePinnedScrolls()) return
     clampMainContentScroll()
+  }
+
+  const onPrepareEditableFocus = (event: Event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    if (
+      !target.closest(
+        'input, textarea, select, [contenteditable="true"]'
+      )
+    ) {
+      return
+    }
+    pinScrollContainersAround(target)
   }
 
   const onFocusIn = (event: FocusEvent) => {
     const target = event.target
     if (!(target instanceof Node) || !main?.contains(target)) return
+
+    pinScrollContainersAround(target)
 
     const inNestedKeyboardScroll =
       target instanceof Element &&
@@ -179,6 +283,7 @@ export function installAppViewportSync() {
 
     requestAnimationFrame(() => {
       if (!isFixedAppShellLayout()) return
+      if (restorePinnedScrolls()) return
       resetWindowScroll()
       if (!inNestedKeyboardScroll) {
         clampMainContentScroll()
@@ -188,13 +293,24 @@ export function installAppViewportSync() {
 
   stabilizeViewportScroll()
   window.addEventListener('scroll', onWindowScroll, { passive: true })
+  window.addEventListener('touchstart', onPrepareEditableFocus, {
+    capture: true,
+    passive: true,
+  })
+  window.addEventListener('pointerdown', onPrepareEditableFocus, {
+    capture: true,
+  })
   main?.addEventListener('scroll', onMainScroll, { passive: true })
   main?.addEventListener('focusin', onFocusIn)
   visualViewport?.addEventListener('resize', onViewportChange)
   visualViewport?.addEventListener('scroll', onViewportChange)
 
   return () => {
+    pinGeneration += 1
+    scrollPins = []
     window.removeEventListener('scroll', onWindowScroll)
+    window.removeEventListener('touchstart', onPrepareEditableFocus, true)
+    window.removeEventListener('pointerdown', onPrepareEditableFocus, true)
     main?.removeEventListener('scroll', onMainScroll)
     main?.removeEventListener('focusin', onFocusIn)
     visualViewport?.removeEventListener('resize', onViewportChange)

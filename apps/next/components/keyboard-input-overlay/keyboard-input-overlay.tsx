@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useTouchFirstWithoutPhysicalKeyboard } from '@/lib/hooks/use-touch-first-layout'
+import { pinScrollContainersAround } from '@/lib/visual-viewport/app-viewport'
 import { cn } from '@/lib/utils'
 
 export const KEYBOARD_OVERLAY_ROOT_ATTR = 'data-keyboard-overlay-root'
@@ -136,13 +137,14 @@ export function KeyboardInputOverlayProvider({
       if (!element || !isEditableTextField(element)) return
       if (!shouldOpenOverlay(element)) return
 
+      pinScrollContainersAround(element)
       setField((current) => {
         if (current?.source === element) return current
         return snapshotField(element)
       })
     }
 
-    const onPointerDown = (event: PointerEvent) => {
+    const interceptOriginalFocus = (event: Event) => {
       const target = event.target
       if (!(target instanceof Element)) return
       if (!isEditableTextField(target)) return
@@ -158,11 +160,22 @@ export function KeyboardInputOverlayProvider({
       openFromElement(target)
     }
 
-    document.addEventListener('pointerdown', onPointerDown, true)
+    // iOS ignores pointerdown preventDefault for focusing inputs; touchstart
+    // must be non-passive so the original field never receives focus.
+    document.addEventListener('touchstart', interceptOriginalFocus, {
+      capture: true,
+      passive: false,
+    })
+    document.addEventListener('pointerdown', interceptOriginalFocus, true)
     document.addEventListener('focusin', onFocusIn, true)
 
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener(
+        'touchstart',
+        interceptOriginalFocus,
+        true
+      )
+      document.removeEventListener('pointerdown', interceptOriginalFocus, true)
       document.removeEventListener('focusin', onFocusIn, true)
     }
   }, [enabled])

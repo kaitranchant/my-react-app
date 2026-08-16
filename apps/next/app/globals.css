@@ -312,6 +312,7 @@
   #main-content {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
+    overflow-anchor: none;
   }
 
   .dialog-vv-surface-cover,
