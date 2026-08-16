@@ -17,7 +17,29 @@ import { cn } from '@/lib/utils'
 export const KEYBOARD_OVERLAY_ROOT_ATTR = 'data-keyboard-overlay-root'
 export const KEYBOARD_OVERLAY_EXEMPT_ATTR = 'data-keyboard-overlay-exempt'
 
-const COVER_ZONE_RATIO = 0.55
+/** Typical phone keyboard height. Overlay only if the field sits in this band. */
+const KEYBOARD_COVER_PX = 320
+
+let cachedLayoutHeight = 0
+
+function rememberLayoutViewportHeight() {
+  const visualViewport = window.visualViewport
+  const keyboardLikelyOpen =
+    visualViewport != null &&
+    visualViewport.height < window.innerHeight - 120
+
+  const layoutHeight = Math.max(
+    window.innerHeight,
+    document.documentElement.clientHeight,
+    visualViewport ? visualViewport.height + visualViewport.offsetTop : 0
+  )
+
+  if (!keyboardLikelyOpen) {
+    cachedLayoutHeight = Math.max(cachedLayoutHeight, layoutHeight)
+  }
+
+  return Math.max(cachedLayoutHeight, layoutHeight)
+}
 
 const UNSUPPORTED_INPUT_TYPES = new Set([
   'hidden',
@@ -67,7 +89,12 @@ function isExemptOrInsideOverlay(element: Element) {
 
 function wouldBeCoveredByKeyboard(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
-  return rect.bottom > window.innerHeight * COVER_ZONE_RATIO
+  const layoutHeight = rememberLayoutViewportHeight()
+  const coverBand = Math.min(
+    KEYBOARD_COVER_PX,
+    Math.round(layoutHeight * 0.38)
+  )
+  return rect.bottom > layoutHeight - coverBand
 }
 
 function snapshotField(
@@ -133,6 +160,13 @@ export function KeyboardInputOverlayProvider({
       return
     }
 
+    rememberLayoutViewportHeight()
+    window.addEventListener('resize', rememberLayoutViewportHeight)
+    window.visualViewport?.addEventListener(
+      'resize',
+      rememberLayoutViewportHeight
+    )
+
     const openFromElement = (element: Element | null) => {
       if (!element || !isEditableTextField(element)) return
       if (!shouldOpenOverlay(element)) return
@@ -170,6 +204,11 @@ export function KeyboardInputOverlayProvider({
     document.addEventListener('focusin', onFocusIn, true)
 
     return () => {
+      window.removeEventListener('resize', rememberLayoutViewportHeight)
+      window.visualViewport?.removeEventListener(
+        'resize',
+        rememberLayoutViewportHeight
+      )
       document.removeEventListener(
         'touchstart',
         interceptOriginalFocus,
