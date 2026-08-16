@@ -167,6 +167,16 @@ export function KeyboardInputOverlayProvider({
       rememberLayoutViewportHeight
     )
 
+    const TAP_MOVE_THRESHOLD_PX = 10
+    let pending:
+      | {
+          field: HTMLInputElement | HTMLTextAreaElement
+          x: number
+          y: number
+          cancelled: boolean
+        }
+      | null = null
+
     const openFromElement = (element: Element | null) => {
       if (!element || !isEditableTextField(element)) return
       if (!shouldOpenOverlay(element)) return
@@ -178,29 +188,70 @@ export function KeyboardInputOverlayProvider({
       })
     }
 
-    const interceptOriginalFocus = (event: Event) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      if (!isEditableTextField(target)) return
-      if (!shouldOpenOverlay(target)) return
+    const resolveField = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return null
+      if (!isEditableTextField(target)) return null
+      if (!shouldOpenOverlay(target)) return null
+      return target
+    }
 
-      event.preventDefault()
-      openFromElement(target)
+    const onPointerDown = (event: PointerEvent) => {
+      const field = resolveField(event.target)
+      if (!field) {
+        pending = null
+        return
+      }
+      pending = {
+        field,
+        x: event.clientX,
+        y: event.clientY,
+        cancelled: false,
+      }
+    }
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pending || pending.cancelled) return
+      const dx = event.clientX - pending.x
+      const dy = event.clientY - pending.y
+      if (Math.hypot(dx, dy) > TAP_MOVE_THRESHOLD_PX) {
+        pending.cancelled = true
+      }
+    }
+
+    const finishPending = (open: boolean) => {
+      const current = pending
+      pending = null
+      if (!current) return
+      if (open && !current.cancelled) {
+        openFromElement(current.field)
+        current.field.blur()
+        return
+      }
+      if (current.cancelled && document.activeElement === current.field) {
+        current.field.blur()
+      }
+    }
+
+    const onPointerUp = () => {
+      finishPending(true)
+    }
+
+    const onPointerCancel = () => {
+      finishPending(false)
     }
 
     const onFocusIn = (event: FocusEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
+      if (pending) return
+      if (isExemptOrInsideOverlay(target)) return
       openFromElement(target)
     }
 
-    // iOS ignores pointerdown preventDefault for focusing inputs; touchstart
-    // must be non-passive so the original field never receives focus.
-    document.addEventListener('touchstart', interceptOriginalFocus, {
-      capture: true,
-      passive: false,
-    })
-    document.addEventListener('pointerdown', interceptOriginalFocus, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('pointermove', onPointerMove, true)
+    document.addEventListener('pointerup', onPointerUp, true)
+    document.addEventListener('pointercancel', onPointerCancel, true)
     document.addEventListener('focusin', onFocusIn, true)
 
     return () => {
@@ -209,12 +260,10 @@ export function KeyboardInputOverlayProvider({
         'resize',
         rememberLayoutViewportHeight
       )
-      document.removeEventListener(
-        'touchstart',
-        interceptOriginalFocus,
-        true
-      )
-      document.removeEventListener('pointerdown', interceptOriginalFocus, true)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('pointermove', onPointerMove, true)
+      document.removeEventListener('pointerup', onPointerUp, true)
+      document.removeEventListener('pointercancel', onPointerCancel, true)
       document.removeEventListener('focusin', onFocusIn, true)
     }
   }, [enabled])
