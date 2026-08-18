@@ -3,6 +3,8 @@ import test from 'node:test'
 
 import {
   buildMacroAdherenceItems,
+  emptyFoodDiaryMacros,
+  formatMacroAdherenceLabel,
   getMacroAdherenceStatus,
   groupFoodDiaryByMeal,
   mealPlanMealToDiaryEntries,
@@ -86,6 +88,44 @@ test('buildMacroAdherenceItems compares consumed vs profile targets', () => {
   )
   assert.ok(items.some((item) => item.label === 'Calories'))
   assert.ok(items.some((item) => item.label === 'Water' && item.status === 'hit'))
+})
+
+test('buildMacroAdherenceItems still shows logged macros without targets', () => {
+  const items = buildMacroAdherenceItems(sumFoodDiaryMacros(entries), null)
+  assert.deepEqual(
+    items.map((item) => item.label),
+    ['Calories', 'Protein', 'Carbs', 'Fat', 'Fiber']
+  )
+  assert.equal(items[0]?.consumed, 1000)
+  assert.equal(items[0]?.target, null)
+  assert.equal(items[0]?.status, 'unknown')
+})
+
+test('buildMacroAdherenceItems keeps target-only items when nothing is logged', () => {
+  const items = buildMacroAdherenceItems(emptyFoodDiaryMacros(), profile)
+  assert.ok(items.every((item) => item.consumed == null && item.target != null))
+  assert.equal(items.find((item) => item.label === 'Calories')?.target, 2000)
+})
+
+test('formatMacroAdherenceLabel includes consumed even without a target', () => {
+  assert.equal(
+    formatMacroAdherenceLabel({
+      label: 'Calories',
+      consumed: 1336,
+      target: 1450,
+      status: 'hit',
+    }),
+    'Calories 1336/1450'
+  )
+  assert.equal(
+    formatMacroAdherenceLabel({
+      label: 'Protein',
+      consumed: 117,
+      target: null,
+      status: 'unknown',
+    }),
+    'Protein 117'
+  )
 })
 
 test('mealPlanMealToDiaryEntries maps foods to diary entries', () => {

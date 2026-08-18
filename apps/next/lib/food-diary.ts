@@ -93,69 +93,74 @@ export function getMacroAdherenceStatus(
   return 'miss'
 }
 
+function positiveOrNull(value: number | null | undefined): number | null {
+  return value != null && value > 0 ? value : null
+}
+
+export function formatMacroAdherenceLabel(item: MacroAdherenceItem): string {
+  if (item.consumed != null && item.target != null) {
+    return `${item.label} ${Math.round(item.consumed)}/${Math.round(item.target)}`
+  }
+  if (item.consumed != null) {
+    return `${item.label} ${Math.round(item.consumed)}`
+  }
+  return item.label
+}
+
 export function buildMacroAdherenceItems(
   consumed: FoodDiaryMacros,
   profile: ClientNutritionProfile | null,
   waterMl?: number | null,
   fiberG?: number | null
 ): MacroAdherenceItem[] {
-  if (!profile) return []
-
-  const effectiveFiber = fiberG ?? consumed.fiberG
+  const caloriesConsumed = positiveOrNull(consumed.caloriesKcal)
+  const proteinConsumed = positiveOrNull(consumed.proteinG)
+  const carbsConsumed = positiveOrNull(consumed.carbsG)
+  const fatConsumed = positiveOrNull(consumed.fatG)
+  const fiberConsumed = positiveOrNull(fiberG ?? consumed.fiberG)
+  const waterConsumed = positiveOrNull(waterMl)
 
   return [
     {
       label: 'Calories',
-      consumed: consumed.caloriesKcal > 0 ? consumed.caloriesKcal : null,
-      target: profile.calories_kcal,
+      consumed: caloriesConsumed,
+      target: profile?.calories_kcal ?? null,
       status: getMacroAdherenceStatus(
-        consumed.caloriesKcal > 0 ? consumed.caloriesKcal : null,
-        profile.calories_kcal
+        caloriesConsumed,
+        profile?.calories_kcal ?? null
       ),
     },
     {
       label: 'Protein',
-      consumed: consumed.proteinG > 0 ? consumed.proteinG : null,
-      target: profile.protein_g,
-      status: getMacroAdherenceStatus(
-        consumed.proteinG > 0 ? consumed.proteinG : null,
-        profile.protein_g
-      ),
+      consumed: proteinConsumed,
+      target: profile?.protein_g ?? null,
+      status: getMacroAdherenceStatus(proteinConsumed, profile?.protein_g ?? null),
     },
     {
       label: 'Carbs',
-      consumed: consumed.carbsG > 0 ? consumed.carbsG : null,
-      target: profile.carbs_g,
-      status: getMacroAdherenceStatus(
-        consumed.carbsG > 0 ? consumed.carbsG : null,
-        profile.carbs_g
-      ),
+      consumed: carbsConsumed,
+      target: profile?.carbs_g ?? null,
+      status: getMacroAdherenceStatus(carbsConsumed, profile?.carbs_g ?? null),
     },
     {
       label: 'Fat',
-      consumed: consumed.fatG > 0 ? consumed.fatG : null,
-      target: profile.fat_g,
-      status: getMacroAdherenceStatus(
-        consumed.fatG > 0 ? consumed.fatG : null,
-        profile.fat_g
-      ),
+      consumed: fatConsumed,
+      target: profile?.fat_g ?? null,
+      status: getMacroAdherenceStatus(fatConsumed, profile?.fat_g ?? null),
     },
     {
       label: 'Fiber',
-      consumed: effectiveFiber > 0 ? effectiveFiber : null,
-      target: profile.fiber_g,
-      status: getMacroAdherenceStatus(
-        effectiveFiber > 0 ? effectiveFiber : null,
-        profile.fiber_g
-      ),
+      consumed: fiberConsumed,
+      target: profile?.fiber_g ?? null,
+      status: getMacroAdherenceStatus(fiberConsumed, profile?.fiber_g ?? null),
     },
     {
       label: 'Water',
-      consumed: waterMl ?? null,
-      target: profile.water_ml,
-      status: getMacroAdherenceStatus(waterMl ?? null, profile.water_ml),
+      consumed: waterConsumed,
+      target: profile?.water_ml ?? null,
+      status: getMacroAdherenceStatus(waterConsumed, profile?.water_ml ?? null),
     },
-  ].filter((item) => item.target != null)
+  ].filter((item) => item.consumed != null || item.target != null)
 }
 
 export function mealPlanFoodToDiaryEntry(

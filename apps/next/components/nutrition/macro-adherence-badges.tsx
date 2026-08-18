@@ -1,5 +1,8 @@
 import { cn } from '@/lib/utils'
-import type { MacroAdherenceItem } from '@/lib/food-diary'
+import {
+  formatMacroAdherenceLabel,
+  type MacroAdherenceItem,
+} from '@/lib/food-diary'
 
 const STATUS_STYLES = {
   hit: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
@@ -31,13 +34,12 @@ export function MacroAdherenceBadges({
           title={
             item.consumed != null && item.target != null
               ? `${item.consumed} / ${item.target}`
-              : undefined
+              : item.consumed != null
+                ? String(item.consumed)
+                : undefined
           }
         >
-          {item.label}
-          {item.consumed != null && item.target != null
-            ? ` ${Math.round(item.consumed)}/${Math.round(item.target)}`
-            : ''}
+          {formatMacroAdherenceLabel(item)}
         </span>
       ))}
     </div>
