@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 
 export const KEYBOARD_OVERLAY_ROOT_ATTR = 'data-keyboard-overlay-root'
 export const KEYBOARD_OVERLAY_EXEMPT_ATTR = 'data-keyboard-overlay-exempt'
+export const WORKOUT_LOG_ROOT_ATTR = 'data-workout-log'
 
 /** Typical phone keyboard height. Overlay only if the field sits in this band. */
 const KEYBOARD_COVER_PX = 320
@@ -132,10 +133,17 @@ function assignNativeValue(
   element.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+function isWorkoutLogScreenOpen() {
+  return document.querySelector(`[${WORKOUT_LOG_ROOT_ATTR}]`) != null
+}
+
 function shouldOpenOverlay(element: HTMLInputElement | HTMLTextAreaElement) {
   if (element.disabled || element.readOnly) return false
   if (isExemptOrInsideOverlay(element)) return false
   if (!document.contains(element)) return false
+  // Workout logging already has a custom keypad and can scroll behind the
+  // keyboard — never lift fields into the typing overlay on that screen.
+  if (isWorkoutLogScreenOpen()) return false
   return wouldBeCoveredByKeyboard(element)
 }
 

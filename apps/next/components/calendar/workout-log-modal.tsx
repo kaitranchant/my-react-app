@@ -2757,6 +2757,8 @@ export function WorkoutLogScreen({
     >
       <RestTimerProvider>
       <div
+        data-workout-log=""
+        data-keyboard-overlay-exempt=""
         className={cn(
           'flex min-h-0 flex-1 flex-col gap-0 overflow-hidden',
           isPage && 'h-full'

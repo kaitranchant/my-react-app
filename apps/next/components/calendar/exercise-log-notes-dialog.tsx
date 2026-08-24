@@ -142,7 +142,10 @@ export function ExerciseLogNotesDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        data-keyboard-overlay-exempt=""
+      >
         <DialogHeader>
           <DialogTitle>Exercise notes</DialogTitle>
           <DialogDescription>{exerciseName}</DialogDescription>
