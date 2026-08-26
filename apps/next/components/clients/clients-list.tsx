@@ -38,6 +38,7 @@ type ClientsListProps = {
   coachNamesById: Record<string, string>
   pendingOnboardingDocsByClientId?: Record<string, number>
   currentCoachId?: string
+  archivedView?: boolean
 }
 
 export function ClientsList({
@@ -47,6 +48,7 @@ export function ClientsList({
   coachNamesById,
   pendingOnboardingDocsByClientId = {},
   currentCoachId,
+  archivedView = false,
 }: ClientsListProps) {
   const router = useRouter()
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
@@ -341,46 +343,51 @@ export function ClientsList({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => void applyStatus('active')}
-              >
-                <PlayCircle className="size-4" />
-                Mark active
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => void applyStatus('paused')}
-              >
-                <PauseCircle className="size-4" />
-                Mark paused
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => void applyStatus('archived')}
-              >
-                <Archive className="size-4" />
-                Archive
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => void applyStatus('active')}
-              >
-                <ArchiveRestore className="size-4" />
-                Restore
-              </Button>
+              {!archivedView ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void applyStatus('active')}
+                  >
+                    <PlayCircle className="size-4" />
+                    Mark active
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void applyStatus('paused')}
+                  >
+                    <PauseCircle className="size-4" />
+                    Mark paused
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void applyStatus('archived')}
+                  >
+                    <Archive className="size-4" />
+                    Archive
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => void applyStatus('active')}
+                >
+                  <ArchiveRestore className="size-4" />
+                  Restore
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

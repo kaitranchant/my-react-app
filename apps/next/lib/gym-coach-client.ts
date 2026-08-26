@@ -227,9 +227,9 @@ export async function fetchGymMemberCoachSelfNameRows(
   gymId: string,
   filters?: {
     q?: string
-    status?: ClientStatus
+    status?: ClientStatus | 'current'
   }
-): Promise<Array<{ id: string; full_name: string; email: string | null }>> {
+): Promise<Array<{ id: string; full_name: string; email: string | null; status: ClientStatus }>> {
   const { data: members, error: membersError } = await supabase
     .from('gym_members')
     .select('coach_id')
@@ -242,7 +242,7 @@ export async function fetchGymMemberCoachSelfNameRows(
 
   let query = supabase
     .from('clients')
-    .select('id, full_name, email')
+    .select('id, full_name, email, status')
     .in(
       'coach_id',
       members.map((member) => member.coach_id)
@@ -253,7 +253,9 @@ export async function fetchGymMemberCoachSelfNameRows(
     query = applyIlikeOrFilter(query, ['full_name', 'email'], filters.q)
   }
 
-  if (filters?.status) {
+  if (filters?.status === 'current') {
+    query = query.neq('status', 'archived')
+  } else if (filters?.status) {
     query = query.eq('status', filters.status)
   }
 
@@ -273,5 +275,6 @@ export async function fetchGymMemberCoachSelfNameRows(
     id: row.id,
     full_name: row.full_name,
     email: row.email,
+    status: row.status,
   }))
 }

@@ -4,14 +4,9 @@ import * as React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 
+import { resolveClientsListStatus } from '@/lib/clients-list-query'
+import { FilterPillLinks } from '@/components/ui/filter-pills'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 export function ClientsToolbar() {
   const router = useRouter()
@@ -19,7 +14,10 @@ export function ClientsToolbar() {
   const searchParams = useSearchParams()
 
   const [query, setQuery] = React.useState(searchParams.get('q') ?? '')
-  const status = searchParams.get('status') ?? 'all'
+  const listStatus = resolveClientsListStatus(
+    searchParams.get('status') ?? undefined
+  )
+  const archivedView = listStatus === 'archived'
 
   function updateParams(next: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -34,6 +32,18 @@ export function ClientsToolbar() {
     router.push(`${pathname}?${params.toString()}`)
   }
 
+  function buildSectionHref(section: 'users' | 'archive') {
+    const params = new URLSearchParams(searchParams.toString())
+    if (section === 'archive') {
+      params.set('status', 'archived')
+    } else {
+      params.delete('status')
+    }
+    params.delete('page')
+    const queryString = params.toString()
+    return queryString ? `${pathname}?${queryString}` : pathname
+  }
+
   React.useEffect(() => {
     const handle = setTimeout(() => {
       const current = searchParams.get('q') ?? ''
@@ -45,31 +55,35 @@ export function ClientsToolbar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
+  React.useEffect(() => {
+    setQuery(searchParams.get('q') ?? '')
+  }, [searchParams])
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="relative w-full sm:max-w-xs">
         <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search clients…"
+          placeholder={archivedView ? 'Search archive…' : 'Search clients…'}
           className="pl-9"
         />
       </div>
-      <Select
-        value={status}
-        onValueChange={(value) => updateParams({ status: value })}
-      >
-        <SelectTrigger className="w-full sm:w-40">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="paused">Paused</SelectItem>
-          <SelectItem value="archived">Archived</SelectItem>
-        </SelectContent>
-      </Select>
+      <FilterPillLinks
+        options={[
+          {
+            href: buildSectionHref('users'),
+            label: 'Users',
+            active: !archivedView,
+          },
+          {
+            href: buildSectionHref('archive'),
+            label: 'Archive',
+            active: archivedView,
+          },
+        ]}
+      />
     </div>
   )
 }

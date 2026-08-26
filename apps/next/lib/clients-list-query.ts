@@ -5,7 +5,6 @@ import { fetchGymMemberCoachSelfNameRows, ensureGymMemberCoachProfiles } from '@
 import { sortByLastName } from '@/lib/person-name'
 import { applyIlikeOrFilter, matchesSearchQuery } from '@/lib/text-search'
 import { fetchPendingOnboardingCountsByClientId } from '@/lib/onboarding-data'
-import { clientStatuses } from '@/lib/validations/client'
 import type {
   Client,
   ClientStatus,
@@ -18,8 +17,31 @@ export type CoachGymTab = {
   name: string
 }
 
-function isStatus(value: string): value is ClientStatus {
-  return (clientStatuses as readonly string[]).includes(value)
+export type ClientsListStatusFilter = 'current' | ClientStatus
+
+export function resolveClientsListStatus(
+  statusParam: string | undefined
+): ClientsListStatusFilter {
+  if (
+    statusParam === 'active' ||
+    statusParam === 'paused' ||
+    statusParam === 'archived'
+  ) {
+    return statusParam
+  }
+  return 'current'
+}
+
+export function applyClientsStatusFilter<
+  Query extends {
+    eq: (column: 'status', value: ClientStatus) => Query
+    neq: (column: 'status', value: ClientStatus) => Query
+  }
+>(query: Query, status: ClientsListStatusFilter) {
+  if (status === 'current') {
+    return query.neq('status', 'archived')
+  }
+  return query.eq('status', status)
 }
 
 export function resolveClientsScope(
@@ -94,9 +116,11 @@ export async function fetchClientsForListPage(
     await ensureGymMemberCoachProfiles(scope)
   }
 
+  const listStatus = resolveClientsListStatus(status)
+
   let queryBuilder = supabase
     .from('clients')
-    .select('id, full_name, email', { count: 'exact' })
+    .select('id, full_name, email, status', { count: 'exact' })
 
   if (userId && scope === 'personal') {
     queryBuilder = queryBuilder.is('gym_id', null)
@@ -112,9 +136,7 @@ export async function fetchClientsForListPage(
     )
   }
 
-  if (status && isStatus(status)) {
-    queryBuilder = queryBuilder.eq('status', status)
-  }
+  queryBuilder = applyClientsStatusFilter(queryBuilder, listStatus)
 
   const requestedPage = Math.max(
     1,
@@ -129,7 +151,7 @@ export async function fetchClientsForListPage(
   if (userId && coachGymIds.has(scope)) {
     const coachSelfRows = await fetchGymMemberCoachSelfNameRows(supabase, scope, {
       q,
-      status: status && isStatus(status) ? status : undefined,
+      status: listStatus,
     })
     const existingIds = new Set(mergedNameRows.map((row) => row.id))
     for (const row of coachSelfRows) {
@@ -138,6 +160,12 @@ export async function fetchClientsForListPage(
         existingIds.add(row.id)
       }
     }
+  }
+
+  if (listStatus === 'current') {
+    mergedNameRows = mergedNameRows.filter((row) => row.status !== 'archived')
+  } else {
+    mergedNameRows = mergedNameRows.filter((row) => row.status === listStatus)
   }
 
   if (q?.trim()) {

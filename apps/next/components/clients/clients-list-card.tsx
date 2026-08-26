@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   clientsListSuspenseKey,
   fetchClientsForListPage,
+  resolveClientsListStatus,
   type CoachGymTab,
 } from '@/lib/clients-list-query'
 import { ClientsList } from '@/components/clients/clients-list'
@@ -70,12 +71,15 @@ export async function ClientsListCard({
     coachNamesById,
     pendingOnboardingDocsByClientId,
   } = data
+  const archivedView = resolveClientsListStatus(status) === 'archived'
 
   return (
     <Card className="overflow-hidden py-0">
       <CardHeader className="border-b bg-muted/30 px-5 py-4">
         <CardTitle className="text-muted-foreground">
-          {data.totalCount} user{data.totalCount === 1 ? '' : 's'}
+          {archivedView
+            ? `${data.totalCount} archived`
+            : `${data.totalCount} user${data.totalCount === 1 ? '' : 's'}`}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -87,11 +91,15 @@ export async function ClientsListCard({
               <Users className="size-7" />
             </div>
             <div className="space-y-1">
-              <p className="section-header">No clients found</p>
+              <p className="section-header">
+                {archivedView ? 'No archived clients' : 'No clients found'}
+              </p>
               <p className="helper-text max-w-sm">
-                {q || status || data.scope !== 'all'
-                  ? 'Try adjusting your search or filters.'
-                  : 'Add your first client to get started.'}
+                {archivedView
+                  ? 'Archived clients will show up here, out of your main list.'
+                  : q || status || data.scope !== 'all'
+                    ? 'Try adjusting your search or filters.'
+                    : 'Add your first client to get started.'}
               </p>
             </div>
           </div>
@@ -103,6 +111,7 @@ export async function ClientsListCard({
             coachNamesById={coachNamesById}
             pendingOnboardingDocsByClientId={pendingOnboardingDocsByClientId}
             currentCoachId={userId}
+            archivedView={archivedView}
           />
         )}
         {!data.error && data.totalCount > 0 && (

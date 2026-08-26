@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { resolveClientsScope } from './clients-list-query'
+import { resolveClientsScope, resolveClientsListStatus } from './clients-list-query'
 
 const gyms = [
   { id: 'gym-a', name: 'Pivot Extreme' },
@@ -32,5 +32,18 @@ describe('resolveClientsScope', () => {
       resolveClientsScope('gym-b', gyms, { gymInvitedOnly: true }),
       'gym-b'
     )
+  })
+})
+
+describe('resolveClientsListStatus', () => {
+  it('hides archived clients by default', () => {
+    assert.equal(resolveClientsListStatus(undefined), 'current')
+    assert.equal(resolveClientsListStatus('all'), 'current')
+  })
+
+  it('keeps explicit status filters including archive', () => {
+    assert.equal(resolveClientsListStatus('active'), 'active')
+    assert.equal(resolveClientsListStatus('paused'), 'paused')
+    assert.equal(resolveClientsListStatus('archived'), 'archived')
   })
 })
