@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { createClient } from '@/lib/supabase/server'
 import type { Database, GymMemberWithProfile, ClientStatus } from 'app/types/database'
 import type { AttendanceClientRow } from '@/lib/attendance'
+import { applyIlikeOrFilter, matchesSearchQuery } from '@/lib/text-search'
 
 const gymMemberCoachClientColumns =
   'id, coach_id, full_name, avatar_url, status, coaching_type, gym_id'
@@ -228,7 +229,7 @@ export async function fetchGymMemberCoachSelfNameRows(
     q?: string
     status?: ClientStatus
   }
-): Promise<Array<{ id: string; full_name: string }>> {
+): Promise<Array<{ id: string; full_name: string; email: string | null }>> {
   const { data: members, error: membersError } = await supabase
     .from('gym_members')
     .select('coach_id')
@@ -241,7 +242,7 @@ export async function fetchGymMemberCoachSelfNameRows(
 
   let query = supabase
     .from('clients')
-    .select('id, full_name')
+    .select('id, full_name, email')
     .in(
       'coach_id',
       members.map((member) => member.coach_id)
@@ -249,8 +250,7 @@ export async function fetchGymMemberCoachSelfNameRows(
     .eq('is_coach_self', true)
 
   if (filters?.q?.trim()) {
-    const term = `%${filters.q.trim()}%`
-    query = query.or(`full_name.ilike.${term},email.ilike.${term}`)
+    query = applyIlikeOrFilter(query, ['full_name', 'email'], filters.q)
   }
 
   if (filters?.status) {
@@ -263,5 +263,15 @@ export async function fetchGymMemberCoachSelfNameRows(
     return []
   }
 
-  return data
+  const rows = filters?.q?.trim()
+    ? data.filter((row) =>
+        matchesSearchQuery([row.full_name, row.email ?? ''], filters.q ?? '')
+      )
+    : data
+
+  return rows.map((row) => ({
+    id: row.id,
+    full_name: row.full_name,
+    email: row.email,
+  }))
 }

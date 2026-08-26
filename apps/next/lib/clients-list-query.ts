@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { CLIENTS_PAGE_SIZE } from '@/lib/constants'
 import { fetchGymMemberCoachSelfNameRows, ensureGymMemberCoachProfiles } from '@/lib/gym-coach-client'
 import { sortByLastName } from '@/lib/person-name'
+import { applyIlikeOrFilter, matchesSearchQuery } from '@/lib/text-search'
 import { fetchPendingOnboardingCountsByClientId } from '@/lib/onboarding-data'
 import { clientStatuses } from '@/lib/validations/client'
 import type {
@@ -95,7 +96,7 @@ export async function fetchClientsForListPage(
 
   let queryBuilder = supabase
     .from('clients')
-    .select('id, full_name', { count: 'exact' })
+    .select('id, full_name, email', { count: 'exact' })
 
   if (userId && scope === 'personal') {
     queryBuilder = queryBuilder.is('gym_id', null)
@@ -104,9 +105,10 @@ export async function fetchClientsForListPage(
   }
 
   if (q?.trim()) {
-    const term = `%${q.trim()}%`
-    queryBuilder = queryBuilder.or(
-      `full_name.ilike.${term},email.ilike.${term}`
+    queryBuilder = applyIlikeOrFilter(
+      queryBuilder,
+      ['full_name', 'email'],
+      q
     )
   }
 
@@ -138,8 +140,14 @@ export async function fetchClientsForListPage(
     }
   }
 
+  if (q?.trim()) {
+    mergedNameRows = mergedNameRows.filter((row) =>
+      matchesSearchQuery([row.full_name, row.email ?? ''], q)
+    )
+  }
+
   const totalCount =
-    userId && coachGymIds.has(scope)
+    (userId && coachGymIds.has(scope)) || Boolean(q?.trim())
       ? mergedNameRows.length
       : (count ?? 0)
   const totalPages = Math.max(1, Math.ceil(totalCount / CLIENTS_PAGE_SIZE))

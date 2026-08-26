@@ -40,7 +40,7 @@ export function ClientsToolbar() {
       if (query !== current) {
         updateParams({ q: query })
       }
-    }, 300)
+    }, 150)
     return () => clearTimeout(handle)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])

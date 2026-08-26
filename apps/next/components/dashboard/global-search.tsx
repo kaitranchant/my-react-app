@@ -12,10 +12,12 @@ import {
 } from 'lucide-react'
 
 import {
-  globalSearch,
+  mergeSearchResults,
+  searchLoadedIndex,
+  type GlobalSearchIndex,
   type GlobalSearchResult,
   type GlobalSearchResultType,
-} from '@/app/(dashboard)/search/actions'
+} from '@/lib/global-search'
 import { Button } from '@/components/ui/button'
 import {
   CommandDialog,
@@ -54,6 +56,12 @@ const TYPE_ICONS: Record<
   meal_plan: UtensilsCrossed,
 }
 
+const INDEX_TTL_MS = 60_000
+const EXERCISE_SEARCH_MIN_LENGTH = 2
+
+let cachedIndex: { value: GlobalSearchIndex; at: number } | null = null
+let indexInFlight: Promise<GlobalSearchIndex> | null = null
+
 function getSearchShortcutLabel() {
   if (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform)) {
     return '⌘ K'
@@ -78,13 +86,60 @@ function groupResults(results: GlobalSearchResult[]) {
   })
 }
 
+async function fetchSearchIndex() {
+  const response = await fetch('/api/search/index', { cache: 'no-store' })
+  const payload = (await response.json()) as
+    | { ok: true; index: GlobalSearchIndex }
+    | { ok: false; error?: string }
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(
+      !payload.ok ? payload.error ?? 'Could not load search.' : 'Could not load search.'
+    )
+  }
+
+  return payload.index
+}
+
+function loadSearchIndex(options?: { force?: boolean }) {
+  if (
+    !options?.force &&
+    cachedIndex &&
+    Date.now() - cachedIndex.at < INDEX_TTL_MS
+  ) {
+    return Promise.resolve(cachedIndex.value)
+  }
+
+  if (!options?.force && indexInFlight) return indexInFlight
+
+  indexInFlight = fetchSearchIndex()
+    .then((index) => {
+      cachedIndex = { value: index, at: Date.now() }
+      return index
+    })
+    .finally(() => {
+      indexInFlight = null
+    })
+
+  if (cachedIndex && !options?.force) {
+    return Promise.resolve(cachedIndex.value)
+  }
+
+  return indexInFlight
+}
+
 export function GlobalSearch() {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
-  const [results, setResults] = React.useState<GlobalSearchResult[]>([])
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [index, setIndex] = React.useState<GlobalSearchIndex | null>(
+    cachedIndex?.value ?? null
+  )
+  const [exerciseResults, setExerciseResults] = React.useState<
+    GlobalSearchResult[]
+  >([])
+  const [indexError, setIndexError] = React.useState<string | null>(null)
+  const [loadingIndex, setLoadingIndex] = React.useState(!cachedIndex)
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -99,43 +154,67 @@ export function GlobalSearch() {
   }, [])
 
   React.useEffect(() => {
-    if (!open) {
-      setQuery('')
-      setResults([])
-      setError(null)
-      setLoading(false)
+    let cancelled = false
+
+    loadSearchIndex()
+      .then((nextIndex) => {
+        if (cancelled) return
+        setIndex(nextIndex)
+        setIndexError(null)
+        setLoadingIndex(false)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setIndexError(
+          error instanceof Error ? error.message : 'Could not load search.'
+        )
+        setLoadingIndex(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-  }, [open])
+  }, [])
 
   React.useEffect(() => {
-    if (!open) return
-
-    const trimmed = query.trim()
-    if (!trimmed) {
-      setResults([])
-      setError(null)
-      setLoading(false)
+    if (!open) {
+      setQuery('')
+      setExerciseResults([])
       return
     }
 
-    setLoading(true)
-    setError(null)
+    void loadSearchIndex({ force: !cachedIndex })
+  }, [open])
 
-    const handle = setTimeout(async () => {
-      const response = await globalSearch(trimmed)
+  React.useEffect(() => {
+    const trimmed = query.trim()
+    if (!open || trimmed.length < EXERCISE_SEARCH_MIN_LENGTH) {
+      setExerciseResults([])
+      return
+    }
 
-      if (response.success) {
-        setResults(response.results)
-        setError(null)
-      } else {
-        setResults([])
-        setError(response.error)
+    const controller = new AbortController()
+    const handle = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/search/exercises?q=${encodeURIComponent(trimmed)}`,
+          { signal: controller.signal, cache: 'no-store' }
+        )
+        const payload = (await response.json()) as
+          | { ok: true; results: GlobalSearchResult[] }
+          | { ok: false }
+
+        if (!response.ok || !payload.ok) return
+        setExerciseResults(payload.results)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
       }
+    }, 100)
 
-      setLoading(false)
-    }, 300)
-
-    return () => clearTimeout(handle)
+    return () => {
+      controller.abort()
+      window.clearTimeout(handle)
+    }
   }, [open, query])
 
   function handleSelect(href: string) {
@@ -143,9 +222,13 @@ export function GlobalSearch() {
     router.push(href)
   }
 
+  const trimmedQuery = query.trim()
+  const localResults = index ? searchLoadedIndex(index, trimmedQuery) : []
+  const results = mergeSearchResults(localResults, exerciseResults)
   const groupedResults = groupResults(results)
-  const hasQuery = query.trim().length > 0
+  const hasQuery = trimmedQuery.length > 0
   const shortcutLabel = getSearchShortcutLabel()
+  const waitingForIndex = hasQuery && loadingIndex && !index
 
   return (
     <>
@@ -186,33 +269,33 @@ export function GlobalSearch() {
           onValueChange={setQuery}
         />
         <CommandList>
-          {loading ? (
-            <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
-              <Loader2 className="size-4 animate-spin" />
-              Searching…
-            </div>
-          ) : error ? (
+          {indexError && !index ? (
             <div className="text-destructive px-4 py-8 text-center text-sm">
-              {error}
+              {indexError}
             </div>
           ) : !hasQuery ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               Start typing to search your library and clients.
             </div>
+          ) : waitingForIndex ? (
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Searching…
+            </div>
           ) : groupedResults.length === 0 ? (
             <CommandEmpty>No results found.</CommandEmpty>
           ) : (
-            groupedResults.map((group, index) => {
+            groupedResults.map((group, groupIndex) => {
               const Icon = TYPE_ICONS[group.type]
 
               return (
                 <React.Fragment key={group.type}>
-                  {index > 0 && <CommandSeparator />}
+                  {groupIndex > 0 && <CommandSeparator />}
                   <CommandGroup heading={GROUP_LABELS[group.type]}>
                     {group.items.map((result) => (
                       <CommandItem
                         key={`${result.type}-${result.id}`}
-                        value={`${result.type} ${result.title} ${result.subtitle ?? ''}`}
+                        value={`${result.type}-${result.id}`}
                         onSelect={() => handleSelect(result.href)}
                       >
                         <Icon className="text-muted-foreground" />
