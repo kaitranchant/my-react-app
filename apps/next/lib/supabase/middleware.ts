@@ -8,6 +8,16 @@ import {
 } from '@/lib/app-surface'
 import { readActiveSurfaceCookieValue } from '@/lib/app-surface-server'
 
+const INVITE_TOKEN_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function readInviteToken(value: string | null): string | null {
+  if (!value || !INVITE_TOKEN_PATTERN.test(value)) {
+    return null
+  }
+  return value
+}
+
 const PUBLIC_ROUTES = [
   '/login',
   '/signup',
@@ -77,12 +87,47 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && pathname === '/signup') {
-    const gymInvite = request.nextUrl.searchParams.get('gym_invite')
+    const gymInvite = readInviteToken(request.nextUrl.searchParams.get('gym_invite'))
     if (gymInvite) {
+      const { data, error } = await supabase.rpc('get_gym_invite_preview', {
+        p_token: gymInvite,
+      })
+      if (!error && data?.[0]?.email) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/gym/join'
+        url.search = ''
+        url.searchParams.set('invite', gymInvite)
+        return NextResponse.redirect(url)
+      }
+    }
+  }
+
+  const isPortalJoin =
+    pathname === '/portal/join' || pathname.startsWith('/portal/join/')
+  const isGymJoin = pathname === '/gym/join' || pathname.startsWith('/gym/join/')
+
+  if (user && isPortalJoin) {
+    const token = readInviteToken(request.nextUrl.searchParams.get('invite'))
+    const { data, error } = token
+      ? await supabase.rpc('get_client_invite_preview', { p_token: token })
+      : { data: null, error: null }
+    if (error || !data?.[0]?.email) {
       const url = request.nextUrl.clone()
-      url.pathname = '/gym/join'
+      url.pathname = '/portal'
       url.search = ''
-      url.searchParams.set('invite', gymInvite)
+      return NextResponse.redirect(url)
+    }
+  }
+
+  if (user && isGymJoin) {
+    const token = readInviteToken(request.nextUrl.searchParams.get('invite'))
+    const { data, error } = token
+      ? await supabase.rpc('get_gym_invite_preview', { p_token: token })
+      : { data: null, error: null }
+    if (error || !data?.[0]?.email) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      url.search = ''
       return NextResponse.redirect(url)
     }
   }
@@ -124,7 +169,6 @@ export async function updateSession(request: NextRequest) {
       cookieValue: readActiveSurfaceCookieValue(request.headers.get('cookie') ?? undefined),
     })
     const isPortal = pathname.startsWith('/portal')
-    const isPortalJoin = pathname === '/portal/join' || pathname.startsWith('/portal/join/')
     const isApiRoute = pathname.startsWith('/api/')
     const isCoachArea =
       !isPortal &&

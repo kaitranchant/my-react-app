@@ -12,7 +12,7 @@ import {
   registerInvitedClient,
   signInClientAccount,
 } from '@/lib/auth/client-invite-signup'
-import { linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
+import { ensureGymInviteLinked, linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
 import { setActiveSurfaceCookie } from '@/lib/app-surface-server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
 import { getAppBaseUrl } from '@/lib/email/config'
@@ -79,6 +79,25 @@ function signupMetadata(input: {
   }
 }
 
+async function completeGymInviteSignup(input: {
+  inviteToken: string
+  userId: string
+  email: string
+}): Promise<AuthState> {
+  const linked = await linkGymInviteAsAdmin({
+    inviteToken: input.inviteToken,
+    userId: input.userId,
+    email: input.email,
+  })
+
+  if (!linked.ok) {
+    return { error: linked.error }
+  }
+
+  revalidatePath('/', 'layout')
+  return { redirectTo: `/gym?gym=${linked.gymId}` }
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
@@ -100,6 +119,13 @@ export async function login(
 
     if (!signIn.ok) {
       return { error: signIn.error }
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      await ensureGymInviteLinked(user)
     }
   } catch (error) {
     return { error: authErrorMessage(error) }
@@ -150,6 +176,17 @@ export async function login(
 }
 
 export async function signup(
+  _prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const result = await createAccount(_prevState, formData)
+  if (result.redirectTo) {
+    redirect(result.redirectTo)
+  }
+  return result
+}
+
+async function createAccount(
   _prevState: AuthState,
   formData: FormData
 ): Promise<AuthState> {
@@ -216,6 +253,21 @@ export async function signup(
         }
 
         if (message === 'USER_ALREADY_EXISTS') {
+          if (gymInviteToken) {
+            const existing = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            })
+
+            if (!existing.error && existing.data.user) {
+              return completeGymInviteSignup({
+                inviteToken: gymInviteToken,
+                userId: existing.data.user.id,
+                email,
+              })
+            }
+          }
+
           return {
             error:
               'An account with this email already exists. Sign in instead.',
@@ -235,18 +287,11 @@ export async function signup(
       signedUpUserId = data.user?.id ?? null
 
       if (gymInviteToken && signedUpUserId) {
-        const linked = await linkGymInviteAsAdmin({
+        return completeGymInviteSignup({
           inviteToken: gymInviteToken,
           userId: signedUpUserId,
           email,
         })
-
-        if (!linked.ok) {
-          return { error: linked.error }
-        }
-
-        revalidatePath('/', 'layout')
-        return { redirectTo: `/gym?gym=${linked.gymId}` }
       }
     }
 

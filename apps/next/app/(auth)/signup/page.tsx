@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { AuthForm } from '@/components/auth/auth-form'
+import { destinationIfGymInviteAlreadyLinked } from '@/lib/auth/invite-landing'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = {
@@ -23,11 +24,33 @@ export default async function SignupPage({
 
   if (user) {
     if (gymInvite && INVITE_TOKEN_PATTERN.test(gymInvite)) {
-      redirect(`/gym/join?invite=${gymInvite}`)
+      const { data, error: previewError } = await supabase.rpc(
+        'get_gym_invite_preview',
+        { p_token: gymInvite }
+      )
+      const stillPending = !previewError && Boolean(data?.[0]?.email)
+      if (stillPending) {
+        redirect(`/gym/join?invite=${gymInvite}`)
+      }
+
+      const alreadyJoined = await destinationIfGymInviteAlreadyLinked(
+        user.id,
+        gymInvite
+      )
+      redirect(alreadyJoined ?? '/dashboard')
     }
 
     if (invite && INVITE_TOKEN_PATTERN.test(invite)) {
-      redirect(`/portal/join?invite=${invite}`)
+      const { data, error: previewError } = await supabase.rpc(
+        'get_client_invite_preview',
+        { p_token: invite }
+      )
+      const stillPending = !previewError && Boolean(data?.[0]?.email)
+      if (stillPending) {
+        redirect(`/portal/join?invite=${invite}`)
+      }
+
+      redirect('/portal')
     }
 
     const { data: profile } = await supabase
@@ -96,7 +119,12 @@ export default async function SignupPage({
     <>
       {hasInvalidInvite && (
         <p className="text-destructive mb-4 text-center text-sm" role="alert">
-          This invite link is invalid or no longer available. Ask for a new invite link.
+          This invite link is no longer available. If you just created an
+          account,{' '}
+          <a href="/login" className="font-medium underline underline-offset-4">
+            sign in
+          </a>{' '}
+          instead.
         </p>
       )}
       <AuthForm

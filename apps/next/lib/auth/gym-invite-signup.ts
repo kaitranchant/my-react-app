@@ -59,6 +59,13 @@ export async function linkGymInviteAsAdmin(input: {
   })
 
   if (error) {
+    const recoveredGymId = await findGymIdIfInviteAlreadyLinked(admin, input)
+    if (recoveredGymId) {
+      await clearPendingGymInviteMetadata(input.userId)
+      await ensureGymCoachPortalMembershipAsAdmin(input.userId, recoveredGymId)
+      return { ok: true, gymId: recoveredGymId }
+    }
+
     return {
       ok: false,
       error: formatGymInviteLinkError(error.message),
@@ -71,6 +78,31 @@ export async function linkGymInviteAsAdmin(input: {
   await ensureGymCoachPortalMembershipAsAdmin(input.userId, gymId)
 
   return { ok: true, gymId }
+}
+
+async function findGymIdIfInviteAlreadyLinked(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  input: { inviteToken: string; userId: string }
+): Promise<string | null> {
+  const { data: invite } = await admin
+    .from('gym_invites')
+    .select('gym_id')
+    .eq('invite_token', input.inviteToken)
+    .maybeSingle()
+
+  if (!invite?.gym_id) {
+    return null
+  }
+
+  const { data: member } = await admin
+    .from('gym_members')
+    .select('id')
+    .eq('gym_id', invite.gym_id)
+    .eq('coach_id', input.userId)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  return member ? invite.gym_id : null
 }
 
 export async function ensureGymInviteLinked(user: User): Promise<boolean> {

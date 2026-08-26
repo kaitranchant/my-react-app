@@ -87,12 +87,17 @@ export function PortalJoinClient({
     return (
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle>Invalid invite</CardTitle>
+          <CardTitle>Invite already used</CardTitle>
           <CardDescription>
-            This client invite link is invalid or no longer available. Ask your
-            coach for a new link.
+            This invite is no longer available. If you just created an account,
+            sign in with the password you chose.
           </CardDescription>
         </CardHeader>
+        <CardFooter>
+          <Button asChild className="w-full">
+            <Link href={loginHref ?? '/login?next=/portal'}>Sign in</Link>
+          </Button>
+        </CardFooter>
       </Card>
     )
   }

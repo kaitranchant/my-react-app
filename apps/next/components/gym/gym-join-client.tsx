@@ -83,12 +83,17 @@ export function GymJoinClient({
     return (
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle>Invalid invite</CardTitle>
+          <CardTitle>Invite already used</CardTitle>
           <CardDescription>
-            This gym invite link is invalid or no longer available. Ask the gym
-            owner for a new link.
+            This invite is no longer available. If you just created an account,
+            sign in with the password you chose.
           </CardDescription>
         </CardHeader>
+        <CardFooter>
+          <Button asChild className="w-full">
+            <Link href={loginHref ?? '/login?next=/dashboard'}>Sign in</Link>
+          </Button>
+        </CardFooter>
       </Card>
     )
   }

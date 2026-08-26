@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+
 import { PortalJoinClient } from '@/components/portal/portal-join-client'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,7 +18,7 @@ export default async function PortalJoinPage({
   const { invite } = await searchParams
 
   if (!invite || !INVITE_TOKEN_PATTERN.test(invite)) {
-    return <PortalJoinClient invalid />
+    return <PortalJoinClient invalid loginHref="/login?next=/portal" />
   }
 
   const supabase = await createClient()
@@ -31,7 +33,17 @@ export default async function PortalJoinPage({
   const row = data?.[0]
 
   if (error || !row?.email) {
-    return <PortalJoinClient invalid token={invite} />
+    if (user) {
+      redirect('/portal')
+    }
+
+    return (
+      <PortalJoinClient
+        invalid
+        token={invite}
+        loginHref="/login?next=/portal"
+      />
+    )
   }
 
   const loginNext = encodeURIComponent(`/portal/join?invite=${invite}`)

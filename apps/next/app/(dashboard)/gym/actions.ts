@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { formatGymInviteLinkError } from '@/lib/auth/errors'
+import { linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
 import { ensureGymCoachPortalMembership } from '@/lib/gym-coach-client'
 import { getAppBaseUrl } from '@/lib/email/config'
 import {
@@ -402,23 +402,20 @@ export async function deleteGymRecord(gymId: string): Promise<DeleteGymResult> {
 export async function acceptGymInvite(
   token: string
 ): Promise<{ success: true; gymId: string } | { success: false; error: string }> {
-  const { supabase, user } = await requireUser()
+  const { user } = await requireUser()
 
-  const { data, error } = await supabase.rpc('link_gym_invite', {
-    p_token: token,
-    p_user_id: user.id,
-    p_email: user.email ?? '',
+  const linked = await linkGymInviteAsAdmin({
+    inviteToken: token,
+    userId: user.id,
+    email: user.email ?? '',
   })
 
-  if (error) {
-    return { success: false, error: formatGymInviteLinkError(error.message) }
+  if (!linked.ok) {
+    return { success: false, error: linked.error }
   }
 
-  const gymId = data as string
-  await ensureGymCoachPortalMembership(supabase, gymId)
-
   revalidateGym()
-  return { success: true, gymId }
+  return { success: true, gymId: linked.gymId }
 }
 
 export async function getGymInviteLink(

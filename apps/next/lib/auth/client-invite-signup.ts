@@ -230,6 +230,33 @@ async function getPendingInviteClient(
   return data
 }
 
+async function signInIfClientInviteAlreadyCompleted(
+  supabase: SupabaseServerClient,
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  input: { email: string; password: string }
+): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  const existing = await findAuthUserByEmail(admin, input.email)
+  if (!existing || !(await isClientAccountLinked(existing.id))) {
+    return {
+      ok: false,
+      error:
+        'This invite link is invalid or no longer available. Ask your coach for a new one.',
+    }
+  }
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: input.email,
+    password: input.password,
+  })
+
+  if (signInError) {
+    return { ok: false, error: formatSupabaseAuthError(signInError) }
+  }
+
+  await finalizeClientInviteLink(existing.id)
+  return { ok: true, userId: existing.id }
+}
+
 export async function registerInvitedClient(
   supabase: SupabaseServerClient,
   input: {
@@ -250,10 +277,7 @@ export async function registerInvitedClient(
 
   const pendingClient = await getPendingInviteClient(admin, input.inviteToken)
   if (!pendingClient?.email) {
-    return {
-      ok: false,
-      error: 'This invite link is invalid or no longer available. Ask your coach for a new one.',
-    }
+    return signInIfClientInviteAlreadyCompleted(supabase, admin, input)
   }
 
   if (

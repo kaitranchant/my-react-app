@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  formatClientInviteLinkError,
+  formatGymInviteLinkError,
   formatSupabaseAuthError,
   isEmailNotConfirmedError,
   normalizeAuthFormError,
@@ -35,5 +37,19 @@ test('isEmailNotConfirmedError detects unconfirmed auth errors', () => {
       message: 'Email not confirmed',
     }),
     true
+  )
+})
+
+test('formatClientInviteLinkError maps expired invite copy', () => {
+  assert.equal(
+    formatClientInviteLinkError('Invalid or expired invite'),
+    'This invite link is invalid or no longer available. Ask your coach for a new one.'
+  )
+})
+
+test('formatGymInviteLinkError maps expired invite copy', () => {
+  assert.equal(
+    formatGymInviteLinkError('Invalid or expired invite'),
+    'This gym invite link is invalid or no longer available. Ask the gym owner for a new link.'
   )
 })

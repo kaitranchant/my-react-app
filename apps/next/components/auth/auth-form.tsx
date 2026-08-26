@@ -1,9 +1,8 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useRef } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 import { login, signup, type AuthState } from '@/app/(auth)/actions'
 import { normalizeAuthFormError } from '@/lib/auth/errors'
@@ -55,25 +54,40 @@ export function AuthForm({
   redirectTo?: string
   initialError?: string
 }) {
-  const router = useRouter()
   const action = mode === 'login' ? login : signup
   const [state, formAction] = useActionState<AuthState, FormData>(action, {
     error: initialError,
   })
-  const formError = normalizeAuthFormError(
-    state.error ?? (state.redirectTo || state.message ? undefined : initialError)
-  )
+  const successfulRedirect = useRef<string | null>(null)
+  const submittingRef = useRef(false)
+
+  if (state.redirectTo) {
+    successfulRedirect.current = state.redirectTo
+  }
+
+  const formError = successfulRedirect.current
+    ? null
+    : normalizeAuthFormError(
+        state.error ??
+          (state.redirectTo || state.message ? undefined : initialError)
+      )
   const isSignup = mode === 'signup'
   const isClientInvite = Boolean(isSignup && invitePreview)
   const isGymInvite = Boolean(isSignup && gymInvitePreview)
   const hasInvite = isClientInvite || isGymInvite
 
   useEffect(() => {
-    if (state.redirectTo) {
-      router.push(state.redirectTo)
-      router.refresh()
+    if (state.error && !state.redirectTo) {
+      submittingRef.current = false
     }
-  }, [router, state.redirectTo])
+  }, [state.error, state.redirectTo])
+
+  useEffect(() => {
+    const path = successfulRedirect.current
+    if (path) {
+      window.location.assign(path)
+    }
+  }, [state.redirectTo])
 
   return (
     <Card className="shadow-card">
@@ -97,7 +111,16 @@ export function AuthForm({
                 : 'Sign in to your coaching dashboard.'}
         </CardDescription>
       </CardHeader>
-      <form action={formAction}>
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          if (submittingRef.current || successfulRedirect.current) {
+            event.preventDefault()
+            return
+          }
+          submittingRef.current = true
+        }}
+      >
         {mode === 'login' && redirectTo ? (
           <input type="hidden" name="redirectTo" value={redirectTo} />
         ) : null}

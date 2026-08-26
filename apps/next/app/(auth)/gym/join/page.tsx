@@ -1,4 +1,7 @@
+import { redirect } from 'next/navigation'
+
 import { GymJoinClient } from '@/components/gym/gym-join-client'
+import { destinationIfGymInviteAlreadyLinked } from '@/lib/auth/invite-landing'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = {
@@ -16,7 +19,7 @@ export default async function GymJoinPage({
   const { invite } = await searchParams
 
   if (!invite || !INVITE_TOKEN_PATTERN.test(invite)) {
-    return <GymJoinClient invalid />
+    return <GymJoinClient invalid loginHref="/login?next=/dashboard" />
   }
 
   const supabase = await createClient()
@@ -31,7 +34,21 @@ export default async function GymJoinPage({
   const row = data?.[0]
 
   if (error || !row?.email) {
-    return <GymJoinClient invalid token={invite} />
+    if (user) {
+      const alreadyJoined = await destinationIfGymInviteAlreadyLinked(
+        user.id,
+        invite
+      )
+      redirect(alreadyJoined ?? '/dashboard')
+    }
+
+    return (
+      <GymJoinClient
+        invalid
+        token={invite}
+        loginHref="/login?next=/dashboard"
+      />
+    )
   }
 
   const loginNext = encodeURIComponent(`/gym/join?invite=${invite}`)
