@@ -8,6 +8,7 @@ import {
 import {
   formatClientInviteLinkError,
   formatSupabaseAuthError,
+  isEmailNotConfirmedError,
   isUserAlreadyExistsError,
 } from '@/lib/auth/errors'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
@@ -399,10 +400,8 @@ export async function signInClientAccount(
     .maybeSingle()
 
   const isClient = profile?.role === 'client' || Boolean(linkedClient)
-  if (!isClient) {
-    return { ok: false, error: formatSupabaseAuthError(firstAttempt.error) }
-  }
 
+  // Auto-confirm so coaches/clients stuck behind email confirmation can sign in.
   if (!authUser.email_confirmed_at) {
     const { error: confirmError } = await admin.auth.admin.updateUserById(
       authUser.id,
@@ -412,6 +411,11 @@ export async function signInClientAccount(
     if (confirmError) {
       return { ok: false, error: formatSupabaseAuthError(confirmError) }
     }
+  } else if (
+    !isClient &&
+    !isEmailNotConfirmedError(firstAttempt.error)
+  ) {
+    return { ok: false, error: formatSupabaseAuthError(firstAttempt.error) }
   }
 
   const retry = await supabase.auth.signInWithPassword({

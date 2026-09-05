@@ -4,18 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import {
-  authErrorMessage,
-  formatSupabaseAuthError,
-} from '@/lib/auth/errors'
+import { authErrorMessage } from '@/lib/auth/errors'
 import {
   registerInvitedClient,
   signInClientAccount,
 } from '@/lib/auth/client-invite-signup'
+import { registerCoachAccount } from '@/lib/auth/coach-signup'
 import { ensureGymInviteLinked, linkGymInviteAsAdmin } from '@/lib/auth/gym-invite-signup'
 import { setActiveSurfaceCookie } from '@/lib/app-surface-server'
 import { runOnboardingAutomationForUser } from '@/lib/client-onboarding-trigger'
-import { getAppBaseUrl } from '@/lib/email/config'
 
 export type AuthState = {
   error?: string
@@ -61,22 +58,6 @@ function inviteSignupDatabaseError(isClientSignup: boolean): string {
   return isClientSignup
     ? 'Could not complete signup. The invite may be invalid or no longer available, or the email may not match. Ask your coach for a new invite link.'
     : 'Could not complete signup. The gym invite may be invalid or no longer available, or the email may not match.'
-}
-
-function signupMetadata(input: {
-  fullName: string
-  isClientSignup: boolean
-  inviteToken: string
-  gymInviteToken: string
-}) {
-  return {
-    full_name: input.fullName,
-    role: input.isClientSignup ? 'client' : 'coach',
-    pending_invite_token: input.isClientSignup
-      ? input.inviteToken || undefined
-      : undefined,
-    pending_gym_invite_token: input.gymInviteToken || undefined,
-  }
 }
 
 async function completeGymInviteSignup(input: {
@@ -231,62 +212,44 @@ async function createAccount(
 
       signedUpUserId = registered.userId
     } else {
-      const { data, error } = await supabase.auth.signUp({
+      const registered = await registerCoachAccount(supabase, {
         email,
         password,
-        options: {
-          data: signupMetadata({
-            fullName,
-            isClientSignup,
-            inviteToken,
-            gymInviteToken,
-          }),
-          emailRedirectTo: `${getAppBaseUrl()}/auth/callback`,
-        },
+        fullName,
+        gymInviteToken,
       })
 
-      if (error) {
-        const message = formatSupabaseAuthError(error)
+      if (!registered.ok) {
+        if (registered.code === 'USER_ALREADY_EXISTS' && gymInviteToken) {
+          const existing = await signInClientAccount(supabase, {
+            email,
+            password,
+          })
 
-        if (message === 'DATABASE_ERROR_SAVING_USER') {
-          return { error: inviteSignupDatabaseError(isClientSignup) }
-        }
-
-        if (message === 'USER_ALREADY_EXISTS') {
-          if (gymInviteToken) {
-            const existing = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            })
-
-            if (!existing.error && existing.data.user) {
+          if (existing.ok) {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser()
+            if (user) {
               return completeGymInviteSignup({
                 inviteToken: gymInviteToken,
-                userId: existing.data.user.id,
+                userId: user.id,
                 email,
               })
             }
           }
-
-          return {
-            error:
-              'An account with this email already exists. Sign in instead.',
-          }
         }
 
-        return { error: message }
-      }
-
-      if (!data.session) {
-        return {
-          message:
-            'Check your email to confirm your account, then sign in.',
+        if (registered.error === 'DATABASE_ERROR_SAVING_USER') {
+          return { error: inviteSignupDatabaseError(false) }
         }
+
+        return { error: registered.error }
       }
 
-      signedUpUserId = data.user?.id ?? null
+      signedUpUserId = registered.userId
 
-      if (gymInviteToken && signedUpUserId) {
+      if (gymInviteToken) {
         return completeGymInviteSignup({
           inviteToken: gymInviteToken,
           userId: signedUpUserId,
