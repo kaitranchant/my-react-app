@@ -295,6 +295,17 @@ export function PortalNutritionPanel({
                   }
                 />
               </div>
+              {values.coachNotes?.trim() ? (
+                <div className="grid gap-2">
+                  <Label htmlFor="nutrition-coach-notes">Coach notes</Label>
+                  <p
+                    id="nutrition-coach-notes"
+                    className="bg-muted/40 text-muted-foreground rounded-md border px-3 py-2 text-sm whitespace-pre-wrap"
+                  >
+                    {values.coachNotes}
+                  </p>
+                </div>
+              ) : null}
               <div className="flex justify-end">
                 <Button type="submit" disabled={pending}>
                   {pending

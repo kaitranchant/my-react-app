@@ -142,6 +142,7 @@ export const nutritionLogFormSchema = z.object({
     .min(1, 'Select an adherence score')
     .max(5, 'Select an adherence score'),
   clientNotes: optionalNotes,
+  coachNotes: optionalNotes,
   fiberG: optionalNonNegativeNumber,
   waterMl: optionalNonNegativeNumber,
 })

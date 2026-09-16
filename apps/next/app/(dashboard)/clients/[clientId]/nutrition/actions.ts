@@ -279,7 +279,9 @@ export async function submitClientNutritionLog(
     return { success: false, error: 'Client not found.' }
   }
 
-  const row = nutritionLogValuesToRow(parsed.data, clientId, ctx.user.id)
+  const row = nutritionLogValuesToRow(parsed.data, clientId, ctx.user.id, {
+    includeCoachNotes: true,
+  })
 
   const { error } = await ctx.supabase
     .from('client_nutrition_logs')

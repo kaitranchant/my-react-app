@@ -170,16 +170,35 @@ export function CoachAdherenceLogCard({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="coach-nutrition-notes">Notes (optional)</Label>
+            <Label htmlFor="coach-nutrition-client-notes">
+              Client notes (optional)
+            </Label>
             <Textarea
-              id="coach-nutrition-notes"
+              id="coach-nutrition-client-notes"
               rows={2}
-              placeholder="Context for this log entry"
+              placeholder="What the client reported about this day"
               value={values.clientNotes ?? ''}
               onChange={(event) =>
                 setValues((current) => ({
                   ...current,
                   clientNotes: event.target.value || null,
+                }))
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="coach-nutrition-coach-notes">
+              Coach notes (optional)
+            </Label>
+            <Textarea
+              id="coach-nutrition-coach-notes"
+              rows={2}
+              placeholder="Your notes for this day"
+              value={values.coachNotes ?? ''}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  coachNotes: event.target.value || null,
                 }))
               }
             />

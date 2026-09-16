@@ -3815,6 +3815,7 @@ export type Database = {
           log_date: string
           adherence_score: number
           client_notes: string | null
+          coach_notes: string | null
           fiber_g: number | null
           water_ml: number | null
           created_at: string
@@ -3827,6 +3828,7 @@ export type Database = {
           log_date: string
           adherence_score: number
           client_notes?: string | null
+          coach_notes?: string | null
           fiber_g?: number | null
           water_ml?: number | null
           created_at?: string
@@ -3839,6 +3841,7 @@ export type Database = {
           log_date?: string
           adherence_score?: number
           client_notes?: string | null
+          coach_notes?: string | null
           fiber_g?: number | null
           water_ml?: number | null
           created_at?: string

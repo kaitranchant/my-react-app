@@ -38,6 +38,7 @@ export function createEmptyNutritionLogValues(
     logDate,
     adherenceScore: 3,
     clientNotes: null,
+    coachNotes: null,
     fiberG: null,
     waterMl: null,
   }
@@ -46,7 +47,8 @@ export function createEmptyNutritionLogValues(
 export function nutritionLogValuesToRow(
   values: NutritionLogFormValues,
   clientId: string,
-  coachId: string
+  coachId: string,
+  options?: { includeCoachNotes?: boolean }
 ): ClientNutritionLogInsert {
   return {
     client_id: clientId,
@@ -54,6 +56,9 @@ export function nutritionLogValuesToRow(
     log_date: values.logDate,
     adherence_score: values.adherenceScore,
     client_notes: values.clientNotes,
+    ...(options?.includeCoachNotes
+      ? { coach_notes: values.coachNotes }
+      : {}),
     fiber_g: values.fiberG,
     water_ml: values.waterMl,
   }
@@ -66,6 +71,7 @@ export function nutritionLogToFormValues(
     logDate: log.log_date,
     adherenceScore: log.adherence_score,
     clientNotes: log.client_notes,
+    coachNotes: log.coach_notes,
     fiberG: log.fiber_g,
     waterMl: log.water_ml,
   }

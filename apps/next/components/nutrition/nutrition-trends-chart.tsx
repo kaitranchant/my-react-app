@@ -46,6 +46,12 @@ export function NutritionTrendsChart({
             {point.clientNotes ? (
               <p className="text-muted-foreground text-sm">{point.clientNotes}</p>
             ) : null}
+            {point.coachNotes ? (
+              <p className="text-muted-foreground text-sm">
+                <span className="text-foreground/80 font-medium">Coach: </span>
+                {point.coachNotes}
+              </p>
+            ) : null}
             <div className="bg-muted h-2.5 overflow-hidden rounded-full">
               <div
                 className={cn('h-full rounded-full transition-all', point.colorClass)}

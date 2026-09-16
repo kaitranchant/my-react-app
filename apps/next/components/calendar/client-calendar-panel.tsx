@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Copy,
   Eye,
+  FilePlus,
   LibraryBig,
   Loader2,
   Pencil,
@@ -915,6 +916,46 @@ export function ClientCalendarPanel({
     toast.error(result.error)
   }
 
+  async function handleStartBlankWorkout(forDate?: string) {
+    const scheduleDate = coerceDateKey(forDate) ?? selectedDate
+    if (!scheduleDate) {
+      toast.error('Pick a valid date.')
+      return
+    }
+
+    const parsed = scheduledWorkoutFormSchema.safeParse({
+      name: defaultWorkoutName,
+      notes: '',
+    })
+    if (!parsed.success) {
+      toast.error('Enter a workout name.')
+      return
+    }
+
+    setPending(true)
+    const result = isTeamCalendar
+      ? await teamCalendarActions.createScheduledWorkout(
+          clientId,
+          scheduleDate,
+          parsed.data,
+          null
+        )
+      : await createScheduledWorkout(clientId, scheduleDate, parsed.data, null)
+    setPending(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success(
+      isTeamCalendar
+        ? 'Blank workout added for the team and all members.'
+        : 'Blank workout started.'
+    )
+    await finalizeScheduledWorkout(scheduleDate)
+  }
+
   function openLibraryDialog(forDate?: string) {
     const dateKey = coerceDateKey(forDate) ?? selectedDate
     setLibraryDate(dateKey)
@@ -1188,6 +1229,16 @@ export function ClientCalendarPanel({
               <Button type="button" size="sm" onClick={() => openCreateDialog()}>
                 <Plus className="size-4" />
                 Schedule workout
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => void handleStartBlankWorkout()}
+              >
+                <FilePlus className="size-4" />
+                Start blank workout
               </Button>
               <Button
                 type="button"

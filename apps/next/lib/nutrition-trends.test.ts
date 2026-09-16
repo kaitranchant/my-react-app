@@ -16,6 +16,7 @@ const logs: ClientNutritionLog[] = [
     log_date: '2026-06-01',
     adherence_score: 4,
     client_notes: 'chips at night',
+    coach_notes: 'Keep protein steady',
     fiber_g: null,
     water_ml: null,
     created_at: '2026-06-01T00:00:00Z',
@@ -28,6 +29,7 @@ const logs: ClientNutritionLog[] = [
     log_date: '2026-06-02',
     adherence_score: 2,
     client_notes: null,
+    coach_notes: null,
     fiber_g: null,
     water_ml: null,
     created_at: '2026-06-02T00:00:00Z',
@@ -42,9 +44,11 @@ test('buildNutritionTrendPoints sorts newest first and limits points', () => {
   assert.equal(points[0]?.adherenceScore, 2)
   assert.equal(points[0]?.colorClass, 'bg-red-500')
   assert.equal(points[0]?.clientNotes, null)
+  assert.equal(points[0]?.coachNotes, null)
   assert.equal(points[1]?.dateKey, '2026-06-01')
   assert.equal(points[1]?.colorClass, 'bg-emerald-500')
   assert.equal(points[1]?.clientNotes, 'chips at night')
+  assert.equal(points[1]?.coachNotes, 'Keep protein steady')
 })
 
 test('averageAdherenceScore averages adherence values', () => {
