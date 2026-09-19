@@ -40,8 +40,10 @@ import {
 } from '@/lib/session-workout-coverage'
 import {
   applyGoogleCalendarLinkToAppointment,
-  queueCoachingAppointmentGoogleRemoval,
+  purgeOrphanExportedGoogleEventsForClient,
   queueCoachingAppointmentGoogleSync,
+  removeCoachingAppointmentFromGoogle,
+  removeCoachingAppointmentsFromGoogle,
   syncCoachingAppointmentToGoogle,
 } from '@/lib/google-calendar/sync'
 import { createClient } from '@/lib/supabase/server'
@@ -876,24 +878,43 @@ async function deleteScheduledSeriesAppointments(
     schedule
   )
 
-  for (const scheduledAppointment of toDelete) {
-    queueCoachingAppointmentGoogleRemoval({
+  await removeCoachingAppointmentsFromGoogle({
+    coachId,
+    googleCalendarEventIds: toDelete.map(
+      (appointment) => appointment.google_calendar_event_id
+    ),
+  })
+
+  if (toDelete.length > 0) {
+    const result = await supabase
+      .from('coaching_appointments')
+      .delete()
+      .in(
+        'id',
+        toDelete.map((appointment) => appointment.id)
+      )
+
+    if (result.error) {
+      return result
+    }
+  }
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select('full_name')
+    .eq('id', series.client_id)
+    .maybeSingle()
+
+  if (client?.full_name) {
+    await purgeOrphanExportedGoogleEventsForClient({
       coachId,
-      googleCalendarEventId: scheduledAppointment.google_calendar_event_id,
+      clientId: series.client_id,
+      clientName: client.full_name,
+      timeMin: fromStartsAtIso,
     })
   }
 
-  if (toDelete.length === 0) {
-    return { error: null }
-  }
-
-  return supabase
-    .from('coaching_appointments')
-    .delete()
-    .in(
-      'id',
-      toDelete.map((appointment) => appointment.id)
-    )
+  return { error: null }
 }
 
 async function cancelScheduledSeriesAppointments(
@@ -914,29 +935,48 @@ async function cancelScheduledSeriesAppointments(
     schedule
   )
 
-  for (const scheduledAppointment of toCancel) {
-    queueCoachingAppointmentGoogleRemoval({
+  await removeCoachingAppointmentsFromGoogle({
+    coachId,
+    googleCalendarEventIds: toCancel.map(
+      (appointment) => appointment.google_calendar_event_id
+    ),
+  })
+
+  if (toCancel.length > 0) {
+    const nowIso = new Date().toISOString()
+    const result = await supabase
+      .from('coaching_appointments')
+      .update({
+        status: 'cancelled',
+        cancelled_at: nowIso,
+        cancellation_reason: cancellationReason,
+      })
+      .in(
+        'id',
+        toCancel.map((appointment) => appointment.id)
+      )
+
+    if (result.error) {
+      return result
+    }
+  }
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select('full_name')
+    .eq('id', series.client_id)
+    .maybeSingle()
+
+  if (client?.full_name) {
+    await purgeOrphanExportedGoogleEventsForClient({
       coachId,
-      googleCalendarEventId: scheduledAppointment.google_calendar_event_id,
+      clientId: series.client_id,
+      clientName: client.full_name,
+      timeMin: fromStartsAtIso,
     })
   }
 
-  if (toCancel.length === 0) {
-    return { error: null }
-  }
-
-  const nowIso = new Date().toISOString()
-  return supabase
-    .from('coaching_appointments')
-    .update({
-      status: 'cancelled',
-      cancelled_at: nowIso,
-      cancellation_reason: cancellationReason,
-    })
-    .in(
-      'id',
-      toCancel.map((appointment) => appointment.id)
-    )
+  return { error: null }
 }
 
 type UpdateSeriesAppointmentTemplate = {
@@ -1749,7 +1789,7 @@ export async function cancelCoachingAppointment(
     }
   }
 
-  queueCoachingAppointmentGoogleRemoval({
+  await removeCoachingAppointmentFromGoogle({
     coachId: appointment.coach_id,
     googleCalendarEventId: appointment.google_calendar_event_id,
   })
@@ -1867,7 +1907,7 @@ export async function deleteCoachingAppointment(
     }
   }
 
-  queueCoachingAppointmentGoogleRemoval({
+  await removeCoachingAppointmentFromGoogle({
     coachId: appointment.coach_id,
     googleCalendarEventId: appointment.google_calendar_event_id,
   })
@@ -2060,7 +2100,7 @@ export async function rescheduleCoachingAppointment(
     return { success: false, error: updateError.message }
   }
 
-  queueCoachingAppointmentGoogleRemoval({
+  await removeCoachingAppointmentFromGoogle({
     coachId: appointment.coach_id,
     googleCalendarEventId: appointment.google_calendar_event_id,
   })

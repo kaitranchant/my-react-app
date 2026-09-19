@@ -5,12 +5,16 @@ import {
   deleteGoogleCalendarEvent,
   fetchGoogleCalendarBusyIntervals,
   getGoogleCalendarEvent,
+  getGoogleCalendarEventTimes,
+  listGoogleCalendarEventsInRange,
   updateGoogleCalendarEvent,
 } from '@/lib/google-calendar/api'
+import { isExportedCoachingCalendarSummary } from '@/lib/google-calendar/coaching-event-summary'
 import {
   fetchCoachGoogleCalendarConnection,
   type CoachGoogleCalendarConnection,
 } from '@/lib/google-calendar/connection'
+import { intervalsOverlap } from '@/lib/google-calendar/event-linking'
 import { getValidGoogleCalendarAccessToken } from '@/lib/google-calendar/token-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatCoachingSessionType } from '@/lib/coaching-session-types'
@@ -95,6 +99,14 @@ async function getExportConnection(
   const connection = await fetchCoachGoogleCalendarConnection(admin, coachId)
   if (!connection?.sync_export_enabled) return null
   return connection
+}
+
+async function getConnectedCalendar(
+  coachId: string
+): Promise<CoachGoogleCalendarConnection | null> {
+  const admin = createAdminClient()
+  if (!admin) return null
+  return fetchCoachGoogleCalendarConnection(admin, coachId)
 }
 
 async function persistGoogleEventMetadata(
@@ -262,7 +274,9 @@ export async function removeCoachingAppointmentFromGoogle(input: {
   if (!input.googleCalendarEventId) return
 
   try {
-    const connection = await getExportConnection(input.coachId)
+    // Deleting must work even if export sync was later turned off; otherwise
+    // stopped series leave orphan "Google Calendar busy" blocks on the schedule.
+    const connection = await getConnectedCalendar(input.coachId)
     if (!connection) return
 
     const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
@@ -273,6 +287,123 @@ export async function removeCoachingAppointmentFromGoogle(input: {
     )
   } catch (error) {
     console.error('[google-calendar] delete appointment event failed', error)
+  }
+}
+
+export async function removeCoachingAppointmentsFromGoogle(input: {
+  coachId: string
+  googleCalendarEventIds: Array<string | null | undefined>
+}): Promise<void> {
+  const uniqueIds = Array.from(
+    new Set(
+      input.googleCalendarEventIds.filter(
+        (eventId): eventId is string => Boolean(eventId)
+      )
+    )
+  )
+
+  if (uniqueIds.length === 0) return
+
+  await Promise.all(
+    uniqueIds.map((googleCalendarEventId) =>
+      removeCoachingAppointmentFromGoogle({
+        coachId: input.coachId,
+        googleCalendarEventId,
+      })
+    )
+  )
+}
+
+/**
+ * Delete exported coaching Google events for a client that no longer have a
+ * matching scheduled appointment. Safe when the client still has other series.
+ */
+export async function purgeOrphanExportedGoogleEventsForClient(input: {
+  coachId: string
+  clientId: string
+  clientName: string
+  timeMin?: string
+  timeMax?: string
+}): Promise<number> {
+  const admin = createAdminClient()
+  if (!admin) return 0
+
+  const clientName = input.clientName.trim().toLowerCase()
+  if (!clientName) return 0
+
+  const connection = await getConnectedCalendar(input.coachId)
+  if (!connection) return 0
+
+  const timeMin = input.timeMin ?? new Date().toISOString()
+  const timeMax =
+    input.timeMax ??
+    new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString()
+
+  try {
+    const accessToken = await getValidGoogleCalendarAccessToken(connection.id)
+    const [events, appointmentsResult] = await Promise.all([
+      listGoogleCalendarEventsInRange(
+        accessToken,
+        connection.calendar_id,
+        timeMin,
+        timeMax
+      ),
+      admin
+        .from('coaching_appointments')
+        .select('starts_at, ends_at, google_calendar_event_id')
+        .eq('coach_id', input.coachId)
+        .eq('client_id', input.clientId)
+        .eq('status', 'scheduled')
+        .lt('starts_at', timeMax)
+        .gt('ends_at', timeMin),
+    ])
+
+    if (appointmentsResult.error) {
+      throw new Error(appointmentsResult.error.message)
+    }
+
+    const remaining = appointmentsResult.data ?? []
+    const linkedIds = new Set(
+      remaining
+        .map((row) => row.google_calendar_event_id)
+        .filter((id): id is string => Boolean(id))
+    )
+
+    let removed = 0
+    for (const event of events) {
+      if (!event.id || event.status === 'cancelled') continue
+      if (!isExportedCoachingCalendarSummary(event.summary)) continue
+      if (!event.summary?.toLowerCase().includes(clientName)) continue
+      if (linkedIds.has(event.id)) continue
+
+      const times = getGoogleCalendarEventTimes(event)
+      if (!times) continue
+
+      const stillBooked = remaining.some((appointment) =>
+        intervalsOverlap(
+          times.startsAt,
+          times.endsAt,
+          appointment.starts_at,
+          appointment.ends_at
+        )
+      )
+      if (stillBooked) continue
+
+      await deleteGoogleCalendarEvent(
+        accessToken,
+        connection.calendar_id,
+        event.id
+      )
+      removed += 1
+    }
+
+    return removed
+  } catch (error) {
+    console.error(
+      '[google-calendar] purge orphan client events failed',
+      error
+    )
+    return 0
   }
 }
 
