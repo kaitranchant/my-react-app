@@ -340,13 +340,20 @@ async function bookIndefiniteSeriesSnapshot(snapshot: SeriesSnapshot) {
   }
 
   const seriesId = await createSeries(admin, snapshot)
+  const coachPreferences = await getCoachPreferencesAdmin(snapshot.coachId)
+  const schedule = { timezone: coachPreferences.timezone }
   const weekIndexes = countWeekIndexesThroughHorizon(
     snapshot.anchorStartsAt,
-    horizonEnd
+    horizonEnd,
+    schedule
   )
 
   for (const weekIndex of weekIndexes) {
-    const startsAtIso = offsetStartsAtByWeeks(snapshot.anchorStartsAt, weekIndex)
+    const startsAtIso = offsetStartsAtByWeeks(
+      snapshot.anchorStartsAt,
+      weekIndex,
+      schedule
+    )
     const endsAt = new Date(
       new Date(startsAtIso).getTime() + snapshot.durationMinutes * 60_000
     ).toISOString()

@@ -547,17 +547,24 @@ async function bookWeeklyAppointmentOccurrences(options: {
     options.coachSeriesContext?.supabase ?? (await createClient())
   let bookedCount = 0
   let cachedAppointments: CoachingAppointment[] | null = null
+  const coachPreferences = await getCoachPreferencesForUser(options.template.coachId)
+  const schedule: SeriesScheduleContext = {
+    timezone: coachPreferences.timezone,
+    clientTimeZone: options.template.clientTimeZone,
+  }
 
   if (options.coachSeriesContext && options.weekIndexes.length > 0) {
     const firstWeekIndex = Math.min(...options.weekIndexes)
     const lastWeekIndex = Math.max(...options.weekIndexes)
     const firstStartsAt = offsetStartsAtByWeeks(
       options.anchorStartsAtIso,
-      firstWeekIndex
+      firstWeekIndex,
+      schedule
     )
     const lastStartsAt = offsetStartsAtByWeeks(
       options.anchorStartsAtIso,
-      lastWeekIndex
+      lastWeekIndex,
+      schedule
     )
     const durationMs = options.coachSeriesContext.durationMinutes * 60_000
     const timeMin = new Date(
@@ -577,7 +584,8 @@ async function bookWeeklyAppointmentOccurrences(options: {
   for (const weekIndex of options.weekIndexes) {
     const startsAtIso = offsetStartsAtByWeeks(
       options.anchorStartsAtIso,
-      weekIndex
+      weekIndex,
+      schedule
     )
 
     if (
@@ -791,7 +799,8 @@ async function listScheduledSeriesOccurrencesFromWeek(
   )
   const fromSlotStartsAt = offsetStartsAtByWeeks(
     series.anchor_starts_at,
-    fromWeekIndex
+    fromWeekIndex,
+    schedule
   )
 
   const { data: withSeriesId } = await supabase
@@ -1044,7 +1053,11 @@ async function updateScheduledSeriesAppointmentsFromWeek(
   )
 
   let targetSeriesId = seriesScope.id
-  let newAnchor = subtractStartsAtByWeeks(template.startsAt, fromWeekIndex)
+  let newAnchor = subtractStartsAtByWeeks(
+    template.startsAt,
+    fromWeekIndex,
+    schedule
+  )
 
   if (fromWeekIndex > 0) {
     const { error: capSeriesError } = await supabase
@@ -1110,10 +1123,11 @@ async function updateScheduledSeriesAppointmentsFromWeek(
     const occurrence = sortedOccurrences[index]!
     const newStartsAt =
       fromWeekIndex > 0
-        ? offsetStartsAtByWeeks(template.startsAt, index)
+        ? offsetStartsAtByWeeks(template.startsAt, index, schedule)
         : offsetStartsAtByWeeks(
             newAnchor,
-            getWeekIndexFromAnchor(oldAnchor, occurrence.starts_at, schedule)
+            getWeekIndexFromAnchor(oldAnchor, occurrence.starts_at, schedule),
+            schedule
           )
 
     const validation = await validateBookableSlot({
@@ -1188,7 +1202,8 @@ function shouldDetachSingleOccurrenceFromSeries(options: {
   )
   const canonicalStartsAt = offsetStartsAtByWeeks(
     options.series.anchor_starts_at,
-    weekIndex
+    weekIndex,
+    options.schedule
   )
 
   return options.newStartsAt !== canonicalStartsAt
@@ -1551,8 +1566,17 @@ async function bookCoachAppointmentOccurrences(options: {
     | Awaited<ReturnType<typeof validateBookableSlot>>
     | null = null
 
+  const finiteSchedule: SeriesScheduleContext = {
+    timezone: (await getCoachPreferencesForUser(options.coachId)).timezone,
+    clientTimeZone: parsed.clientTimeZone,
+  }
+
   for (let weekIndex = 0; weekIndex < totalWeeks; weekIndex++) {
-    const startsAtIso = offsetStartsAtByWeeks(anchorStartsAt, weekIndex)
+    const startsAtIso = offsetStartsAtByWeeks(
+      anchorStartsAt,
+      weekIndex,
+      finiteSchedule
+    )
 
     const validation = await validateBookableSlot({
       coachId: options.coachId,

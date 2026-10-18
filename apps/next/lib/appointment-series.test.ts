@@ -28,6 +28,20 @@ test('offsetStartsAtByWeeks advances in seven-day steps', () => {
   )
 })
 
+test('offsetStartsAtByWeeks keeps the local clock time across daylight saving', () => {
+  const anchor = '2026-10-26T23:30:00.000Z'
+  const eastern = { timezone: 'america_new_york' as const }
+
+  assert.equal(
+    offsetStartsAtByWeeks(anchor, 1, eastern),
+    '2026-11-03T00:30:00.000Z'
+  )
+  assert.equal(
+    offsetStartsAtByWeeks(anchor, 0, eastern),
+    anchor
+  )
+})
+
 test('offsetStartsAtByWeeks keeps weekly cadence from anchor instant', () => {
   const anchor = '2026-03-08T22:30:00.000Z'
 

@@ -73,7 +73,8 @@ export async function extendCoachRecurringSeriesHorizon(
 
     const weekIndexes = countWeekIndexesThroughHorizon(
       series.anchor_starts_at,
-      horizonEnd
+      horizonEnd,
+      schedule
     ).filter((weekIndex) => weekIndex > lastWeekIndex)
 
     if (weekIndexes.length === 0) continue
@@ -82,11 +83,13 @@ export async function extendCoachRecurringSeriesHorizon(
     const lastWeekIndexToBook = Math.max(...weekIndexes)
     const firstStartsAt = offsetStartsAtByWeeks(
       series.anchor_starts_at,
-      firstWeekIndex
+      firstWeekIndex,
+      schedule
     )
     const lastStartsAt = offsetStartsAtByWeeks(
       series.anchor_starts_at,
-      lastWeekIndexToBook
+      lastWeekIndexToBook,
+      schedule
     )
     const durationMs = series.duration_minutes * 60_000
     const timeMin = new Date(
@@ -106,7 +109,8 @@ export async function extendCoachRecurringSeriesHorizon(
     for (const weekIndex of weekIndexes) {
       const startsAtIso = offsetStartsAtByWeeks(
         series.anchor_starts_at,
-        weekIndex
+        weekIndex,
+        schedule
       )
 
       const { data: existing } = await supabase

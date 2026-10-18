@@ -1,5 +1,8 @@
 import { parseDateKey } from '@/lib/calendar'
-import type { CoachPreferences } from '@/lib/coach-preferences'
+import {
+  resolveSchedulingIana,
+  type CoachPreferences,
+} from '@/lib/coach-preferences'
 import { getDateKeyFromInstant } from '@/lib/session-booking-slots'
 
 export type SeriesScheduleContext = {
@@ -22,20 +25,123 @@ export function getSeriesHorizonEnd(from: Date, horizonDays: number) {
   return end
 }
 
-export function offsetStartsAtByWeeks(anchorStartsAtIso: string, weekIndex: number) {
-  if (weekIndex === 0) return anchorStartsAtIso
-
-  const startsAt = new Date(anchorStartsAtIso)
-  startsAt.setUTCDate(startsAt.getUTCDate() + weekIndex * 7)
-  return startsAt.toISOString()
+function schedulingIana(schedule?: SeriesScheduleContext) {
+  if (!schedule) return null
+  const timezone = schedule.timezone
+  if (typeof timezone === 'string' && timezone.includes('/')) {
+    return timezone
+  }
+  return resolveSchedulingIana(
+    timezone as CoachPreferences['timezone'],
+    schedule.clientTimeZone
+  )
 }
 
-export function subtractStartsAtByWeeks(startsAtIso: string, weekIndex: number) {
+function zonedParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date)
+
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? '0')
+
+  let hour = read('hour')
+  if (hour === 24) hour = 0
+
+  return {
+    year: read('year'),
+    month: read('month'),
+    day: read('day'),
+    hour,
+    minute: read('minute'),
+    second: read('second'),
+  }
+}
+
+function zonedOffsetMs(date: Date, timeZone: string) {
+  const parts = zonedParts(date, timeZone)
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  )
+  return asUtc - date.getTime()
+}
+
+function zonedDateTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond: number,
+  timeZone: string
+) {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second, millisecond)
+  const offset = zonedOffsetMs(new Date(utcGuess), timeZone)
+  let utc = utcGuess - offset
+  const corrected = zonedOffsetMs(new Date(utc), timeZone)
+  if (corrected !== offset) {
+    utc = utcGuess - corrected
+  }
+  return new Date(utc)
+}
+
+function shiftInstantByWeeks(
+  startsAtIso: string,
+  weekIndex: number,
+  schedule?: SeriesScheduleContext
+) {
   if (weekIndex === 0) return startsAtIso
 
+  const timeZone = schedulingIana(schedule)
   const startsAt = new Date(startsAtIso)
-  startsAt.setUTCDate(startsAt.getUTCDate() - weekIndex * 7)
-  return startsAt.toISOString()
+  if (!timeZone) {
+    startsAt.setUTCDate(startsAt.getUTCDate() + weekIndex * 7)
+    return startsAt.toISOString()
+  }
+
+  const parts = zonedParts(startsAt, timeZone)
+  const shifted = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day + weekIndex * 7)
+  )
+  return zonedDateTimeToUtc(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth() + 1,
+    shifted.getUTCDate(),
+    parts.hour,
+    parts.minute,
+    parts.second,
+    startsAt.getMilliseconds(),
+    timeZone
+  ).toISOString()
+}
+
+export function offsetStartsAtByWeeks(
+  anchorStartsAtIso: string,
+  weekIndex: number,
+  schedule?: SeriesScheduleContext
+) {
+  return shiftInstantByWeeks(anchorStartsAtIso, weekIndex, schedule)
+}
+
+export function subtractStartsAtByWeeks(
+  startsAtIso: string,
+  weekIndex: number,
+  schedule?: SeriesScheduleContext
+) {
+  return shiftInstantByWeeks(startsAtIso, -weekIndex, schedule)
 }
 
 export function getWeekIndexFromAnchor(
@@ -120,18 +226,26 @@ export function isOrphanSeriesOccurrenceAtOrAfterWeek(
   )
   if (weekIndex < fromWeekIndex) return false
   if (maxWeekIndex != null && weekIndex > maxWeekIndex) return false
-  return startsAtIso === offsetStartsAtByWeeks(anchorStartsAtIso, weekIndex)
+  return (
+    new Date(startsAtIso).getTime() ===
+    new Date(
+      offsetStartsAtByWeeks(anchorStartsAtIso, weekIndex, schedule)
+    ).getTime()
+  )
 }
 
 export function countWeekIndexesThroughHorizon(
   anchorStartsAtIso: string,
-  horizonEnd: Date
+  horizonEnd: Date,
+  schedule?: SeriesScheduleContext
 ) {
   const indexes: number[] = []
   let weekIndex = 0
 
   while (true) {
-    const startsAt = new Date(offsetStartsAtByWeeks(anchorStartsAtIso, weekIndex))
+    const startsAt = new Date(
+      offsetStartsAtByWeeks(anchorStartsAtIso, weekIndex, schedule)
+    )
     if (startsAt > horizonEnd) break
     indexes.push(weekIndex)
     weekIndex += 1
