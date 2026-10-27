@@ -1,5 +1,5 @@
 /**
- * Create "Liz McIntosh Fat Loss 4-Day October 2026" from the Oct 13
+ * Create "Liz McIntosh Fat Loss 5-Day October 2026" from the Oct 13
  * preference update and copy the named meals into the meal library.
  *
  * Run: node scripts/import-liz-meal-plan-oct-2026.mjs
@@ -15,10 +15,10 @@ import loadEnvLocal from './load-env-local.mjs'
 loadEnvLocal()
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const MEAL_PLAN_NAME = 'Liz McIntosh Fat Loss 4-Day October 2026'
+const MEAL_PLAN_NAME = 'Liz McIntosh Fat Loss 5-Day October 2026'
 const CLIENT_NAME = 'Liz McIntosh'
 const MEAL_PLAN_DESCRIPTION =
-  '4-day fat loss meal plan updated Oct 13 (~1,850 kcal · ~140g P · ~62g F · ~184g C · under 30g fiber). IBS-friendly, Aldi-friendly. Includes her vanilla PB2 smoothie, taco bowl, chili, Asian steak and rice bowl, apple + almond butter, and apple oatmeal cake. No kale, venison, raw tomato, or green beans.'
+  '5-day fat loss meal plan. Days 1–4 updated Oct 13 (~1,850 kcal · ~140g P · ~62g F · ~184g C · under 30g fiber). Day 5 is lunch only: Asian ground turkey and vegetable bowls. IBS-friendly, Aldi-friendly. Includes her vanilla PB2 smoothie, taco bowl, chili, Asian steak and rice bowl, apple + almond butter, and apple oatmeal cake. No kale, venison, or raw tomato.'
 
 const NUTRITION_TARGETS = {
   calories_kcal: 1850,
@@ -378,6 +378,42 @@ const mealPlanDays = [
       },
     ],
   },
+  {
+    label: 'Day 5',
+    notes: 'Lunch only — Asian Ground Turkey & Vegetable Bowls. One serving of the 6-serving batch, with 1/2 cup cooked brown rice.',
+    meals: [
+      {
+        meal_type: 'lunch',
+        name: 'Asian Ground Turkey & Vegetable Bowls',
+        sort_order: 0,
+        description:
+          'Cook the rice. Brown the turkey with onion in the oil for 7–9 minutes, adding garlic and ginger for the last minute, to 165°F. Stir in carrots, broccoli, and green beans for 4–5 minutes, then zucchini for 3 minutes so they stay slightly firm. Whisk the sauce ingredients with 1/4 cup water, pour in, and simmer 2–3 minutes. Portion with 1/2 cup rice. Freeze up to 3 months.',
+        foods: [
+          usdaFood('172851', 113), // 93% lean ground turkey, pan-broiled, from 2 lb raw / 6
+          usdaFood('170379', 46), // broccoli, raw, from 3 cups chopped / 6
+          usdaFood('170393', 20), // carrots, raw, from 2 medium / 6
+          usdaFood('169291', 33), // zucchini, raw, from 1 medium / 6
+          usdaFood('169961', 33), // green beans, raw, from 2 cups chopped / 6
+          usdaFood('170000', 18), // onion, raw, from 1 medium / 6
+          usdaFood('169230', 2), // garlic, from 4 cloves / 6
+          usdaFood('169231', 1), // fresh ginger, from 1 tbsp / 6
+          usdaFood('171413', 2.3), // olive oil, from 1 tbsp / 6
+          usdaFood('169704', 98), // cooked brown rice, 1/2 cup
+          usdaFood('172473', 14), // low-sodium soy sauce, from 1/3 cup / 6
+          usdaFood('169640', 3.5), // honey, from 1 tbsp / 6
+          customFood('Rice vinegar', 5, {
+            caloriesKcal: 1,
+            proteinG: 0,
+            carbsG: 0.2,
+            fatG: 0,
+          }),
+          usdaFood('171016', 1.5), // toasted sesame oil, from 2 tsp / 6
+          usdaFood('171186', 1.3), // sriracha, from 1.5 tsp / 6
+          usdaFood('169698', 1), // cornstarch, from 2 tsp / 6
+        ],
+      },
+    ],
+  },
 ]
 
 const supabase = createClient(url, serviceKey, {
@@ -400,12 +436,19 @@ console.log('Client', client.full_name, client.id)
 console.log('Coach', coachId)
 
 let mealPlanId
-const { data: existingPlan } = await supabase
+const { data: existingPlans, error: existingPlanError } = await supabase
   .from('meal_plans')
-  .select('id')
+  .select('id, name')
   .eq('coach_id', coachId)
-  .eq('name', MEAL_PLAN_NAME)
-  .maybeSingle()
+  .in('name', [MEAL_PLAN_NAME, 'Liz McIntosh Fat Loss 4-Day October 2026'])
+  .is('client_id', null)
+
+if (existingPlanError) throw existingPlanError
+
+const existingPlan =
+  existingPlans?.find((plan) => plan.name === MEAL_PLAN_NAME) ??
+  existingPlans?.[0] ??
+  null
 
 if (existingPlan) {
   mealPlanId = existingPlan.id
@@ -414,6 +457,7 @@ if (existingPlan) {
     .from('meal_plans')
     .update({
       status: 'active',
+      name: MEAL_PLAN_NAME,
       description: MEAL_PLAN_DESCRIPTION,
       client_id: null,
     })
@@ -482,6 +526,7 @@ for (const [dayIndex, day] of mealPlanDays.entries()) {
         meal_plan_day_id: insertedDay.id,
         meal_type: meal.meal_type,
         name: meal.name,
+        description: meal.description ?? null,
         sort_order: meal.sort_order,
         calories_kcal: totals.calories_kcal,
         protein_g: totals.protein_g,
@@ -515,7 +560,7 @@ for (const [dayIndex, day] of mealPlanDays.entries()) {
     insertedPlanMeals.push({
       name: meal.name,
       meal_type: meal.meal_type,
-      description: null,
+      description: meal.description ?? null,
       calories_kcal: totals.calories_kcal,
       protein_g: totals.protein_g,
       carbs_g: totals.carbs_g,
