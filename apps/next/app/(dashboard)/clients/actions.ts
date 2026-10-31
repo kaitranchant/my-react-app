@@ -856,15 +856,17 @@ export async function setClientAccountPassword(
       createdAccount = true
     }
 
-    const { error: linkError } = await admin
+    const { error: linkError } = await access.supabase
       .from('clients')
       .update({
         user_id: userId,
         invite_status: 'accepted',
         invite_token: null,
         invite_expires_at: null,
+        invite_accepted_at: new Date().toISOString(),
       })
       .eq('id', client.id)
+      .eq('coach_id', client.coach_id)
 
     if (linkError) {
       return {
